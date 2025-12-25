@@ -46,17 +46,37 @@ function getAPICredentials() {
 // Cache for access token
 let accessTokenCache: { token: string; expiresAt: number } | null = null;
 
-async function prokeralaRequest(endpoint: string, params: Record<string, any>, retries: number = 2): Promise<any> {
+async function prokeralaRequest(endpoint: string, params: Record<string, any>, retries: number = 2, method: "GET" | "POST" = "POST"): Promise<any> {
   const credentials = getAPICredentials();
   if (!credentials) {
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
   }
 
-  const url = `${PROKERALA_API_URL}${endpoint}`;
+  // Build URL with query params for GET requests
+  let url = `${PROKERALA_API_URL}${endpoint}`;
+  if (method === "GET" && params) {
+    const queryParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null) {
+        // Handle nested objects (like datetime)
+        if (typeof value === "object" && !Array.isArray(value)) {
+          for (const [nestedKey, nestedValue] of Object.entries(value)) {
+            queryParams.append(`${key}[${nestedKey}]`, String(nestedValue));
+          }
+        } else {
+          queryParams.append(key, String(value));
+        }
+      }
+    }
+    url += `?${queryParams.toString()}`;
+  }
   
-  let headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  let headers: Record<string, string> = {};
+  
+  // Only set Content-Type for POST requests
+  if (method === "POST") {
+    headers["Content-Type"] = "application/json";
+  }
   
   // Get access token
   let accessToken: string;
@@ -74,10 +94,16 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         
+        // Use Basic Auth for client credentials (OAuth2 standard)
+        const basicAuth = Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString('base64');
+        
         const tokenResponse = await fetch("https://api.prokerala.com/token", {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `grant_type=client_credentials&client_id=${credentials.clientId}&client_secret=${credentials.clientSecret}`,
+          headers: { 
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Basic ${basicAuth}`
+          },
+          body: "grant_type=client_credentials",
           signal: controller.signal,
         });
         
@@ -114,12 +140,18 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
-      const response = await fetch(url, {
-        method: "POST",
+      const fetchOptions: RequestInit = {
+        method,
         headers,
-        body: JSON.stringify(params),
         signal: controller.signal,
-      });
+      };
+      
+      // Only include body for POST requests
+      if (method === "POST") {
+        fetchOptions.body = JSON.stringify(params);
+      }
+      
+      const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
 
@@ -143,7 +175,8 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       if (error.message?.includes('authentication') || 
           error.message?.includes('401') || 
           error.message?.includes('403') ||
-          error.message?.includes('400')) {
+          error.message?.includes('400') ||
+          error.message?.includes('405')) {
         throw error;
       }
       
@@ -382,11 +415,12 @@ export async function getPanchangAPI(date: string, place: string, latitude?: num
       throw new Error("Latitude and longitude are required for Panchang");
     }
 
+    // ProKerala panchang endpoint requires GET method
     const response = await prokeralaRequest("/panchang", {
       datetime: date,
       coordinates: `${latitude},${longitude}`,
       timezone: "Asia/Kolkata",
-    });
+    }, 2, "GET");
 
     // Transform Prokerala response
     return transformPanchangResponse(response, date, place);

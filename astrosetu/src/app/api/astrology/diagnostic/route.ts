@@ -33,10 +33,16 @@ export async function GET(req: Request) {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
           
+          // Use Basic Auth for client credentials (OAuth2 standard)
+          const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+          
           const tokenResponse = await fetch("https://api.prokerala.com/token", {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
+            headers: { 
+              "Content-Type": "application/x-www-form-urlencoded",
+              "Authorization": `Basic ${basicAuth}`
+            },
+            body: "grant_type=client_credentials",
             signal: controller.signal,
           });
           
