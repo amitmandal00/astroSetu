@@ -52,21 +52,23 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
   }
 
-  // CRITICAL: ABSOLUTE ENFORCEMENT - Panchang endpoint MUST use GET, no exceptions
+  // CRITICAL: ABSOLUTE ENFORCEMENT - Panchang and Kundli endpoints MUST use GET, no exceptions
   // This overrides ANY method parameter passed, including defaults
   const isPanchangEndpoint = endpoint === "/panchang" || endpoint.includes("/panchang");
-  const actualMethod: "GET" | "POST" = isPanchangEndpoint ? "GET" : method;
+  const isKundliEndpoint = endpoint === "/kundli" || endpoint.includes("/kundli");
+  const mustUseGet = isPanchangEndpoint || isKundliEndpoint;
+  const actualMethod: "GET" | "POST" = mustUseGet ? "GET" : method;
   
-  if (isPanchangEndpoint && method !== "GET") {
-    console.error("[AstroSetu] CRITICAL: Panchang endpoint received method=" + method + ", ENFORCING GET");
+  if (mustUseGet && method !== "GET") {
+    console.error("[AstroSetu] CRITICAL: " + (isPanchangEndpoint ? "Panchang" : "Kundli") + " endpoint received method=" + method + ", ENFORCING GET");
   }
   
   // Use actualMethod throughout the function, never the original method parameter
-  // actualMethod is guaranteed to be "GET" for panchang endpoints
+  // actualMethod is guaranteed to be "GET" for panchang and kundli endpoints
 
   // Build URL with query params for GET requests
   let url = `${PROKERALA_API_URL}${endpoint}`;
-  console.log("[AstroSetu] prokeralaRequest: endpoint=" + endpoint + ", originalMethod=" + method + ", enforcedMethod=" + actualMethod + ", isPanchang=" + isPanchangEndpoint);
+  console.log("[AstroSetu] prokeralaRequest: endpoint=" + endpoint + ", originalMethod=" + method + ", enforcedMethod=" + actualMethod + ", mustUseGet=" + mustUseGet);
   
   if (actualMethod === "GET" && params) {
     const queryParams = new URLSearchParams();
@@ -190,19 +192,20 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
       // FINAL ENFORCEMENT: Use actualMethod (already enforced at function start)
-      // This is the method that will be used - guaranteed GET for panchang
+      // This is the method that will be used - guaranteed GET for panchang and kundli
       const fetchMethod: "GET" | "POST" = actualMethod;
       
-      // TRIPLE CHECK: Panchang MUST be GET - throw error if not
-      if (isPanchangEndpoint && fetchMethod !== "GET") {
-        const criticalError = `[CRITICAL BUG] Panchang endpoint method enforcement failed! Method is ${fetchMethod} but must be GET. originalMethod=${method}, actualMethod=${actualMethod}, isPanchang=${isPanchangEndpoint}`;
+      // TRIPLE CHECK: Panchang and Kundli MUST be GET - throw error if not
+      if (mustUseGet && fetchMethod !== "GET") {
+        const endpointName = isPanchangEndpoint ? "Panchang" : "Kundli";
+        const criticalError = `[CRITICAL BUG] ${endpointName} endpoint method enforcement failed! Method is ${fetchMethod} but must be GET. originalMethod=${method}, actualMethod=${actualMethod}, mustUseGet=${mustUseGet}`;
         console.error("[AstroSetu]", criticalError);
         throw new Error(criticalError);
       }
       
       // Build fetch options with ABSOLUTE method enforcement
       const fetchOptions: RequestInit = {
-        method: fetchMethod, // This is guaranteed to be GET for panchang
+        method: fetchMethod, // This is guaranteed to be GET for panchang and kundli
         headers: { ...headers }, // Copy headers to avoid mutation
         signal: controller.signal,
       };
@@ -220,7 +223,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       }
       
       // Final verification before fetch
-      if (isPanchangEndpoint) {
+      if (mustUseGet) {
         if (fetchOptions.method !== "GET") {
           throw new Error(`[CRITICAL] Final check failed: fetchOptions.method=${fetchOptions.method} but must be GET`);
         }
@@ -230,7 +233,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       }
       
       const urlPreview = url.length > 100 ? url.substring(0, 100) + "..." : url;
-      console.log("[AstroSetu] FETCH CALL: endpoint=" + endpoint + ", fetchMethod=" + fetchMethod + ", fetchOptionsMethod=" + fetchOptions.method + ", url=" + urlPreview + ", hasBody=" + !!fetchOptions.body + ", isPanchang=" + isPanchangEndpoint);
+      console.log("[AstroSetu] FETCH CALL: endpoint=" + endpoint + ", fetchMethod=" + fetchMethod + ", fetchOptionsMethod=" + fetchOptions.method + ", url=" + urlPreview + ", hasBody=" + !!fetchOptions.body + ", mustUseGet=" + mustUseGet);
       const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
@@ -309,6 +312,7 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
       timezone: input.timezone || "Asia/Kolkata",
     });
 
+    // Kundli endpoint requires GET method (like panchang)
     const response = await prokeralaRequest("/kundli", {
       ayanamsa: input.ayanamsa || 1, // Default to Lahiri (matches AstroSage default)
       coordinates: `${input.latitude},${input.longitude}`,
@@ -321,7 +325,7 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
         second: seconds || 0,
       },
       timezone: input.timezone || "Asia/Kolkata",
-    });
+    }, 2, "GET" as const);
 
     console.log("[AstroSetu] Prokerala API response received:", JSON.stringify(response).substring(0, 500));
 
