@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { AstroImage } from "@/components/ui/AstroImage";
 import { AutocompleteInput } from "@/components/ui/AutocompleteInput";
+import { ASTRO_IMAGES } from "@/lib/astroImages";
 
 function VerdictBadge({ v }: { v: MatchResult["verdict"] }) {
   const tone = v === "Excellent" ? "green" : v === "Good" ? "indigo" : v === "Average" ? "amber" : "red";
@@ -157,12 +158,12 @@ export default function MatchPage() {
               {/* Marriage/Compatibility Image */}
               <div className="relative h-40 rounded-xl overflow-hidden mb-6">
                 <AstroImage
-                  src="https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=300&fit=crop&q=80&auto=format"
-                  alt="Indian marriage ceremony and Kundli matching (Guna Milan) for compatibility"
+                  src={ASTRO_IMAGES.match.marriage}
+                  alt="Indian marriage ceremony and Kundli matching (Guna Milan) - Traditional wedding ceremony with compatibility analysis"
                   width={600}
                   height={300}
                   className="w-full h-full"
-                  fallback="https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=300&fit=crop&q=80&auto=format"
+                  fallback={ASTRO_IMAGES.match.compatibility}
                 />
                 {/* Overlay text */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">

@@ -11,6 +11,7 @@ import { ServiceIcon } from "@/components/ui/ServiceIcon";
 import { AppDownload } from "@/components/mobile/AppDownload";
 import { session } from "@/lib/session";
 import { getPrioritizedModules, type UserGoal } from "@/lib/goalPrioritization";
+import { ASTRO_IMAGES } from "@/lib/astroImages";
 
 export default function Home() {
   // Get user goals and prioritize modules
@@ -94,12 +95,12 @@ export default function Home() {
                 <div className="hidden lg:block relative">
                   <div className="rounded-3xl shadow-2xl relative overflow-hidden min-h-[400px] border-2 border-white/20">
                     <AstroImage
-                      src="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=600&h=600&fit=crop&q=80&auto=format"
-                      alt="Vedic astrology and spiritual guidance - Indian astrology charts and spiritual symbols"
+                      src={ASTRO_IMAGES.hero.vedic}
+                      alt="Vedic astrology and spiritual guidance - Traditional Indian astrology charts, yantras, and spiritual symbols"
                       width={600}
                       height={600}
                       className="w-full h-full"
-                      fallback="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=600&h=600&fit=crop&q=80&auto=format"
+                      fallback={ASTRO_IMAGES.hero.chart}
                     />
                     {/* Overlay text */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-8">

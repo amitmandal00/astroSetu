@@ -11,6 +11,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { AstroImage } from "@/components/ui/AstroImage";
 import { ZodiacIcon } from "@/components/ui/ZodiacIcon";
+import { ASTRO_IMAGES } from "@/lib/astroImages";
 
 const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -172,12 +173,12 @@ export default function HoroscopePage() {
               <div className="hidden md:block">
                 <div className="relative rounded-2xl overflow-hidden h-full min-h-[200px]">
                   <AstroImage
-                    src={`https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=300&fit=crop&q=80&auto=format`}
-                    alt={`${daily.sign} zodiac horoscope - Stars, constellations and astrological symbols`}
+                    src={ASTRO_IMAGES.horoscope.daily}
+                    alt={`${daily.sign} zodiac horoscope - Stars, constellations and astrological symbols for daily predictions`}
                     width={400}
                     height={300}
                     className="w-full h-full"
-                    fallback="https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=300&fit=crop&q=80&auto=format"
+                    fallback={ASTRO_IMAGES.horoscope.weekly}
                   />
                   {/* Overlay with zodiac sign */}
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">

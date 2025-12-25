@@ -14,7 +14,7 @@ type AstroImageProps = {
 };
 
 export function AstroImage({ src, alt, width = 400, height = 300, className = "", fallback }: AstroImageProps) {
-  const [imageSrc, setImageSrc] = useState(src || fallback || `https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=${width}&h=${height}&fit=crop&q=80`);
+  const [imageSrc, setImageSrc] = useState(src || fallback || `https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=${width}&h=${height}&fit=crop&q=80`);
   
   return (
     <div className={clsx("relative overflow-hidden rounded-2xl", className)}>
@@ -29,8 +29,8 @@ export function AstroImage({ src, alt, width = 400, height = 300, className = ""
           // Fallback to placeholder if image fails to load
           if (fallback && imageSrc !== fallback) {
             setImageSrc(fallback);
-          } else if (imageSrc !== `https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=${width}&h=${height}&fit=crop&q=80`) {
-            setImageSrc(`https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=${width}&h=${height}&fit=crop&q=80`);
+          } else if (imageSrc !== `https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=${width}&h=${height}&fit=crop&q=80`) {
+            setImageSrc(`https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=${width}&h=${height}&fit=crop&q=80`);
           }
         }}
       />

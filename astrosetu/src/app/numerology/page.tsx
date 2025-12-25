@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { ServiceIcon } from "@/components/ui/ServiceIcon";
 import { AstroImage } from "@/components/ui/AstroImage";
+import { ASTRO_IMAGES } from "@/lib/astroImages";
 
 export default function NumerologyPage() {
   const [name, setName] = useState("");

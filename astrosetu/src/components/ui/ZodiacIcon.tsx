@@ -1,6 +1,7 @@
 "use client";
 
 import { clsx } from "clsx";
+import { getZodiacImage } from "@/lib/astroImages";
 import Image from "next/image";
 
 type ZodiacIconProps = {
@@ -23,7 +24,7 @@ const zodiacData: Record<string, {
     icon: "♈", 
     color: "from-red-600 to-red-700", 
     gradient: "from-red-100 to-red-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Fire/energy
+    imageUrl: getZodiacImage("Aries"), // Fire/energy/ram constellation
     sanskritName: "मेष",
     deity: "Mars (मंगल)"
   },
@@ -31,7 +32,7 @@ const zodiacData: Record<string, {
     icon: "♉", 
     color: "from-green-600 to-green-700", 
     gradient: "from-green-100 to-green-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Earth/nature
+    imageUrl: getZodiacImage("Taurus"), // Earth/bull constellation
     sanskritName: "वृषभ",
     deity: "Venus (शुक्र)"
   },
@@ -39,7 +40,7 @@ const zodiacData: Record<string, {
     icon: "♊", 
     color: "from-yellow-500 to-yellow-600", 
     gradient: "from-yellow-100 to-yellow-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Communication/duality
+    imageUrl: getZodiacImage("Gemini"), // Air/twins constellation
     sanskritName: "मिथुन",
     deity: "Mercury (बुध)"
   },
@@ -47,7 +48,7 @@ const zodiacData: Record<string, {
     icon: "♋", 
     color: "from-slate-500 to-slate-600", 
     gradient: "from-slate-100 to-slate-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Water/moon
+    imageUrl: getZodiacImage("Cancer"), // Water/crab/moon constellation
     sanskritName: "कर्क",
     deity: "Moon (चंद्र)"
   },
@@ -55,7 +56,7 @@ const zodiacData: Record<string, {
     icon: "♌", 
     color: "from-orange-600 to-orange-700", 
     gradient: "from-orange-100 to-orange-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Sun/royalty
+    imageUrl: getZodiacImage("Leo"), // Fire/lion/sun constellation
     sanskritName: "सिंह",
     deity: "Sun (सूर्य)"
   },
@@ -63,7 +64,7 @@ const zodiacData: Record<string, {
     icon: "♍", 
     color: "from-emerald-600 to-emerald-700", 
     gradient: "from-emerald-100 to-emerald-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Earth/purity
+    imageUrl: getZodiacImage("Virgo"), // Earth/virgin constellation
     sanskritName: "कन्या",
     deity: "Mercury (बुध)"
   },
@@ -71,7 +72,7 @@ const zodiacData: Record<string, {
     icon: "♎", 
     color: "from-pink-600 to-pink-700", 
     gradient: "from-pink-100 to-pink-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Balance/beauty
+    imageUrl: getZodiacImage("Libra"), // Air/balance constellation
     sanskritName: "तुला",
     deity: "Venus (शुक्र)"
   },
@@ -79,7 +80,7 @@ const zodiacData: Record<string, {
     icon: "♏", 
     color: "from-red-700 to-red-800", 
     gradient: "from-red-100 to-red-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Water/intensity
+    imageUrl: getZodiacImage("Scorpio"), // Water/scorpion constellation
     sanskritName: "वृश्चिक",
     deity: "Mars (मंगल)"
   },
@@ -87,7 +88,7 @@ const zodiacData: Record<string, {
     icon: "♐", 
     color: "from-amber-600 to-amber-700", 
     gradient: "from-amber-100 to-amber-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Fire/adventure
+    imageUrl: getZodiacImage("Sagittarius"), // Fire/archer constellation
     sanskritName: "धनु",
     deity: "Jupiter (गुरु)"
   },
@@ -95,7 +96,7 @@ const zodiacData: Record<string, {
     icon: "♑", 
     color: "from-indigo-600 to-indigo-700", 
     gradient: "from-indigo-100 to-indigo-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Earth/ambition
+    imageUrl: getZodiacImage("Capricorn"), // Earth/goat constellation
     sanskritName: "मकर",
     deity: "Saturn (शनि)"
   },
@@ -103,7 +104,7 @@ const zodiacData: Record<string, {
     icon: "♒", 
     color: "from-blue-600 to-blue-700", 
     gradient: "from-blue-100 to-blue-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Air/innovation
+    imageUrl: getZodiacImage("Aquarius"), // Air/water bearer constellation
     sanskritName: "कुम्भ",
     deity: "Saturn (शनि)"
   },
@@ -111,7 +112,7 @@ const zodiacData: Record<string, {
     icon: "♓", 
     color: "from-cyan-600 to-cyan-700", 
     gradient: "from-cyan-100 to-cyan-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80&auto=format", // Water/intuition
+    imageUrl: getZodiacImage("Pisces"), // Water/fish constellation
     sanskritName: "मीन",
     deity: "Jupiter (गुरु)"
   }
@@ -128,7 +129,7 @@ export function ZodiacIcon({ sign, size = "md", className = "" }: ZodiacIconProp
     icon: "✨", 
     color: "from-amber-500 to-amber-600", 
     gradient: "from-amber-100 to-amber-200",
-    imageUrl: "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&h=200&fit=crop&q=80",
+    imageUrl: getZodiacImage("Aries"), // Default fallback
     sanskritName: ""
   };
   

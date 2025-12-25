@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { ServiceIcon } from "@/components/ui/ServiceIcon";
 import { AstroImage } from "@/components/ui/AstroImage";
+import { getRemedyImage } from "@/lib/astroImages";
 
 const PLANETS = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Rahu", "Ketu"];
 
@@ -96,15 +97,8 @@ export default function RemediesPage() {
       {data.length > 0 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {data.map((remedy, i) => {
-            // Indian spiritual remedy images - specific to each type
-            const remedyImages: Record<string, string> = {
-              "Gemstone": "https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=400&h=300&fit=crop&q=80&auto=format", // Gemstones and jewels
-              "Mantra": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop&q=80&auto=format", // Prayer beads and spiritual text
-              "Yantra": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&h=300&fit=crop&q=80&auto=format", // Sacred geometry and yantras
-              "Puja": "https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=400&h=300&fit=crop&q=80&auto=format", // Puja ceremony
-              "Ritual": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop&q=80&auto=format" // Spiritual ritual
-            };
-            const imageUrl = remedyImages[remedy.type] || remedyImages["Gemstone"];
+            // Use centralized remedy images for meaningful and relevant visuals
+            const imageUrl = getRemedyImage(remedy.type);
             
             return (
               <Card key={i} className="hover:shadow-xl transition-all overflow-hidden">
