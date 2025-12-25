@@ -155,23 +155,44 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       // This is the method that will be used - guaranteed GET for panchang
       const fetchMethod: "GET" | "POST" = actualMethod;
       
+      // TRIPLE CHECK: Panchang MUST be GET - throw error if not
       if (isPanchangEndpoint && fetchMethod !== "GET") {
-        throw new Error(`[CRITICAL BUG] Panchang endpoint method enforcement failed! Method is ${fetchMethod} but must be GET. This should never happen.`);
+        const criticalError = `[CRITICAL BUG] Panchang endpoint method enforcement failed! Method is ${fetchMethod} but must be GET. originalMethod=${method}, actualMethod=${actualMethod}, isPanchang=${isPanchangEndpoint}`;
+        console.error("[AstroSetu]", criticalError);
+        throw new Error(criticalError);
       }
       
+      // Build fetch options with ABSOLUTE method enforcement
       const fetchOptions: RequestInit = {
         method: fetchMethod, // This is guaranteed to be GET for panchang
-        headers,
+        headers: { ...headers }, // Copy headers to avoid mutation
         signal: controller.signal,
       };
       
-      // Only include body for POST requests
+      // CRITICAL: Only include body for POST requests - NEVER for GET
+      // This is a safety check to prevent accidentally sending body with GET
       if (fetchMethod === "POST") {
         fetchOptions.body = JSON.stringify(params);
+      } else if (fetchMethod === "GET") {
+        // Explicitly ensure NO body for GET requests
+        if (fetchOptions.body) {
+          console.error("[AstroSetu] CRITICAL: Attempted to send body with GET request! Removing body.");
+          delete fetchOptions.body;
+        }
+      }
+      
+      // Final verification before fetch
+      if (isPanchangEndpoint) {
+        if (fetchOptions.method !== "GET") {
+          throw new Error(`[CRITICAL] Final check failed: fetchOptions.method=${fetchOptions.method} but must be GET`);
+        }
+        if (fetchOptions.body) {
+          throw new Error(`[CRITICAL] Final check failed: fetchOptions has body but method is GET`);
+        }
       }
       
       const urlPreview = url.length > 100 ? url.substring(0, 100) + "..." : url;
-      console.log("[AstroSetu] FETCH CALL: endpoint=" + endpoint + ", fetchMethod=" + fetchMethod + ", url=" + urlPreview + ", hasBody=" + !!fetchOptions.body + ", isPanchang=" + isPanchangEndpoint);
+      console.log("[AstroSetu] FETCH CALL: endpoint=" + endpoint + ", fetchMethod=" + fetchMethod + ", fetchOptionsMethod=" + fetchOptions.method + ", url=" + urlPreview + ", hasBody=" + !!fetchOptions.body + ", isPanchang=" + isPanchangEndpoint);
       const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);

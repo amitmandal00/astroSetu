@@ -150,10 +150,51 @@ export async function GET(req: Request) {
           }
         }
       } catch (error: any) {
+        // This catch handles any errors in the token/panchang test flow
+        const errorMessage = error?.message || 'Unknown error';
+        const isPanchangError = errorMessage.includes('panchang') || errorMessage.includes('Panchang') || errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed');
+        
+        // Extract debug info if it's a panchang error
+        let debugInfo = null;
+        if (errorMessage.includes('[PANCHANG_DEBUG:')) {
+          const debugMatch = errorMessage.match(/\[PANCHANG_DEBUG:([^\]]+)\]/);
+          if (debugMatch) {
+            try {
+              const debugParts = debugMatch[1].split(', ').reduce((acc: any, part: string) => {
+                const [key, value] = part.split('=');
+                if (key && value) acc[key.trim()] = value.trim();
+                return acc;
+              }, {});
+              debugInfo = debugParts;
+            } catch (e) {
+              debugInfo = { raw: debugMatch[1] };
+            }
+          }
+        }
+        
+        console.error("[Diagnostic] Outer catch - error:", errorMessage);
+        console.error("[Diagnostic] Is panchang error:", isPanchangError);
+        console.error("[Diagnostic] Full error:", JSON.stringify(error, null, 2));
+        
         prokeralaTest = {
           status: 'error',
-          error: error?.message || 'Unknown error',
+          error: errorMessage,
           details: error?.toString() || 'Connection test failed',
+          debug: isPanchangError ? {
+            method: 'GET',
+            endpoint: '/panchang',
+            error: errorMessage,
+            isPostError: errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed'),
+            debugInfo: debugInfo,
+            fullError: error?.toString(),
+            errorStack: error?.stack,
+            note: 'Error caught in outer catch block - check if panchang test error bubbled up',
+            timestamp: new Date().toISOString(),
+          } : {
+            error: errorMessage,
+            note: 'Non-panchang error occurred',
+            timestamp: new Date().toISOString(),
+          },
         };
       }
     }
