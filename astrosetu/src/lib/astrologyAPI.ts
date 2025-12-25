@@ -54,6 +54,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
 
   // Build URL with query params for GET requests
   let url = `${PROKERALA_API_URL}${endpoint}`;
+  console.log("[AstroSetu] prokeralaRequest called with method:", method, "endpoint:", endpoint);
   if (method === "GET" && params) {
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
@@ -151,6 +152,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
         fetchOptions.body = JSON.stringify(params);
       }
       
+      console.log("[AstroSetu] Fetching URL:", url, "Method:", method, "Has body:", method === "POST");
       const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
@@ -416,11 +418,18 @@ export async function getPanchangAPI(date: string, place: string, latitude?: num
     }
 
     // ProKerala panchang endpoint requires GET method
+    // Parse date string to object format that ProKerala expects
+    const [year, month, day] = date.split("-").map(Number);
+    console.log("[AstroSetu] Calling panchang with GET method:", { date, year, month, day, latitude, longitude });
     const response = await prokeralaRequest("/panchang", {
-      datetime: date,
+      datetime: {
+        year,
+        month,
+        day,
+      },
       coordinates: `${latitude},${longitude}`,
       timezone: "Asia/Kolkata",
-    }, 2, "GET");
+    }, 2, "GET" as const);
 
     // Transform Prokerala response
     return transformPanchangResponse(response, date, place);
