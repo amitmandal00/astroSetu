@@ -152,7 +152,10 @@ export async function GET(req: Request) {
       } catch (error: any) {
         // This catch handles any errors in the token/panchang test flow
         const errorMessage = error?.message || 'Unknown error';
-        const isPanchangError = errorMessage.includes('panchang') || errorMessage.includes('Panchang') || errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed');
+        // Check if this is a panchang-related error (check for panchang in URL or POST method error)
+        const isPanchangError = errorMessage.toLowerCase().includes('panchang') || 
+                                (errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed') && errorMessage.includes('/panchang'));
+        const isPostError = errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed');
         
         // Extract debug info if it's a panchang error
         let debugInfo = null;
@@ -174,26 +177,32 @@ export async function GET(req: Request) {
         
         console.error("[Diagnostic] Outer catch - error:", errorMessage);
         console.error("[Diagnostic] Is panchang error:", isPanchangError);
+        console.error("[Diagnostic] Is POST error:", isPostError);
         console.error("[Diagnostic] Full error:", JSON.stringify(error, null, 2));
         
+        // ALWAYS include debug object for better troubleshooting
         prokeralaTest = {
           status: 'error',
           error: errorMessage,
           details: error?.toString() || 'Connection test failed',
-          debug: isPanchangError ? {
-            method: 'GET',
-            endpoint: '/panchang',
+          debug: {
+            method: isPanchangError ? 'GET' : 'unknown',
+            endpoint: isPanchangError ? '/panchang' : 'unknown',
             error: errorMessage,
-            isPostError: errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed'),
+            isPanchangError: isPanchangError,
+            isPostError: isPostError,
             debugInfo: debugInfo,
             fullError: error?.toString(),
             errorStack: error?.stack,
-            note: 'Error caught in outer catch block - check if panchang test error bubbled up',
+            note: isPanchangError 
+              ? 'Panchang error caught in outer catch block - check if error bubbled up from inner catch'
+              : isPostError
+              ? 'POST method error detected - may be panchang endpoint issue'
+              : 'Non-panchang error occurred',
             timestamp: new Date().toISOString(),
-          } : {
-            error: errorMessage,
-            note: 'Non-panchang error occurred',
-            timestamp: new Date().toISOString(),
+            errorMessageIncludesPanchang: errorMessage.toLowerCase().includes('panchang'),
+            errorMessageIncludesPost: errorMessage.includes('POST'),
+            errorMessageIncludesMethodNotAllowed: errorMessage.includes('Method Not Allowed'),
           },
         };
       }
