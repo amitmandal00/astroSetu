@@ -111,8 +111,9 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
             isoString = `${year}-${month}-${day}`;
           }
           
+          // URLSearchParams automatically encodes, but ensure + is properly encoded as %2B
           queryParams.append(key, isoString);
-          console.log("[AstroSetu] Converted datetime object to ISO 8601:", isoString, hasTime ? "(with time)" : "(date only)");
+          console.log("[AstroSetu] Converted datetime object to ISO 8601:", isoString, "Query param:", queryParams.get(key), hasTime ? "(with time)" : "(date only)");
         } else if (typeof value === "object" && !Array.isArray(value)) {
           // Handle other nested objects (not datetime)
           for (const [nestedKey, nestedValue] of Object.entries(value)) {
@@ -287,17 +288,33 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
           // Keep original error message
         }
         
-        // Add comprehensive debug info to error for panchang
-        if (isPanchangEndpoint) {
-          const debugInfo = `[PANCHANG_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
+        // Add comprehensive debug info to error for panchang and kundli
+        if (mustUseGet) {
+          const endpointName = isPanchangEndpoint ? "PANCHANG" : "KUNDLI";
+          const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
           errorMessage = debugInfo + " | " + errorMessage;
-          console.error("[AstroSetu] PANCHANG ERROR WITH DEBUG:", debugInfo, "Error:", errorMessage);
+          console.error(`[AstroSetu] ${endpointName} ERROR WITH DEBUG:`, debugInfo, "Error:", errorMessage);
         }
         
         throw new Error(errorMessage);
       }
 
-      return response.json();
+      const responseData = await response.json();
+      
+      // Log response structure for debugging kundli/panchang
+      if (mustUseGet) {
+        const endpointName = isPanchangEndpoint ? "PANCHANG" : "KUNDLI";
+        console.log(`[AstroSetu] ${endpointName} Response received:`, {
+          hasData: !!responseData.data,
+          hasResult: !!responseData.result,
+          topLevelKeys: Object.keys(responseData),
+          dataKeys: responseData.data ? Object.keys(responseData.data) : [],
+          resultKeys: responseData.result ? Object.keys(responseData.result) : [],
+          responsePreview: JSON.stringify(responseData).substring(0, 300),
+        });
+      }
+      
+      return responseData;
     } catch (error: any) {
       lastError = error;
       
@@ -366,10 +383,23 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
       timezone: input.timezone || "Asia/Kolkata",
     }, 2, "GET" as const);
 
-    console.log("[AstroSetu] Prokerala API response received:", JSON.stringify(response).substring(0, 500));
+    console.log("[AstroSetu] Prokerala API response received:", JSON.stringify(response).substring(0, 1000));
+    console.log("[AstroSetu] Prokerala API response structure:", {
+      hasData: !!response.data,
+      hasResult: !!response.result,
+      dataKeys: response.data ? Object.keys(response.data) : [],
+      resultKeys: response.result ? Object.keys(response.result) : [],
+      topLevelKeys: Object.keys(response),
+    });
 
     // Transform Prokerala response to our format
     const kundli = transformKundliResponse(response, input);
+    console.log("[AstroSetu] Transformed kundli:", {
+      ascendant: kundli.ascendant,
+      rashi: kundli.rashi,
+      nakshatra: kundli.nakshatra,
+      planetsCount: kundli.planets?.length || 0,
+    });
     
     // Get dosha analysis (may need separate API call)
     let dosha: DoshaAnalysis;

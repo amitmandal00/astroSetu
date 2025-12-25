@@ -9,9 +9,19 @@ import type { KundliResult, MatchResult, Panchang, DoshaAnalysis, KundliChart } 
  * Transform Prokerala Kundli response to AstroSetu format
  */
 export function transformKundliResponse(prokeralaData: any, input: any): KundliResult {
+  // Log the raw response for debugging
+  console.log("[Transform] Raw ProKerala response:", JSON.stringify(prokeralaData).substring(0, 500));
+  
   // Prokerala API response structure can vary, handle multiple formats
   const data = prokeralaData.data || prokeralaData;
   const result = data.result || data;
+  
+  console.log("[Transform] Extracted data structure:", {
+    dataKeys: data ? Object.keys(data) : [],
+    resultKeys: result ? Object.keys(result) : [],
+    hasAscendant: !!(result?.ascendant || result?.lagna || data?.ascendant || data?.lagna),
+    hasMoon: !!(result?.moon || data?.moon),
+  });
   
   // Extract ascendant (Lagna) - Prokerala returns in different formats
   let ascendant = "Unknown";
