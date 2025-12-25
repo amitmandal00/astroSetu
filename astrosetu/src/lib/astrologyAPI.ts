@@ -54,7 +54,14 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
 
   // Build URL with query params for GET requests
   let url = `${PROKERALA_API_URL}${endpoint}`;
-  console.log("[AstroSetu] prokeralaRequest called with method:", method, "endpoint:", endpoint);
+  console.log("[AstroSetu] prokeralaRequest called with method:", method, "endpoint:", endpoint, "method type:", typeof method);
+  
+  // Force GET for panchang endpoint
+  if (endpoint === "/panchang" && method !== "GET") {
+    console.warn("[AstroSetu] WARNING: Panchang endpoint should use GET, but method is:", method, "- Forcing to GET");
+    method = "GET";
+  }
+  
   if (method === "GET" && params) {
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
@@ -149,7 +156,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
         fetchOptions.body = JSON.stringify(params);
       }
       
-      console.log("[AstroSetu] Fetching URL:", url, "Method:", method, "Has body:", method === "POST");
+      console.log("[AstroSetu] Fetching URL:", url, "Method:", method, "Method type:", typeof method, "Has body:", method === "POST", "fetchOptions.method:", fetchOptions.method);
       const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
