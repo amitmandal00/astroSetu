@@ -16,26 +16,41 @@ export async function POST(req: Request) {
     const json = await parseJsonBody<Record<string, any>>(req);
     
     // More lenient validation - like AstroSage/AstroTalk
-    const phoneInput = json.phone?.trim() || "";
-    const otpInput = json.otp?.trim() || "";
+    const phoneInput = String(json.phone || "").trim();
+    const otpInput = String(json.otp || "").trim();
     
-    if (!phoneInput || phoneInput.length < 10) {
-      return NextResponse.json({ ok: false, error: "Please enter a valid phone number" }, { status: 400 });
+    if (!phoneInput) {
+      return NextResponse.json({ ok: false, error: "Phone number is required" }, { status: 400 });
     }
     
     if (!otpInput || otpInput.length !== 6 || !/^\d{6}$/.test(otpInput)) {
       return NextResponse.json({ ok: false, error: "Please enter a valid 6-digit OTP" }, { status: 400 });
     }
     
-    // Sanitize phone number (same logic as send-otp)
-    let phone = phoneInput.replace(/[^\d+]/g, "");
-    if (phone.startsWith("0")) {
-      phone = phone.substring(1);
+    // Sanitize phone number (same improved logic as send-otp)
+    let digitsOnly = phoneInput.replace(/\D/g, "");
+    
+    // Remove leading zeros
+    while (digitsOnly.startsWith("0") && digitsOnly.length > 10) {
+      digitsOnly = digitsOnly.substring(1);
     }
-    if (phone.length === 10 && !phone.startsWith("+")) {
-      phone = "+91" + phone;
-    } else if (!phone.startsWith("+") && phone.length > 10) {
-      phone = "+" + phone;
+    
+    // Validate digit count
+    if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: `Please enter a valid phone number (10-15 digits). You entered ${digitsOnly.length} digits.` 
+      }, { status: 400 });
+    }
+    
+    // Format as international number
+    let phone: string;
+    if (digitsOnly.length === 10) {
+      phone = "+91" + digitsOnly;
+    } else if (digitsOnly.length > 10) {
+      phone = "+" + digitsOnly;
+    } else {
+      phone = "+91" + digitsOnly;
     }
     
     const otp = otpInput;

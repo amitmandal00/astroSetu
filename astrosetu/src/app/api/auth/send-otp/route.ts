@@ -16,29 +16,40 @@ export async function POST(req: Request) {
     const json = await parseJsonBody<Record<string, any>>(req);
     
     // More lenient validation - like AstroSage/AstroTalk
-    const phoneInput = json.phone?.trim() || "";
+    const phoneInput = String(json.phone || "").trim();
     
-    if (!phoneInput || phoneInput.length < 10) {
-      return NextResponse.json({ ok: false, error: "Please enter a valid phone number (at least 10 digits)" }, { status: 400 });
+    if (!phoneInput) {
+      return NextResponse.json({ ok: false, error: "Phone number is required" }, { status: 400 });
     }
     
-    // Sanitize phone number (remove all non-digits except +)
-    let phone = phoneInput.replace(/[^\d+]/g, "");
+    // Aggressively sanitize phone number - remove ALL non-digit characters first
+    // This handles cases like "I1234567890" or other invalid characters
+    let digitsOnly = phoneInput.replace(/\D/g, "");
     
-    // Handle Indian numbers: if starts with 0, remove it; if 10 digits, add +91
-    if (phone.startsWith("0")) {
-      phone = phone.substring(1);
-    }
-    if (phone.length === 10 && !phone.startsWith("+")) {
-      phone = "+91" + phone;
-    } else if (!phone.startsWith("+") && phone.length > 10) {
-      phone = "+" + phone;
+    // Remove leading zeros
+    while (digitsOnly.startsWith("0") && digitsOnly.length > 10) {
+      digitsOnly = digitsOnly.substring(1);
     }
     
-    // Final validation: should be 10-15 digits after +
-    const digitsOnly = phone.replace(/\D/g, '');
+    // Validate digit count
     if (digitsOnly.length < 10 || digitsOnly.length > 15) {
-      return NextResponse.json({ ok: false, error: "Please enter a valid phone number (10-15 digits)" }, { status: 400 });
+      return NextResponse.json({ 
+        ok: false, 
+        error: `Please enter a valid phone number (10-15 digits). You entered ${digitsOnly.length} digits.` 
+      }, { status: 400 });
+    }
+    
+    // Format as international number
+    let phone: string;
+    if (digitsOnly.length === 10) {
+      // 10 digits = Indian number, add +91
+      phone = "+91" + digitsOnly;
+    } else if (digitsOnly.length > 10) {
+      // More than 10 digits = already has country code
+      phone = "+" + digitsOnly;
+    } else {
+      // Shouldn't reach here due to validation above, but handle it
+      phone = "+91" + digitsOnly;
     }
 
     // Demo mode: Generate a mock OTP
