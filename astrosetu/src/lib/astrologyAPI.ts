@@ -109,12 +109,33 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         
         // ProKerala token endpoint uses form-encoded body (not Basic Auth)
+        // Trim credentials to remove any accidental spaces
+        const clientId = (credentials.clientId || '').trim();
+        const clientSecret = (credentials.clientSecret || '').trim();
+        
+        // Log credential status (without exposing secrets)
+        const clientIdLength = clientId.length;
+        const clientSecretLength = clientSecret.length;
+        const hasSpaces = (credentials.clientId?.includes(' ') || credentials.clientSecret?.includes(' ')) || false;
+        const hasQuotes = ((credentials.clientId?.startsWith('"') && credentials.clientId?.endsWith('"')) || 
+                          (credentials.clientSecret?.startsWith('"') && credentials.clientSecret?.endsWith('"'))) || false;
+        
+        console.log(`[AstroSetu] Attempting ProKerala authentication - Client ID length: ${clientIdLength}, Client Secret length: ${clientSecretLength}, hasSpaces: ${hasSpaces}, hasQuotes: ${hasQuotes}`);
+        
+        if (hasSpaces || hasQuotes) {
+          console.warn(`[AstroSetu] WARNING: Credentials may have spaces or quotes. This can cause authentication to fail. Remove spaces/quotes from Vercel environment variables.`);
+        }
+        
+        if (!clientId || !clientSecret) {
+          throw new Error(`Prokerala credentials are empty. Client ID length: ${clientIdLength}, Secret length: ${clientSecretLength}`);
+        }
+        
         const tokenResponse = await fetch("https://api.prokerala.com/token", {
           method: "POST",
           headers: { 
             "Content-Type": "application/x-www-form-urlencoded"
           },
-          body: `grant_type=client_credentials&client_id=${encodeURIComponent(credentials.clientId)}&client_secret=${encodeURIComponent(credentials.clientSecret)}`,
+          body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
           signal: controller.signal,
         });
         
@@ -122,7 +143,17 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
         
         if (!tokenResponse.ok) {
           const errorText = await tokenResponse.text();
-          throw new Error(`Failed to get Prokerala access token: ${errorText}`);
+          let errorMessage = `Failed to get Prokerala access token: ${errorText}`;
+          
+          // Add helpful diagnostic info for authentication errors
+          if (tokenResponse.status === 401 || errorText.includes('authentication failed')) {
+            const diagnosticInfo = `[AUTH_DEBUG: status=${tokenResponse.status}, clientIdLength=${clientIdLength}, clientSecretLength=${clientSecretLength}, clientIdHasSpaces=${credentials.clientId?.includes(' ') || false}, clientSecretHasSpaces=${credentials.clientSecret?.includes(' ') || false}]`;
+            errorMessage = diagnosticInfo + " | " + errorMessage;
+            console.error("[AstroSetu] Authentication failed - check credentials in Vercel environment variables");
+            console.error("[AstroSetu] Verify: 1) No extra spaces, 2) No quotes, 3) Exact match with ProKerala dashboard");
+          }
+          
+          throw new Error(errorMessage);
         }
         
         const tokenData = await tokenResponse.json();

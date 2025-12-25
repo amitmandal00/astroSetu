@@ -34,12 +34,21 @@ export async function GET(req: Request) {
           const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
           
           // ProKerala token endpoint uses form-encoded body (not Basic Auth)
+          // Diagnostic: Check for common credential issues
+          const clientIdTrimmed = clientId?.trim() || '';
+          const clientSecretTrimmed = clientSecret?.trim() || '';
+          const hasSpaces = clientId?.includes(' ') || clientSecret?.includes(' ');
+          const hasQuotes = (clientId?.startsWith('"') && clientId?.endsWith('"')) || 
+                           (clientSecret?.startsWith('"') && clientSecret?.endsWith('"'));
+          
+          console.log(`[Diagnostic] Testing authentication - Client ID length: ${clientIdTrimmed.length}, Secret length: ${clientSecretTrimmed.length}, hasSpaces: ${hasSpaces}, hasQuotes: ${hasQuotes}`);
+          
           const tokenResponse = await fetch("https://api.prokerala.com/token", {
             method: "POST",
             headers: { 
               "Content-Type": "application/x-www-form-urlencoded"
             },
-            body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
+            body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientIdTrimmed)}&client_secret=${encodeURIComponent(clientSecretTrimmed)}`,
             signal: controller.signal,
           });
           
@@ -136,16 +145,48 @@ export async function GET(req: Request) {
           } else {
             const errorText = await tokenResponse.text();
             let errorMessage = errorText;
+            let errorDetails: any = {};
+            
             try {
               const errorJson = JSON.parse(errorText);
               errorMessage = errorJson.error_description || errorJson.error || errorText;
+              errorDetails = errorJson;
             } catch {
               // Keep original error message
             }
+            
+            // Add diagnostic info for authentication errors
+            const authDiagnostic: any = {
+              statusCode: tokenResponse.status,
+              clientIdLength: clientIdTrimmed.length,
+              clientSecretLength: clientSecretTrimmed.length,
+              clientIdHasSpaces: clientId?.includes(' ') || false,
+              clientSecretHasSpaces: clientSecret?.includes(' ') || false,
+              clientIdHasQuotes: (clientId?.startsWith('"') && clientId?.endsWith('"')) || false,
+              clientSecretHasQuotes: (clientSecret?.startsWith('"') && clientSecret?.endsWith('"')) || false,
+              errorDetails: errorDetails,
+            };
+            
+            // Add helpful suggestions
+            const suggestions: string[] = [];
+            if (authDiagnostic.clientIdHasSpaces || authDiagnostic.clientSecretHasSpaces) {
+              suggestions.push('Remove extra spaces from credentials in Vercel environment variables');
+            }
+            if (authDiagnostic.clientIdHasQuotes || authDiagnostic.clientSecretHasQuotes) {
+              suggestions.push('Remove quotes from credentials in Vercel environment variables');
+            }
+            if (tokenResponse.status === 401) {
+              suggestions.push('Verify credentials match ProKerala dashboard exactly');
+              suggestions.push('Check if client is active in ProKerala dashboard');
+              suggestions.push('Ensure credentials are set in Production environment in Vercel');
+            }
+            
             prokeralaTest = {
               status: 'error',
               error: errorMessage,
               statusCode: tokenResponse.status,
+              authDiagnostic: authDiagnostic,
+              suggestions: suggestions.length > 0 ? suggestions : ['Check ProKerala dashboard and Vercel environment variables'],
             };
           }
         }
