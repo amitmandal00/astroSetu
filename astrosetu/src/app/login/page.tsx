@@ -95,12 +95,24 @@ function LoginPageContent() {
             setLoading(false);
             return;
           }
-        } else if (loginMethod === "otp" && otpSent) {
-          // Verify OTP
+        } else if ((loginMethod === "otp" && otpSent) || (loginMethod === "phone" && otpSent)) {
+          // Verify OTP (for both OTP and Phone login methods)
           res = await apiPost<{ ok: boolean; data?: any; error?: string }>("/api/auth/verify-otp", {
             phone: formData.phone,
             otp: formData.otp
           });
+        } else if (loginMethod === "phone") {
+          // Phone login - use OTP flow (like AstroSage)
+          // First send OTP
+          res = await apiPost<{ ok: boolean; data?: any; error?: string }>("/api/auth/send-otp", {
+            phone: formData.phone
+          });
+          if (res.ok) {
+            setOtpSent(true);
+            setOtpCountdown(300); // 5 minutes
+            setLoading(false);
+            return;
+          }
         } else {
           // Email login
           res = await apiPost<{ ok: boolean; data?: any; error?: string }>("/api/auth/login", {
@@ -141,19 +153,18 @@ function LoginPageContent() {
         method: isRegister ? "register" : loginMethod,
       });
       
-      // Parse error message - handle both JSON and plain text
+      // The error message from http.ts should already be the actual API error
+      // But handle edge cases where it might still be generic
       let displayError = errorMsg;
-      try {
-        const parsed = JSON.parse(errorMsg);
-        displayError = parsed.error || parsed.message || errorMsg;
-      } catch {
-        // Not JSON, use message as-is but clean it up
-        if (errorMsg.includes("Please log in to continue")) {
-          // For login page, show more helpful message
-          displayError = "Invalid email or password. Please try again or use demo mode (leave password empty).";
-        } else {
-          displayError = errorMsg;
-        }
+      
+      // If we still get the generic message, provide a more helpful one
+      if (errorMsg === "Please log in to continue." || errorMsg.includes("Please log in to continue")) {
+        displayError = "Invalid email or password. Please try again or use demo mode (leave password empty).";
+      } else if (errorMsg && errorMsg.trim() !== "") {
+        // Use the actual error message from API
+        displayError = errorMsg;
+      } else {
+        displayError = "Login failed. Please check your credentials and try again.";
       }
       
       setErr(displayError);
@@ -432,20 +443,59 @@ function LoginPageContent() {
 
               {/* Phone Login */}
               {loginMethod === "phone" && !isRegister && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">
-                    Phone Number <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+91 9876543210"
-                    required
-                    autoComplete="tel"
-                    autoFocus
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                      Phone Number <span className="text-rose-500">*</span>
+                    </label>
+                    <PhoneInput
+                      value={formData.phone}
+                      onChange={(value) => setFormData({ ...formData, phone: value })}
+                      placeholder="Enter phone number"
+                      required
+                      disabled={otpSent}
+                    />
+                  </div>
+                  {otpSent && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-2">
+                        Enter OTP <span className="text-rose-500">*</span>
+                      </label>
+                      <Input
+                        type="text"
+                        value={formData.otp}
+                        onChange={(e) => setFormData({ ...formData, otp: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                        placeholder="000000"
+                        maxLength={6}
+                        className="text-center text-2xl font-bold tracking-widest"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && formData.otp.length === 6 && !loading) {
+                            handleSubmit();
+                          }
+                        }}
+                      />
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="text-xs text-slate-500">
+                          OTP sent to {formData.phone}
+                        </div>
+                        {otpCountdown > 0 ? (
+                          <div className="text-xs text-slate-500">
+                            Resend in {Math.floor(otpCountdown / 60)}:{(otpCountdown % 60).toString().padStart(2, "0")}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={resendOTP}
+                            className="text-xs text-saffron-600 hover:text-saffron-700 font-semibold"
+                          >
+                            Resend OTP
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* OTP Login */}
@@ -533,10 +583,10 @@ function LoginPageContent() {
 
               {/* Submit Buttons - AstroSage Style */}
               <div className="space-y-3">
-                {loginMethod === "otp" && !otpSent ? (
+                {(loginMethod === "otp" || loginMethod === "phone") && !otpSent ? (
                   <Button 
                     onClick={handleSubmit} 
-                    disabled={loading || !canSubmit || !formData.authorized}
+                    disabled={loading || !canSubmit || (loginMethod === "otp" && !formData.authorized)}
                     className="w-full py-4 text-base font-bold shadow-lg bg-gradient-to-r from-saffron-500 to-orange-500 hover:from-saffron-600 hover:to-orange-600"
                   >
                     {loading ? (
@@ -557,11 +607,11 @@ function LoginPageContent() {
                     {loading ? (
                       <>
                         <span className="animate-spin inline-block mr-2">⏳</span>
-                        {isRegister ? "Creating Account..." : "Signing In..."}
+                        {isRegister ? "Creating Account..." : (loginMethod === "otp" || loginMethod === "phone") && otpSent ? "Verifying OTP..." : "Signing In..."}
                       </>
                     ) : isRegister ? (
                       "Create Account"
-                    ) : loginMethod === "otp" && otpSent ? (
+                    ) : (loginMethod === "otp" || loginMethod === "phone") && otpSent ? (
                       "Verify OTP & Login"
                     ) : (
                       "Sign In"

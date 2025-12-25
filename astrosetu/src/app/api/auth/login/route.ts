@@ -21,28 +21,34 @@ export async function POST(req: Request) {
     // Parse and validate request body
     const json = await parseJsonBody<Record<string, any>>(req);
     
-    // Validate input using schema
-    const validated = LoginSchema.parse({
-      email: json.email,
-      password: json.password,
-      rememberMe: json.rememberMe,
-    });
+    // More lenient validation - like AstroSage/AstroTalk
+    // Allow any email format in demo mode
+    const email = json.email?.trim() || "";
+    const password = json.password?.trim() || undefined;
+    const rememberMe = json.rememberMe || false;
     
-    // Sanitize email
-    const email = sanitizeEmail(validated.email);
-    const password = validated.password;
-    const rememberMe = validated.rememberMe;
+    if (!email || email.length === 0) {
+      return NextResponse.json({ ok: false, error: "Email is required" }, { status: 400 });
+    }
+    
+    // Basic email format check (very lenient for demo mode)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (password && password.length > 0 && !emailRegex.test(email)) {
+      return NextResponse.json({ ok: false, error: "Please enter a valid email address" }, { status: 400 });
+    }
+    
+    // Sanitize email (lowercase, trim)
+    const sanitizedEmail = email.toLowerCase().trim().slice(0, 255);
 
-    // Demo mode: If Supabase is not configured, return mock user
+    // Demo mode: If Supabase is not configured, return mock user (like AstroSage)
     if (!isSupabaseConfigured()) {
-      // Try to get existing user data from a simple in-memory store or use "User" as default
-      // In a real app, this would come from a database
+      // In demo mode, accept any email - no validation needed
       return NextResponse.json({
         ok: true,
         data: {
-          id: `demo-user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`,
-          email,
-          name: "User", // Default to "User" instead of email username
+          id: `demo-user-${sanitizedEmail.replace(/[^a-zA-Z0-9]/g, '-')}`,
+          email: sanitizedEmail,
+          name: sanitizedEmail.split("@")[0] || "User",
           phone: null,
           createdAt: Date.now(),
           savedKundlis: [],
@@ -54,11 +60,11 @@ export async function POST(req: Request) {
 
     const supabase = createServerClient();
 
-    // For demo mode: if no password, create/get user with magic link
-    if (!password) {
+    // For demo mode: if no password, create/get user with magic link (like AstroSage)
+    if (!password || password.length === 0) {
       // Check if user exists
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
-      const existingUser = existingUsers?.users?.find(u => u.email === email);
+      const existingUser = existingUsers?.users?.find(u => u.email === sanitizedEmail);
 
       if (existingUser) {
         // User exists, return profile
@@ -83,43 +89,26 @@ export async function POST(req: Request) {
         });
       }
 
-      // Create new user for demo
+      // Create new user for demo (like AstroSage - always succeeds)
       try {
         const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
+          email: sanitizedEmail,
           password: `demo-${Date.now()}`,
           options: {
             data: {
-              name: "User", // Default name instead of email username
+              name: sanitizedEmail.split("@")[0] || "User",
             },
           },
         });
 
-        if (authError) {
-          // If signup fails, return demo user anyway
+        if (authError || !authData.user) {
+          // If signup fails, return demo user anyway (like AstroSage)
           return NextResponse.json({
             ok: true,
             data: {
-              id: `demo-user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`,
-              email,
-              name: "User", // Default name instead of email username
-              phone: null,
-              createdAt: Date.now(),
-              savedKundlis: [],
-              savedMatches: [],
-              birthDetails: null,
-            },
-          });
-        }
-
-        if (!authData.user) {
-          // If no user created, return demo user
-          return NextResponse.json({
-            ok: true,
-            data: {
-              id: `demo-user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`,
-              email,
-              name: "User", // Default name instead of email username
+              id: `demo-user-${sanitizedEmail.replace(/[^a-zA-Z0-9]/g, '-')}`,
+              email: sanitizedEmail,
+              name: sanitizedEmail.split("@")[0] || "User",
               phone: null,
               createdAt: Date.now(),
               savedKundlis: [],
@@ -133,8 +122,8 @@ export async function POST(req: Request) {
           ok: true,
           data: {
             id: authData.user.id,
-            email: authData.user.email,
-            name: authData.user.user_metadata?.name || "User", // Use metadata name or default to "User"
+            email: authData.user.email || sanitizedEmail,
+            name: authData.user.user_metadata?.name || sanitizedEmail.split("@")[0] || "User",
             phone: null,
             createdAt: new Date(authData.user.created_at).getTime(),
             savedKundlis: [],
@@ -143,13 +132,13 @@ export async function POST(req: Request) {
           },
         });
       } catch (e: any) {
-        // If Supabase fails, return demo user
+        // If Supabase fails, return demo user (like AstroSage)
         return NextResponse.json({
           ok: true,
           data: {
-            id: `demo-user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`,
-            email,
-            name: email.split("@")[0],
+            id: `demo-user-${sanitizedEmail.replace(/[^a-zA-Z0-9]/g, '-')}`,
+            email: sanitizedEmail,
+            name: sanitizedEmail.split("@")[0] || "User",
             phone: null,
             createdAt: Date.now(),
             savedKundlis: [],
@@ -162,7 +151,7 @@ export async function POST(req: Request) {
 
     // Real login with password
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
+      email: sanitizedEmail,
       password,
     });
 
@@ -199,4 +188,5 @@ export async function POST(req: Request) {
     return handleApiError(error);
   }
 }
+
 

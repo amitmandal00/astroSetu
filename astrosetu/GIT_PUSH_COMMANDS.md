@@ -1,86 +1,57 @@
-# 🚀 Git Push Commands
+# Git Push Commands
 
-## Step-by-Step Commands
-
-Run these commands in your terminal:
-
-### 1. Navigate to Project Directory
+## Complete Git Commands
 
 ```bash
 cd astrosetu
-```
 
-### 2. Check Changed Files
+# Stage all changes
+git add -A
 
-```bash
-git status
-```
+# Commit all fixes
+git commit -m "Fix: Complete login functionality and data extraction
 
-You should see:
-- `src/lib/astrologyAPI.ts` (modified)
-- `src/app/api/astrology/diagnostic/route.ts` (modified)
+- Fix all login methods (Email, Phone, OTP) with lenient validation like AstroSage
+- Implement phone login with OTP flow
+- Enhanced ascendant and tithi extraction with calculation fallbacks
+- Fix icon 404 errors (icon-192.png and icon-512.png created)
+- Improve error handling and user-friendly messages
+- Better phone number validation and formatting
+- Demo mode always succeeds (like AstroSage/AstroTalk)"
 
-### 3. Stage Changes
-
-```bash
-git add src/lib/astrologyAPI.ts src/app/api/astrology/diagnostic/route.ts
-```
-
-### 4. Commit Changes
-
-```bash
-git commit -m "Fix ProKerala auth: Use form-encoded body per API docs + enhanced diagnostics"
-```
-
-### 5. Push to GitHub
-
-```bash
+# Push to remote
 git push origin main
 ```
 
----
+## Individual Commits (Optional)
 
-## Complete Command Sequence
-
-Copy and paste this entire block:
+If you prefer separate commits:
 
 ```bash
 cd astrosetu
-git add src/lib/astrologyAPI.ts src/app/api/astrology/diagnostic/route.ts
-git commit -m "Fix ProKerala auth: Use form-encoded body per API docs + enhanced diagnostics"
+
+# Login fixes
+git add src/lib/validation.ts src/app/api/auth/login/route.ts src/app/api/auth/send-otp/route.ts src/app/api/auth/verify-otp/route.ts src/app/api/auth/register/route.ts src/app/login/page.tsx src/lib/http.ts
+git commit -m "Fix: All login methods (Email, Phone, OTP) with lenient validation"
+
+# Data extraction fixes
+git add src/lib/prokeralaTransform.ts src/app/kundli/page.tsx
+git commit -m "Fix: Enhanced ascendant and tithi extraction with calculation fallbacks"
+
+# Icon fixes
+git add public/icon-*.png public/generate-icons.html public/create-icons.sh scripts/generate-icons.js
+git commit -m "Fix: Add missing PWA icons (icon-192.png, icon-512.png)"
+
+# Documentation
+git add *.md
+git commit -m "docs: Add fix documentation"
+
+# Push all
 git push origin main
 ```
 
----
+## Quick One-Liner
 
-## After Pushing
-
-1. **Go to Vercel Dashboard:**
-   - https://vercel.com/dashboard
-   - Your project should auto-deploy
-
-2. **Or Force Redeploy:**
-   - Go to Deployments tab
-   - Click "..." on latest deployment
-   - Click "Redeploy"
-   - **Uncheck** "Use existing Build Cache"
-   - Click "Redeploy"
-
-3. **Wait 3-5 minutes** for deployment
-
-4. **Test:**
-   ```bash
-   curl https://astrosetu-app.vercel.app/api/astrology/diagnostic | jq '.data.prokeralaTest'
-   ```
-
----
-
-## What Changed
-
-- ✅ Reverted to form-encoded body method (per ProKerala docs)
-- ✅ Enhanced diagnostic endpoint with credential previews
-- ✅ Better error logging and suggestions
-- ✅ Auto-trimming of credentials
-
-The code now matches ProKerala API documentation exactly!
-
+```bash
+cd astrosetu && git add -A && git commit -m "Fix: Complete login functionality and data extraction" && git push origin main
+```

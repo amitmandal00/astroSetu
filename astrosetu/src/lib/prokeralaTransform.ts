@@ -474,29 +474,160 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   console.log("[Transform] Extracted", planets.length, "planets");
 
   // Final validation - ensure we don't return "Unknown" if we have any data
-  // If ascendant is still unknown but we have houses, try to get from house 1
-  if (ascendant === "Unknown" && data.houses && Array.isArray(data.houses) && data.houses.length > 0) {
-    // Try to find house 1 or use first house
-    const house1 = data.houses.find((h: any) => h.house === 1 || h.houseNumber === 1) || data.houses[0];
-    if (house1 && house1.longitude) {
-      const long = typeof house1.longitude === 'number' 
-        ? house1.longitude 
-        : (house1.longitude.degrees || 0) + (house1.longitude.minutes || 0) / 60;
-      ascendant = calculateSignFromLongitude(long);
-      console.log("[Transform] Final fallback: Calculated ascendant from house 1 longitude:", ascendant);
+  // If ascendant is still unknown, try ALL possible calculation methods
+  if (ascendant === "Unknown") {
+    // Method 1: Try to find house 1 cusp from houses array
+    if (data.houses && Array.isArray(data.houses)) {
+      const house1 = data.houses.find((h: any) => 
+        h.house === 1 || h.houseNumber === 1 || h.number === 1
+      ) || data.houses[0];
+      
+      if (house1) {
+        // Try to get sign from house1
+        const house1Sign = extractSignName(house1.sign || house1.rashi || house1.zodiac);
+        if (house1Sign) {
+          ascendant = house1Sign;
+          console.log("[Transform] Final fallback: Found ascendant from house1 sign:", ascendant);
+        } else if (house1.longitude) {
+          // Calculate from longitude
+          const long = typeof house1.longitude === 'number' 
+            ? house1.longitude 
+            : (house1.longitude.degrees || 0) + (house1.longitude.minutes || 0) / 60 + (house1.longitude.seconds || 0) / 3600;
+          if (long > 0) {
+            ascendant = calculateSignFromLongitude(long);
+            console.log("[Transform] Final fallback: Calculated ascendant from house1 longitude:", ascendant, "longitude:", long);
+          }
+        } else if (house1.cusp) {
+          // Some APIs return cusp directly
+          const cuspLong = typeof house1.cusp === 'number' 
+            ? house1.cusp 
+            : (house1.cusp.degrees || 0) + (house1.cusp.minutes || 0) / 60;
+          if (cuspLong > 0) {
+            ascendant = calculateSignFromLongitude(cuspLong);
+            console.log("[Transform] Final fallback: Calculated ascendant from house1 cusp:", ascendant);
+          }
+        }
+      }
+    }
+    
+    // Method 2: Try to calculate from input coordinates and time (if available)
+    if (ascendant === "Unknown" && input && input.latitude && input.longitude && input.dob && input.tob) {
+      // This would require astronomical calculations - skip for now as it's complex
+      // But log that we have the data
+      console.log("[Transform] Could calculate ascendant from coordinates but skipping complex calculation");
     }
   }
   
-  // If tithi is still unknown, try to get from panchang data if available
-  if (tithi === "Unknown" && data.panchang) {
-    const panchang = data.panchang;
-    if (panchang.tithi) {
-      const extracted = extractTithiName(panchang.tithi);
-      if (extracted) {
-        tithi = extracted;
-        console.log("[Transform] Final fallback: Found tithi from panchang:", tithi);
+  // If tithi is still unknown, try ALL possible calculation methods
+  if (tithi === "Unknown") {
+    // Method 1: Try panchang data
+    if (data.panchang) {
+      const panchang = data.panchang;
+      if (panchang.tithi) {
+        const extracted = extractTithiName(panchang.tithi);
+        if (extracted) {
+          tithi = extracted;
+          console.log("[Transform] Final fallback: Found tithi from panchang:", tithi);
+        }
       }
     }
+    
+    // Method 2: Calculate from moon-sun difference (more accurate calculation)
+    if (tithi === "Unknown") {
+      const moonData = result.moon || data.moon || {};
+      const sunData = result.sun || data.sun || {};
+      
+      if (moonData.longitude && sunData.longitude) {
+        const moonLong = typeof moonData.longitude === 'number'
+          ? moonData.longitude
+          : (moonData.longitude.degrees || 0) + (moonData.longitude.minutes || 0) / 60 + (moonData.longitude.seconds || 0) / 3600;
+        const sunLong = typeof sunData.longitude === 'number'
+          ? sunData.longitude
+          : (sunData.longitude.degrees || 0) + (sunData.longitude.minutes || 0) / 60 + (sunData.longitude.seconds || 0) / 3600;
+        
+        if (moonLong > 0 && sunLong > 0) {
+          // Calculate tithi: (Moon - Sun) / 12 degrees
+          const diff = (moonLong - sunLong + 360) % 360;
+          const tithiNumber = Math.floor(diff / 12) + 1;
+          
+          // Map tithi number to name (15 tithis in a lunar month)
+          const tithiNames = [
+            'Pratipada', 'Dwitiya', 'Tritiya', 'Chaturthi', 'Panchami',
+            'Shashthi', 'Saptami', 'Ashtami', 'Navami', 'Dashami',
+            'Ekadashi', 'Dwadashi', 'Trayodashi', 'Chaturdashi', 'Purnima'
+          ];
+          
+          // Determine if it's Shukla (waxing) or Krishna (waning) paksha
+          const isShukla = diff < 180;
+          const paksha = isShukla ? 'Shukla' : 'Krishna';
+          
+          if (tithiNumber >= 1 && tithiNumber <= 15) {
+            const tithiName = tithiNames[tithiNumber - 1];
+            // For Purnima/Amavasya, check if it's actually Amavasya
+            if (tithiNumber === 15) {
+              // If difference is close to 0 or 360, it's Amavasya; if close to 180, it's Purnima
+              const remainder = diff % 12;
+              if (remainder < 1 || remainder > 11) {
+                tithi = 'Amavasya';
+              } else {
+                tithi = 'Purnima';
+              }
+            } else {
+              tithi = `${paksha} ${tithiName}`;
+            }
+            console.log("[Transform] Final fallback: Calculated tithi from moon-sun difference:", tithi, "diff:", diff, "tithiNumber:", tithiNumber);
+          }
+        }
+      }
+    }
+    
+    // Method 3: Try to get from input date if available
+    if (tithi === "Unknown" && input && input.dob) {
+      // Could calculate from date, but this requires complex lunar calendar calculations
+      console.log("[Transform] Could calculate tithi from date but skipping complex calculation");
+    }
+  }
+  
+  // Final cleanup - ensure we never return "Unknown"
+  // Apply sign mapping to final values
+  if (ascendant && ascendant !== "Unknown") {
+    // Try case-insensitive matching for sign map
+    const ascLower = ascendant.toLowerCase();
+    for (const [key, value] of Object.entries(signMap)) {
+      if (key.toLowerCase() === ascLower) {
+        ascendant = value;
+        break;
+      }
+    }
+  }
+  
+  // If still unknown after ALL attempts, log detailed debug info
+  if (ascendant === "Unknown") {
+    console.error("[Transform] ❌ FAILED to extract ascendant after all attempts!");
+    console.error("[Transform] Debug info:", {
+      hasHouses: !!(data.houses && Array.isArray(data.houses)),
+      housesLength: data.houses?.length || 0,
+      house1Data: data.houses?.[0],
+      hasAscendantField: !!data.ascendant,
+      hasLagnaField: !!data.lagna,
+      hasResultAscendant: !!result.ascendant,
+      hasResultLagna: !!result.lagna,
+      hasNakshatraDetails: !!data.nakshatra_details,
+      fullDataSample: JSON.stringify(data).substring(0, 500),
+    });
+  }
+  
+  if (tithi === "Unknown") {
+    console.error("[Transform] ❌ FAILED to extract tithi after all attempts!");
+    console.error("[Transform] Debug info:", {
+      hasTithiField: !!data.tithi,
+      hasPanchang: !!data.panchang,
+      panchangTithi: data.panchang?.tithi,
+      hasMoon: !!(data.moon || result.moon),
+      hasSun: !!(data.sun || result.sun),
+      moonLongitude: data.moon?.longitude || result.moon?.longitude,
+      sunLongitude: data.sun?.longitude || result.sun?.longitude,
+    });
   }
   
   // Generate summary - handle "Unknown" values gracefully
@@ -511,13 +642,26 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
       ? `Nakshatra ${nakshatra} highlights deeper traits and repeating life themes.`
       : `Your nakshatra highlights deeper traits and repeating life themes.`,
   ];
-
-  // Return with fallback values - use empty string or "N/A" instead of "Unknown" for better UX
+  
+  // Final values - return empty string only if truly not found (UI will show "Calculating...")
+  const finalAscendant = ascendant !== "Unknown" ? ascendant : "";
+  const finalRashi = rashi !== "Unknown" ? rashi : "";
+  const finalNakshatra = nakshatra !== "Unknown" ? nakshatra : "";
+  const finalTithi = tithi !== "Unknown" ? tithi : "";
+  
+  console.log("[Transform] ✅ Final extracted values:", {
+    ascendant: finalAscendant || "❌ Not found",
+    rashi: finalRashi || "❌ Not found",
+    nakshatra: finalNakshatra || "❌ Not found",
+    tithi: finalTithi || "❌ Not found",
+    planetsCount: planets.length,
+  });
+  
   return {
-    ascendant: ascendant !== "Unknown" ? ascendant : "",
-    rashi: rashi !== "Unknown" ? rashi : "",
-    nakshatra: nakshatra !== "Unknown" ? nakshatra : "",
-    tithi: tithi !== "Unknown" ? tithi : "",
+    ascendant: finalAscendant,
+    rashi: finalRashi,
+    nakshatra: finalNakshatra,
+    tithi: finalTithi,
     planets,
     summary,
   };

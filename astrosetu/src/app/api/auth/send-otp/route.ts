@@ -15,13 +15,31 @@ export async function POST(req: Request) {
     // Parse and validate request body
     const json = await parseJsonBody<Record<string, any>>(req);
     
-    // Validate input using schema
-    const validated = OTPRequestSchema.parse({
-      phone: json.phone,
-    });
+    // More lenient validation - like AstroSage/AstroTalk
+    const phoneInput = json.phone?.trim() || "";
     
-    // Sanitize phone number
-    const phone = sanitizePhone(validated.phone);
+    if (!phoneInput || phoneInput.length < 10) {
+      return NextResponse.json({ ok: false, error: "Please enter a valid phone number (at least 10 digits)" }, { status: 400 });
+    }
+    
+    // Sanitize phone number (remove all non-digits except +)
+    let phone = phoneInput.replace(/[^\d+]/g, "");
+    
+    // Handle Indian numbers: if starts with 0, remove it; if 10 digits, add +91
+    if (phone.startsWith("0")) {
+      phone = phone.substring(1);
+    }
+    if (phone.length === 10 && !phone.startsWith("+")) {
+      phone = "+91" + phone;
+    } else if (!phone.startsWith("+") && phone.length > 10) {
+      phone = "+" + phone;
+    }
+    
+    // Final validation: should be 10-15 digits after +
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+      return NextResponse.json({ ok: false, error: "Please enter a valid phone number (10-15 digits)" }, { status: 400 });
+    }
 
     // Demo mode: Generate a mock OTP
     if (!isSupabaseConfigured()) {

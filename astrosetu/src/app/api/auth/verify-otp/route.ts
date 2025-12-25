@@ -15,15 +15,30 @@ export async function POST(req: Request) {
     // Parse and validate request body
     const json = await parseJsonBody<Record<string, any>>(req);
     
-    // Validate input using schema
-    const validated = OTPVerifySchema.parse({
-      phone: json.phone,
-      otp: json.otp,
-    });
+    // More lenient validation - like AstroSage/AstroTalk
+    const phoneInput = json.phone?.trim() || "";
+    const otpInput = json.otp?.trim() || "";
     
-    // Sanitize phone number
-    const phone = sanitizePhone(validated.phone);
-    const otp = validated.otp;
+    if (!phoneInput || phoneInput.length < 10) {
+      return NextResponse.json({ ok: false, error: "Please enter a valid phone number" }, { status: 400 });
+    }
+    
+    if (!otpInput || otpInput.length !== 6 || !/^\d{6}$/.test(otpInput)) {
+      return NextResponse.json({ ok: false, error: "Please enter a valid 6-digit OTP" }, { status: 400 });
+    }
+    
+    // Sanitize phone number (same logic as send-otp)
+    let phone = phoneInput.replace(/[^\d+]/g, "");
+    if (phone.startsWith("0")) {
+      phone = phone.substring(1);
+    }
+    if (phone.length === 10 && !phone.startsWith("+")) {
+      phone = "+91" + phone;
+    } else if (!phone.startsWith("+") && phone.length > 10) {
+      phone = "+" + phone;
+    }
+    
+    const otp = otpInput;
 
     // Demo mode: Accept any 6-digit OTP
     if (!isSupabaseConfigured()) {

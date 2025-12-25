@@ -13,31 +13,47 @@ export async function apiGet<T>(url: string): Promise<T> {
     if (!res.ok) {
       const errorText = await res.text();
       let errorMessage = errorText;
+      
+      // For auth endpoints, always try to extract the actual error message
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/verify') || url.includes('/auth/send-otp');
+      
       try {
         const errorJson = JSON.parse(errorText);
+        // Prioritize error field, then message, then use text
         errorMessage = errorJson.error || errorJson.message || errorText;
       } catch {
         // Not JSON, use text as-is
+        // But for auth endpoints, don't override with generic messages
+        if (!isAuthEndpoint && errorText.trim() === '') {
+          errorMessage = errorText;
+        }
       }
       
       // Provide user-friendly error messages
-      // For auth endpoints, preserve the actual error message
-      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/verify');
-      
+      // IMPORTANT: For auth endpoints, NEVER override the error message
       if (res.status === 500) {
-        errorMessage = "Server error. Please try again later.";
+        if (!isAuthEndpoint) {
+          errorMessage = "Server error. Please try again later.";
+        }
       } else if (res.status === 404) {
-        errorMessage = "Service not found. Please check the URL.";
+        if (!isAuthEndpoint) {
+          errorMessage = "Service not found. Please check the URL.";
+        }
       } else if (res.status === 401) {
-        // For auth endpoints, use the actual error message; for others, use generic message
+        // For auth endpoints, ALWAYS use the actual error message from API
+        // Only use generic message for non-auth endpoints
         if (!isAuthEndpoint) {
           errorMessage = "Please log in to continue.";
         }
-        // Otherwise, keep the errorMessage from the API response
+        // For auth endpoints, errorMessage already contains the actual API error
       } else if (res.status === 403) {
-        errorMessage = "You don't have permission to perform this action.";
+        if (!isAuthEndpoint) {
+          errorMessage = "You don't have permission to perform this action.";
+        }
       } else if (res.status === 429) {
-        errorMessage = "Too many requests. Please wait a moment and try again.";
+        if (!isAuthEndpoint) {
+          errorMessage = "Too many requests. Please wait a moment and try again.";
+        }
       }
       
       throw new Error(errorMessage);
@@ -71,31 +87,47 @@ export async function apiPost<T>(url: string, body: unknown): Promise<T> {
     if (!res.ok) {
       const errorText = await res.text();
       let errorMessage = errorText;
+      
+      // For auth endpoints, always try to extract the actual error message
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/verify') || url.includes('/auth/send-otp');
+      
       try {
         const errorJson = JSON.parse(errorText);
+        // Prioritize error field, then message, then use text
         errorMessage = errorJson.error || errorJson.message || errorText;
       } catch {
         // Not JSON, use text as-is
+        // But for auth endpoints, don't override with generic messages
+        if (!isAuthEndpoint && errorText.trim() === '') {
+          errorMessage = errorText;
+        }
       }
       
       // Provide user-friendly error messages
-      // For auth endpoints, preserve the actual error message
-      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/verify') || url.includes('/auth/send-otp');
-      
+      // IMPORTANT: For auth endpoints, NEVER override the error message
       if (res.status === 500) {
-        errorMessage = "Server error. Please try again later.";
+        if (!isAuthEndpoint) {
+          errorMessage = "Server error. Please try again later.";
+        }
       } else if (res.status === 404) {
-        errorMessage = "Service not found. Please check the URL.";
+        if (!isAuthEndpoint) {
+          errorMessage = "Service not found. Please check the URL.";
+        }
       } else if (res.status === 401) {
-        // For auth endpoints, use the actual error message; for others, use generic message
+        // For auth endpoints, ALWAYS use the actual error message from API
+        // Only use generic message for non-auth endpoints
         if (!isAuthEndpoint) {
           errorMessage = "Please log in to continue.";
         }
-        // Otherwise, keep the errorMessage from the API response
+        // For auth endpoints, errorMessage already contains the actual API error
       } else if (res.status === 403) {
-        errorMessage = "You don't have permission to perform this action.";
+        if (!isAuthEndpoint) {
+          errorMessage = "You don't have permission to perform this action.";
+        }
       } else if (res.status === 429) {
-        errorMessage = "Too many requests. Please wait a moment and try again.";
+        if (!isAuthEndpoint) {
+          errorMessage = "Too many requests. Please wait a moment and try again.";
+        }
       }
       
       throw new Error(errorMessage);

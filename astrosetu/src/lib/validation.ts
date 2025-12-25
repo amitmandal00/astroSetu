@@ -56,15 +56,33 @@ export const RegisterSchema = z.object({
 });
 
 export const LoginSchema = z.object({
-  email: z.string().email().max(255),
+  email: z.string().min(1, "Email is required").max(255),
   // Password is optional in demo / magic-link style flows.
   // When omitted, the login route treats it as a passwordless demo login.
-  password: z.string().min(1).max(100).optional(),
+  password: z.string().max(100).optional(),
   rememberMe: z.boolean().optional(),
+}).refine((data) => {
+  // Allow any email format in demo mode (like AstroSage)
+  // Only validate email format if password is provided (real login)
+  if (data.password && data.password.length > 0) {
+    return z.string().email().safeParse(data.email).success;
+  }
+  // Demo mode: just check it's not empty
+  return data.email && data.email.trim().length > 0;
+}, {
+  message: "Please enter a valid email address",
+  path: ["email"],
 });
 
 export const OTPRequestSchema = z.object({
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").max(20),
+}).refine((data) => {
+  // More lenient phone validation - allow Indian numbers with or without +91
+  const cleaned = data.phone.replace(/\D/g, '');
+  return cleaned.length >= 10 && cleaned.length <= 15;
+}, {
+  message: "Please enter a valid phone number (10-15 digits)",
+  path: ["phone"],
 });
 
 export const OTPVerifySchema = OTPRequestSchema.extend({
