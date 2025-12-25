@@ -53,7 +53,7 @@ export async function GET(req: Request) {
                 const today = new Date().toISOString().slice(0, 10);
                 const [year, month, day] = today.split("-").map(Number);
                 
-                // Store debug info
+                // Store debug info BEFORE calling
                 const debugInfo: any = {
                   method: 'GET',
                   endpoint: '/panchang',
@@ -61,10 +61,13 @@ export async function GET(req: Request) {
                     datetime: { year, month, day },
                     coordinates: '28.6139,77.2090',
                     timezone: 'Asia/Kolkata'
-                  }
+                  },
+                  timestamp: new Date().toISOString(),
                 };
                 
+                console.log("[Diagnostic] About to call getPanchangAPI with:", debugInfo);
                 await getPanchangAPI(today, "Delhi", 28.6139, 77.2090);
+                console.log("[Diagnostic] getPanchangAPI succeeded");
                 
                 prokeralaTest = {
                   status: 'connected',
@@ -73,12 +76,15 @@ export async function GET(req: Request) {
                   tokenType: tokenData.token_type,
                   expiresIn: tokenData.expires_in,
                   panchangTest: 'passed',
-                  debug: debugInfo,
+                  debug: { ...debugInfo, result: 'success' },
                 };
               } catch (panchangError: any) {
                 // Token works but panchang test failed
                 const errorMessage = panchangError?.message || 'Panchang API test failed';
                 const isPostError = errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed');
+                const errorDetails = errorMessage.includes('[DEBUG:') ? errorMessage.split('[DEBUG:')[1] : null;
+                
+                console.error("[Diagnostic] Panchang test failed:", errorMessage);
                 
                 prokeralaTest = {
                   status: 'connected',
@@ -93,7 +99,9 @@ export async function GET(req: Request) {
                     endpoint: '/panchang',
                     error: errorMessage,
                     isPostError: isPostError,
-                    note: isPostError ? 'ERROR: Code is still using POST method!' : 'Different error occurred'
+                    errorDetails: errorDetails,
+                    note: isPostError ? 'ERROR: Code is still using POST method! Check errorDetails for actual method used.' : 'Different error occurred',
+                    timestamp: new Date().toISOString(),
                   },
                 };
               }

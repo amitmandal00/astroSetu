@@ -145,18 +145,27 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
+      // CRITICAL: Double-check method for panchang - ensure it's GET
+      let finalMethod = method;
+      if (endpoint === "/panchang") {
+        finalMethod = "GET";
+        if (method !== "GET") {
+          console.error("[AstroSetu] ERROR: Panchang method was", method, "- FORCING to GET");
+        }
+      }
+      
       const fetchOptions: RequestInit = {
-        method,
+        method: finalMethod, // Use finalMethod, not method variable
         headers,
         signal: controller.signal,
       };
       
       // Only include body for POST requests
-      if (method === "POST") {
+      if (finalMethod === "POST") {
         fetchOptions.body = JSON.stringify(params);
       }
       
-      console.log("[AstroSetu] Fetching URL:", url, "Method:", method, "Method type:", typeof method, "Has body:", method === "POST", "fetchOptions.method:", fetchOptions.method);
+      console.log("[AstroSetu] Fetching URL:", url.substring(0, 100), "finalMethod:", finalMethod, "original method param:", method, "fetchOptions.method:", fetchOptions.method, "Has body:", !!fetchOptions.body);
       const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
@@ -170,6 +179,12 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
         } catch {
           // Keep original error message
         }
+        
+        // Add debug info to error for panchang
+        if (endpoint === "/panchang") {
+          errorMessage += ` [DEBUG: endpoint=${endpoint}, method=${method}, finalMethod=${finalMethod}, fetchMethod=${fetchOptions.method}, url=${url.substring(0, 150)}]`;
+        }
+        
         throw new Error(errorMessage);
       }
 
