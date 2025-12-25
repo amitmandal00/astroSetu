@@ -52,15 +52,15 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
   }
 
+  // CRITICAL: Force GET for panchang endpoint - ProKerala API requires GET, not POST
+  if (endpoint === "/panchang") {
+    method = "GET";
+    console.log("[AstroSetu] FORCED GET method for panchang endpoint");
+  }
+
   // Build URL with query params for GET requests
   let url = `${PROKERALA_API_URL}${endpoint}`;
   console.log("[AstroSetu] prokeralaRequest called with method:", method, "endpoint:", endpoint, "method type:", typeof method);
-  
-  // Force GET for panchang endpoint
-  if (endpoint === "/panchang" && method !== "GET") {
-    console.warn("[AstroSetu] WARNING: Panchang endpoint should use GET, but method is:", method, "- Forcing to GET");
-    method = "GET";
-  }
   
   if (method === "GET" && params) {
     const queryParams = new URLSearchParams();
