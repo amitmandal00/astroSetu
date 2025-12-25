@@ -225,23 +225,40 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   const moonDataForPlanets = result.moon || data.moon || {};
   
   // Extract planetary positions - Prokerala returns planets in different structures
+  // Check for planets in different locations
+  const planetsData = data.planets || data.planetPositions || result.planets || {};
   const planetMap: Record<string, any> = {
-    sun: result.sun || data.sun,
-    moon: result.moon || data.moon || moonDataForPlanets,
-    mars: result.mars || data.mars,
-    mercury: result.mercury || data.mercury,
-    jupiter: result.jupiter || data.jupiter,
-    venus: result.venus || data.venus,
-    saturn: result.saturn || data.saturn,
-    rahu: result.rahu || result.rahuNode || data.rahu || data.rahuNode,
-    ketu: result.ketu || result.ketuNode || data.ketu || data.ketuNode,
+    sun: planetsData.sun || result.sun || data.sun,
+    moon: planetsData.moon || result.moon || data.moon || moonDataForPlanets,
+    mars: planetsData.mars || result.mars || data.mars,
+    mercury: planetsData.mercury || result.mercury || data.mercury,
+    jupiter: planetsData.jupiter || result.jupiter || data.jupiter,
+    venus: planetsData.venus || result.venus || data.venus,
+    saturn: planetsData.saturn || result.saturn || data.saturn,
+    rahu: planetsData.rahu || planetsData.rahuNode || result.rahu || result.rahuNode || data.rahu || data.rahuNode,
+    ketu: planetsData.ketu || planetsData.ketuNode || result.ketu || result.ketuNode || data.ketu || data.ketuNode,
   };
+  
+  // If planets are in an array format, extract them
+  if (Array.isArray(planetsData)) {
+    for (const planet of planetsData) {
+      const planetName = (planet.name || planet.planet || "").toLowerCase();
+      if (planetName && planetMap[planetName] === undefined) {
+        planetMap[planetName] = planet;
+      }
+    }
+  } else if (planetsData && typeof planetsData === 'object' && !planetsData.sun) {
+    // If planetsData is an object with planet keys
+    Object.assign(planetMap, planetsData);
+  }
+  
+  console.log("[Transform] Extracted planets:", Object.keys(planetMap).filter(k => planetMap[k]));
   
   const planets = Object.entries(planetMap)
     .filter(([_, planet]) => planet)
     .map(([planetName, planet]: [string, any]) => {
       // Handle different Prokerala response formats
-      const name = planet.name || planetName.charAt(0).toUpperCase() + planetName.slice(1);
+      const name = planet.name || planet.planet || planetName.charAt(0).toUpperCase() + planetName.slice(1);
       
       // Extract sign - try multiple paths
       let sign = "Unknown";
@@ -251,11 +268,13 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
       } else if (planet.sign) {
         const signObj = planet.sign;
         sign = signObj.name || signObj;
+      } else if (planet.zodiac) {
+        sign = planet.zodiac.name || planet.zodiac;
       } else if (planet.longitude) {
         // Calculate sign from longitude
         const long = typeof planet.longitude === 'number'
           ? planet.longitude
-          : (planet.longitude.degrees || 0) + (planet.longitude.minutes || 0) / 60;
+          : (planet.longitude.degrees || 0) + (planet.longitude.minutes || 0) / 60 + (planet.longitude.seconds || 0) / 3600;
         const signIndex = Math.floor(long / 30);
         const signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
         sign = signs[signIndex] || "Unknown";
@@ -264,6 +283,15 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
       // Map to standard sign name
       if (sign && signMap[sign]) {
         sign = signMap[sign];
+      } else if (sign && typeof sign === 'string') {
+        // Try case-insensitive match
+        const signLower = sign.toLowerCase();
+        for (const [key, value] of Object.entries(signMap)) {
+          if (key.toLowerCase() === signLower) {
+            sign = value;
+            break;
+          }
+        }
       }
       
       // Extract degree - Prokerala may return longitude object with degrees, minutes, seconds
@@ -283,10 +311,12 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
       // Calculate degree within sign (0-30)
       const degreeInSign = degree % 30;
       
-      // Extract house
+      // Extract house - try multiple paths
       let house = 0;
       if (planet.house) {
-        house = typeof planet.house === 'number' ? planet.house : (planet.house.number || 0);
+        house = typeof planet.house === 'number' ? planet.house : (planet.house.number || planet.house.house || 0);
+      } else if (planet.houseNumber !== undefined) {
+        house = planet.houseNumber;
       }
       
       const retrograde = planet.isRetrograde || planet.retrograde || false;
@@ -299,6 +329,10 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
         retrograde 
       };
     });
+  
+  console.log("[Transform] Extracted", planets.length, "planets");
+  
+  console.log("[Transform] Extracted", planets.length, "planets");
 
   // Generate summary
   const summary = [

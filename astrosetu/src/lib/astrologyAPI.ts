@@ -52,16 +52,18 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
   }
 
-  // CRITICAL: ABSOLUTE ENFORCEMENT - Panchang, Kundli, and Dosha endpoints MUST use GET, no exceptions
+  // CRITICAL: ABSOLUTE ENFORCEMENT - Panchang, Kundli, Dosha, Horoscope, and Muhurat endpoints MUST use GET, no exceptions
   // This overrides ANY method parameter passed, including defaults
   const isPanchangEndpoint = endpoint === "/panchang" || endpoint.includes("/panchang");
   const isKundliEndpoint = endpoint === "/kundli" || endpoint.includes("/kundli");
   const isDoshaEndpoint = endpoint === "/dosha" || endpoint.includes("/dosha");
-  const mustUseGet = isPanchangEndpoint || isKundliEndpoint || isDoshaEndpoint;
+  const isHoroscopeEndpoint = endpoint.includes("/horoscope");
+  const isMuhuratEndpoint = endpoint === "/muhurat" || endpoint.includes("/muhurat");
+  const mustUseGet = isPanchangEndpoint || isKundliEndpoint || isDoshaEndpoint || isHoroscopeEndpoint || isMuhuratEndpoint;
   const actualMethod: "GET" | "POST" = mustUseGet ? "GET" : method;
   
   if (mustUseGet && method !== "GET") {
-    const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : "Dosha";
+    const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : isDoshaEndpoint ? "Dosha" : isHoroscopeEndpoint ? "Horoscope" : "Muhurat";
     console.error("[AstroSetu] CRITICAL: " + endpointName + " endpoint received method=" + method + ", ENFORCING GET");
   }
   
@@ -234,12 +236,12 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
       // FINAL ENFORCEMENT: Use actualMethod (already enforced at function start)
-      // This is the method that will be used - guaranteed GET for panchang, kundli, and dosha
+      // This is the method that will be used - guaranteed GET for panchang, kundli, dosha, horoscope, and muhurat
       const fetchMethod: "GET" | "POST" = actualMethod;
       
-      // TRIPLE CHECK: Panchang, Kundli, and Dosha MUST be GET - throw error if not
+      // TRIPLE CHECK: Panchang, Kundli, Dosha, Horoscope, and Muhurat MUST be GET - throw error if not
       if (mustUseGet && fetchMethod !== "GET") {
-        const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : "Dosha";
+        const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : isDoshaEndpoint ? "Dosha" : isHoroscopeEndpoint ? "Horoscope" : "Muhurat";
         const criticalError = `[CRITICAL BUG] ${endpointName} endpoint method enforcement failed! Method is ${fetchMethod} but must be GET. originalMethod=${method}, actualMethod=${actualMethod}, mustUseGet=${mustUseGet}`;
         console.error("[AstroSetu]", criticalError);
         throw new Error(criticalError);
@@ -247,7 +249,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       
       // Build fetch options with ABSOLUTE method enforcement
       const fetchOptions: RequestInit = {
-        method: fetchMethod, // This is guaranteed to be GET for panchang, kundli, and dosha
+        method: fetchMethod, // This is guaranteed to be GET for panchang, kundli, dosha, horoscope, and muhurat
         headers: { ...headers }, // Copy headers to avoid mutation
         signal: controller.signal,
       };
@@ -290,9 +292,9 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
           // Keep original error message
         }
         
-        // Add comprehensive debug info to error for panchang and kundli
+        // Add comprehensive debug info to error for all GET endpoints
         if (mustUseGet) {
-          const endpointName = isPanchangEndpoint ? "PANCHANG" : "KUNDLI";
+          const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : "MUHURAT";
           const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
           errorMessage = debugInfo + " | " + errorMessage;
           console.error(`[AstroSetu] ${endpointName} ERROR WITH DEBUG:`, debugInfo, "Error:", errorMessage);
@@ -466,24 +468,53 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
       return { year, month, day, hour: hours, minute: minutes, second: seconds };
     };
 
-    // Ensure coordinates are available
+    // Check if coordinates are available - if not, fall back to mock
     if (!a.latitude || !a.longitude || !b.latitude || !b.longitude) {
-      throw new Error("Latitude and longitude are required for both persons");
+      console.warn("[AstroSetu] Match API: Missing coordinates, using mock data");
+      const match = matchKundli(a, b);
+      const doshaA = generateDoshaAnalysis(a);
+      const doshaB = generateDoshaAnalysis(b);
+      return { ...match, doshaA, doshaB };
     }
 
-    const response = await prokeralaRequest("/kundli-matching", {
-      ayanamsa: 1,
-      girl: {
-        coordinates: `${a.latitude},${a.longitude}`,
-        datetime: parseDate(a.dob, a.tob),
-        timezone: a.timezone || "Asia/Kolkata",
-      },
-      boy: {
-        coordinates: `${b.latitude},${b.longitude}`,
-        datetime: parseDate(b.dob, b.tob),
-        timezone: b.timezone || "Asia/Kolkata",
-      },
-    });
+    // Kundli-matching endpoint - try GET first, fall back to POST if needed
+    // Complex nested data might require POST, but try GET first
+    let response;
+    try {
+      response = await prokeralaRequest("/kundli-matching", {
+        ayanamsa: 1,
+        girl: {
+          coordinates: `${a.latitude},${a.longitude}`,
+          datetime: parseDate(a.dob, a.tob),
+          timezone: a.timezone || "Asia/Kolkata",
+        },
+        boy: {
+          coordinates: `${b.latitude},${b.longitude}`,
+          datetime: parseDate(b.dob, b.tob),
+          timezone: b.timezone || "Asia/Kolkata",
+        },
+      }, 2, "GET" as const);
+    } catch (getError: any) {
+      // If GET fails with 405, try POST (complex nested data may require POST)
+      if (getError.message?.includes("405") || getError.message?.includes("Method Not Allowed")) {
+        console.log("[AstroSetu] Match API: GET failed with 405, trying POST");
+        response = await prokeralaRequest("/kundli-matching", {
+          ayanamsa: 1,
+          girl: {
+            coordinates: `${a.latitude},${a.longitude}`,
+            datetime: parseDate(a.dob, a.tob),
+            timezone: a.timezone || "Asia/Kolkata",
+          },
+          boy: {
+            coordinates: `${b.latitude},${b.longitude}`,
+            datetime: parseDate(b.dob, b.tob),
+            timezone: b.timezone || "Asia/Kolkata",
+          },
+        }, 2, "POST");
+      } else {
+        throw getError;
+      }
+    }
 
     // Transform Prokerala response
     const match = transformMatchResponse(response, a, b);
@@ -525,6 +556,7 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
 
 /**
  * Get Horoscope
+ * ProKerala horoscope endpoints use GET method
  */
 export async function getHoroscope(mode: "daily" | "weekly" | "monthly" | "yearly", sign: string, date?: string, month?: string, year?: number): Promise<HoroscopeDaily | HoroscopeWeekly | HoroscopeMonthly | HoroscopeYearly> {
   if (!isAPIConfigured()) {
@@ -544,19 +576,76 @@ export async function getHoroscope(mode: "daily" | "weekly" | "monthly" | "yearl
 
     const endpoint = mode === "daily" ? "/horoscope/daily" : mode === "weekly" ? "/horoscope/weekly" : mode === "monthly" ? "/horoscope/monthly" : "/horoscope/yearly";
     
+    // Parse date for GET request
+    let datetimeParam: string | { year: number; month: number; day: number } = date || new Date().toISOString().slice(0, 10);
+    if (typeof datetimeParam === "string") {
+      const [y, m, d] = datetimeParam.split("-").map(Number);
+      datetimeParam = { year: y, month: m, day: d };
+    }
+    
+    // Horoscope endpoints require GET method
     const response = await prokeralaRequest(endpoint, {
       sign: signMap[sign] || 1,
-      datetime: date || new Date().toISOString().slice(0, 10),
-    });
+      datetime: datetimeParam,
+    }, 2, "GET" as const);
 
-    // Transform response (use mock for now, enhance later)
+    // Transform ProKerala response
+    const data = response.data || response;
+    const horoscopeData = data.horoscope || data.prediction || data;
+    
+    console.log("[AstroSetu] Horoscope response structure:", {
+      hasData: !!data,
+      hasHoroscope: !!data.horoscope,
+      hasPrediction: !!data.prediction,
+      keys: Object.keys(data || {}),
+    });
+    
     const dateStr = date || new Date().toISOString().slice(0, 10);
-    if (mode === "weekly") return weeklyHoroscope(sign, dateStr);
-    if (mode === "monthly") return monthlyHoroscope(sign, month || new Date().toLocaleString("en-US", { month: "long" }), year || new Date().getFullYear());
-    if (mode === "yearly") return yearlyHoroscope(sign, year || new Date().getFullYear());
-    return dailyHoroscope(sign, dateStr);
-  } catch (error) {
-    console.error("Prokerala API error, using mock:", error);
+    
+    // Extract prediction text from various possible locations
+    const predictionText = horoscopeData.prediction || 
+                          horoscopeData.description || 
+                          horoscopeData.text || 
+                          horoscopeData.content ||
+                          (typeof horoscopeData === 'string' ? horoscopeData : null);
+    
+    if (mode === "daily") {
+      const mockData = dailyHoroscope(sign, dateStr);
+      return {
+        sign,
+        date: dateStr,
+        prediction: predictionText || mockData.prediction,
+        luckyNumber: horoscopeData.luckyNumber || horoscopeData.lucky_number || horoscopeData.luckyNumber || mockData.luckyNumber,
+        luckyColor: horoscopeData.luckyColor || horoscopeData.lucky_color || horoscopeData.luckyColor || mockData.luckyColor,
+      };
+    } else if (mode === "weekly") {
+      const mockData = weeklyHoroscope(sign, dateStr);
+      return {
+        sign,
+        weekStart: dateStr,
+        predictions: horoscopeData.predictions || 
+                    (predictionText ? [predictionText] : null) ||
+                    (horoscopeData.description ? [horoscopeData.description] : null) ||
+                    mockData.predictions,
+      };
+    } else if (mode === "monthly") {
+      const mockData = monthlyHoroscope(sign, month || new Date().toLocaleString("en-US", { month: "long" }), year || new Date().getFullYear());
+      return {
+        sign,
+        month: month || new Date().toLocaleString("en-US", { month: "long" }),
+        year: year || new Date().getFullYear(),
+        prediction: predictionText || mockData.prediction,
+      };
+    } else {
+      const mockData = yearlyHoroscope(sign, year || new Date().getFullYear());
+      return {
+        sign,
+        year: year || new Date().getFullYear(),
+        prediction: predictionText || mockData.prediction,
+      };
+    }
+  } catch (error: any) {
+    console.error("[AstroSetu] Prokerala horoscope API error, using mock:", error?.message || error);
     const dateStr = date || new Date().toISOString().slice(0, 10);
     if (mode === "weekly") return weeklyHoroscope(sign, dateStr);
     if (mode === "monthly") return monthlyHoroscope(sign, month || new Date().toLocaleString("en-US", { month: "long" }), year || new Date().getFullYear());
@@ -603,6 +692,7 @@ export async function getPanchangAPI(date: string, place: string, latitude?: num
 
 /**
  * Find Muhurat
+ * ProKerala muhurat endpoint uses GET method
  */
 export async function findMuhuratAPI(date: string, type: Muhurat["type"]): Promise<Muhurat> {
   if (!isAPIConfigured()) {
@@ -610,15 +700,38 @@ export async function findMuhuratAPI(date: string, type: Muhurat["type"]): Promi
   }
 
   try {
+    // Parse date for GET request
+    const [year, month, day] = date.split("-").map(Number);
+    
+    // Muhurat endpoint requires GET method
     const response = await prokeralaRequest("/muhurat", {
-      datetime: date,
+      datetime: {
+        year,
+        month,
+        day,
+      },
       type,
-    });
+    }, 2, "GET" as const);
 
-    // Transform response (use mock for now, enhance later)
-    return findMuhurat(date, type);
-  } catch (error) {
-    console.error("Prokerala API error, using mock:", error);
+    // Transform ProKerala response
+    const data = response.data || response;
+    const muhuratData = data.muhurat || data;
+    
+    // Extract auspicious timings
+    const timings = muhuratData.timings || muhuratData.auspicious || [];
+    
+    return {
+      type,
+      date,
+      timings: timings.map((t: any) => ({
+        start: t.start || t.startTime || t.start_time || "",
+        end: t.end || t.endTime || t.end_time || "",
+        quality: t.quality || t.rating || "Good",
+        description: t.description || t.note || "",
+      })),
+    };
+  } catch (error: any) {
+    console.error("Prokerala API error, using mock:", error?.message || error);
     return findMuhurat(date, type);
   }
 }
