@@ -702,3 +702,5 @@ export async function getDoshaAnalysis(input: BirthDetails): Promise<DoshaAnalys
 }
 
 // Updated: Thu 25 Dec 2025 21:30:00 AEDT
+
+// Env vars updated: 2025-12-26
