@@ -19,6 +19,7 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   console.log("[Transform] Extracted data structure:", {
     dataKeys: data ? Object.keys(data) : [],
     resultKeys: result ? Object.keys(result) : [],
+    hasNakshatraDetails: !!data.nakshatra_details,
     hasAscendant: !!(result?.ascendant || result?.lagna || data?.ascendant || data?.lagna),
     hasMoon: !!(result?.moon || data?.moon),
   });
@@ -28,7 +29,24 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   let ascendantDegree = 0;
   
   // Try multiple paths for ascendant
-  if (result.ascendant) {
+  // New structure: data.ascendant or data.lagna
+  if (data.ascendant) {
+    const asc = data.ascendant;
+    ascendant = asc.name || asc.rashi?.name || asc.sign?.name || asc.sign || asc;
+    if (asc.longitude) {
+      ascendantDegree = typeof asc.longitude === 'number' 
+        ? asc.longitude 
+        : (asc.longitude.degrees || 0) + (asc.longitude.minutes || 0) / 60;
+    }
+  } else if (data.lagna) {
+    const lagna = data.lagna;
+    ascendant = lagna.name || lagna.rashi?.name || lagna.sign?.name || lagna.sign || lagna;
+    if (lagna.longitude) {
+      ascendantDegree = typeof lagna.longitude === 'number'
+        ? lagna.longitude
+        : (lagna.longitude.degrees || 0) + (lagna.longitude.minutes || 0) / 60;
+    }
+  } else if (result.ascendant) {
     const asc = result.ascendant;
     ascendant = asc.name || asc.rashi?.name || asc.sign?.name || asc.sign || asc;
     if (asc.longitude) {
@@ -44,26 +62,22 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
         ? lagna.longitude
         : (lagna.longitude.degrees || 0) + (lagna.longitude.minutes || 0) / 60;
     }
-  } else if (data.ascendant) {
-    ascendant = data.ascendant.name || data.ascendant.rashi?.name || data.ascendant;
-  } else if (data.lagna) {
-    ascendant = data.lagna.name || data.lagna.rashi?.name || data.lagna;
   }
   
   // Map sign names to standard format (handle both English and Sanskrit)
   const signMap: Record<string, string> = {
     'Aries': 'Aries', 'Mesha': 'Aries', '1': 'Aries',
-    'Taurus': 'Taurus', 'Vrishabha': 'Taurus', '2': 'Taurus',
-    'Gemini': 'Gemini', 'Mithuna': 'Gemini', '3': 'Gemini',
-    'Cancer': 'Cancer', 'Karka': 'Cancer', 'Karkata': 'Cancer', '4': 'Cancer',
-    'Leo': 'Leo', 'Simha': 'Leo', '5': 'Leo',
-    'Virgo': 'Virgo', 'Kanya': 'Virgo', '6': 'Virgo',
-    'Libra': 'Libra', 'Tula': 'Libra', '7': 'Libra',
-    'Scorpio': 'Scorpio', 'Vrishchika': 'Scorpio', '8': 'Scorpio',
-    'Sagittarius': 'Sagittarius', 'Dhanu': 'Sagittarius', '9': 'Sagittarius',
-    'Capricorn': 'Capricorn', 'Makara': 'Capricorn', '10': 'Capricorn',
-    'Aquarius': 'Aquarius', 'Kumbha': 'Aquarius', '11': 'Aquarius',
-    'Pisces': 'Pisces', 'Meena': 'Pisces', '12': 'Pisces',
+    'Taurus': 'Taurus', 'Vrishabha': 'Taurus', 'Vrisha': 'Taurus', '2': 'Taurus',
+    'Gemini': 'Gemini', 'Mithuna': 'Gemini', 'Mithun': 'Gemini', '3': 'Gemini',
+    'Cancer': 'Cancer', 'Karka': 'Cancer', 'Karkata': 'Cancer', 'Kark': 'Cancer', '4': 'Cancer',
+    'Leo': 'Leo', 'Simha': 'Leo', 'Singh': 'Leo', '5': 'Leo',
+    'Virgo': 'Virgo', 'Kanya': 'Virgo', 'Kanya Rashi': 'Virgo', '6': 'Virgo',
+    'Libra': 'Libra', 'Tula': 'Libra', 'Tula Rashi': 'Libra', '7': 'Libra',
+    'Scorpio': 'Scorpio', 'Vrishchika': 'Scorpio', 'Vrischika': 'Scorpio', 'Vrischik': 'Scorpio', '8': 'Scorpio',
+    'Sagittarius': 'Sagittarius', 'Dhanu': 'Sagittarius', 'Dhan': 'Sagittarius', '9': 'Sagittarius',
+    'Capricorn': 'Capricorn', 'Makara': 'Capricorn', 'Makar': 'Capricorn', '10': 'Capricorn',
+    'Aquarius': 'Aquarius', 'Kumbha': 'Aquarius', 'Kumbh': 'Aquarius', '11': 'Aquarius',
+    'Pisces': 'Pisces', 'Meena': 'Pisces', 'Meen': 'Pisces', '12': 'Pisces',
   };
   
   if (ascendant && signMap[ascendant]) {
@@ -71,25 +85,33 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   }
   
   // Extract moon sign (rashi) - Moon's rashi
-  const moonData = result.moon || data.moon || {};
+  // Try new structure first: data.nakshatra_details.chandra_rasi (moon sign)
   let rashi = "Unknown";
   
-  if (moonData.rashi) {
-    const moonRashi = moonData.rashi;
-    rashi = moonRashi.name || moonRashi;
-  } else if (moonData.sign) {
-    const moonSign = moonData.sign;
-    rashi = moonSign.name || moonSign;
-  } else if (moonData.longitude) {
-    // Calculate sign from longitude if available
-    const moonLong = typeof moonData.longitude === 'number'
-      ? moonData.longitude
-      : (moonData.longitude.degrees || 0) + (moonData.longitude.minutes || 0) / 60;
-    const signIndex = Math.floor(moonLong / 30);
-    const signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
-    rashi = signs[signIndex] || "Unknown";
-  } else if (data.moonSign) {
-    rashi = data.moonSign;
+  if (data.nakshatra_details?.chandra_rasi) {
+    const chandraRasi = data.nakshatra_details.chandra_rasi;
+    rashi = chandraRasi.name || chandraRasi;
+    console.log("[Transform] Found rashi from nakshatra_details.chandra_rasi:", rashi);
+  } else {
+    const moonData = result.moon || data.moon || {};
+    
+    if (moonData.rashi) {
+      const moonRashi = moonData.rashi;
+      rashi = moonRashi.name || moonRashi;
+    } else if (moonData.sign) {
+      const moonSign = moonData.sign;
+      rashi = moonSign.name || moonSign;
+    } else if (moonData.longitude) {
+      // Calculate sign from longitude if available
+      const moonLong = typeof moonData.longitude === 'number'
+        ? moonData.longitude
+        : (moonData.longitude.degrees || 0) + (moonData.longitude.minutes || 0) / 60;
+      const signIndex = Math.floor(moonLong / 30);
+      const signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
+      rashi = signs[signIndex] || "Unknown";
+    } else if (data.moonSign) {
+      rashi = data.moonSign;
+    }
   }
   
   if (rashi && signMap[rashi]) {
@@ -97,18 +119,27 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   }
   
   // Extract nakshatra - Moon's nakshatra
+  // Try new structure first: data.nakshatra_details.nakshatra
   let nakshatra = "Unknown";
-  const nakshatraData = result.nakshatra || data.nakshatra || moonData.nakshatra || {};
   
-  if (moonData.nakshatra) {
-    const moonNak = moonData.nakshatra;
-    nakshatra = moonNak.name || moonNak;
-  } else if (nakshatraData.name) {
-    nakshatra = nakshatraData.name;
-  } else if (typeof nakshatraData === 'string') {
-    nakshatra = nakshatraData;
-  } else if (data.nakshatra) {
-    nakshatra = typeof data.nakshatra === 'string' ? data.nakshatra : data.nakshatra.name || "Unknown";
+  if (data.nakshatra_details?.nakshatra) {
+    const nakData = data.nakshatra_details.nakshatra;
+    nakshatra = nakData.name || nakData;
+    console.log("[Transform] Found nakshatra from nakshatra_details.nakshatra:", nakshatra);
+  } else {
+    const moonData = result.moon || data.moon || {};
+    const nakshatraData = result.nakshatra || data.nakshatra || moonData.nakshatra || {};
+    
+    if (moonData.nakshatra) {
+      const moonNak = moonData.nakshatra;
+      nakshatra = moonNak.name || moonNak;
+    } else if (nakshatraData.name) {
+      nakshatra = nakshatraData.name;
+    } else if (typeof nakshatraData === 'string') {
+      nakshatra = nakshatraData;
+    } else if (data.nakshatra) {
+      nakshatra = typeof data.nakshatra === 'string' ? data.nakshatra : data.nakshatra.name || "Unknown";
+    }
   }
   
   // Map nakshatra names to standard format
