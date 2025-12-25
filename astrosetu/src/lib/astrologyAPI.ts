@@ -615,19 +615,23 @@ export async function getHoroscope(mode: "daily" | "weekly" | "monthly" | "yearl
       return {
         sign,
         date: dateStr,
-        prediction: predictionText || mockData.prediction,
-        luckyNumber: horoscopeData.luckyNumber || horoscopeData.lucky_number || horoscopeData.luckyNumber || mockData.luckyNumber,
-        luckyColor: horoscopeData.luckyColor || horoscopeData.lucky_color || horoscopeData.luckyColor || mockData.luckyColor,
+        text: predictionText || mockData.text,
+        lucky: {
+          color: horoscopeData.luckyColor || horoscopeData.lucky_color || mockData.lucky.color,
+          number: horoscopeData.luckyNumber || horoscopeData.lucky_number || mockData.lucky.number,
+          mood: horoscopeData.mood || mockData.lucky.mood,
+        },
       };
     } else if (mode === "weekly") {
       const mockData = weeklyHoroscope(sign, dateStr);
       return {
         sign,
-        weekStart: dateStr,
-        predictions: horoscopeData.predictions || 
-                    (predictionText ? [predictionText] : null) ||
-                    (horoscopeData.description ? [horoscopeData.description] : null) ||
-                    mockData.predictions,
+        weekOf: dateStr,
+        summary: predictionText || horoscopeData.summary || horoscopeData.description || mockData.summary,
+        focus: horoscopeData.focus || 
+               horoscopeData.predictions || 
+               (predictionText ? [predictionText] : []) ||
+               mockData.focus,
       };
     } else if (mode === "monthly") {
       const mockData = monthlyHoroscope(sign, month || new Date().toLocaleString("en-US", { month: "long" }), year || new Date().getFullYear());
@@ -635,14 +639,20 @@ export async function getHoroscope(mode: "daily" | "weekly" | "monthly" | "yearl
         sign,
         month: month || new Date().toLocaleString("en-US", { month: "long" }),
         year: year || new Date().getFullYear(),
-        prediction: predictionText || mockData.prediction,
+        overview: predictionText || horoscopeData.overview || horoscopeData.description || mockData.overview,
+        career: horoscopeData.career || mockData.career,
+        love: horoscopeData.love || mockData.love,
+        finance: horoscopeData.finance || mockData.finance,
+        luckyDays: horoscopeData.luckyDays || mockData.luckyDays,
       };
     } else {
       const mockData = yearlyHoroscope(sign, year || new Date().getFullYear());
       return {
         sign,
         year: year || new Date().getFullYear(),
-        prediction: predictionText || mockData.prediction,
+        overview: predictionText || horoscopeData.overview || horoscopeData.description || mockData.overview,
+        predictions: horoscopeData.predictions || mockData.predictions,
+        importantMonths: horoscopeData.importantMonths || mockData.importantMonths,
       };
     }
   } catch (error: any) {
