@@ -546,7 +546,8 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
     
     return { ...match, doshaA, doshaB };
   } catch (error) {
-    console.error("Prokerala API error, using mock:", error);
+    // Log as warning since we're gracefully falling back to mock
+    console.warn("[AstroSetu] Match API error, using mock:", error instanceof Error ? error.message : error);
     const match = matchKundli(a, b);
     const doshaA = generateDoshaAnalysis(a);
     const doshaB = generateDoshaAnalysis(b);
@@ -645,7 +646,8 @@ export async function getHoroscope(mode: "daily" | "weekly" | "monthly" | "yearl
       };
     }
   } catch (error: any) {
-    console.error("[AstroSetu] Prokerala horoscope API error, using mock:", error?.message || error);
+    // Log as warning instead of error since we're gracefully falling back
+    console.warn("[AstroSetu] Horoscope API error, using mock:", error?.message || error);
     const dateStr = date || new Date().toISOString().slice(0, 10);
     if (mode === "weekly") return weeklyHoroscope(sign, dateStr);
     if (mode === "monthly") return monthlyHoroscope(sign, month || new Date().toLocaleString("en-US", { month: "long" }), year || new Date().getFullYear());
@@ -685,7 +687,7 @@ export async function getPanchangAPI(date: string, place: string, latitude?: num
     // Transform Prokerala response
     return transformPanchangResponse(response, date, place);
   } catch (error: any) {
-    console.error("Prokerala API error, using mock:", error?.message || error);
+    console.warn("[AstroSetu] API error, using mock:", error?.message || error);
     return generatePanchang(date, place);
   }
 }
@@ -731,7 +733,7 @@ export async function findMuhuratAPI(date: string, type: Muhurat["type"]): Promi
       })),
     };
   } catch (error: any) {
-    console.error("Prokerala API error, using mock:", error?.message || error);
+    console.warn("[AstroSetu] API error, using mock:", error?.message || error);
     return findMuhurat(date, type);
   }
 }
@@ -831,7 +833,7 @@ export async function getDashaPeriods(input: BirthDetails): Promise<any> {
       })),
     };
   } catch (error: any) {
-    console.error("Prokerala API error, using mock:", error?.message || error);
+    console.warn("[AstroSetu] API error, using mock:", error?.message || error);
     // Fallback to mock
     return {
       current: {
@@ -886,7 +888,7 @@ export async function getDoshaAnalysis(input: BirthDetails): Promise<DoshaAnalys
 
     return transformDoshaResponse(doshaResponse);
   } catch (error: any) {
-    console.error("Prokerala API error, using mock:", error?.message || error);
+    console.warn("[AstroSetu] API error, using mock:", error?.message || error);
     return generateDoshaAnalysis(input);
   }
 }
