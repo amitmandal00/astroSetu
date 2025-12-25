@@ -74,8 +74,47 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null) {
-        // Handle nested objects (like datetime)
-        if (typeof value === "object" && !Array.isArray(value)) {
+        // Special handling for datetime: ProKerala expects ISO 8601 string for GET requests
+        if (key === "datetime" && typeof value === "object" && !Array.isArray(value)) {
+          const dt = value as { year: number; month: number; day: number; hour?: number; minute?: number; second?: number };
+          // Get timezone from params or default to Asia/Kolkata
+          const timezone = params.timezone || "Asia/Kolkata";
+          
+          // Build ISO 8601 string: YYYY-MM-DDTHH:MM:SS+05:30
+          const year = dt.year;
+          const month = String(dt.month).padStart(2, "0");
+          const day = String(dt.day).padStart(2, "0");
+          
+          // Check if time components are provided (for kundli) or just date (for panchang)
+          const hasTime = dt.hour !== undefined || dt.minute !== undefined || dt.second !== undefined;
+          
+          let isoString: string;
+          if (hasTime) {
+            // Full datetime with time: YYYY-MM-DDTHH:MM:SS+05:30
+            const hour = String(dt.hour || 0).padStart(2, "0");
+            const minute = String(dt.minute || 0).padStart(2, "0");
+            const second = String(dt.second || 0).padStart(2, "0");
+            
+            // For timezone offset, use IST (+05:30) for Asia/Kolkata
+            // ProKerala also accepts timezone param separately, so this is mainly for format compliance
+            let timezoneOffset = "+05:30"; // Default to IST
+            if (timezone === "Asia/Kolkata" || timezone.includes("India")) {
+              timezoneOffset = "+05:30";
+            } else {
+              // For other timezones, use +00:00 (timezone handled by separate param)
+              timezoneOffset = "+00:00";
+            }
+            
+            isoString = `${year}-${month}-${day}T${hour}:${minute}:${second}${timezoneOffset}`;
+          } else {
+            // Date only: YYYY-MM-DD (for panchang)
+            isoString = `${year}-${month}-${day}`;
+          }
+          
+          queryParams.append(key, isoString);
+          console.log("[AstroSetu] Converted datetime object to ISO 8601:", isoString, hasTime ? "(with time)" : "(date only)");
+        } else if (typeof value === "object" && !Array.isArray(value)) {
+          // Handle other nested objects (not datetime)
           for (const [nestedKey, nestedValue] of Object.entries(value)) {
             queryParams.append(`${key}[${nestedKey}]`, String(nestedValue));
           }
