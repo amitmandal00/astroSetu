@@ -642,6 +642,7 @@ export async function getHoroscope(mode: "daily" | "weekly" | "monthly" | "yearl
         overview: predictionText || horoscopeData.overview || horoscopeData.description || mockData.overview,
         career: horoscopeData.career || mockData.career,
         love: horoscopeData.love || mockData.love,
+        health: horoscopeData.health || mockData.health,
         finance: horoscopeData.finance || mockData.finance,
         luckyDays: horoscopeData.luckyDays || mockData.luckyDays,
       };
