@@ -24,10 +24,11 @@ const nextConfig = {
     ],
   },
   webpack: (config, { isServer }) => {
-    // Resolve path aliases
+    // Resolve path aliases - ensure @ points to src directory
+    const srcPath = path.resolve(process.cwd(), 'src');
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': path.resolve(__dirname, 'src'),
+      '@': srcPath,
     };
     
     if (isServer) {
