@@ -74,9 +74,12 @@ export const LoginSchema = z.object({
   path: ["email"],
 });
 
-export const OTPRequestSchema = z.object({
+// Base phone schema (before refine)
+const PhoneBaseSchema = z.object({
   phone: z.string().min(10, "Phone number must be at least 10 digits").max(20),
-}).refine((data) => {
+});
+
+export const OTPRequestSchema = PhoneBaseSchema.refine((data) => {
   // More lenient phone validation - allow Indian numbers with or without +91
   const cleaned = data.phone.replace(/\D/g, '');
   return cleaned.length >= 10 && cleaned.length <= 15;
@@ -85,8 +88,16 @@ export const OTPRequestSchema = z.object({
   path: ["phone"],
 });
 
-export const OTPVerifySchema = OTPRequestSchema.extend({
+// OTPVerifySchema extends the base object, not the refined schema
+export const OTPVerifySchema = PhoneBaseSchema.extend({
   otp: z.string().length(6).regex(/^\d{6}$/),
+}).refine((data) => {
+  // Apply the same phone validation
+  const cleaned = data.phone.replace(/\D/g, '');
+  return cleaned.length >= 10 && cleaned.length <= 15;
+}, {
+  message: "Please enter a valid phone number (10-15 digits)",
+  path: ["phone"],
 });
 
 // Chat validation
