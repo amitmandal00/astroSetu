@@ -1,5 +1,10 @@
 // Injected content via Sentry wizard below
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -19,6 +24,12 @@ const nextConfig = {
     ],
   },
   webpack: (config, { isServer }) => {
+    // Resolve path aliases
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, 'src'),
+    };
+    
     if (isServer) {
       // Make qrcode and otplib optional for server-side builds
       // They will be loaded at runtime if available
