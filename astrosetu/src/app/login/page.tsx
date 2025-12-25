@@ -140,12 +140,23 @@ function LoginPageContent() {
       logError(isRegister ? "auth_register" : "auth_login", e, {
         method: isRegister ? "register" : loginMethod,
       });
+      
+      // Parse error message - handle both JSON and plain text
+      let displayError = errorMsg;
       try {
         const parsed = JSON.parse(errorMsg);
-        setErr(parsed.error || errorMsg);
+        displayError = parsed.error || parsed.message || errorMsg;
       } catch {
-        setErr(errorMsg);
+        // Not JSON, use message as-is but clean it up
+        if (errorMsg.includes("Please log in to continue")) {
+          // For login page, show more helpful message
+          displayError = "Invalid email or password. Please try again or use demo mode (leave password empty).";
+        } else {
+          displayError = errorMsg;
+        }
       }
+      
+      setErr(displayError);
     } finally {
       setLoading(false);
     }
@@ -254,7 +265,7 @@ function LoginPageContent() {
           <div className="relative z-10">
             <CardHeader
               eyebrow={isRegister ? "✨ New Account" : "🔐 Secure Login"}
-              title={isRegister ? "Create Your Account" : "Login to AstroSetu"}
+              title={isRegister ? "Create Your Account" : "Sign In to AstroSetu"}
               subtitle={isRegister ? "Start your astrological journey" : "Industry-standard security with 2FA support"}
             />
             <CardContent className="space-y-5">
@@ -513,7 +524,7 @@ function LoginPageContent() {
                   <div className="flex items-start gap-2">
                     <span className="text-lg">⚠️</span>
                     <div className="flex-1">
-                      <div className="font-semibold mb-1">Error</div>
+                      <div className="font-semibold mb-1">Login Failed</div>
                       <div>{err}</div>
                     </div>
                   </div>
