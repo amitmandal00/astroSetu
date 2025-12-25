@@ -165,10 +165,13 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   // Extract tithi
   const tithi = data.tithi?.name || data.tithi || "Unknown";
   
+  // Get moon data for planet map (defined here for scope)
+  const moonDataForPlanets = result.moon || data.moon || {};
+  
   // Extract planetary positions - Prokerala returns planets in different structures
   const planetMap: Record<string, any> = {
     sun: result.sun || data.sun,
-    moon: result.moon || data.moon || moonData,
+    moon: result.moon || data.moon || moonDataForPlanets,
     mars: result.mars || data.mars,
     mercury: result.mercury || data.mercury,
     jupiter: result.jupiter || data.jupiter,
