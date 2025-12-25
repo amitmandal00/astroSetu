@@ -52,15 +52,17 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
   }
 
-  // CRITICAL: ABSOLUTE ENFORCEMENT - Panchang and Kundli endpoints MUST use GET, no exceptions
+  // CRITICAL: ABSOLUTE ENFORCEMENT - Panchang, Kundli, and Dosha endpoints MUST use GET, no exceptions
   // This overrides ANY method parameter passed, including defaults
   const isPanchangEndpoint = endpoint === "/panchang" || endpoint.includes("/panchang");
   const isKundliEndpoint = endpoint === "/kundli" || endpoint.includes("/kundli");
-  const mustUseGet = isPanchangEndpoint || isKundliEndpoint;
+  const isDoshaEndpoint = endpoint === "/dosha" || endpoint.includes("/dosha");
+  const mustUseGet = isPanchangEndpoint || isKundliEndpoint || isDoshaEndpoint;
   const actualMethod: "GET" | "POST" = mustUseGet ? "GET" : method;
   
   if (mustUseGet && method !== "GET") {
-    console.error("[AstroSetu] CRITICAL: " + (isPanchangEndpoint ? "Panchang" : "Kundli") + " endpoint received method=" + method + ", ENFORCING GET");
+    const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : "Dosha";
+    console.error("[AstroSetu] CRITICAL: " + endpointName + " endpoint received method=" + method + ", ENFORCING GET");
   }
   
   // Use actualMethod throughout the function, never the original method parameter
@@ -232,12 +234,12 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
       // FINAL ENFORCEMENT: Use actualMethod (already enforced at function start)
-      // This is the method that will be used - guaranteed GET for panchang and kundli
+      // This is the method that will be used - guaranteed GET for panchang, kundli, and dosha
       const fetchMethod: "GET" | "POST" = actualMethod;
       
-      // TRIPLE CHECK: Panchang and Kundli MUST be GET - throw error if not
+      // TRIPLE CHECK: Panchang, Kundli, and Dosha MUST be GET - throw error if not
       if (mustUseGet && fetchMethod !== "GET") {
-        const endpointName = isPanchangEndpoint ? "Panchang" : "Kundli";
+        const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : "Dosha";
         const criticalError = `[CRITICAL BUG] ${endpointName} endpoint method enforcement failed! Method is ${fetchMethod} but must be GET. originalMethod=${method}, actualMethod=${actualMethod}, mustUseGet=${mustUseGet}`;
         console.error("[AstroSetu]", criticalError);
         throw new Error(criticalError);
@@ -245,7 +247,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       
       // Build fetch options with ABSOLUTE method enforcement
       const fetchOptions: RequestInit = {
-        method: fetchMethod, // This is guaranteed to be GET for panchang and kundli
+        method: fetchMethod, // This is guaranteed to be GET for panchang, kundli, and dosha
         headers: { ...headers }, // Copy headers to avoid mutation
         signal: controller.signal,
       };
@@ -404,6 +406,7 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
     // Get dosha analysis (may need separate API call)
     let dosha: DoshaAnalysis;
     try {
+      // Dosha endpoint requires GET method
       const doshaResponse = await prokeralaRequest("/dosha", {
         ayanamsa: input.ayanamsa || 1,
         coordinates: `${input.latitude},${input.longitude}`,
@@ -416,7 +419,7 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
           second: seconds || 0,
         },
         timezone: input.timezone || "Asia/Kolkata",
-      });
+      }, 2, "GET" as const);
       dosha = transformDoshaResponse(doshaResponse);
     } catch (doshaError: any) {
       console.warn("[AstroSetu] Dosha API call failed, using mock:", doshaError?.message);
@@ -494,13 +497,13 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
           coordinates: `${a.latitude},${a.longitude}`,
           datetime: parseDate(a.dob, a.tob),
           timezone: a.timezone || "Asia/Kolkata",
-        }).catch(() => null),
+        }, 2, "GET" as const).catch(() => null),
         prokeralaRequest("/dosha", {
           ayanamsa: 1,
           coordinates: `${b.latitude},${b.longitude}`,
           datetime: parseDate(b.dob, b.tob),
           timezone: b.timezone || "Asia/Kolkata",
-        }).catch(() => null),
+        }, 2, "GET" as const).catch(() => null),
       ]);
       
       doshaA = doshaAResponse ? transformDoshaResponse(doshaAResponse) : generateDoshaAnalysis(a);
@@ -753,6 +756,7 @@ export async function getDoshaAnalysis(input: BirthDetails): Promise<DoshaAnalys
       throw new Error("Latitude and longitude are required for Prokerala API");
     }
 
+    // Dosha endpoint requires GET method
     const doshaResponse = await prokeralaRequest("/dosha", {
       ayanamsa: input.ayanamsa || 1,
       coordinates: `${input.latitude},${input.longitude}`,
@@ -765,7 +769,7 @@ export async function getDoshaAnalysis(input: BirthDetails): Promise<DoshaAnalys
         second: seconds || 0,
       },
       timezone: input.timezone || "Asia/Kolkata",
-    });
+    }, 2, "GET" as const);
 
     return transformDoshaResponse(doshaResponse);
   } catch (error: any) {
