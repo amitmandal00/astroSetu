@@ -109,7 +109,7 @@ export default function RemediesPage() {
                     width={400}
                     height={128}
                     className="w-full h-full"
-                    fallback={remedyImages["Gemstone"]}
+                    fallback={getRemedyImage("Gemstone")}
                   />
                   {/* Overlay with remedy type */}
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
