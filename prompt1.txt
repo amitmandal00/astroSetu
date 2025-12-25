@@ -1,0 +1,1781 @@
+Char GPT second cut code - Kundali - mvp (top 5 features)
+
+
+Below is a single generator script that creates a fresh, production-ready AstroSetu codebase (Next.js App Router + TypeScript + Tailwind) aligned to the approved UI direction, with all 5 core features wired end-to-end using a mock astrology engine (so it runs immediately).
+
+1) Create create-astrosetu.sh
+
+Copy/paste the entire script below into a file named create-astrosetu.sh.
+
+2) Run
+
+bash create-astrosetu.sh
+cd astrosetu
+npm install
+cp .env.example .env.local
+npm run dev
+
+Open: http://localhost:3000
+
+⸻
+
+create-astrosetu.sh
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP="astrosetu"
+rm -rf "$APP"
+mkdir -p "$APP"
+cd "$APP"
+
+# -------------------------
+# package.json + config
+# -------------------------
+cat > package.json <<'EOF'
+{
+  "name": "astrosetu",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "next": "14.2.18",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.6",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "autoprefixer": "10.4.20",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.18",
+    "postcss": "8.4.49",
+    "tailwindcss": "3.4.15",
+    "typescript": "5.6.3"
+  }
+}
+EOF
+
+cat > next.config.mjs <<'EOF'
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true
+};
+export default nextConfig;
+EOF
+
+cat > tsconfig.json <<'EOF'
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+EOF
+
+cat > next-env.d.ts <<'EOF'
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+EOF
+
+cat > postcss.config.mjs <<'EOF'
+export default { plugins: { tailwindcss: {}, autoprefixer: {} } };
+EOF
+
+cat > tailwind.config.ts <<'EOF'
+import type { Config } from "tailwindcss";
+
+export default {
+  content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
+  theme: {
+    extend: {
+      boxShadow: {
+        soft: "0 10px 30px rgba(2,6,23,0.08)"
+      }
+    }
+  },
+  plugins: []
+} satisfies Config;
+EOF
+
+cat > .eslintrc.json <<'EOF'
+{ "extends": ["next/core-web-vitals"] }
+EOF
+
+cat > .env.example <<'EOF'
+NEXT_PUBLIC_APP_NAME=AstroSetu
+NEXT_PUBLIC_TAGLINE=Bridging humans with cosmic guidance
+EOF
+
+# -------------------------
+# folders
+# -------------------------
+mkdir -p src/app
+mkdir -p src/app/api/astrology/kundli
+mkdir -p src/app/api/astrology/match
+mkdir -p src/app/api/astrology/horoscope
+mkdir -p src/app/api/astrologers
+mkdir -p src/app/api/astrologers/[id]
+mkdir -p src/app/api/chat/sessions
+mkdir -p src/app/api/chat/sessions/[id]
+mkdir -p src/app/api/chat/sessions/[id]/messages
+
+mkdir -p src/app/kundli
+mkdir -p src/app/match
+mkdir -p src/app/horoscope
+mkdir -p src/app/astrologers
+mkdir -p src/app/astrologers/[id]
+mkdir -p src/app/chat/[sessionId]
+
+mkdir -p src/components/ui
+mkdir -p src/components/layout
+mkdir -p src/lib
+mkdir -p src/types
+
+# -------------------------
+# global styles (premium vibe)
+# -------------------------
+cat > src/app/globals.css <<'EOF'
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --indigo: 43 46 74;
+  --saffron: 244 196 48;
+}
+
+html, body { height: 100%; }
+body { @apply bg-slate-50 text-slate-900; }
+
+.bg-orbit {
+  background:
+    radial-gradient(circle at 20% 10%, rgba(244,196,48,0.18), transparent 38%),
+    radial-gradient(circle at 80% 20%, rgba(99,102,241,0.18), transparent 42%),
+    radial-gradient(circle at 55% 70%, rgba(244,196,48,0.12), transparent 45%);
+}
+
+.chakra-ring:before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  border-radius: 9999px;
+  border: 1px solid rgba(15,23,42,0.08);
+  box-shadow: 0 0 0 10px rgba(99,102,241,0.04);
+}
+EOF
+
+# -------------------------
+# types
+# -------------------------
+cat > src/types/astrology.ts <<'EOF'
+export type BirthDetails = {
+  name?: string;
+  dob: string;  // YYYY-MM-DD
+  tob: string;  // HH:mm
+  place: string;
+};
+
+export type PlanetPosition = {
+  name: string;
+  sign: string;
+  degree: number;
+  house: number;
+  retrograde: boolean;
+};
+
+export type KundliResult = {
+  ascendant: string;
+  rashi: string;
+  nakshatra: string;
+  tithi: string;
+  planets: PlanetPosition[];
+  summary: string[];
+};
+
+export type GunaBreakdownItem = {
+  category: string;
+  max: number;
+  score: number;
+  note: string;
+};
+
+export type MatchResult = {
+  totalGuna: number;
+  maxGuna: number;
+  verdict: "Excellent" | "Good" | "Average" | "Challenging";
+  breakdown: GunaBreakdownItem[];
+  manglik: { a: "Non-Manglik" | "Manglik"; b: "Non-Manglik" | "Manglik"; note: string };
+  guidance: string[];
+};
+
+export type HoroscopeDaily = {
+  sign: string;
+  date: string;
+  text: string;
+  lucky: { color: string; number: number; mood: string };
+};
+
+export type HoroscopeWeekly = {
+  sign: string;
+  weekOf: string; // YYYY-MM-DD
+  summary: string;
+  focus: string[];
+};
+
+export type Astrologer = {
+  id: string;
+  name: string;
+  title: string;
+  bio: string;
+  skills: string[];
+  languages: string[];
+  pricePerMin: number;
+  isOnline: boolean;
+  ratingAvg: number;
+  ratingCount: number;
+  experienceYears: number;
+};
+
+export type ChatSession = {
+  id: string;
+  userName: string;
+  astrologerId: string;
+  status: "active" | "ended";
+  createdAt: number;
+};
+
+export type ChatMessage = {
+  id: string;
+  sessionId: string;
+  sender: "user" | "astrologer" | "system";
+  text: string;
+  createdAt: number;
+};
+EOF
+
+# -------------------------
+# validators + http helpers
+# -------------------------
+cat > src/lib/validators.ts <<'EOF'
+import { z } from "zod";
+
+export const BirthDetailsSchema = z.object({
+  name: z.string().optional(),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  tob: z.string().regex(/^\d{2}:\d{2}$/),
+  place: z.string().min(2)
+});
+
+export const MatchSchema = z.object({
+  a: BirthDetailsSchema,
+  b: BirthDetailsSchema
+});
+
+export const ChatSessionCreateSchema = z.object({
+  userName: z.string().min(1),
+  astrologerId: z.string().min(1)
+});
+
+export const ChatMessageCreateSchema = z.object({
+  sender: z.enum(["user", "astrologer"]),
+  text: z.string().min(1).max(2000)
+});
+EOF
+
+cat > src/lib/http.ts <<'EOF'
+export async function apiGet<T>(url: string): Promise<T> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T>;
+}
+
+export async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T>;
+}
+EOF
+
+# -------------------------
+# mock astrologers
+# -------------------------
+cat > src/lib/mockAstrologers.ts <<'EOF'
+import type { Astrologer } from "@/types/astrology";
+
+export const astrologers: Astrologer[] = [
+  {
+    id: "a1",
+    name: "Acharya Meera",
+    title: "Vedic • Marriage • Remedies",
+    bio: "Practical guidance for relationships, marriage timing, and remedies rooted in tradition.",
+    skills: ["Vedic", "Marriage", "Remedies"],
+    languages: ["Hindi", "English"],
+    pricePerMin: 29,
+    isOnline: true,
+    ratingAvg: 4.8,
+    ratingCount: 1280,
+    experienceYears: 11
+  },
+  {
+    id: "a2",
+    name: "Guru Arvind",
+    title: "KP • Vedic • Timelines",
+    bio: "KP + Vedic blend for sharper timelines and event windows with calm explanations.",
+    skills: ["KP", "Vedic", "Timing"],
+    languages: ["English", "Tamil"],
+    pricePerMin: 39,
+    isOnline: false,
+    ratingAvg: 4.7,
+    ratingCount: 860,
+    experienceYears: 9
+  },
+  {
+    id: "a3",
+    name: "Pandit Raghav",
+    title: "Guna Milan • Manglik",
+    bio: "Traditional matching with modern clarity. Strong on compatibility and dosha guidance.",
+    skills: ["Matchmaking", "Guna Milan", "Manglik"],
+    languages: ["Hindi"],
+    pricePerMin: 19,
+    isOnline: true,
+    ratingAvg: 4.6,
+    ratingCount: 540,
+    experienceYears: 13
+  },
+  {
+    id: "a4",
+    name: "Ananya Sharma",
+    title: "Horoscope • Relationships",
+    bio: "Daily guidance with a focus on relationships and career decisions.",
+    skills: ["Horoscope", "Guidance", "Relationships"],
+    languages: ["English"],
+    pricePerMin: 24,
+    isOnline: true,
+    ratingAvg: 4.5,
+    ratingCount: 320,
+    experienceYears: 6
+  }
+];
+EOF
+
+# -------------------------
+# mock astrology engine
+# -------------------------
+cat > src/lib/astrologyEngine.ts <<'EOF'
+import type { BirthDetails, KundliResult, MatchResult, HoroscopeDaily, HoroscopeWeekly } from "@/types/astrology";
+
+const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+const NAKSHATRAS = ["Ashwini","Bharani","Krittika","Rohini","Mrigashirsha","Ardra","Punarvasu","Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta","Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha","Uttara Ashadha","Shravana","Dhanishta","Shatabhisha","Purva Bhadrapada","Uttara Bhadrapada","Revati"];
+const TITHIS = ["Pratipada","Dvitiya","Tritiya","Chaturthi","Panchami","Shashthi","Saptami","Ashtami","Navami","Dashami","Ekadashi","Dwadashi","Trayodashi","Chaturdashi","Purnima/Amavasya"];
+
+function hash(s: string) { let h=2166136261; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return Math.abs(h); }
+function pick<T>(arr: T[], seed: number) { return arr[seed % arr.length]; }
+function deg(seed: number) { return Math.round(((seed % 36000) / 100) * 100) / 100; }
+
+export function generateKundli(input: BirthDetails): KundliResult {
+  const seed = hash(`${input.dob}|${input.tob}|${input.place}`);
+  const asc = pick(SIGNS, seed);
+  const rashi = pick(SIGNS, seed + 7);
+  const nak = pick(NAKSHATRAS, seed + 13);
+  const tithi = pick(TITHIS, seed + 19);
+
+  const planets = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"].map((name, idx) => {
+    const s2 = seed + idx * 97;
+    return { name, sign: pick(SIGNS, s2), degree: deg(s2), house: (s2 % 12) + 1, retrograde: (s2 % 5) === 0 };
+  });
+
+  const summary = [
+    `Ascendant in ${asc} suggests how you approach life, opportunities, and challenges.`,
+    `Moon sign ${rashi} reflects emotional needs and relationship patterns.`,
+    `Nakshatra ${nak} highlights deeper traits and repeating life themes.`
+  ];
+
+  return { ascendant: asc, rashi, nakshatra: nak, tithi, planets, summary };
+}
+
+export function matchKundli(a: BirthDetails, b: BirthDetails): MatchResult {
+  const sa = hash(`${a.dob}|${a.tob}|${a.place}`);
+  const sb = hash(`${b.dob}|${b.tob}|${b.place}`);
+  const mix = sa ^ (sb << 1);
+
+  const categories = [
+    { category: "Varna", max: 1 }, { category: "Vashya", max: 2 }, { category: "Tara", max: 3 }, { category: "Yoni", max: 4 },
+    { category: "Graha Maitri", max: 5 }, { category: "Gana", max: 6 }, { category: "Bhakoot", max: 7 }, { category: "Nadi", max: 8 }
+  ];
+
+  const breakdown = categories.map((c, i) => {
+    const raw = (mix + i * 101) % (c.max * 100 + 1);
+    const score = Math.round((raw / 100) * 2) / 2;
+    const clamped = Math.max(0, Math.min(c.max, score));
+    let note = "Balanced.";
+    if (clamped >= c.max * 0.8) note = "Strong alignment.";
+    else if (clamped <= c.max * 0.3) note = "Needs attention.";
+    return { category: c.category, max: c.max, score: clamped, note };
+  });
+
+  const total = breakdown.reduce((s, x) => s + x.score, 0);
+  const verdict: MatchResult["verdict"] = total >= 28 ? "Excellent" : total >= 22 ? "Good" : total >= 16 ? "Average" : "Challenging";
+
+  const mangA = (sa % 7) <= 1 ? "Manglik" : "Non-Manglik";
+  const mangB = (sb % 7) <= 1 ? "Manglik" : "Non-Manglik";
+  const note = mangA === mangB ? "Manglik status aligns; remedies are optional depending on tradition." : "Manglik mismatch; consider remedies and a detailed consultation.";
+
+  const guidance = [
+    "Use the score as a signal—not a verdict. Communication and values matter most.",
+    "If Bhakoot or Nadi is low, consult for context-specific remedies.",
+    "Consider muhurat/date alignment once compatibility feels right."
+  ];
+
+  return { totalGuna: Math.round(total * 2) / 2, maxGuna: 36, verdict, breakdown, manglik: { a: mangA, b: mangB, note }, guidance };
+}
+
+export function dailyHoroscope(sign: string, date: string): HoroscopeDaily {
+  const safeSign = SIGNS.includes(sign) ? sign : "Aries";
+  const seed = hash(`${safeSign}|${date}`);
+  const moods = ["Focused","Optimistic","Calm","Bold","Reflective","Playful"];
+  const colors = ["Indigo","Emerald","Saffron","Crimson","Teal","Violet"];
+  const textBlocks = [
+    "Today favors small decisive moves. Focus on one priority and commit.",
+    "A conversation unlocks progress. Ask one honest question and listen.",
+    "Simplify your routine. Your energy improves when you reduce noise.",
+    "Money decisions benefit from patience—delay impulse purchases.",
+    "Relationships feel smoother when you state needs directly (without blame)."
+  ];
+  return { sign: safeSign, date, text: pick(textBlocks, seed), lucky: { color: pick(colors, seed + 3), number: (seed % 9) + 1, mood: pick(moods, seed + 9) } };
+}
+
+export function weeklyHoroscope(sign: string, weekOf: string): HoroscopeWeekly {
+  const safeSign = SIGNS.includes(sign) ? sign : "Aries";
+  const seed = hash(`${safeSign}|${weekOf}|weekly`);
+  const summaries = [
+    "A steady week for progress—win by consistency over intensity.",
+    "Expect a key decision mid-week; choose clarity over speed.",
+    "Relationships and collaborations become smoother with boundaries.",
+    "A creative idea pays off—share it with someone practical.",
+    "Reset your routine; better sleep improves everything."
+  ];
+  const focus = [
+    "Career: prioritize one task daily.",
+    "Love: be direct about needs.",
+    "Money: avoid impulse buying.",
+    "Health: protect sleep and hydration.",
+    "Mind: reduce distractions."
+  ];
+  return { sign: safeSign, weekOf, summary: pick(summaries, seed), focus: [pick(focus, seed+1), pick(focus, seed+2), pick(focus, seed+3)] };
+}
+EOF
+
+# -------------------------
+# chat in-memory store
+# -------------------------
+cat > src/lib/store.ts <<'EOF'
+import type { ChatMessage, ChatSession } from "@/types/astrology";
+
+type StoreShape = { sessions: Record<string, ChatSession>; messages: Record<string, ChatMessage[]> };
+
+function getGlobalStore(): StoreShape {
+  const g = globalThis as unknown as { __astrosetuStore?: StoreShape };
+  if (!g.__astrosetuStore) g.__astrosetuStore = { sessions: {}, messages: {} };
+  return g.__astrosetuStore;
+}
+
+export const store = {
+  createSession(input: Omit<ChatSession, "id" | "createdAt" | "status">) {
+    const s = getGlobalStore();
+    const id = crypto.randomUUID();
+    s.sessions[id] = { id, status: "active", createdAt: Date.now(), ...input };
+    s.messages[id] = [{
+      id: crypto.randomUUID(),
+      sessionId: id,
+      sender: "system",
+      text: "Welcome to AstroSetu. Share your DOB, TOB, place, and your question to begin.",
+      createdAt: Date.now()
+    }];
+    return s.sessions[id];
+  },
+  getSession(id: string) {
+    return getGlobalStore().sessions[id] ?? null;
+  },
+  endSession(id: string) {
+    const s = getGlobalStore();
+    const sess = s.sessions[id];
+    if (!sess) return null;
+    sess.status = "ended";
+    return sess;
+  },
+  addMessage(sessionId: string, sender: ChatMessage["sender"], text: string) {
+    const s = getGlobalStore();
+    if (!s.messages[sessionId]) s.messages[sessionId] = [];
+    const msg: ChatMessage = { id: crypto.randomUUID(), sessionId, sender, text, createdAt: Date.now() };
+    s.messages[sessionId].push(msg);
+    return msg;
+  },
+  listMessages(sessionId: string, after?: number) {
+    const all = getGlobalStore().messages[sessionId] ?? [];
+    if (!after) return all;
+    return all.filter(m => m.createdAt > after);
+  }
+};
+EOF
+
+# -------------------------
+# UI components (real app polish)
+# -------------------------
+cat > src/components/ui/Button.tsx <<'EOF'
+import { clsx } from "clsx";
+import type { ButtonHTMLAttributes } from "react";
+
+type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost";
+};
+
+export function Button({ className, variant = "primary", ...props }: Props) {
+  const base =
+    "inline-flex items-center justify-center rounded-2xl px-4 py-2 text-sm font-semibold transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed";
+  const styles =
+    variant === "primary"
+      ? "bg-slate-900 text-white hover:bg-slate-800 shadow-soft"
+      : variant === "secondary"
+        ? "bg-white text-slate-900 border border-slate-200 hover:bg-slate-50"
+        : "bg-transparent text-slate-900 hover:bg-slate-100";
+  return <button className={clsx(base, styles, className)} {...props} />;
+}
+EOF
+
+cat > src/components/ui/Card.tsx <<'EOF'
+import type { ReactNode } from "react";
+import { clsx } from "clsx";
+
+export function Card({ className, children }: { className?: string; children: ReactNode }) {
+  return <div className={clsx("rounded-3xl bg-white border border-slate-200 shadow-soft", className)}>{children}</div>;
+}
+
+export function CardHeader({ eyebrow, title, subtitle }: { eyebrow?: string; title: string; subtitle?: string }) {
+  return (
+    <div className="px-6 pt-6 pb-4">
+      {eyebrow ? <div className="text-xs font-semibold text-indigo-600 mb-2">{eyebrow}</div> : null}
+      <div className="text-xl font-semibold tracking-tight">{title}</div>
+      {subtitle ? <div className="text-sm text-slate-600 mt-2">{subtitle}</div> : null}
+    </div>
+  );
+}
+
+export function CardContent({ children }: { children: ReactNode }) {
+  return <div className="px-6 pb-6">{children}</div>;
+}
+EOF
+
+cat > src/components/ui/Input.tsx <<'EOF'
+import { clsx } from "clsx";
+import type { InputHTMLAttributes } from "react";
+
+export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      className={clsx(
+        "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-200",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+EOF
+
+cat > src/components/ui/Select.tsx <<'EOF'
+import { clsx } from "clsx";
+import type { SelectHTMLAttributes } from "react";
+
+export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={clsx(
+        "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-200",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+EOF
+
+cat > src/components/ui/Badge.tsx <<'EOF'
+import { clsx } from "clsx";
+import type { ReactNode } from "react";
+
+export function Badge({
+  children,
+  tone = "neutral"
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "green" | "red" | "amber" | "indigo";
+}) {
+  const styles =
+    tone === "green"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : tone === "red"
+        ? "bg-rose-50 text-rose-700 border-rose-200"
+        : tone === "amber"
+          ? "bg-amber-50 text-amber-800 border-amber-200"
+          : tone === "indigo"
+            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+            : "bg-slate-50 text-slate-700 border-slate-200";
+  return <span className={clsx("inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold", styles)}>{children}</span>;
+}
+EOF
+
+cat > src/components/ui/Tabs.tsx <<'EOF'
+import { clsx } from "clsx";
+
+export function Tabs({
+  value,
+  onChange,
+  items
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  items: { value: string; label: string }[];
+}) {
+  return (
+    <div className="inline-flex rounded-2xl bg-slate-100 p-1 border border-slate-200">
+      {items.map((it) => (
+        <button
+          key={it.value}
+          onClick={() => onChange(it.value)}
+          className={clsx(
+            "px-4 py-2 text-sm font-semibold rounded-2xl transition",
+            value === it.value ? "bg-white shadow-soft" : "text-slate-600 hover:text-slate-900"
+          )}
+          type="button"
+        >
+          {it.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+EOF
+
+# -------------------------
+# Layout shell (approved brand)
+# -------------------------
+cat > src/components/layout/Shell.tsx <<'EOF'
+import Link from "next/link";
+import type { ReactNode } from "react";
+
+const nav = [
+  { href: "/kundli", label: "Kundli" },
+  { href: "/match", label: "Match" },
+  { href: "/horoscope", label: "Horoscope" },
+  { href: "/astrologers", label: "Astrologers" }
+];
+
+export function Shell({ children }: { children: ReactNode }) {
+  const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "AstroSetu";
+  const tagline = process.env.NEXT_PUBLIC_TAGLINE ?? "Bridging humans with cosmic guidance";
+
+  return (
+    <div className="min-h-screen bg-orbit">
+      <header className="sticky top-0 z-10 backdrop-blur bg-white/75 border-b border-slate-200">
+        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="relative">
+              <div className="h-11 w-11 rounded-3xl bg-slate-900 text-white grid place-items-center font-black tracking-tight">A</div>
+              <div className="absolute -inset-3 rounded-full border border-slate-200/70 opacity-70" />
+            </div>
+            <div className="leading-tight">
+              <div className="font-semibold">{appName}</div>
+              <div className="text-xs text-slate-600">{tagline}</div>
+            </div>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-1">
+            {nav.map((i) => (
+              <Link key={i.href} href={i.href} className="px-4 py-2 rounded-2xl text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                {i.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="hidden md:flex items-center gap-2 text-xs text-slate-600">
+            <span className="px-3 py-1 rounded-full border border-slate-200 bg-white">MVP</span>
+            <span className="px-3 py-1 rounded-full border border-slate-200 bg-white">Demo-ready</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
+
+      <footer className="border-t border-slate-200 bg-white/70 backdrop-blur">
+        <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-600 flex flex-wrap items-center justify-between gap-3">
+          <div>© {new Date().getFullYear()} AstroSetu</div>
+          <div className="text-xs">Mock engine included. Swap with a real astrology provider when ready.</div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+EOF
+
+# -------------------------
+# App layout + home page
+# -------------------------
+cat > src/app/layout.tsx <<'EOF'
+import "./globals.css";
+import type { Metadata } from "next";
+import { Shell } from "@/components/layout/Shell";
+
+export const metadata: Metadata = {
+  title: "AstroSetu",
+  description: "Bridging humans with cosmic guidance"
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <Shell>{children}</Shell>
+      </body>
+    </html>
+  );
+}
+EOF
+
+cat > src/app/page.tsx <<'EOF'
+import Link from "next/link";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+
+export default function Home() {
+  return (
+    <div className="grid gap-8">
+      <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6 items-start">
+        <div className="relative overflow-hidden rounded-[2.2rem] border border-slate-200 bg-white shadow-soft p-8">
+          <div className="absolute inset-0 pointer-events-none opacity-70">
+            <div className="absolute -top-28 -left-28 h-72 w-72 rounded-full bg-amber-200/40 blur-3xl" />
+            <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+          </div>
+
+          <div className="relative">
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Badge tone="indigo">AstroSetu</Badge>
+              <Badge>Tools + Consultation</Badge>
+              <Badge tone="amber">MVP</Badge>
+            </div>
+
+            <h1 className="text-4xl font-semibold tracking-tight">
+              Bridging humans with <span className="text-indigo-600">cosmic guidance</span>.
+            </h1>
+            <p className="text-slate-600 mt-3 max-w-2xl">
+              Generate Kundli, match compatibility, read daily/weekly horoscope, and chat with astrologers — a clean MVP inspired by AstroSage + AstroTalk.
+            </p>
+
+            <div className="flex flex-wrap gap-3 mt-6">
+              <Link href="/kundli"><Button>Generate Kundli</Button></Link>
+              <Link href="/match"><Button variant="secondary">Match Kundli</Button></Link>
+              <Link href="/astrologers"><Button variant="ghost">Chat with Astrologer</Button></Link>
+            </div>
+
+            <div className="mt-6 grid sm:grid-cols-3 gap-3 text-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                <div className="font-semibold">Fast</div>
+                <div className="text-slate-600 mt-1">Instant results with a mock engine for demo.</div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                <div className="font-semibold">Trustworthy</div>
+                <div className="text-slate-600 mt-1">Readable reports, industry-standard layout.</div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                <div className="font-semibold">Monetizable</div>
+                <div className="text-slate-600 mt-1">Astrologer + chat funnel is ready.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader eyebrow="Quick Start" title="Try the top 5 features" subtitle="These are the core MVP modules." />
+          <CardContent className="grid gap-3">
+            <Link href="/kundli"><Button className="w-full">Kundli</Button></Link>
+            <Link href="/match"><Button className="w-full" variant="secondary">Marriage Match</Button></Link>
+            <Link href="/horoscope"><Button className="w-full" variant="secondary">Horoscope</Button></Link>
+            <Link href="/astrologers"><Button className="w-full" variant="secondary">Astrologers</Button></Link>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+EOF
+
+# -------------------------
+# API routes
+# -------------------------
+cat > src/app/api/astrology/kundli/route.ts <<'EOF'
+import { NextResponse } from "next/server";
+import { BirthDetailsSchema } from "@/lib/validators";
+import { generateKundli } from "@/lib/astrologyEngine";
+
+export async function POST(req: Request) {
+  try {
+    const json = await req.json();
+    const input = BirthDetailsSchema.parse(json);
+    const data = generateKundli(input);
+    return NextResponse.json({ ok: true, data });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? "Bad Request" }, { status: 400 });
+  }
+}
+EOF
+
+cat > src/app/api/astrology/match/route.ts <<'EOF'
+import { NextResponse } from "next/server";
+import { MatchSchema } from "@/lib/validators";
+import { matchKundli } from "@/lib/astrologyEngine";
+
+export async function POST(req: Request) {
+  try {
+    const json = await req.json();
+    const input = MatchSchema.parse(json);
+    const data = matchKundli(input.a, input.b);
+    return NextResponse.json({ ok: true, data });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? "Bad Request" }, { status: 400 });
+  }
+}
+EOF
+
+cat > src/app/api/astrology/horoscope/route.ts <<'EOF'
+import { NextResponse } from "next/server";
+import { dailyHoroscope, weeklyHoroscope } from "@/lib/astrologyEngine";
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const mode = (searchParams.get("mode") ?? "daily").toLowerCase();
+    const sign = searchParams.get("sign") ?? "Aries";
+    const date = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
+
+    if (mode === "weekly") {
+      const data = weeklyHoroscope(sign, date);
+      return NextResponse.json({ ok: true, data });
+    }
+
+    const data = dailyHoroscope(sign, date);
+    return NextResponse.json({ ok: true, data });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? "Bad Request" }, { status: 400 });
+  }
+}
+EOF
+
+cat > src/app/api/astrologers/route.ts <<'EOF'
+import { NextResponse } from "next/server";
+import { astrologers } from "@/lib/mockAstrologers";
+
+export async function GET() {
+  return NextResponse.json({ ok: true, data: astrologers });
+}
+EOF
+
+cat > src/app/api/astrologers/[id]/route.ts <<'EOF'
+import { NextResponse } from "next/server";
+import { astrologers } from "@/lib/mockAstrologers";
+
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const a = astrologers.find(x => x.id === params.id);
+  if (!a) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+  return NextResponse.json({ ok: true, data: a });
+}
+EOF
+
+cat > src/app/api/chat/sessions/route.ts <<'EOF'
+import { NextResponse } from "next/server";
+import { ChatSessionCreateSchema } from "@/lib/validators";
+import { store } from "@/lib/store";
+
+export async function POST(req: Request) {
+  try {
+    const json = await req.json();
+    const input = ChatSessionCreateSchema.parse(json);
+    const session = store.createSession(input);
+    return NextResponse.json({ ok: true, data: session });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? "Bad Request" }, { status: 400 });
+  }
+}
+EOF
+
+cat > src/app/api/chat/sessions/[id]/route.ts <<'EOF'
+import { NextResponse } from "next/server";
+import { store } from "@/lib/store";
+
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const s = store.getSession(params.id);
+  if (!s) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+  return NextResponse.json({ ok: true, data: s });
+}
+
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const json = await req.json().catch(() => ({}));
+  if (json?.action === "end") {
+    const s = store.endSession(params.id);
+    if (!s) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+    return NextResponse.json({ ok: true, data: s });
+  }
+  return NextResponse.json({ ok: false, error: "Unsupported action" }, { status: 400 });
+}
+EOF
+
+cat > src/app/api/chat/sessions/[id]/messages/route.ts <<'EOF'
+import { NextResponse } from "next/server";
+import { ChatMessageCreateSchema } from "@/lib/validators";
+import { store } from "@/lib/store";
+import { astrologers } from "@/lib/mockAstrologers";
+
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  const { searchParams } = new URL(req.url);
+  const after = searchParams.get("after");
+  const afterNum = after ? Number(after) : undefined;
+  const msgs = store.listMessages(params.id, afterNum);
+  return NextResponse.json({ ok: true, data: msgs });
+}
+
+export async function POST(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = store.getSession(params.id);
+    if (!session) return NextResponse.json({ ok: false, error: "Session not found" }, { status: 404 });
+    if (session.status !== "active") return NextResponse.json({ ok: false, error: "Session ended" }, { status: 400 });
+
+    const json = await req.json();
+    const input = ChatMessageCreateSchema.parse(json);
+    const msg = store.addMessage(params.id, input.sender, input.text);
+
+    if (input.sender === "user") {
+      const astro = astrologers.find(a => a.id === session.astrologerId);
+      const reply = `(${astro?.name ?? "Astrologer"}): Thanks. Please confirm DOB, TOB, place, and the main question (marriage/career/finance/health).`;
+      store.addMessage(params.id, "astrologer", reply);
+    }
+
+    return NextResponse.json({ ok: true, data: msg });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? "Bad Request" }, { status: 400 });
+  }
+}
+EOF
+
+# -------------------------
+# Pages: Kundli
+# -------------------------
+cat > src/app/kundli/page.tsx <<'EOF'
+"use client";
+
+import { useMemo, useState } from "react";
+import type { KundliResult } from "@/types/astrology";
+import { apiPost } from "@/lib/http";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+
+export default function KundliPage() {
+  const [dob, setDob] = useState("1990-01-01");
+  const [tob, setTob] = useState("10:30");
+  const [place, setPlace] = useState("Melbourne");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [data, setData] = useState<KundliResult | null>(null);
+
+  const canSubmit = useMemo(() => dob.length === 10 && tob.length === 5 && place.trim().length >= 2, [dob, tob, place]);
+
+  async function onSubmit() {
+    setErr(null);
+    setLoading(true);
+    try {
+      const res = await apiPost<{ ok: boolean; data?: KundliResult; error?: string }>("/api/astrology/kundli", { dob, tob, place });
+      if (!res.ok) throw new Error(res.error || "Failed");
+      setData(res.data ?? null);
+    } catch (e: any) {
+      setErr(e?.message ?? "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-5">
+      <Card>
+        <CardHeader
+          eyebrow="Kundli"
+          title="Generate your Kundli"
+          subtitle="Clean, readable report layout. Replace the mock engine with a real provider when ready."
+        />
+        <CardContent>
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-2">Date of Birth</div>
+              <Input value={dob} onChange={(e) => setDob(e.target.value)} placeholder="YYYY-MM-DD" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-2">Time of Birth</div>
+              <Input value={tob} onChange={(e) => setTob(e.target.value)} placeholder="HH:mm" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-2">Place</div>
+              <Input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="City" />
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <Button onClick={onSubmit} disabled={!canSubmit || loading}>
+              {loading ? "Generating..." : "Generate"}
+            </Button>
+            {err ? <span className="text-sm text-rose-700">{err}</span> : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      {data ? (
+        <div className="grid lg:grid-cols-2 gap-5">
+          <Card>
+            <CardHeader eyebrow="Highlights" title="At a glance" />
+            <CardContent className="flex flex-wrap gap-2">
+              <Badge tone="indigo">Ascendant: {data.ascendant}</Badge>
+              <Badge>Rashi: {data.rashi}</Badge>
+              <Badge>Nakshatra: {data.nakshatra}</Badge>
+              <Badge tone="amber">Tithi: {data.tithi}</Badge>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader eyebrow="Summary" title="Interpretation" />
+            <CardContent>
+              <ul className="list-disc pl-5 text-sm text-slate-700 space-y-2">
+                {data.summary.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader eyebrow="Planets" title="Planetary positions" subtitle="Mock positions for demo (structure matches production)." />
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-slate-600">
+                    <tr className="border-b">
+                      <th className="py-2 text-left">Planet</th>
+                      <th className="py-2 text-left">Sign</th>
+                      <th className="py-2 text-left">Degree</th>
+                      <th className="py-2 text-left">House</th>
+                      <th className="py-2 text-left">Retro</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.planets.map((p) => (
+                      <tr key={p.name} className="border-b last:border-0">
+                        <td className="py-3 font-semibold">{p.name}</td>
+                        <td className="py-3">{p.sign}</td>
+                        <td className="py-3">{p.degree}°</td>
+                        <td className="py-3">{p.house}</td>
+                        <td className="py-3">{p.retrograde ? "Yes" : "No"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+EOF
+
+# -------------------------
+# Pages: Match
+# -------------------------
+cat > src/app/match/page.tsx <<'EOF'
+"use client";
+
+import { useMemo, useState } from "react";
+import type { MatchResult } from "@/types/astrology";
+import { apiPost } from "@/lib/http";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+
+function VerdictBadge({ v }: { v: MatchResult["verdict"] }) {
+  const tone = v === "Excellent" ? "green" : v === "Good" ? "indigo" : v === "Average" ? "amber" : "red";
+  return <Badge tone={tone}>{v}</Badge>;
+}
+
+export default function MatchPage() {
+  const [aDob, setADob] = useState("1990-01-01");
+  const [aTob, setATob] = useState("10:30");
+  const [aPlace, setAPlace] = useState("Melbourne");
+
+  const [bDob, setBDob] = useState("1992-02-02");
+  const [bTob, setBTob] = useState("12:15");
+  const [bPlace, setBPlace] = useState("Sydney");
+
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [data, setData] = useState<MatchResult | null>(null);
+
+  const canSubmit = useMemo(
+    () =>
+      aDob.length === 10 && aTob.length === 5 && aPlace.trim().length >= 2 &&
+      bDob.length === 10 && bTob.length === 5 && bPlace.trim().length >= 2,
+    [aDob, aTob, aPlace, bDob, bTob, bPlace]
+  );
+
+  async function onSubmit() {
+    setErr(null);
+    setLoading(true);
+    try {
+      const res = await apiPost<{ ok: boolean; data?: MatchResult; error?: string }>("/api/astrology/match", {
+        a: { dob: aDob, tob: aTob, place: aPlace },
+        b: { dob: bDob, tob: bTob, place: bPlace }
+      });
+      if (!res.ok) throw new Error(res.error || "Failed");
+      setData(res.data ?? null);
+    } catch (e: any) {
+      setErr(e?.message ?? "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-5">
+      <Card>
+        <CardHeader
+          eyebrow="Marriage Matching"
+          title="Kundli match (Guna Milan + Manglik)"
+          subtitle="Industry-standard structure: score, verdict, breakdown, and a calm guidance note."
+        />
+        <CardContent>
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5">
+              <div className="font-semibold">Person A</div>
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                <div>
+                  <div className="text-xs font-semibold text-slate-600 mb-2">DOB</div>
+                  <Input value={aDob} onChange={(e) => setADob(e.target.value)} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-600 mb-2">TOB</div>
+                  <Input value={aTob} onChange={(e) => setATob(e.target.value)} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-600 mb-2">Place</div>
+                  <Input value={aPlace} onChange={(e) => setAPlace(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5">
+              <div className="font-semibold">Person B</div>
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                <div>
+                  <div className="text-xs font-semibold text-slate-600 mb-2">DOB</div>
+                  <Input value={bDob} onChange={(e) => setBDob(e.target.value)} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-600 mb-2">TOB</div>
+                  <Input value={bTob} onChange={(e) => setBTob(e.target.value)} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-600 mb-2">Place</div>
+                  <Input value={bPlace} onChange={(e) => setBPlace(e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center gap-3">
+            <Button onClick={onSubmit} disabled={!canSubmit || loading}>
+              {loading ? "Matching..." : "Match Now"}
+            </Button>
+            {err ? <span className="text-sm text-rose-700">{err}</span> : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      {data ? (
+        <div className="grid gap-5">
+          <Card>
+            <CardHeader eyebrow="Result" title="Compatibility overview" />
+            <CardContent className="flex flex-wrap items-center gap-2">
+              <Badge tone="indigo">Score: {data.totalGuna}/{data.maxGuna}</Badge>
+              <VerdictBadge v={data.verdict} />
+              <Badge tone={data.manglik.a === "Manglik" || data.manglik.b === "Manglik" ? "amber" : "green"}>
+                Manglik: A={data.manglik.a}, B={data.manglik.b}
+              </Badge>
+              <div className="w-full text-sm text-slate-700 mt-3">{data.manglik.note}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader eyebrow="Breakdown" title="Guna Milan table" subtitle="Category-wise scores for transparency." />
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-slate-600">
+                    <tr className="border-b">
+                      <th className="py-2 text-left">Category</th>
+                      <th className="py-2 text-left">Score</th>
+                      <th className="py-2 text-left">Max</th>
+                      <th className="py-2 text-left">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.breakdown.map((x) => (
+                      <tr key={x.category} className="border-b last:border-0">
+                        <td className="py-3 font-semibold">{x.category}</td>
+                        <td className="py-3">{x.score}</td>
+                        <td className="py-3">{x.max}</td>
+                        <td className="py-3 text-slate-700">{x.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader eyebrow="Guidance" title="Practical next steps" />
+            <CardContent>
+              <ul className="list-disc pl-5 text-sm text-slate-700 space-y-2">
+                {data.guidance.map((g, i) => <li key={i}>{g}</li>)}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+EOF
+
+# -------------------------
+# Pages: Horoscope (daily + weekly)
+# -------------------------
+cat > src/app/horoscope/page.tsx <<'EOF'
+"use client";
+
+import { useMemo, useState } from "react";
+import type { HoroscopeDaily, HoroscopeWeekly } from "@/types/astrology";
+import { apiGet } from "@/lib/http";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import { Badge } from "@/components/ui/Badge";
+import { Tabs } from "@/components/ui/Tabs";
+
+const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+
+export default function HoroscopePage() {
+  const [mode, setMode] = useState<"daily" | "weekly">("daily");
+  const [sign, setSign] = useState("Aries");
+  const [date, setDate] = useState(new Date().toISOString().slice(0,10));
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [daily, setDaily] = useState<HoroscopeDaily | null>(null);
+  const [weekly, setWeekly] = useState<HoroscopeWeekly | null>(null);
+
+  const canSubmit = useMemo(() => sign.length > 0 && date.length === 10, [sign, date]);
+
+  async function onSubmit() {
+    setErr(null); setLoading(true);
+    try {
+      const res = await apiGet<{ok:boolean; data?: any; error?:string}>(`/api/astrology/horoscope?mode=${mode}&sign=${encodeURIComponent(sign)}&date=${encodeURIComponent(date)}`);
+      if (!res.ok) throw new Error(res.error || "Failed");
+      if (mode === "daily") { setDaily(res.data as HoroscopeDaily); setWeekly(null); }
+      else { setWeekly(res.data as HoroscopeWeekly); setDaily(null); }
+    } catch (e:any) {
+      setErr(e?.message ?? "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-5">
+      <Card>
+        <CardHeader eyebrow="Horoscope" title="Daily & Weekly" subtitle="A retention feature with a calm, premium reading experience." />
+        <CardContent>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Tabs
+              value={mode}
+              onChange={(v) => setMode(v as any)}
+              items={[
+                { value: "daily", label: "Daily" },
+                { value: "weekly", label: "Weekly" }
+              ]}
+            />
+            <div className="grid sm:grid-cols-3 gap-3 w-full sm:w-auto">
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-2">Sign</div>
+                <Select value={sign} onChange={(e) => setSign(e.target.value)}>
+                  {SIGNS.map(s => <option key={s} value={s}>{s}</option>)}
+                </Select>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-2">{mode === "daily" ? "Date" : "Week of"}</div>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button onClick={onSubmit} disabled={!canSubmit || loading} className="w-full">
+                  {loading ? "Loading..." : "Get"}
+                </Button>
+              </div>
+            </div>
+          </div>
+          {err ? <div className="text-sm text-rose-700 mt-4">{err}</div> : null}
+        </CardContent>
+      </Card>
+
+      {daily ? (
+        <Card>
+          <CardHeader eyebrow="Daily" title={`${daily.sign} • ${daily.date}`} subtitle="Simple, shareable guidance." />
+          <CardContent className="grid gap-3">
+            <div className="text-slate-800">{daily.text}</div>
+            <div className="flex flex-wrap gap-2">
+              <Badge tone="indigo">Lucky color: {daily.lucky.color}</Badge>
+              <Badge>Lucky number: {daily.lucky.number}</Badge>
+              <Badge tone="amber">Mood: {daily.lucky.mood}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {weekly ? (
+        <Card>
+          <CardHeader eyebrow="Weekly" title={`${weekly.sign} • week of ${weekly.weekOf}`} subtitle="A short weekly summary + focus points." />
+          <CardContent className="grid gap-4">
+            <div className="text-slate-800">{weekly.summary}</div>
+            <div className="grid sm:grid-cols-3 gap-3">
+              {weekly.focus.map((f, i) => (
+                <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold">Focus</div>
+                  <div className="text-sm text-slate-700 mt-2">{f}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+EOF
+
+# -------------------------
+# Pages: Astrologers directory + profile
+# -------------------------
+cat > src/app/astrologers/page.tsx <<'EOF'
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import type { Astrologer } from "@/types/astrology";
+import { apiGet } from "@/lib/http";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+
+export default function AstrologersPage() {
+  const [q, setQ] = useState("");
+  const [data, setData] = useState<Astrologer[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiGet<{ ok: boolean; data?: Astrologer[]; error?: string }>("/api/astrologers")
+      .then((res) => {
+        if (!res.ok) throw new Error(res.error || "Failed");
+        setData(res.data ?? []);
+      })
+      .catch((e) => setErr(e?.message ?? "Something went wrong"));
+  }, []);
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return data;
+    return data.filter(a =>
+      a.name.toLowerCase().includes(s) ||
+      a.skills.join(" ").toLowerCase().includes(s) ||
+      a.languages.join(" ").toLowerCase().includes(s)
+    );
+  }, [q, data]);
+
+  return (
+    <div className="grid gap-5">
+      <Card>
+        <CardHeader eyebrow="Astrologers" title="Choose an astrologer" subtitle="Industry-standard card layout: trust signals first, price second." />
+        <CardContent>
+          <div className="max-w-md">
+            <div className="text-xs font-semibold text-slate-600 mb-2">Search</div>
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, skill, language..." />
+          </div>
+          {err ? <div className="text-sm text-rose-700 mt-4">{err}</div> : null}
+        </CardContent>
+      </Card>
+
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+        {filtered.map((a) => (
+          <Link key={a.id} href={`/astrologers/${a.id}`}>
+            <div className="rounded-3xl border border-slate-200 bg-white shadow-soft hover:shadow-lg transition p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-lg font-semibold">{a.name}</div>
+                  <div className="text-sm text-slate-600 mt-1">{a.title}</div>
+                </div>
+                <Badge tone={a.isOnline ? "green" : "neutral"}>{a.isOnline ? "Online" : "Offline"}</Badge>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge tone="indigo">⭐ {a.ratingAvg} ({a.ratingCount})</Badge>
+                <Badge>{a.experienceYears} yrs</Badge>
+                <Badge tone="amber">{a.pricePerMin}/min</Badge>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {a.skills.slice(0,3).map(s => <Badge key={s}>{s}</Badge>)}
+                {a.languages.slice(0,2).map(l => <Badge key={l}>{l}</Badge>)}
+              </div>
+
+              <div className="mt-4 text-sm text-slate-700 line-clamp-2">{a.bio}</div>
+              <div className="mt-5 text-sm font-semibold text-indigo-700">View profile →</div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+EOF
+
+cat > src/app/astrologers/[id]/page.tsx <<'EOF'
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import type { Astrologer } from "@/types/astrology";
+import { apiGet, apiPost } from "@/lib/http";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+
+export default function AstrologerProfilePage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const id = params.id;
+
+  const [astro, setAstro] = useState<Astrologer | null>(null);
+  const [userName, setUserName] = useState("Guest");
+  const [err, setErr] = useState<string | null>(null);
+  const canStart = useMemo(() => userName.trim().length > 0 && !!astro, [userName, astro]);
+
+  useEffect(() => {
+    apiGet<{ ok: boolean; data?: Astrologer; error?: string }>(`/api/astrologers/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(res.error || "Failed");
+        setAstro(res.data ?? null);
+      })
+      .catch((e) => setErr(e?.message ?? "Something went wrong"));
+  }, [id]);
+
+  async function startChat() {
+    setErr(null);
+    try {
+      const res = await apiPost<{ ok: boolean; data?: { id: string }; error?: string }>("/api/chat/sessions", {
+        userName,
+        astrologerId: id
+      });
+      if (!res.ok) throw new Error(res.error || "Failed");
+      router.push(`/chat/${res.data!.id}`);
+    } catch (e: any) {
+      setErr(e?.message ?? "Something went wrong");
+    }
+  }
+
+  if (!astro) {
+    return (
+      <Card>
+        <CardHeader eyebrow="Profile" title="Loading..." />
+        <CardContent>{err ? <div className="text-sm text-rose-700">{err}</div> : "Fetching astrologer profile..."}</CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid gap-5">
+      <Card>
+        <CardHeader eyebrow="Astrologer" title={astro.name} subtitle={astro.title} />
+        <CardContent className="grid gap-4">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Badge tone={astro.isOnline ? "green" : "neutral"}>{astro.isOnline ? "Online" : "Offline"}</Badge>
+            <Badge tone="indigo">⭐ {astro.ratingAvg} ({astro.ratingCount})</Badge>
+            <Badge>{astro.experienceYears} yrs</Badge>
+            <Badge tone="amber">{astro.pricePerMin}/min</Badge>
+            {astro.languages.map(l => <Badge key={l}>{l}</Badge>)}
+          </div>
+
+          <div className="text-sm text-slate-700">{astro.bio}</div>
+
+          <div className="flex flex-wrap gap-2">
+            {astro.skills.map(s => <Badge key={s}>{s}</Badge>)}
+          </div>
+
+          <div className="mt-2 grid md:grid-cols-3 gap-3 items-end">
+            <div className="md:col-span-2">
+              <div className="text-xs font-semibold text-slate-600 mb-2">Your name</div>
+              <Input value={userName} onChange={(e) => setUserName(e.target.value)} />
+            </div>
+            <Button onClick={startChat} disabled={!canStart}>Start Chat</Button>
+          </div>
+
+          <div className="text-xs text-slate-600">
+            Payments are stubbed for MVP. Add wallet + gateway once flows are validated.
+          </div>
+
+          {err ? <div className="text-sm text-rose-700">{err}</div> : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+EOF
+
+# -------------------------
+# Pages: Chat (polling)
+# -------------------------
+cat > src/app/chat/[sessionId]/page.tsx <<'EOF'
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import type { ChatMessage, ChatSession } from "@/types/astrology";
+import { apiGet, apiPost } from "@/lib/http";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+
+type SessionRes = { ok: boolean; data?: ChatSession; error?: string };
+type MsgRes = { ok: boolean; data?: ChatMessage[]; error?: string };
+type MsgPostRes = { ok: boolean; data?: ChatMessage; error?: string };
+
+export default function ChatPage() {
+  const params = useParams<{ sessionId: string }>();
+  const router = useRouter();
+  const sessionId = params.sessionId;
+
+  const [session, setSession] = useState<ChatSession | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [text, setText] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const lastTs = useRef<number>(0);
+  const canSend = useMemo(() => text.trim().length > 0 && session?.status === "active", [text, session?.status]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const s = await apiGet<SessionRes>(`/api/chat/sessions/${sessionId}`);
+        if (!s.ok) throw new Error(s.error || "Failed");
+        if (!alive) return;
+        setSession(s.data!);
+
+        const m = await apiGet<MsgRes>(`/api/chat/sessions/${sessionId}/messages`);
+        if (!m.ok) throw new Error(m.error || "Failed");
+        if (!alive) return;
+        setMessages(m.data ?? []);
+        lastTs.current = (m.data?.at(-1)?.createdAt ?? 0);
+      } catch (e: any) {
+        if (!alive) return;
+        setErr(e?.message ?? "Something went wrong");
+      }
+    })();
+    return () => { alive = false; };
+  }, [sessionId]);
+
+  useEffect(() => {
+    let timer: any;
+    let alive = true;
+
+    async function poll() {
+      try {
+        const m = await apiGet<MsgRes>(`/api/chat/sessions/${sessionId}/messages?after=${lastTs.current}`);
+        if (!m.ok) return;
+        if (!alive) return;
+        const add = m.data ?? [];
+        if (add.length) {
+          setMessages(prev => [...prev, ...add]);
+          lastTs.current = add.at(-1)!.createdAt;
+        }
+      } catch { /* ignore */ }
+      timer = setTimeout(poll, 1200);
+    }
+
+    poll();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [sessionId]);
+
+  async function send() {
+    setErr(null);
+    const t = text.trim();
+    if (!t) return;
+    setText("");
+    try {
+      const res = await apiPost<MsgPostRes>(`/api/chat/sessions/${sessionId}/messages`, { sender: "user", text: t });
+      if (!res.ok) throw new Error(res.error || "Failed");
+      const m = res.data;
+      if (m) {
+        setMessages(prev => [...prev, m]);
+        lastTs.current = Math.max(lastTs.current, m.createdAt);
+      }
+    } catch (e:any) {
+      setErr(e?.message ?? "Failed to send");
+    }
+  }
+
+  async function endSession() {
+    try {
+      await fetch(`/api/chat/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "end" })
+      });
+      router.push("/astrologers");
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <div className="grid gap-5">
+      <Card>
+        <CardHeader eyebrow="Consultation" title="Chat session" subtitle="Calm, focused UI — the monetization core." />
+        <CardContent className="flex flex-wrap items-center gap-2">
+          <Badge tone={session?.status === "active" ? "green" : "neutral"}>{session?.status ?? "Loading"}</Badge>
+          <Button variant="secondary" onClick={() => router.push("/astrologers")}>Back</Button>
+          <Button variant="ghost" onClick={endSession}>End session</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader eyebrow="Messages" title="Conversation" />
+        <CardContent>
+          <div className="h-[60vh] overflow-y-auto rounded-3xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+            {messages.map(m => (
+              <div
+                key={m.id}
+                className={[
+                  "max-w-[85%] rounded-3xl px-4 py-3 text-sm border",
+                  m.sender === "user" ? "ml-auto bg-white border-slate-200" :
+                  m.sender === "astrologer" ? "bg-indigo-50 border-indigo-200" :
+                  "bg-slate-100 border-slate-200"
+                ].join(" ")}
+              >
+                <div className="text-[11px] font-semibold text-slate-500 mb-1">{m.sender}</div>
+                <div className="text-slate-900">{m.text}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center">
+            <Input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={session?.status === "active" ? "Type your question..." : "Session ended"}
+              onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+              disabled={session?.status !== "active"}
+            />
+            <Button onClick={send} disabled={!canSend}>Send</Button>
+          </div>
+
+          {err ? <div className="text-sm text-rose-700 mt-3">{err}</div> : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+EOF
+
+# -------------------------
+# README
+# -------------------------
+cat > README.md <<'EOF'
+# AstroSetu
+**Bridging humans with cosmic guidance**
+
+Production-ready MVP scaffold inspired by AstroSage + AstroTalk.
+
+## Features (MVP)
+1) Kundli generation (mock engine)
+2) Marriage matching (Guna Milan + Manglik, mock)
+3) Horoscope (Daily + Weekly)
+4) Astrologer directory + profile
+5) Chat session MVP (polling) + stubbed monetization (ready to add wallet/gateway)
+
+## Run
+```bash
+npm install
+cp .env.example .env.local
+npm run dev
+
+
+
+Open http://localhost:3000
+EOF
+
+echo “”
+echo “✅ AstroSetu codebase generated in ./$APP”
+echo “Next:”
+echo “  cd astrosetu”
+echo “  npm install”
+echo “  cp .env.example .env.local”
+echo “  npm run dev”
+
+---
+
+If you run this and hit **any** error, paste the terminal output here and I’ll give you exact fixes (file + line-level).
