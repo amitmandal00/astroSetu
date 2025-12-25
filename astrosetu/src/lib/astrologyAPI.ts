@@ -731,16 +731,21 @@ export async function findMuhuratAPI(date: string, type: Muhurat["type"]): Promi
     const muhuratData = data.muhurat || data;
     
     // Extract auspicious timings
-    const timings = muhuratData.timings || muhuratData.auspicious || [];
+    const auspiciousTimings = muhuratData.timings || muhuratData.auspicious || muhuratData.auspiciousTimings || [];
+    const avoidTimings = muhuratData.avoid || muhuratData.inauspicious || muhuratData.avoidTimings || [];
     
     return {
       type,
       date,
-      timings: timings.map((t: any) => ({
+      auspiciousTimings: auspiciousTimings.map((t: any) => ({
         start: t.start || t.startTime || t.start_time || "",
         end: t.end || t.endTime || t.end_time || "",
         quality: t.quality || t.rating || "Good",
-        description: t.description || t.note || "",
+      })),
+      avoidTimings: avoidTimings.map((t: any) => ({
+        start: t.start || t.startTime || t.start_time || "",
+        end: t.end || t.endTime || t.end_time || "",
+        reason: t.reason || t.description || t.note || "Inauspicious period",
       })),
     };
   } catch (error: any) {
