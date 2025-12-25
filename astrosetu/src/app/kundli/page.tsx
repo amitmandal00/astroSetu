@@ -989,19 +989,19 @@ function KundliPageContent() {
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div className="p-4 rounded-xl bg-white border-2 border-purple-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Ascendant</div>
-                    <div className="text-xl font-bold text-purple-700">{data.ascendant}</div>
+                    <div className="text-xl font-bold text-purple-700">{data.ascendant || "Calculating..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-slate-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Rashi</div>
-                    <div className="text-xl font-bold text-slate-900">{data.rashi}</div>
+                    <div className="text-xl font-bold text-slate-900">{data.rashi || "Calculating..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-slate-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Nakshatra</div>
-                    <div className="text-xl font-bold text-slate-900">{data.nakshatra}</div>
+                    <div className="text-xl font-bold text-slate-900">{data.nakshatra || "Calculating..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-amber-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Tithi</div>
-                    <div className="text-xl font-bold text-amber-700">{data.tithi}</div>
+                    <div className="text-xl font-bold text-amber-700">{data.tithi || "Calculating..."}</div>
                   </div>
                 </div>
               </CardContent>
