@@ -156,10 +156,20 @@ export async function GET(req: Request) {
             }
             
             // Add diagnostic info for authentication errors
+            // Show partial values for comparison (first 4 and last 4 chars)
+            const clientIdPreview = clientIdTrimmed.length > 8 
+              ? `${clientIdTrimmed.substring(0, 4)}...${clientIdTrimmed.substring(clientIdTrimmed.length - 4)}`
+              : '***';
+            const clientSecretPreview = clientSecretTrimmed.length > 8
+              ? `${clientSecretTrimmed.substring(0, 4)}...${clientSecretTrimmed.substring(clientSecretTrimmed.length - 4)}`
+              : '***';
+            
             const authDiagnostic: any = {
               statusCode: tokenResponse.status,
               clientIdLength: clientIdTrimmed.length,
               clientSecretLength: clientSecretTrimmed.length,
+              clientIdPreview: clientIdPreview, // For comparison with ProKerala dashboard
+              clientSecretPreview: clientSecretPreview, // For comparison with ProKerala dashboard
               clientIdHasSpaces: clientId?.includes(' ') || false,
               clientSecretHasSpaces: clientSecret?.includes(' ') || false,
               clientIdHasQuotes: (clientId?.startsWith('"') && clientId?.endsWith('"')) || false,

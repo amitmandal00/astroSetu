@@ -130,58 +130,23 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
           throw new Error(`Prokerala credentials are empty. Client ID length: ${clientIdLength}, Secret length: ${clientSecretLength}`);
         }
         
-        // Try Basic Auth method first (some OAuth2 implementations require this)
-        // If this fails, we'll try form-encoded body as fallback
-        let tokenResponse: Response;
-        let authMethod = 'basic';
+        // ProKerala API documentation specifies form-encoded body for token endpoint
+        // POST /token with body: grant_type=client_credentials&client_id=<CLIENT_ID>&client_secret=<CLIENT_SECRET>
+        // Reference: https://api.prokerala.com/account/dashboard
+        console.log("[AstroSetu] Requesting ProKerala access token using form-encoded body (per API docs)");
         
-        try {
-          // Method 1: Basic Auth (RFC 6749 Section 2.3.1)
-          // Some OAuth2 servers require client credentials in Authorization header
-          const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-          console.log("[AstroSetu] Trying Basic Auth method for token endpoint");
-          
-          tokenResponse = await fetch("https://api.prokerala.com/token", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/x-www-form-urlencoded",
-              "Authorization": `Basic ${basicAuth}`
-            },
-            body: "grant_type=client_credentials",
-            signal: controller.signal,
-          });
-          
-          // If Basic Auth fails with 401, try form-encoded body method
-          if (!tokenResponse.ok && tokenResponse.status === 401) {
-            console.log("[AstroSetu] Basic Auth failed (401), trying form-encoded body method");
-            authMethod = 'form-encoded';
-            const formResponse = await fetch("https://api.prokerala.com/token", {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/x-www-form-urlencoded"
-              },
-              body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
-              signal: controller.signal,
-            });
-            tokenResponse = formResponse;
-          }
-        } catch (fetchError: any) {
-          // If Basic Auth fetch fails, try form-encoded as fallback
-          console.log("[AstroSetu] Basic Auth request failed, trying form-encoded body method");
-          authMethod = 'form-encoded';
-          tokenResponse = await fetch("https://api.prokerala.com/token", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
-            signal: controller.signal,
-          });
-        }
+        const tokenResponse = await fetch("https://api.prokerala.com/token", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
+          signal: controller.signal,
+        });
         
         clearTimeout(timeoutId);
         
-        console.log(`[AstroSetu] Token request completed - Method: ${authMethod}, Status: ${tokenResponse.status}`);
+        console.log(`[AstroSetu] Token request completed - Status: ${tokenResponse.status}`);
         
         if (!tokenResponse.ok) {
           const errorText = await tokenResponse.text();
