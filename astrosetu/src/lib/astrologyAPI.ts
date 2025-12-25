@@ -293,7 +293,8 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
         }
         
         // Add comprehensive debug info to error for all GET endpoints
-        if (mustUseGet) {
+        // Only log if response is NOT ok (actual error)
+        if (mustUseGet && !response.ok) {
           const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : "MUHURAT";
           const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
           errorMessage = debugInfo + " | " + errorMessage;
@@ -424,7 +425,12 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
       }, 2, "GET" as const);
       dosha = transformDoshaResponse(doshaResponse);
     } catch (doshaError: any) {
-      console.warn("[AstroSetu] Dosha API call failed, using mock:", doshaError?.message);
+      // Only log as warning if it's not a critical error (4xx/5xx)
+      // Don't log debug errors for successful fallbacks
+      const isClientError = doshaError?.message?.includes('40') || doshaError?.message?.includes('50');
+      if (isClientError) {
+        console.warn("[AstroSetu] Dosha API call failed, using mock:", doshaError?.message?.substring(0, 200));
+      }
       // Fallback to mock dosha if dosha endpoint not available
       dosha = generateDoshaAnalysis(input);
     }
