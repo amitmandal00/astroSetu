@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAPIConfigured } from "@/lib/astrologyAPI";
+import { isAPIConfigured, getPanchangAPI } from "@/lib/astrologyAPI";
 import { checkRateLimit, handleApiError } from "@/lib/apiHelpers";
 
 /**
@@ -51,13 +51,55 @@ export async function GET(req: Request) {
           if (tokenResponse.ok) {
             const tokenData = await tokenResponse.json();
             if (tokenData.access_token) {
-              prokeralaTest = {
-                status: 'connected',
-                ok: true,
-                message: 'Successfully authenticated with Prokerala API',
-                tokenType: tokenData.token_type,
-                expiresIn: tokenData.expires_in,
-              };
+              // Test end-to-end by calling panchang API with GET method
+              try {
+                const today = new Date().toISOString().slice(0, 10);
+                const [year, month, day] = today.split("-").map(Number);
+                
+                // Store debug info
+                const debugInfo: any = {
+                  method: 'GET',
+                  endpoint: '/panchang',
+                  params: {
+                    datetime: { year, month, day },
+                    coordinates: '28.6139,77.2090',
+                    timezone: 'Asia/Kolkata'
+                  }
+                };
+                
+                await getPanchangAPI(today, "Delhi", 28.6139, 77.2090);
+                
+                prokeralaTest = {
+                  status: 'connected',
+                  ok: true,
+                  message: 'Successfully authenticated and tested Prokerala API',
+                  tokenType: tokenData.token_type,
+                  expiresIn: tokenData.expires_in,
+                  panchangTest: 'passed',
+                  debug: debugInfo,
+                };
+              } catch (panchangError: any) {
+                // Token works but panchang test failed
+                const errorMessage = panchangError?.message || 'Panchang API test failed';
+                const isPostError = errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed');
+                
+                prokeralaTest = {
+                  status: 'connected',
+                  ok: true,
+                  message: 'Authentication successful, but panchang test failed',
+                  tokenType: tokenData.token_type,
+                  expiresIn: tokenData.expires_in,
+                  panchangTest: 'failed',
+                  panchangError: errorMessage,
+                  debug: {
+                    method: 'GET',
+                    endpoint: '/panchang',
+                    error: errorMessage,
+                    isPostError: isPostError,
+                    note: isPostError ? 'ERROR: Code is still using POST method!' : 'Different error occurred'
+                  },
+                };
+              }
             } else {
               prokeralaTest = {
                 status: 'error',
