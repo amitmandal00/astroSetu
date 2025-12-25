@@ -82,9 +82,28 @@ export async function GET(req: Request) {
                 // Token works but panchang test failed
                 const errorMessage = panchangError?.message || 'Panchang API test failed';
                 const isPostError = errorMessage.includes('POST') && errorMessage.includes('Method Not Allowed');
-                const errorDetails = errorMessage.includes('[DEBUG:') ? errorMessage.split('[DEBUG:')[1] : null;
+                
+                // Extract debug info from error message
+                let debugInfo = null;
+                if (errorMessage.includes('[PANCHANG_DEBUG:')) {
+                  const debugMatch = errorMessage.match(/\[PANCHANG_DEBUG:([^\]]+)\]/);
+                  if (debugMatch) {
+                    try {
+                      // Parse debug string like "originalMethod=POST, enforcedMethod=GET, ..."
+                      const debugParts = debugMatch[1].split(', ').reduce((acc: any, part: string) => {
+                        const [key, value] = part.split('=');
+                        if (key && value) acc[key.trim()] = value.trim();
+                        return acc;
+                      }, {});
+                      debugInfo = debugParts;
+                    } catch (e) {
+                      debugInfo = { raw: debugMatch[1] };
+                    }
+                  }
+                }
                 
                 console.error("[Diagnostic] Panchang test failed:", errorMessage);
+                console.error("[Diagnostic] Full error object:", JSON.stringify(panchangError, null, 2));
                 
                 prokeralaTest = {
                   status: 'connected',
@@ -99,8 +118,10 @@ export async function GET(req: Request) {
                     endpoint: '/panchang',
                     error: errorMessage,
                     isPostError: isPostError,
-                    errorDetails: errorDetails,
-                    note: isPostError ? 'ERROR: Code is still using POST method! Check errorDetails for actual method used.' : 'Different error occurred',
+                    debugInfo: debugInfo,
+                    fullError: panchangError?.toString(),
+                    errorStack: panchangError?.stack,
+                    note: isPostError ? 'ERROR: Code is still using POST method! Check debugInfo for actual method used.' : 'Different error occurred',
                     timestamp: new Date().toISOString(),
                   },
                 };

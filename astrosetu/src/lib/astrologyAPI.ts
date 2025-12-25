@@ -52,17 +52,23 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
   }
 
-  // CRITICAL: Force GET for panchang endpoint - ProKerala API requires GET, not POST
-  if (endpoint === "/panchang") {
-    method = "GET";
-    console.log("[AstroSetu] FORCED GET method for panchang endpoint");
+  // CRITICAL: ABSOLUTE ENFORCEMENT - Panchang endpoint MUST use GET, no exceptions
+  // This overrides ANY method parameter passed, including defaults
+  const isPanchangEndpoint = endpoint === "/panchang" || endpoint.includes("/panchang");
+  const actualMethod: "GET" | "POST" = isPanchangEndpoint ? "GET" : method;
+  
+  if (isPanchangEndpoint && method !== "GET") {
+    console.error("[AstroSetu] CRITICAL: Panchang endpoint received method=" + method + ", ENFORCING GET");
   }
+  
+  // Use actualMethod throughout the function, never the original method parameter
+  // actualMethod is guaranteed to be "GET" for panchang endpoints
 
   // Build URL with query params for GET requests
   let url = `${PROKERALA_API_URL}${endpoint}`;
-  console.log("[AstroSetu] prokeralaRequest called with method:", method, "endpoint:", endpoint, "method type:", typeof method);
+  console.log("[AstroSetu] prokeralaRequest: endpoint=" + endpoint + ", originalMethod=" + method + ", enforcedMethod=" + actualMethod + ", isPanchang=" + isPanchangEndpoint);
   
-  if (method === "GET" && params) {
+  if (actualMethod === "GET" && params) {
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null) {
@@ -82,7 +88,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
   let headers: Record<string, string> = {};
   
   // Only set Content-Type for POST requests
-  if (method === "POST") {
+  if (actualMethod === "POST") {
     headers["Content-Type"] = "application/json";
   }
   
@@ -145,27 +151,27 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
-      // CRITICAL: Double-check method for panchang - ensure it's GET
-      let finalMethod = method;
-      if (endpoint === "/panchang") {
-        finalMethod = "GET";
-        if (method !== "GET") {
-          console.error("[AstroSetu] ERROR: Panchang method was", method, "- FORCING to GET");
-        }
+      // FINAL ENFORCEMENT: Use actualMethod (already enforced at function start)
+      // This is the method that will be used - guaranteed GET for panchang
+      const fetchMethod: "GET" | "POST" = actualMethod;
+      
+      if (isPanchangEndpoint && fetchMethod !== "GET") {
+        throw new Error(`[CRITICAL BUG] Panchang endpoint method enforcement failed! Method is ${fetchMethod} but must be GET. This should never happen.`);
       }
       
       const fetchOptions: RequestInit = {
-        method: finalMethod, // Use finalMethod, not method variable
+        method: fetchMethod, // This is guaranteed to be GET for panchang
         headers,
         signal: controller.signal,
       };
       
       // Only include body for POST requests
-      if (finalMethod === "POST") {
+      if (fetchMethod === "POST") {
         fetchOptions.body = JSON.stringify(params);
       }
       
-      console.log("[AstroSetu] Fetching URL:", url.substring(0, 100), "finalMethod:", finalMethod, "original method param:", method, "fetchOptions.method:", fetchOptions.method, "Has body:", !!fetchOptions.body);
+      const urlPreview = url.length > 100 ? url.substring(0, 100) + "..." : url;
+      console.log("[AstroSetu] FETCH CALL: endpoint=" + endpoint + ", fetchMethod=" + fetchMethod + ", url=" + urlPreview + ", hasBody=" + !!fetchOptions.body + ", isPanchang=" + isPanchangEndpoint);
       const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
@@ -180,9 +186,11 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
           // Keep original error message
         }
         
-        // Add debug info to error for panchang
-        if (endpoint === "/panchang") {
-          errorMessage += ` [DEBUG: endpoint=${endpoint}, method=${method}, finalMethod=${finalMethod}, fetchMethod=${fetchOptions.method}, url=${url.substring(0, 150)}]`;
+        // Add comprehensive debug info to error for panchang
+        if (isPanchangEndpoint) {
+          const debugInfo = `[PANCHANG_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
+          errorMessage = debugInfo + " | " + errorMessage;
+          console.error("[AstroSetu] PANCHANG ERROR WITH DEBUG:", debugInfo, "Error:", errorMessage);
         }
         
         throw new Error(errorMessage);
