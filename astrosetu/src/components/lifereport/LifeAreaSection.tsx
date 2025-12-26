@@ -127,7 +127,7 @@ export function LifeAreaSection({
             </div>
             <div className="flex flex-wrap gap-2">
               {tips.map((tip, idx) => (
-                <Badge key={idx} tone="slate" className="text-xs">
+                <Badge key={idx} tone="neutral" className="text-xs">
                   {tip}
                 </Badge>
               ))}

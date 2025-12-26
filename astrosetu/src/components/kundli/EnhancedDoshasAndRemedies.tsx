@@ -347,7 +347,7 @@ export function EnhancedDoshasAndRemedies({ dosha }: EnhancedDoshasAndRemediesPr
                 <h3 className="font-bold text-lg text-slate-900">Shani (Saturn) Effects</h3>
               </div>
               {dosha.shani.period && (
-                <Badge tone="slate" className="mb-2">
+                <Badge tone="neutral" className="mb-2">
                   Period: {dosha.shani.period} • {dosha.shani.severity || "Medium"} Severity
                 </Badge>
               )}
