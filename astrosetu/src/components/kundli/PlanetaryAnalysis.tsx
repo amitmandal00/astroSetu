@@ -19,14 +19,14 @@ export function PlanetaryAnalysis({ planets }: PlanetaryAnalysisProps) {
     return "from-red-500 to-rose-600";
   };
   
-  const getPositionBadgeColor = (position: string) => {
+  const getPositionBadgeColor = (position: string): "neutral" | "green" | "red" | "amber" | "indigo" => {
     switch (position) {
-      case "exalted": return "emerald";
-      case "own": return "blue";
+      case "exalted": return "green";
+      case "own": return "indigo";
       case "friendly": return "indigo";
-      case "enemy": return "orange";
+      case "enemy": return "amber";
       case "debilitated": return "red";
-      default: return "slate";
+      default: return "neutral";
     }
   };
   
