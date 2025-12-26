@@ -807,9 +807,9 @@ export function getLuckyElements(
   return {
     colors: [...new Set(colors)],
     numbers: [...new Set(numbers)].slice(0, 5),
-    directions: [...new Set(directions)] || ["East"],
+    directions: [...new Set(directions)].length > 0 ? [...new Set(directions)] : ["East"],
     gemstones: [...new Set(gemstones)].slice(0, 5),
-    metals: [...new Set(metals)] || ["Gold"],
+    metals: [...new Set(metals)].length > 0 ? [...new Set(metals)] : ["Gold"],
     days: [...new Set(days)].slice(0, 5),
   };
 }
