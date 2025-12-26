@@ -12,6 +12,7 @@ import { generateChartFromProkerala } from "./enhancedChartTransform";
 import { generateCacheKey, getCached, setCached, invalidateCache } from "./apiCache";
 import { deduplicateRequest } from "./apiBatch";
 import { withCircuitBreaker } from "./circuitBreaker";
+import { getEnhancedKundliData, getDashaPeriods as getEnhancedDasha, getNakshatraDetails, getYogas, getSolarReturn, getPlanetaryTransits, getNakshatraPorutham } from "./prokeralaEnhanced";
 
 const PROKERALA_API_URL = "https://api.prokerala.com/v2/astrology";
 const API_KEY = process.env.PROKERALA_API_KEY || "";
@@ -540,6 +541,26 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
       chart = generateKundliChart(input);
     }
     
+    // Enhanced: Fetch additional data in parallel (dasha, nakshatra details, yogas) if available
+    // This is done asynchronously to not block the main response, but cached for future use
+    if (isAPIConfigured() && input.latitude && input.longitude) {
+      // Fire and forget - enhance data in background
+      getEnhancedKundliData(input).then((enhancedData) => {
+        if (enhancedData.dasha) {
+          console.log("[AstroSetu] Enhanced dasha data fetched");
+        }
+        if (enhancedData.nakshatra) {
+          console.log("[AstroSetu] Enhanced nakshatra data fetched");
+        }
+        if (enhancedData.yogas && enhancedData.yogas.length > 0) {
+          console.log("[AstroSetu] Enhanced yogas data fetched:", enhancedData.yogas.length);
+        }
+      }).catch((err) => {
+        // Silently fail - enhanced features are optional
+        console.log("[AstroSetu] Enhanced data fetch skipped:", err?.message);
+      });
+    }
+    
     return { ...kundli, dosha, chart };
   } catch (error: any) {
     console.error("[AstroSetu] Prokerala API error:", error?.message || error);
@@ -692,6 +713,19 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
     } catch {
       doshaA = generateDoshaAnalysis(a);
       doshaB = generateDoshaAnalysis(b);
+    }
+    
+    // Enhanced: Try to fetch Nakshatra Porutham for deeper compatibility analysis
+    // This is done asynchronously to not block the main response
+    if (isAPIConfigured() && a.latitude && a.longitude && b.latitude && b.longitude) {
+      getNakshatraPorutham(a, b).then((porutham) => {
+        if (porutham) {
+          console.log("[AstroSetu] Nakshatra Porutham compatibility fetched:", porutham.totalScore);
+        }
+      }).catch((err) => {
+        // Silently fail - enhanced features are optional
+        console.log("[AstroSetu] Nakshatra Porutham fetch skipped:", err?.message);
+      });
     }
     
     return { ...match, doshaA, doshaB };

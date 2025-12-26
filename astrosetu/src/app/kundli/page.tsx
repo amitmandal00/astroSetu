@@ -27,6 +27,9 @@ import { AspectsAndRelationships } from "@/components/kundli/AspectsAndRelations
 import { YogasAnalysis } from "@/components/kundli/YogasAnalysis";
 import { HouseAnalysis } from "@/components/kundli/HouseAnalysis";
 import { EnhancedDoshasAndRemedies } from "@/components/kundli/EnhancedDoshasAndRemedies";
+import { EnhancedDashaAnalysis } from "@/components/kundli/EnhancedDashaAnalysis";
+import { NakshatraDetails } from "@/components/kundli/NakshatraDetails";
+import { ChartSummaryCard } from "@/components/kundli/ChartSummaryCard";
 import { AstrologyDisclaimer } from "@/components/legal/AstrologyDisclaimer";
 import { logEvent, logError } from "@/lib/telemetry";
 import { resolvePlaceCoordinates } from "@/lib/indianCities";
@@ -1021,6 +1024,9 @@ function KundliPageContent() {
             />
           )}
 
+          {/* Enhanced Chart Summary Card - Shows key insights at a glance */}
+          <ChartSummaryCard kundliData={data} dosha={data.dosha} />
+
           <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
             <Card className="bg-gradient-to-br from-purple-50/30 to-white">
               <CardHeader eyebrow="Highlights" title="At a Glance" icon="✨" />
@@ -1146,7 +1152,7 @@ function KundliPageContent() {
               <CardHeader eyebrow="Chart" title="Kundli Chart (कुंडली)" subtitle="Traditional 12-house Vedic astrological chart visualization." icon="🔮" />
               <CardContent>
                 <DecorativePattern variant="mandala" className="mb-6">
-                  <KundliChartVisual chart={data.chart} title="Birth Chart & Analysis" />
+                  <KundliChartVisual chart={data.chart} planets={data.planets} title="Birth Chart & Analysis" />
                 </DecorativePattern>
                 <div className="mt-6 p-4 rounded-2xl border-2 border-saffron-200 bg-gradient-to-r from-saffron-50 via-amber-50 to-orange-50 shadow-md">
                   <div className="text-xs font-semibold text-saffron-700 mb-2 flex items-center gap-2">
@@ -1168,6 +1174,42 @@ function KundliPageContent() {
               <AspectsAndRelationships planets={data.planets} />
               <YogasAnalysis planets={data.planets} chart={data.chart} />
               <HouseAnalysis planets={data.planets} chart={data.chart} />
+              
+              {/* Enhanced Dasha Analysis with detailed periods */}
+              {placeData && (
+                <EnhancedDashaAnalysis 
+                  kundliData={data} 
+                  birthDetails={{
+                    name: name || "",
+                    gender: gender,
+                    dob: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+                    tob: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds || 0).padStart(2, "0")}`,
+                    place: place,
+                    latitude: placeData.latitude,
+                    longitude: placeData.longitude,
+                    timezone: timezone,
+                    ayanamsa: ayanamsa,
+                  }}
+                />
+              )}
+              
+              {/* Nakshatra Details */}
+              {placeData && (
+                <NakshatraDetails
+                  kundliData={data}
+                  birthDetails={{
+                    name: name || "",
+                    gender: gender,
+                    dob: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+                    tob: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds || 0).padStart(2, "0")}`,
+                    place: place,
+                    latitude: placeData.latitude,
+                    longitude: placeData.longitude,
+                    timezone: timezone,
+                    ayanamsa: ayanamsa,
+                  }}
+                />
+              )}
             </>
           )}
 

@@ -192,27 +192,27 @@ export default function ServicesPage() {
                 <span className="text-sm font-semibold">Profile</span>
                 <span>→</span>
               </Link>
-              <Link href="#print" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">Print Birth Chart</span>
+              <Link href="/lifereport" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+                <span className="text-sm font-semibold">Life Report</span>
                 <span>→</span>
               </Link>
-              <Link href="#calculations" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">Calculations</span>
+              <Link href="/reports/general" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+                <span className="text-sm font-semibold">General Predictions</span>
                 <span>→</span>
               </Link>
-              <Link href="#predictions" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">Predictions & Reports</span>
+              <Link href="/reports/gochar" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+                <span className="text-sm font-semibold">Transit Reports</span>
                 <span>→</span>
               </Link>
               <Link href="/numerology" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
                 <span className="text-sm font-semibold">Numerology</span>
                 <span>→</span>
               </Link>
-              <Link href="#dasha" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">Dasha</span>
+              <Link href="/reports/dasha-phal" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+                <span className="text-sm font-semibold">Dasha Phal</span>
                 <span>→</span>
               </Link>
-              <Link href="#lalkitab" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+              <Link href="/reports/lalkitab" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
                 <span className="text-sm font-semibold">Lal Kitab</span>
                 <span>→</span>
               </Link>
@@ -328,7 +328,7 @@ export default function ServicesPage() {
                       <span className="text-lg font-bold text-slate-900">₹299</span>
                       <span className="text-xs text-slate-500 line-through">₹499</span>
                     </div>
-                    <Link href="/services/paid#brihat-kundli">
+                    <Link href="/services/paid">
                       <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold py-2">
                         ORDER NOW
                       </Button>
@@ -351,7 +351,7 @@ export default function ServicesPage() {
                       <span className="text-lg font-bold text-slate-900">₹499</span>
                       <span className="text-xs text-slate-500 line-through">₹799</span>
                     </div>
-                    <Link href="/services/paid#raj-yoga">
+                    <Link href="/services/paid">
                       <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold py-2">
                         ORDER NOW
                       </Button>
@@ -374,7 +374,7 @@ export default function ServicesPage() {
                       <span className="text-lg font-bold text-slate-900">₹399</span>
                       <span className="text-xs text-slate-500 line-through">₹699</span>
                     </div>
-                    <Link href="/services/paid#personalized-horoscope-2025">
+                    <Link href="/services/paid">
                       <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold py-2">
                         ORDER NOW
                       </Button>

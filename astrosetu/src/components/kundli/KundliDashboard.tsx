@@ -17,7 +17,7 @@ export function KundliDashboard({ kundliData, userName = "User" }: KundliDashboa
       icon: "🔮",
       title: "Birth Chart / Kundli",
       description: "Planetary position and your complete birth chart analysis",
-      href: "#chart",
+      href: "/kundli#chart",
       color: "from-saffron-100 to-amber-100",
       borderColor: "border-saffron-300"
     },
@@ -41,7 +41,7 @@ export function KundliDashboard({ kundliData, userName = "User" }: KundliDashboa
       icon: "📄",
       title: "Your Life Predictions",
       description: "Know about your Nature, Career, Health, and Relationships",
-      href: "#predictions",
+      href: "/lifereport",
       color: "from-emerald-100 to-green-100",
       borderColor: "border-emerald-300"
     },
@@ -49,7 +49,7 @@ export function KundliDashboard({ kundliData, userName = "User" }: KundliDashboa
       icon: "🔄",
       title: "Gochar Phal (Transit)",
       description: "How does position of current planets affect your life",
-      href: "#transit",
+      href: "/reports/gochar",
       color: "from-blue-100 to-cyan-100",
       borderColor: "border-blue-300"
     },
@@ -65,7 +65,7 @@ export function KundliDashboard({ kundliData, userName = "User" }: KundliDashboa
       icon: "📿",
       title: "Dasha",
       description: "Current and upcoming planetary periods (Dasha)",
-      href: "#dasha",
+      href: "/reports/dasha-phal",
       color: "from-amber-100 to-orange-100",
       borderColor: "border-amber-300"
     },
@@ -73,7 +73,7 @@ export function KundliDashboard({ kundliData, userName = "User" }: KundliDashboa
       icon: "📚",
       title: "Lal Kitab Horoscope",
       description: "Lal Kitab remedies and predictions",
-      href: "#lalkitab",
+      href: "/reports/lalkitab",
       color: "from-red-100 to-rose-100",
       borderColor: "border-red-300"
     },
@@ -81,7 +81,7 @@ export function KundliDashboard({ kundliData, userName = "User" }: KundliDashboa
       icon: "🔥",
       title: "Mangal Dosha",
       description: "Check Mangal Dosha and remedies",
-      href: "#mangal",
+      href: "/reports/mangal-dosha",
       color: "from-orange-100 to-red-100",
       borderColor: "border-orange-300"
     },
@@ -122,7 +122,7 @@ export function KundliDashboard({ kundliData, userName = "User" }: KundliDashboa
               <div className="text-xs text-white/80">Complete Astrology Portal</div>
             </div>
             <nav className="p-2">
-              <Link href="#chart" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+              <Link href="/kundli#chart" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
                 <span className="text-sm font-semibold">Birth Chart</span>
                 <span>→</span>
               </Link>
@@ -130,27 +130,27 @@ export function KundliDashboard({ kundliData, userName = "User" }: KundliDashboa
                 <span className="text-sm font-semibold">Profile</span>
                 <span>→</span>
               </Link>
-              <Link href="#print" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">Print Birth Chart</span>
+              <Link href="/lifereport" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+                <span className="text-sm font-semibold">Life Report</span>
                 <span>→</span>
               </Link>
-              <Link href="#calculations" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">Calculations</span>
+              <Link href="/reports/general" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+                <span className="text-sm font-semibold">General Predictions</span>
                 <span>→</span>
               </Link>
-              <Link href="#predictions" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">Predictions & Reports</span>
+              <Link href="/reports/dasha-phal" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+                <span className="text-sm font-semibold">Dasha Phal</span>
                 <span>→</span>
               </Link>
               <Link href="/numerology" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
                 <span className="text-sm font-semibold">Numerology</span>
                 <span>→</span>
               </Link>
-              <Link href="#dasha" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">Dasha</span>
+              <Link href="/reports/gochar" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+                <span className="text-sm font-semibold">Transit (Gochar)</span>
                 <span>→</span>
               </Link>
-              <Link href="#lalkitab" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
+              <Link href="/reports/lalkitab" className="block px-4 py-3 rounded-lg hover:bg-white/10 transition-colors mb-1 flex items-center justify-between">
                 <span className="text-sm font-semibold">Lal Kitab</span>
                 <span>→</span>
               </Link>

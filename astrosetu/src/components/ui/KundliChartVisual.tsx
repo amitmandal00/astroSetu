@@ -32,7 +32,7 @@ const SIGN_ABBR: Record<string, string> = {
   "Sagittarius": "SAG", "Capricorn": "CAP", "Aquarius": "AQU", "Pisces": "PIS"
 };
 
-export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?: string }) {
+export function KundliChartVisual({ chart, title, planets }: { chart: KundliChart; title?: string; planets?: any[] }) {
   // North Indian Diamond Style Layout (matching AstroSage)
   // Houses arranged in traditional North Indian format: diamond in center, triangles and squares around
   const gridLayout = [
@@ -156,13 +156,26 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
                                         planet === "Saturn" ? "text-slate-700" :
                                         planet === "Ketu" ? "text-amber-700" :
                                         "text-slate-700";
+                      
+                      // Get planet degree if available from planets data
+                      const planetDegree = planets?.find((p: any) => p.name === planet)?.degree;
+                      const tooltipText = planetDegree 
+                        ? `${planet} (${planetInfo.hindi}) - ${planetDegree}° in ${house.sign}`
+                        : `${planet} (${planetInfo.hindi}) - ${planetInfo.symbol || ""}`;
+                      
                       return (
                         <div
                           key={idx}
-                          className={`text-xs font-semibold ${planetColor} cursor-help`}
-                          title={`${planet} (${planetInfo.hindi}) - ${planetInfo.symbol || ""}`}
+                          className={`text-xs font-semibold ${planetColor} cursor-help relative group`}
+                          title={tooltipText}
                         >
                           {abbr}
+                          {/* Enhanced tooltip on hover */}
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                            {planet}
+                            {planetDegree && ` • ${planetDegree}°`}
+                            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></span>
+                          </div>
                         </div>
                       );
                     })}
