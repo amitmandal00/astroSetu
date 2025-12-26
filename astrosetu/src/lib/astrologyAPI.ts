@@ -5,7 +5,7 @@
  * Enhanced with caching, batching, and optimization
  */
 
-import type { BirthDetails, KundliResult, MatchResult, HoroscopeDaily, HoroscopeWeekly, HoroscopeMonthly, HoroscopeYearly, Panchang, Muhurat, Numerology, Remedy, DoshaAnalysis, KundliChart, Choghadiya } from "@/types/astrology";
+import type { BirthDetails, KundliResult, MatchResult, HoroscopeDaily, HoroscopeWeekly, HoroscopeMonthly, HoroscopeYearly, Panchang, Muhurat, Numerology, Remedy, DoshaAnalysis, KundliChart, Choghadiya, AuspiciousPeriodCalculator, AuspiciousPeriod } from "@/types/astrology";
 import { generateKundli, matchKundli, dailyHoroscope, weeklyHoroscope, monthlyHoroscope, yearlyHoroscope, generatePanchang, findMuhurat, calculateNumerology, getRemedies, generateDoshaAnalysis, generateKundliChart } from "./astrologyEngine";
 import { transformKundliResponse, transformMatchResponse, transformPanchangResponse, transformDoshaResponse, transformChoghadiyaResponse, transformPanchangToChoghadiya } from "./prokeralaTransform";
 import { generateChartFromProkerala } from "./enhancedChartTransform";

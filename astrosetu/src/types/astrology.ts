@@ -240,6 +240,33 @@ export type Muhurat = {
   avoidTimings: { start: string; end: string; reason: string }[];
 };
 
+export type AuspiciousPeriod = {
+  date: string;
+  startTime: string;
+  endTime: string;
+  quality: "Excellent" | "Good" | "Moderate" | "Avoid";
+  score: number; // 0-100
+  reason: string;
+  recommendations: string[];
+  avoidReasons?: string[];
+};
+
+export type AuspiciousPeriodCalculator = {
+  eventType: "marriage" | "business" | "travel" | "education" | "health" | "housewarming" | "naming" | "other";
+  startDate: string;
+  endDate: string;
+  place: string;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
+  periods: AuspiciousPeriod[];
+  bestPeriods: AuspiciousPeriod[]; // Top 3-5 periods
+  summary: string;
+  totalDays: number;
+  totalPeriods: number;
+  suggestions: string[];
+};
+
 export type Numerology = {
   name: string;
   lifePathNumber: number;
@@ -362,6 +389,134 @@ export type DoshaAnalysis = {
   overall: string;
   recommendation?: string;
   totalDoshas?: number;
+};
+
+// Western Astrology Types
+export type WesternPlanetPosition = {
+  name: string;
+  sign: string; // Western zodiac sign (Aries, Taurus, etc.)
+  degree: number;
+  house: number;
+  longitude: number;
+  latitude?: number;
+  retrograde: boolean;
+  aspects?: WesternAspect[];
+};
+
+export type WesternAspect = {
+  planet: string;
+  type: "Conjunction" | "Opposition" | "Trine" | "Square" | "Sextile" | "Quincunx" | "Semi-Sextile" | "Semi-Square" | "Sesquiquadrate";
+  orb: number; // Orb of aspect in degrees
+  exact: boolean;
+};
+
+export type WesternNatalChart = {
+  birthDetails: BirthDetails;
+  ascendant: string;
+  midheaven: string;
+  planets: WesternPlanetPosition[];
+  houses: Array<{
+    number: number;
+    sign: string;
+    cuspDegree: number;
+  }>;
+  aspects: WesternAspect[];
+  summary: string;
+  dominantElements: Array<{ element: "Fire" | "Earth" | "Air" | "Water"; percentage: number }>;
+  dominantModalities: Array<{ modality: "Cardinal" | "Fixed" | "Mutable"; percentage: number }>;
+  sunSign: string;
+  moonSign: string;
+  risingSign: string;
+};
+
+export type SynastryChart = {
+  personA: WesternNatalChart;
+  personB: WesternNatalChart;
+  compatibility: {
+    overall: number; // 0-100
+    category: "Excellent" | "Good" | "Moderate" | "Challenging";
+    aspects: Array<{
+      planetA: string;
+      planetB: string;
+      aspect: WesternAspect["type"];
+      quality: "Harmonious" | "Challenging" | "Neutral";
+      description: string;
+    }>;
+    summary: string;
+    strengths: string[];
+    challenges: string[];
+    recommendations: string[];
+  };
+};
+
+export type TransitChart = {
+  birthChart: WesternNatalChart;
+  transitDate: string;
+  transits: Array<{
+    planet: string;
+    sign: string;
+    degree: number;
+    house: number;
+    aspectsToNatal: Array<{
+      natalPlanet: string;
+      aspect: WesternAspect["type"];
+      orb: number;
+      effect: string;
+      duration: string;
+      quality: "Positive" | "Challenging" | "Neutral";
+    }>;
+    currentPosition: {
+      sign: string;
+      degree: number;
+      house: number;
+    };
+  }>;
+  summary: string;
+  majorTransits: Array<{
+    transit: string;
+    effect: string;
+    dates: string;
+    importance: "Major" | "Moderate" | "Minor";
+  }>;
+  dailyForecast: string;
+};
+
+export type BatchMatchResult = {
+  profileId: string;
+  name: string;
+  matchScore: number;
+  totalGuna: number;
+  verdict: MatchResult["verdict"];
+  breakdown: GunaBreakdownItem[];
+  nakshatraPorutham?: NakshatraPorutham;
+  manglik: { status: "Manglik" | "Non-Manglik"; compatible: boolean };
+  summary: string;
+};
+
+export type BatchMatchRequest = {
+  primaryProfile: BirthDetails;
+  profiles: Array<{
+    id: string;
+    name: string;
+    birthDetails: BirthDetails;
+  }>;
+  maxResults?: number; // Default 500, max 500
+};
+
+export type BatchMatchResponse = {
+  primaryProfile: {
+    name: string;
+    birthDetails: BirthDetails;
+  };
+  results: BatchMatchResult[];
+  totalProcessed: number;
+  bestMatches: BatchMatchResult[]; // Top 10
+  summary: {
+    excellent: number;
+    good: number;
+    average: number;
+    challenging: number;
+  };
 };
 
 export type KundliChart = {
