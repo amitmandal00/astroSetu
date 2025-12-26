@@ -166,7 +166,7 @@ export default function TransitPage() {
             <CardContent>
               <p className="text-sm text-slate-700 mb-4">{data.summary}</p>
               <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
-                <div className="font-semibold text-slate-900 mb-2">Today's Focus</div>
+                <div className="font-semibold text-slate-900 mb-2">Today&apos;s Focus</div>
                 <p className="text-sm text-slate-700">{data.dailyForecast}</p>
               </div>
             </CardContent>
