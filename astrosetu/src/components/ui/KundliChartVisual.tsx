@@ -84,8 +84,8 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
         </div>
       )}
 
-      {/* Main chart grid with North Indian Diamond Style - matching AstroSage */}
-      <div className="relative grid grid-cols-4 gap-1 p-4 bg-white rounded-xl border-2 border-slate-300 shadow-lg">
+      {/* Main chart grid with North Indian Diamond Style - improved spacing and colors */}
+      <div className="relative grid grid-cols-4 gap-2 p-6 bg-white rounded-xl border-2 border-slate-200 shadow-lg chart-container">
         {gridLayout.map((row, rowIdx) => (
           row.map((houseNum, colIdx) => {
             const house = getHouseData(houseNum);
@@ -110,54 +110,56 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
               <div
                 key={houseNum}
                 className={`
-                  aspect-square border border-dashed border-orange-400 p-1 flex flex-col items-center justify-center
+                  aspect-square border border-dashed border-slate-300 p-2 flex flex-col items-center justify-center
                   ${isLagna 
-                    ? "bg-blue-50 border-blue-500 border-2" 
-                    : "bg-white"
+                    ? "bg-indigo-50 border-indigo-400 border-2" 
+                    : "bg-white hover:bg-slate-50"
                   }
-                  relative overflow-hidden
+                  relative overflow-hidden rounded-lg transition-colors
                 `}
                 title={getHouseSignificance(houseNum)}
               >
-                {/* Spiritual corner decorations */}
-                <div className="absolute top-0 right-0 w-4 h-4">
-                  <div className="w-full h-full border-t-2 border-r-2 border-saffron-400 rounded-tr" />
-                </div>
-                <div className="absolute bottom-0 left-0 w-4 h-4">
-                  <div className="w-full h-full border-b-2 border-l-2 border-saffron-400 rounded-bl" />
-                </div>
+                {/* Subtle corner decorations (reduced visual noise) */}
+                {isLagna && (
+                  <>
+                    <div className="absolute top-0 right-0 w-3 h-3">
+                      <div className="w-full h-full border-t-2 border-r-2 border-indigo-400 rounded-tr" />
+                    </div>
+                    <div className="absolute bottom-0 left-0 w-3 h-3">
+                      <div className="w-full h-full border-b-2 border-l-2 border-indigo-400 rounded-bl" />
+                    </div>
+                  </>
+                )}
 
-                {/* House number - AstroSage style (colored numbers) */}
+                {/* House number - improved hierarchy (smaller, less prominent) */}
                 <div className={`
-                  absolute top-0.5 left-0.5 text-[11px] font-bold
-                  ${isLagna 
-                    ? "text-blue-600" 
-                    : houseNum === 10 ? "text-red-600" : houseNum === 7 ? "text-red-600" : houseNum === 4 ? "text-red-600" :
-                    houseNum === 11 ? "text-purple-600" : houseNum === 12 ? "text-green-600" : houseNum === 3 ? "text-green-600" :
-                    "text-black"
-                  }
+                  absolute top-1 left-1 text-[10px] font-semibold text-slate-500
+                  ${isLagna ? "text-indigo-600 font-bold" : ""}
                 `}>
                   {houseNum}
                 </div>
 
-                {/* Planets with AstroSage style (2-letter abbreviations, colored) */}
+                {/* Planets - improved hierarchy (medium size, tooltip on hover/tap) */}
                 {house.planets && house.planets.length > 0 ? (
-                  <div className="flex flex-wrap gap-0.5 justify-center max-w-full mt-1">
+                  <div className="flex flex-wrap gap-1 justify-center max-w-full mt-2">
                     {house.planets.map((planet, idx) => {
                       const planetInfo = PLANET_NAMES[planet] || { hindi: planet, symbol: "•", color: "from-slate-400 to-slate-500" };
                       const abbr = getPlanetAbbr(planet);
-                      // Color mapping matching AstroSage
-                      const planetColor = planet === "Rahu" || planet === "Uranus" ? "text-red-600" :
-                                        planet === "Jupiter" || planet === "Moon" ? "text-purple-600" :
-                                        planet === "Venus" || planet === "Neptune" ? "text-green-600" :
+                      // Improved color mapping - muted jewel tones (P0 fix)
+                      const planetColor = planet === "Rahu" || planet === "Uranus" ? "text-red-500" :
+                                        planet === "Jupiter" || planet === "Moon" ? "text-indigo-600" :
+                                        planet === "Venus" || planet === "Neptune" ? "text-teal-600" :
                                         planet === "Mercury" ? "text-blue-600" :
-                                        planet === "Sun" || planet === "Mars" || planet === "Saturn" ? "text-red-600" :
-                                        "text-black";
+                                        planet === "Sun" ? "text-amber-600" :
+                                        planet === "Mars" ? "text-red-500" :
+                                        planet === "Saturn" ? "text-slate-600" :
+                                        planet === "Ketu" ? "text-amber-600" :
+                                        "text-slate-700";
                       return (
                         <div
                           key={idx}
-                          className={`text-[10px] font-bold ${planetColor}`}
-                          title={`${planet} (${planetInfo.hindi})`}
+                          className={`text-xs font-semibold ${planetColor} cursor-help`}
+                          title={`${planet} (${planetInfo.hindi}) - ${planetInfo.symbol || ""}`}
                         >
                           {abbr}
                         </div>
@@ -165,17 +167,17 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
                     })}
                   </div>
                 ) : (
-                  <div className="text-[9px] text-slate-400 mt-1">—</div>
+                  <div className="text-[10px] text-slate-400 mt-2" title="No planets in this house">—</div>
                 )}
 
-                {/* Sign name - Enhanced visibility */}
-                <div className="absolute bottom-0 left-0 right-0 text-[8px] sm:text-[9px] font-bold text-slate-900 bg-white/90 px-1 py-0.5 rounded-b border-t border-slate-200">
+                {/* Sign name - Improved visibility and hierarchy */}
+                <div className="absolute bottom-0 left-0 right-0 text-[9px] sm:text-[10px] font-semibold text-slate-700 bg-white/95 px-1.5 py-1 rounded-b border-t border-slate-200">
                   {signAbbr}
                 </div>
 
-                {/* Lagna indicator */}
+                {/* Lagna indicator - improved styling */}
                 {isLagna && (
-                  <div className="absolute bottom-6 right-1 text-[8px] font-bold text-saffron-700 bg-saffron-100 px-1.5 py-0.5 rounded border border-saffron-300 shadow-sm">
+                  <div className="absolute bottom-7 right-1 text-[9px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-300 shadow-sm">
                     लग्न
                   </div>
                 )}
@@ -185,16 +187,16 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
         ))}
       </div>
 
-      {/* Center diamond - North Indian style (matching AstroSage) */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-2 border-dashed border-orange-400 rotate-45 bg-white/50 z-10 flex items-center justify-center">
+      {/* Center diamond - North Indian style (reduced visual noise) */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-2 border-dashed border-slate-300 rotate-45 bg-white/50 z-10 flex items-center justify-center">
         <div className="rotate-[-45deg] text-xs font-bold text-red-600">1</div>
         <div className="absolute -top-1 -right-1 text-[8px] font-bold text-red-600">10</div>
         <div className="absolute -bottom-1 -left-1 text-[8px] font-bold text-red-600">7</div>
         <div className="absolute -top-1 -left-1 text-[8px] font-bold text-red-600">4</div>
       </div>
 
-      {/* Legend for planets */}
-      <div className="mt-6 p-4 rounded-2xl border-2 border-saffron-200 bg-gradient-to-r from-saffron-50 to-amber-50">
+      {/* Legend for planets (improved styling) */}
+      <div className="mt-6 p-5 rounded-2xl border-2 border-slate-200 bg-slate-50">
         <div className="text-xs font-bold text-slate-900 mb-3 text-center">Planets (ग्रह) Legend</div>
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
           {Object.entries(PLANET_NAMES).map(([planet, info]) => (

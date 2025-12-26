@@ -14,14 +14,14 @@ html, body {
 }
 
 body {
-  /* Pure light background with better contrast */
-  @apply bg-slate-50 text-slate-900;
+  /* Soft background - Orange as accent, not base */
+  background-color: #FFF9F3; /* Soft warm white */
+  color: #1F2937; /* Dark neutral text */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  /* Enhanced text contrast */
-  color: #0f172a; /* slate-900 for better readability */
+  line-height: 1.6; /* Improved readability */
 }
 
 /* Hide scrollbar but keep functionality */
@@ -398,6 +398,69 @@ img {
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
   }
+}
+
+/* Enhanced Spacing System (P0 Fix) */
+/* Section spacing: 48-64px vertical */
+.section-spacing {
+  margin-top: 3rem; /* 48px */
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 768px) {
+  .section-spacing {
+    margin-top: 4rem; /* 64px */
+    margin-bottom: 4rem;
+  }
+}
+
+/* Card padding: 20-24px */
+.card-enhanced {
+  padding: 1.25rem; /* 20px */
+}
+
+@media (min-width: 768px) {
+  .card-enhanced {
+    padding: 1.5rem; /* 24px */
+  }
+}
+
+/* Text line-height: 1.5-1.7 */
+.text-relaxed {
+  line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  .text-relaxed {
+    line-height: 1.7;
+  }
+}
+
+/* Chart margin: Min 24px all sides */
+.chart-container {
+  margin: 1.5rem; /* 24px */
+}
+
+/* Reduced Orange Dominance - Use as accent */
+.bg-primary-accent {
+  background-color: #F97316; /* Orange accent */
+}
+
+.text-primary-accent {
+  color: #F97316;
+}
+
+.bg-gold-highlight {
+  background-color: #FACC15; /* Gold highlight */
+}
+
+/* Improved color palette */
+:root {
+  --orange-accent: #F97316;
+  --gold-highlight: #FACC15;
+  --background-soft: #FFF9F3;
+  --text-primary: #1F2937;
+  --text-secondary: #4B5563;
 }
 
 /* Card responsive improvements */

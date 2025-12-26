@@ -20,7 +20,7 @@ export function Card({ className, children, onClick }: { className?: string; chi
 
 export function CardHeader({ eyebrow, title, subtitle, icon }: { eyebrow?: string; title: string; subtitle?: string; icon?: string }) {
   return (
-    <div className="px-6 pt-6 pb-4 border-b-2 border-saffron-600/50 bg-gradient-to-r from-saffron-600 via-amber-600 to-orange-600 text-white relative overflow-hidden shadow-xl">
+    <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b-2 border-indigo-600/50 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white relative overflow-hidden shadow-xl">
       <HeaderPattern />
       {/* Spiritual symbol */}
       <div className="absolute top-2 right-4 text-xl opacity-30">ॐ</div>
@@ -44,5 +44,5 @@ export function CardHeader({ eyebrow, title, subtitle, icon }: { eyebrow?: strin
 }
 
 export function CardContent({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={clsx("px-6 pb-6", className)}>{children}</div>;
+  return <div className={clsx("px-5 sm:px-6 pb-5 sm:pb-6", className)}>{children}</div>;
 }

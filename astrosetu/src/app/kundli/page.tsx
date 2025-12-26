@@ -19,6 +19,8 @@ import { DecorativePattern } from "@/components/ui/DecorativePattern";
 import { AstroImage } from "@/components/ui/AstroImage";
 import { KundliDashboard } from "@/components/kundli/KundliDashboard";
 import { CalculationTrustPanel } from "@/components/kundli/CalculationTrustPanel";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { CalculationInfoPanel } from "@/components/kundli/CalculationInfoPanel";
 import { PlanetaryAnalysis } from "@/components/kundli/PlanetaryAnalysis";
 import { AspectsAndRelationships } from "@/components/kundli/AspectsAndRelationships";
 import { YogasAnalysis } from "@/components/kundli/YogasAnalysis";
@@ -447,10 +449,24 @@ function KundliPageContent() {
     }
   }
 
+  // Full-page loading overlay
+  if (loading) {
+    const ayanamsaName = ayanamsa === 1 ? "Lahiri" : ayanamsa === 3 ? "Raman" : ayanamsa === 5 ? "KP" : ayanamsa === 6 ? "Krishnamurti" : "Lahiri";
+    return (
+      <LoadingState
+        step="planets"
+        place={place}
+        coordinates={placeData?.latitude && placeData?.longitude ? { latitude: placeData.latitude, longitude: placeData.longitude } : undefined}
+        ayanamsa={ayanamsaName}
+        timezone={timezone}
+      />
+    );
+  }
+
   return (
     <div className="grid gap-4 sm:gap-6">
-      {/* Hero Section - Indian spiritual theme */}
-      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-saffron-500 via-amber-500 to-orange-500 text-white p-4 sm:p-6 lg:p-8 xl:p-12 mb-4 sm:mb-6 shadow-xl">
+      {/* Hero Section - Indian spiritual theme (Orange as accent) */}
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white p-4 sm:p-6 lg:p-8 xl:p-12 mb-6 sm:mb-8 shadow-xl">
         <HeaderPattern />
         {/* Spiritual symbols overlay */}
         <div className="absolute inset-0 opacity-15">
@@ -769,15 +785,16 @@ function KundliPageContent() {
                 disabled={!canSubmit || loading} 
                 className={`flex-1 px-4 sm:px-6 lg:px-8 py-3 sm:py-3.5 lg:py-4 text-sm sm:text-base font-bold shadow-lg transition-all ${
                   canSubmit && !loading
-                    ? 'bg-gradient-to-r from-orange-500 to-saffron-500 hover:from-orange-600 hover:to-saffron-600 text-white cursor-pointer'
-                    : 'bg-gradient-to-r from-orange-300 to-saffron-300 text-white/70 cursor-not-allowed opacity-60'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white cursor-pointer'
+                    : 'bg-slate-300 text-white/70 cursor-not-allowed opacity-60'
                 }`}
                 title={!canSubmit ? `Please fill in all required fields. Day: ${day || 'missing'}, Month: ${month || 'missing'}, Year: ${year || 'missing'}, Hours: ${hours || 'missing'}, Minutes: ${minutes || 'missing'}, Place: ${place ? place.substring(0, 30) : 'missing'}` : "Generate your Kundli"}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="animate-spin">⏳</span>
-                    Generating...
+                    <span className="animate-spin">🌙</span>
+                    <span className="hidden sm:inline">Computing planetary positions...</span>
+                    <span className="sm:hidden">Computing...</span>
                   </span>
                 ) : (
                   "DONE"
@@ -793,8 +810,8 @@ function KundliPageContent() {
                 disabled={!canSubmit || loading} 
                 className={`flex-1 px-4 sm:px-6 lg:px-8 py-3 sm:py-3.5 lg:py-4 text-sm sm:text-base font-bold shadow-lg transition-all ${
                   canSubmit && !loading
-                    ? 'bg-gradient-to-r from-orange-500 to-saffron-500 hover:from-orange-600 hover:to-saffron-600 text-white cursor-pointer'
-                    : 'bg-gradient-to-r from-orange-300 to-saffron-300 text-white/70 cursor-not-allowed opacity-60'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white cursor-pointer'
+                    : 'bg-slate-300 text-white/70 cursor-not-allowed opacity-60'
                 }`}
                 title={!canSubmit ? `Please fill in all required fields. Day: ${day || 'missing'}, Month: ${month || 'missing'}, Year: ${year || 'missing'}, Hours: ${hours || 'missing'}, Minutes: ${minutes || 'missing'}, Place: ${place ? place.substring(0, 30) : 'missing'}` : "Generate Kundli and save your details"}
               >
@@ -991,26 +1008,37 @@ function KundliPageContent() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
+          {/* Calculation Info Panel */}
+          {data && placeData && (
+            <CalculationInfoPanel
+              ayanamsa={ayanamsa === 1 ? "Lahiri" : ayanamsa === 3 ? "Raman" : ayanamsa === 5 ? "KP (Krishnamurti)" : ayanamsa === 6 ? "Krishnamurti" : "Lahiri"}
+              coordinates={{ latitude: placeData.latitude || 0, longitude: placeData.longitude || 0 }}
+              timezone={timezone}
+              place={place}
+              className="mb-4 sm:mb-6"
+            />
+          )}
+
+          <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
             <Card className="bg-gradient-to-br from-purple-50/30 to-white">
               <CardHeader eyebrow="Highlights" title="At a Glance" icon="✨" />
-              <CardContent>
+              <CardContent className="card-enhanced">
                 <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="p-4 rounded-xl bg-white border-2 border-purple-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Ascendant</div>
-                    <div className="text-xl font-bold text-purple-700">{data.ascendant || "Calculating..."}</div>
+                    <div className="text-xl font-bold text-purple-700">{data.ascendant || "Processing..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-slate-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Rashi</div>
-                    <div className="text-xl font-bold text-slate-900">{data.rashi || "Calculating..."}</div>
+                    <div className="text-xl font-bold text-slate-900">{data.rashi || "Processing..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-slate-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Nakshatra</div>
-                    <div className="text-xl font-bold text-slate-900">{data.nakshatra || "Calculating..."}</div>
+                    <div className="text-xl font-bold text-slate-900">{data.nakshatra || "Processing..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-amber-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Tithi</div>
-                    <div className="text-xl font-bold text-amber-700">{data.tithi || "Calculating..."}</div>
+                    <div className="text-xl font-bold text-amber-700">{data.tithi || "Processing..."}</div>
                   </div>
                 </div>
               </CardContent>
@@ -1018,7 +1046,7 @@ function KundliPageContent() {
 
             <Card className="bg-gradient-to-br from-saffron-50/30 to-white">
               <CardHeader eyebrow="Summary" title="Interpretation" icon="📖" />
-              <CardContent>
+              <CardContent className="card-enhanced">
                 <ul className="space-y-3">
                   {data.summary.map((s, i) => (
                     <li key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-purple-200 transition-colors">
