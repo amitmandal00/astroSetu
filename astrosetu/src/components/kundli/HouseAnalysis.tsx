@@ -7,10 +7,29 @@ import { analyzeHouses } from "@/lib/chartAnalysis";
 
 type HouseAnalysisProps = {
   planets: PlanetPosition[];
-  chart: KundliChart;
+  chart?: KundliChart;
 };
 
 export function HouseAnalysis({ planets, chart }: HouseAnalysisProps) {
+  if (!chart) {
+    return (
+      <Card>
+        <CardHeader 
+          eyebrow="Houses" 
+          title="House Analysis" 
+          subtitle="Detailed analysis of each house in your birth chart"
+          icon="🏠"
+        />
+        <CardContent>
+          <div className="text-center py-8 text-slate-500">
+            <div className="text-4xl mb-2">🔍</div>
+            <div className="text-sm">Chart data not available</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const analyses = analyzeHouses(planets, chart);
   
   const houseNames: Record<number, string> = {

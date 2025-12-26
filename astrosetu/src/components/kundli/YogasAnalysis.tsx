@@ -7,10 +7,29 @@ import { detectYogas } from "@/lib/chartAnalysis";
 
 type YogasAnalysisProps = {
   planets: PlanetPosition[];
-  chart: KundliChart;
+  chart?: KundliChart;
 };
 
 export function YogasAnalysis({ planets, chart }: YogasAnalysisProps) {
+  if (!chart) {
+    return (
+      <Card>
+        <CardHeader 
+          eyebrow="Yogas" 
+          title="Planetary Combinations (Yogas)" 
+          subtitle="Important planetary combinations in your chart"
+          icon="✨"
+        />
+        <CardContent>
+          <div className="text-center py-8 text-slate-500">
+            <div className="text-4xl mb-2">🔍</div>
+            <div className="text-sm">Chart data not available</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const yogas = detectYogas(planets, chart);
   
   if (yogas.length === 0) {
