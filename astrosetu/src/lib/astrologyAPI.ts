@@ -164,6 +164,11 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
   }
   
   // Get access token
+  const credentials = getAPICredentials();
+  if (!credentials) {
+    throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
+  }
+  
   let accessToken: string;
   
   if (credentials.accessToken) {
