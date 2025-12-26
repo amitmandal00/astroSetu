@@ -204,7 +204,7 @@ export default function BatchMatchPage() {
                   <div className="font-semibold text-slate-900">Profile {index + 1}</div>
                   {profiles.length > 1 && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       onClick={() => removeProfile(index)}
                       className="text-xs"
                     >
