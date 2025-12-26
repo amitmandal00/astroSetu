@@ -3,33 +3,87 @@
 ## Problem
 Vercel is not creating preview deployments when pushing to `main` branch. All deployments are being marked as "Production".
 
-## Solution: Configure Production Branch in Vercel Dashboard
+## Solution: Multiple Methods to Enable Preview Deployments
 
-The `vercel.json` file cannot control which branch is the production branch - this must be set in the Vercel Dashboard.
+The Production Branch setting may not be visible on all Vercel plans. Try these methods:
 
 ---
 
-## ✅ Step-by-Step Fix
-
-### Option 1: Change Production Branch (Recommended)
+## ✅ Method 1: Check Settings → Build and Deployment
 
 1. **Go to Vercel Dashboard**
    - Visit: https://vercel.com/dashboard
    - Select your `astrosetu-app` project
 
-2. **Navigate to Settings → General**
+2. **Navigate to Settings → Build and Deployment**
    - Click **Settings** tab (top navigation)
-   - Click **General** in the left sidebar (first option)
+   - Click **"Build and Deployment"** in the left sidebar
 
-3. **Change Production Branch**
-   - Scroll down to find **"Production Branch"** section
-   - Currently it's set to `main`
-   - **Change it to:** `production` (or any branch that doesn't exist)
+3. **Look for "Production Branch" or Branch Settings**
+   - Scroll through all settings
+   - Look for any branch-related configuration
+   - Production Branch setting might be here instead of General
+
+4. **If found, change it:**
+   - Change from `main` to `production` (or non-existent branch)
    - Click **Save**
 
-4. **Result:**
-   - Now when you push to `main`, it will create a **Preview Deployment** (not Production)
-   - Production deployments will only happen if you push to the `production` branch (which doesn't exist)
+---
+
+## ✅ Method 2: Use Ignore Build Step (If Production Branch Not Available)
+
+If Production Branch setting is not visible (common on Hobby plan):
+
+1. **Go to Settings → Build and Deployment**
+   - Click **Settings** tab
+   - Click **"Build and Deployment"** in left sidebar
+
+2. **Find "Ignore Build Step" section**
+   - Scroll down to find this option
+
+3. **Add this condition:**
+   ```bash
+   [ "$VERCEL_GIT_COMMIT_REF" = "main" ]
+   ```
+   
+   This will skip automatic deployments from `main` branch.
+
+4. **For manual preview deployments:**
+   ```bash
+   # Use Vercel CLI to deploy as preview
+   vercel --preview
+   ```
+
+---
+
+## ✅ Method 3: Check Settings → Git
+
+1. **Go to Settings → Git**
+   - Click **Settings** tab
+   - Click **"Git"** in the left sidebar
+
+2. **Look for branch configuration**
+   - Check for "Production Branch" option
+   - Look for branch-specific deployment settings
+   - Check if there are per-branch toggles
+
+---
+
+## ✅ Method 4: Change Production Branch (If Available in General)
+
+**Note:** This setting might only be available on Pro/Team plans.
+
+1. **Navigate to Settings → General**
+   - Click **Settings** tab
+   - Click **General** in the left sidebar
+
+2. **Scroll to bottom**
+   - Production Branch might be near the bottom
+   - It might be collapsed or hidden
+
+3. **If visible, change it:**
+   - Change from `main` to `production`
+   - Click **Save**
 
 ---
 
