@@ -37,7 +37,7 @@ export function LuckyElementsSection({ elements }: LuckyElementsSectionProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {elements.numbers.map((num, idx) => (
-                <Badge key={idx} tone="blue" className="text-xs">
+                <Badge key={idx} tone="indigo" className="text-xs">
                   {num}
                 </Badge>
               ))}
@@ -52,7 +52,7 @@ export function LuckyElementsSection({ elements }: LuckyElementsSectionProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {elements.directions.map((dir, idx) => (
-                <Badge key={idx} tone="emerald" className="text-xs">
+                <Badge key={idx} tone="green" className="text-xs">
                   {dir}
                 </Badge>
               ))}
@@ -100,7 +100,7 @@ export function LuckyElementsSection({ elements }: LuckyElementsSectionProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {elements.days.map((day, idx) => (
-                <Badge key={idx} tone="teal" className="text-xs">
+                <Badge key={idx} tone="indigo" className="text-xs">
                   {day}
                 </Badge>
               ))}
