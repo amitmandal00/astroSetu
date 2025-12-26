@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAPICredentials, prokeralaRequest } from "@/lib/astrologyAPI";
+import { prokeralaRequest } from "@/lib/astrologyAPI";
 
 /**
  * GET /api/admin/quota-check
@@ -29,48 +29,39 @@ export async function GET(req: Request) {
     // Make a lightweight test API call to check quota
     // Using panchang as it's a simple GET request
     const testDate = new Date();
-    const response = await fetch(
-      `https://api.prokerala.com/v2/astrology/panchang?` +
-      `datetime=${testDate.getFullYear()}-${String(testDate.getMonth() + 1).padStart(2, '0')}-${String(testDate.getDate()).padStart(2, '0')}` +
-      `&coordinates=28.6139,77.2090&timezone=Asia/Kolkata`,
+    
+    // Use the existing prokeralaRequest function which handles token management
+    const result = await prokeralaRequest(
+      "/panchang",
       {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${await getProkeralaToken()}`,
+        datetime: {
+          year: testDate.getFullYear(),
+          month: testDate.getMonth() + 1,
+          day: testDate.getDate(),
         },
-      }
-    ).catch(() => null);
+        coordinates: "28.6139,77.2090",
+        timezone: "Asia/Kolkata",
+      },
+      0, // No retries for monitoring call
+      "GET",
+      true // Skip cache for accurate quota check
+    ).catch((error) => {
+      // If API call fails, return error info
+      return { error: error.message, status: "error" };
+    });
 
-    // Extract quota info from headers (if available)
-    const quotaUsed = response?.headers.get("x-ratelimit-used");
-    const quotaLimit = response?.headers.get("x-ratelimit-limit");
-    const quotaRemaining = response?.headers.get("x-ratelimit-remaining");
-    const quotaReset = response?.headers.get("x-ratelimit-reset");
-
-    // Calculate percentage
-    const percentageUsed = quotaLimit && quotaUsed
-      ? Math.round((parseInt(quotaUsed) / parseInt(quotaLimit)) * 100)
-      : null;
-
-    // Determine alert status
-    const alertThreshold = 80; // Alert at 80% usage
-    const needsAlert = percentageUsed !== null && percentageUsed >= alertThreshold;
+    // Note: Prokerala API may not return quota headers in response
+    // This endpoint serves as a connectivity check
+    // For actual quota monitoring, check Prokerala dashboard or API documentation
+    
+    const isHealthy = !result.error && result.status !== "error";
 
     return NextResponse.json({
-      status: response?.status === 200 ? "ok" : "error",
-      quota: {
-        used: quotaUsed ? parseInt(quotaUsed) : null,
-        limit: quotaLimit ? parseInt(quotaLimit) : null,
-        remaining: quotaRemaining ? parseInt(quotaRemaining) : null,
-        reset: quotaReset ? parseInt(quotaReset) : null,
-        percentageUsed,
-        alert: needsAlert,
-        message: needsAlert
-          ? `⚠️ Quota usage at ${percentageUsed}% - Consider monitoring usage`
-          : percentageUsed !== null
-          ? `✅ Quota usage at ${percentageUsed}% - Healthy`
-          : "⚠️ Quota information not available in API response",
-      },
+      status: isHealthy ? "ok" : "error",
+      message: isHealthy
+        ? "✅ Prokerala API is accessible and responding"
+        : `⚠️ Prokerala API check failed: ${result.error || "Unknown error"}`,
+      note: "Quota information is not available in API response headers. Check Prokerala dashboard for quota usage.",
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -82,42 +73,6 @@ export async function GET(req: Request) {
       },
       { status: 500 }
     );
-  }
-}
-
-/**
- * Helper to get Prokerala access token
- * This is a simplified version - in production, use the actual token caching logic
- */
-async function getProkeralaToken(): Promise<string> {
-  const CLIENT_ID = process.env.PROKERALA_CLIENT_ID;
-  const CLIENT_SECRET = process.env.PROKERALA_CLIENT_SECRET;
-
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    throw new Error("Prokerala credentials not configured");
-  }
-
-  try {
-    const response = await fetch("https://api.prokerala.com/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Token request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.access_token;
-  } catch (error) {
-    throw new Error(`Failed to get Prokerala token: ${error}`);
   }
 }
 
