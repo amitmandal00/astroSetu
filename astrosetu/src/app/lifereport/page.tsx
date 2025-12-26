@@ -134,9 +134,6 @@ function LifeReportPageContent() {
     }
   }
 
-  const [pdfFormat, setPdfFormat] = useState<"basic" | "detailed" | "premium">("detailed");
-  const [pdfGenerating, setPdfGenerating] = useState(false);
-
   async function downloadPDF() {
     if (!reportData) return;
     
