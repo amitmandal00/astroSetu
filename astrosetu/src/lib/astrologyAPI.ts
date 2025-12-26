@@ -374,7 +374,10 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
     }
   }
 
-      throw lastError || new Error("Prokerala API request failed after retries");
+  // Only throw if we didn't get a result after all retries
+  if (!result) {
+    throw lastError || new Error("Prokerala API request failed after retries");
+  }
   
   // Cache successful GET responses
   if (!skipCache && method === "GET" && result) {
