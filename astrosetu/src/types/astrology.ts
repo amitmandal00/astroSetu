@@ -169,6 +169,29 @@ export type Wallet = {
   }>;
 };
 
+export type CalendarSystem = {
+  amanta: {
+    month: string;
+    date: string;
+    year: number;
+    paksha: "Shukla" | "Krishna";
+    fullDate: string; // e.g., "Kartik Shukla 15, 2081"
+  };
+  purnimanta: {
+    month: string;
+    date: string;
+    year: number;
+    paksha: "Shukla" | "Krishna";
+    fullDate: string; // e.g., "Kartik Shukla 15, 2081"
+  };
+  vikramSamvat: {
+    year: number;
+    month: string;
+    date: string;
+    fullDate: string; // e.g., "Vikram Samvat 2081, Kartik 15"
+  };
+};
+
 export type Panchang = {
   date: string;
   tithi: string;
@@ -182,6 +205,7 @@ export type Panchang = {
   rahuKaal: { start: string; end: string };
   abhijitMuhurat: { start: string; end: string };
   auspiciousTimings: { name: string; start: string; end: string }[];
+  calendar?: CalendarSystem; // Enhanced with calendar systems
 };
 
 export type Choghadiya = {

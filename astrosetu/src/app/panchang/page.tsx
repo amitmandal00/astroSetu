@@ -185,6 +185,43 @@ export default function PanchangPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Calendar Systems */}
+          {data.calendar ? (
+            <Card className="lg:col-span-2">
+              <CardHeader eyebrow="Hindu Calendar Systems" title="Amanta, Purnimanta & Vikram Samvat" icon="📅" />
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                    <div className="text-xs font-semibold text-indigo-700 mb-2">AMANTA CALENDAR</div>
+                    <div className="text-lg font-bold text-indigo-900 mb-1">{data.calendar.amanta.fullDate}</div>
+                    <div className="text-xs text-indigo-600">
+                      {data.calendar.amanta.month} {data.calendar.amanta.paksha} Paksha
+                    </div>
+                    <div className="text-xs text-indigo-600 mt-1">Month ends on Amavasya</div>
+                  </div>
+                  
+                  <div className="rounded-xl border border-purple-200 bg-purple-50 p-4">
+                    <div className="text-xs font-semibold text-purple-700 mb-2">PURNIMANTA CALENDAR</div>
+                    <div className="text-lg font-bold text-purple-900 mb-1">{data.calendar.purnimanta.fullDate}</div>
+                    <div className="text-xs text-purple-600">
+                      {data.calendar.purnimanta.month} {data.calendar.purnimanta.paksha} Paksha
+                    </div>
+                    <div className="text-xs text-purple-600 mt-1">Month ends on Purnima</div>
+                  </div>
+                  
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="text-xs font-semibold text-amber-700 mb-2">VIKRAM SAMVAT</div>
+                    <div className="text-lg font-bold text-amber-900 mb-1">{data.calendar.vikramSamvat.fullDate}</div>
+                    <div className="text-xs text-amber-600">
+                      {data.calendar.vikramSamvat.month} {data.calendar.vikramSamvat.date}
+                    </div>
+                    <div className="text-xs text-amber-600 mt-1">Traditional Hindu Calendar Year</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       ) : null}
     </div>

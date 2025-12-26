@@ -3,7 +3,7 @@
  * Transforms Prokerala API responses to AstroSetu format
  */
 
-import type { KundliResult, MatchResult, Panchang, DoshaAnalysis, KundliChart, Choghadiya, NakshatraPorutham } from "@/types/astrology";
+import type { KundliResult, MatchResult, Panchang, DoshaAnalysis, KundliChart, Choghadiya, NakshatraPorutham, CalendarSystem } from "@/types/astrology";
 
 /**
  * Transform Prokerala Kundli response to AstroSetu format
@@ -824,6 +824,9 @@ export function transformPanchangResponse(prokeralaData: any, date: string, plac
     return obj.name || obj.value || "";
   };
   
+  // Calculate calendar systems
+  const calendar = calculateCalendarSystems(date, panchang, data);
+  
   return {
     date,
     tithi: extractName(panchang.tithi || data.tithi) || "",
@@ -837,6 +840,7 @@ export function transformPanchangResponse(prokeralaData: any, date: string, plac
     rahuKaal: formatTimeRange(panchang.rahuKaal || data.rahuKaal),
     abhijitMuhurat: formatTimeRange(panchang.abhijitMuhurat || data.abhijitMuhurat),
     auspiciousTimings: [],
+    calendar,
   };
 }
 
@@ -1303,5 +1307,80 @@ function generateNakshatraPoruthamSummary(score: number, max: number, compatibil
   } else {
     return `Challenging Nakshatra compatibility (${score}/${max} points, ${percentage}%). The nakshatras show significant differences. Comprehensive remedies and expert consultation are strongly recommended to improve compatibility.`;
   }
+}
+
+/**
+ * Calculate calendar systems (Amanta, Purnimanta, Vikram Samvat)
+ */
+function calculateCalendarSystems(date: string, panchang: any, data: any): CalendarSystem {
+  const dateObj = new Date(date);
+  const year = dateObj.getFullYear();
+  const month = dateObj.getMonth() + 1;
+  const day = dateObj.getDate();
+  
+  // Extract tithi info to determine paksha
+  const tithiStr = (panchang.tithi || data.tithi || "").toString().toLowerCase();
+  const isShukla = tithiStr.includes("shukla") || tithiStr.includes("waxing");
+  const isKrishna = tithiStr.includes("krishna") || tithiStr.includes("waning");
+  
+  // Extract tithi number (1-15)
+  const tithiMatch = tithiStr.match(/(\d+)/);
+  const tithiNum = tithiMatch ? parseInt(tithiMatch[1]) : day;
+  
+  // Hindu month names
+  const hinduMonths = [
+    "Chaitra", "Vaishakha", "Jyeshtha", "Ashadha",
+    "Shravana", "Bhadrapada", "Ashwin", "Kartik",
+    "Margashirsha", "Paush", "Magh", "Phalguna"
+  ];
+  
+  // Calculate Vikram Samvat year (approximately 57 years ahead of Gregorian)
+  const vikramYear = year + 57;
+  
+  // Determine current Hindu month based on Gregorian month
+  // This is simplified - actual calculation requires precise astronomical data
+  let hinduMonthIndex = month - 1; // Approximate mapping
+  if (month === 1 || month === 2) hinduMonthIndex = 9; // Paush/Magh
+  else if (month === 3 || month === 4) hinduMonthIndex = (month === 3 ? 10 : 11); // Phalguna/Chaitra
+  else if (month >= 5 && month <= 7) hinduMonthIndex = month - 4; // Vaishakha to Ashadha
+  else if (month >= 8 && month <= 10) hinduMonthIndex = month - 3; // Shravana to Ashwin
+  else if (month === 11 || month === 12) hinduMonthIndex = (month === 11 ? 6 : 7); // Kartik/Margashirsha
+  
+  const hinduMonth = hinduMonths[hinduMonthIndex % 12];
+  
+  // Determine paksha for Amanta (month ends on Amavasya)
+  const amantaPaksha: "Shukla" | "Krishna" = isShukla ? "Shukla" : (isKrishna ? "Krishna" : (tithiNum <= 15 ? "Shukla" : "Krishna"));
+  const amantaDate = tithiNum <= 15 ? tithiNum : tithiNum - 15;
+  
+  // Determine paksha for Purnimanta (month ends on Purnima)
+  const purnimantaPaksha: "Shukla" | "Krishna" = isShukla ? "Shukla" : (isKrishna ? "Krishna" : (tithiNum <= 15 ? "Shukla" : "Krishna"));
+  const purnimantaDate = tithiNum <= 15 ? tithiNum : tithiNum - 15;
+  
+  // Adjust month for Amanta vs Purnimanta if needed
+  const amantaMonth = hinduMonth;
+  const purnimantaMonth = hinduMonth;
+  
+  return {
+    amanta: {
+      month: amantaMonth,
+      date: amantaDate.toString(),
+      year: vikramYear,
+      paksha: amantaPaksha,
+      fullDate: `${amantaMonth} ${amantaPaksha} ${amantaDate}, ${vikramYear}`,
+    },
+    purnimanta: {
+      month: purnimantaMonth,
+      date: purnimantaDate.toString(),
+      year: vikramYear,
+      paksha: purnimantaPaksha,
+      fullDate: `${purnimantaMonth} ${purnimantaPaksha} ${purnimantaDate}, ${vikramYear}`,
+    },
+    vikramSamvat: {
+      year: vikramYear,
+      month: hinduMonth,
+      date: amantaDate.toString(),
+      fullDate: `Vikram Samvat ${vikramYear}, ${hinduMonth} ${amantaDate}`,
+    },
+  };
 }
 
