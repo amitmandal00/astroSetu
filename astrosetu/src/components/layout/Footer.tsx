@@ -210,7 +210,7 @@ export function Footer() {
         <div className="mt-10 pt-8 border-t-2 border-slate-200 grid md:grid-cols-2 gap-6">
           {/* Contact Information */}
           <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-3">Contact Us</h3>
+            <h3 className="text-sm font-bold text-slate-900 mb-3">Legal & Compliance Contact</h3>
             <div className="space-y-2 text-sm text-slate-600">
               <div className="flex items-center gap-2">
                 <span>📧</span>

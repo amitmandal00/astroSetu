@@ -105,10 +105,10 @@ export async function POST(req: Request) {
     // Send automated emails (fire and forget - don't block response)
     sendContactNotifications({
       submissionId,
-      name,
+      name: name || undefined,
       email,
       phone,
-      subject,
+      subject: finalSubject,
       message,
       category: autoCategory,
     }).catch((error) => {
