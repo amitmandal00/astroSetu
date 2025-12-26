@@ -37,6 +37,31 @@ export default function TermsPage() {
                 </p>
               </section>
 
+              {/* Australian Consumer Law */}
+              <section className="bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-r-lg">
+                <h2 className="text-xl font-bold text-slate-900 mb-3">1A. Australian Consumer Law Rights</h2>
+                <p className="text-indigo-900 font-semibold mb-2">
+                  This section applies to users in Australia. Nothing in these Terms limits or excludes your rights under the Australian Consumer Law (ACL).
+                </p>
+                <p className="text-indigo-800">
+                  <strong>Consumer Guarantees:</strong> Our services come with guarantees that cannot be excluded under the ACL. These include:
+                </p>
+                <ul className="list-disc list-inside space-y-1 ml-4 mt-2 text-indigo-800">
+                  <li>Services will be provided with due care and skill</li>
+                  <li>Services will be fit for the disclosed purpose</li>
+                  <li>Services will be delivered within a reasonable time</li>
+                </ul>
+                <p className="mt-3 text-indigo-800">
+                  <strong>Important Note:</strong> Astrology services are belief-based and do not guarantee specific outcomes. The ACL guarantees relate to the quality of service delivery, not to the accuracy or outcome of astrological interpretations.
+                </p>
+                <p className="mt-3 text-indigo-800">
+                  <strong>Remedies:</strong> If we fail to meet a consumer guarantee, you may be entitled to remedies including repair, replacement, or refund. Contact us at <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline font-medium">support@astrosetu.app</a>.
+                </p>
+                <p className="mt-3 text-indigo-800">
+                  For more information about your rights, visit the Australian Competition & Consumer Commission (ACCC) website: <a href="https://www.accc.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">www.accc.gov.au</a>.
+                </p>
+              </section>
+
               {/* Nature of Service */}
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">2. Nature of the Service</h2>
@@ -106,11 +131,14 @@ export default function TermsPage() {
                 <h2 className="text-xl font-bold text-slate-900 mb-3">7. Payments & Subscriptions (If Applicable)</h2>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Paid features, subscriptions, or reports are clearly described at purchase.</li>
-                  <li>Prices may change at any time.</li>
+                  <li>All prices are displayed in AUD (Australian Dollars) for Australian users, with other currencies available where applicable.</li>
+                  <li>Total costs, including any fees, are clearly shown before purchase.</li>
+                  <li>Prices may change at any time, but changes will not affect existing subscriptions.</li>
                   <li>Subscriptions auto-renew unless cancelled before the renewal date.</li>
+                  <li>You can cancel subscriptions at any time through your account settings or app store.</li>
                 </ul>
                 <p className="mt-3">
-                  Refunds are governed by the Refund Policy (see <a href="/refund" className="text-indigo-600 hover:underline">/refund</a>).
+                  Refunds are governed by the Refund Policy (see <a href="/refund" className="text-indigo-600 hover:underline">/refund</a>), which does not limit your rights under the Australian Consumer Law.
                 </p>
               </section>
 
@@ -134,23 +162,59 @@ export default function TermsPage() {
                   <li>Misuse or abuse of the platform occurs</li>
                   <li>Legal or operational reasons require it</li>
                 </ul>
+                <p className="mt-3">
+                  You may stop using the service at any time. Cancellation of subscriptions will stop future billing but does not entitle you to refunds for past periods, except where required by law.
+                </p>
+              </section>
+
+              {/* Dispute Resolution */}
+              <section>
+                <h2 className="text-xl font-bold text-slate-900 mb-3">10. Dispute Resolution</h2>
+                <p>
+                  If you have a complaint or dispute, please contact us first at <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a>. We aim to resolve disputes within 30 days.
+                </p>
+                <p className="mt-3">
+                  <strong>Australian Users:</strong> If we cannot resolve your complaint, you may contact:
+                </p>
+                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
+                  <li>Australian Competition & Consumer Commission (ACCC): <a href="https://www.accc.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">www.accc.gov.au</a></li>
+                  <li>Office of the Australian Information Commissioner (OAIC) for privacy matters: <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">www.oaic.gov.au</a></li>
+                </ul>
+                <p className="mt-3">
+                  For detailed dispute resolution procedures, see our <a href="/disputes" className="text-indigo-600 hover:underline">Dispute Resolution Policy</a>.
+                </p>
               </section>
 
               {/* Governing Law */}
               <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-3">10. Governing Law</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-3">11. Governing Law & Jurisdiction</h2>
                 <p>
-                  These Terms shall be governed by the laws of <strong>India</strong>, without regard to conflict-of-law principles.
+                  <strong>Australian Users:</strong> These Terms are governed by the laws of <strong>Australia</strong> and the laws of the State or Territory where you access our services. Any disputes will be subject to the exclusive jurisdiction of Australian courts.
+                </p>
+                <p className="mt-3">
+                  <strong>International Users:</strong> For users outside Australia, these Terms are governed by the laws of <strong>India</strong>, without regard to conflict-of-law principles.
                 </p>
               </section>
 
-              {/* Contact */}
+              {/* Company Information */}
               <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-3">11. Contact</h2>
-                <p>For questions or concerns:</p>
-                <p className="mt-2">
-                  📧 <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline font-medium">support@astrosetu.app</a>
+                <h2 className="text-xl font-bold text-slate-900 mb-3">12. Company Information</h2>
+                <p>
+                  <strong>Business Name:</strong> AstroSetu Services Pty Ltd (or your registered business name)
                 </p>
+                <p className="mt-2">
+                  <strong>ABN:</strong> [To be provided]
+                </p>
+                <p className="mt-2">
+                  <strong>Registered Office:</strong> [To be provided]
+                </p>
+                <p className="mt-2">
+                  <strong>Contact:</strong>
+                </p>
+                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
+                  <li>Email: <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
+                  <li>Legal Matters: <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a></li>
+                </ul>
               </section>
             </div>
           </CardContent>

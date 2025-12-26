@@ -43,6 +43,8 @@ const footerLinks = {
     { href: "/refund", label: "Refund Policy", icon: null },
     { href: "/cookies", label: "Cookie Policy", icon: null },
     { href: "/accessibility", label: "Accessibility", icon: null },
+    { href: "/disputes", label: "Dispute Resolution", icon: null },
+    { href: "/data-breach", label: "Data Breach Policy", icon: null },
   ],
 };
 
@@ -339,10 +341,12 @@ export function Footer() {
             <div className="text-slate-600 text-xs">
               © {currentYear} <span className="font-semibold text-slate-900">AstroSetu</span>. All rights reserved.
               <br className="hidden sm:block" />
-              <span className="hidden sm:inline">ABN: [To be provided] | </span>
-              <Link href="/accessibility" className="hover:text-saffron-600 transition-colors">
-                Accessibility
-              </Link>
+              <span className="hidden sm:inline">
+                ABN: [To be provided] | 
+                <Link href="/disputes" className="hover:text-saffron-600 transition-colors ml-1">Disputes</Link>
+                <span> | </span>
+                <Link href="/accessibility" className="hover:text-saffron-600 transition-colors">Accessibility</Link>
+              </span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">
               <Link href="/privacy" className="hover:text-saffron-600 transition-colors">
