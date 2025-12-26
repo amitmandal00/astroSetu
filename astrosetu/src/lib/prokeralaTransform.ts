@@ -903,7 +903,7 @@ export function transformDoshaResponse(prokeralaData: any, planets?: any[]): Dos
   }
   
   const manglikSeverity = manglik.severity || manglik.level || (manglikStatus === "Manglik" ? "Medium" : "Low");
-  const manglikHouse = manglik.house || manglik.houseNumber;
+  let manglikHouse = manglik.house || manglik.houseNumber;
   
   // Extract house from description if available (e.g., "Mars is positioned in the 7th house")
   if (!manglikHouse && manglik.description) {
