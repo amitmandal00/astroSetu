@@ -110,7 +110,7 @@ export default function ChoghadiyaPage() {
 
           <div className="mt-4 flex items-center gap-3">
             <Button onClick={onSubmit} disabled={!canSubmit || loading}>
-              {loading ? "Calculating..." : "Get Choghadiya"}
+              {loading ? "Calculating auspicious time periods" : "Get Choghadiya"}
             </Button>
             {err ? <span className="text-sm text-rose-700">{err}</span> : null}
           </div>

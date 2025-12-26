@@ -564,7 +564,7 @@ function KundliPageContent() {
               </label>
               <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Day</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 tracking-wide">Day</label>
                   <Input
                     type="number"
                     value={day}
@@ -576,7 +576,7 @@ function KundliPageContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Month</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 tracking-wide">Month</label>
                   <select
                     value={month}
                     onChange={(e) => setMonth(e.target.value)}
@@ -591,7 +591,7 @@ function KundliPageContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Year</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 tracking-wide">Year</label>
                   <Input
                     type="number"
                     value={year}
@@ -612,7 +612,7 @@ function KundliPageContent() {
               </label>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Hrs</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 tracking-wide">Hours</label>
                   <Input
                     type="number"
                     value={hours}
@@ -624,7 +624,7 @@ function KundliPageContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Min</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 tracking-wide">Minutes</label>
                   <Input
                     type="number"
                     value={minutes}
@@ -636,7 +636,7 @@ function KundliPageContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Sec</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 tracking-wide">Seconds</label>
                   <Input
                     type="number"
                     value={seconds}
@@ -952,7 +952,7 @@ function KundliPageContent() {
           </div>
           
           {/* Detailed Results Section - Collapsible */}
-          <div className="space-y-4 sm:space-y-5 lg:space-y-6 mt-6 sm:mt-8" id="chart">
+          <div className="section-spacing space-y-4 sm:space-y-5 lg:space-y-6" id="chart">
           {/* Success Message with Birth Chart Image */}
           <div className="p-4 sm:p-5 lg:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 border-2 border-emerald-300 shadow-lg relative overflow-hidden">
             {/* Subtle pattern overlay */}
@@ -1030,19 +1030,19 @@ function KundliPageContent() {
                     <div className="text-xs font-semibold text-slate-600 mb-1">
                       <TermTooltip term="Lagna">Ascendant (Lagna)</TermTooltip>
                     </div>
-                    <div className="text-xl font-bold text-purple-700">{data.ascendant || "Processing..."}</div>
+                    <div className="text-xl font-bold text-purple-700">{data.ascendant || "Birth time not provided – Moon-based analysis shown"}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-slate-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">
                       <TermTooltip term="Rashi">Rashi (Moon Sign)</TermTooltip>
                     </div>
-                    <div className="text-xl font-bold text-slate-900">{data.rashi || "Processing..."}</div>
+                    <div className="text-xl font-bold text-slate-900">{data.rashi || "Data unavailable for this chart type"}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-slate-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">
                       <TermTooltip term="Nakshatra">Nakshatra</TermTooltip>
                     </div>
-                    <div className="text-xl font-bold text-slate-900">{data.nakshatra || "Processing..."}</div>
+                    <div className="text-xl font-bold text-slate-900">{data.nakshatra || "Data unavailable for this chart type"}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-amber-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">
@@ -1245,7 +1245,7 @@ function KundliPageContent() {
 
 export default function KundliPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-saffron-600 mx-auto mb-4"></div><div className="text-slate-600">Loading...</div></div></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-saffron-600 mx-auto mb-4"></div><div className="text-slate-600">Initializing Kundli calculator...</div></div></div>}>
       <KundliPageContent />
     </Suspense>
   );

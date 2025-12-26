@@ -115,7 +115,7 @@ export default function WesternNatalPage() {
 
           <div className="mt-4 flex items-center gap-3">
             <Button onClick={onSubmit} disabled={!canSubmit || loading}>
-              {loading ? "Calculating..." : "Generate Natal Chart"}
+              {loading ? "Computing planetary positions using Lahiri Ayanamsa" : "Generate Natal Chart"}
             </Button>
             {err ? <span className="text-sm text-rose-700">{err}</span> : null}
           </div>

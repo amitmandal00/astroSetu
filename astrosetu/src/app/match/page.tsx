@@ -214,7 +214,7 @@ export default function MatchPage() {
                   </svg>
                   {/* Inner content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <div className="text-xs font-semibold text-slate-600 mb-1">COMPATIBILITY</div>
+                    <div className="text-xs font-semibold text-slate-600 mb-1">Compatibility</div>
                     <div className="text-5xl font-bold text-amber-600 mb-1">{data.totalGuna}</div>
                     <div className="text-sm text-slate-600">out of {data.maxGuna}</div>
                     <div className="text-base font-semibold text-slate-900 mt-2">{data.verdict} Match</div>

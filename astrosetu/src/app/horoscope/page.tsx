@@ -133,14 +133,14 @@ export default function HoroscopePage() {
               ) : (
                 <div className="flex items-end">
                   <Button onClick={onSubmit} disabled={!canSubmit || loading} className="w-full">
-                    {loading ? "Loading..." : "Get"}
+                    {loading ? "Generating horoscope predictions" : "Get"}
                   </Button>
                 </div>
               )}
               {mode === "monthly" || mode === "yearly" ? (
                 <div className="flex items-end">
                   <Button onClick={onSubmit} disabled={!canSubmit || loading} className="w-full">
-                    {loading ? "Loading..." : "Get"}
+                    {loading ? "Generating horoscope predictions" : "Get"}
                   </Button>
                 </div>
               ) : null}

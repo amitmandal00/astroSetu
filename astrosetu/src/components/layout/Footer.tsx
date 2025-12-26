@@ -62,288 +62,59 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t-2 border-slate-200 bg-gradient-to-b from-white via-slate-50 to-white">
-      {/* Main Footer Content */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-8 lg:gap-6 xl:gap-8">
-          {/* Branding Column - Wider */}
-          <div className="sm:col-span-2 lg:col-span-2 xl:col-span-2">
-            <Logo size="md" showText={true} />
-            <p className="text-sm text-slate-700 mt-4 max-w-sm leading-relaxed">
-              Bridging humans with cosmic guidance. Your trusted companion for astrology, horoscopes, and consultations.
+    <footer className="border-t border-slate-200 bg-white">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          {/* Left: Branding */}
+          <div>
+            <Logo size="sm" showText={true} />
+            <p className="text-xs text-slate-600 mt-3 leading-relaxed">
+              Automated Astrology Platform
             </p>
-            
-            {/* Social Media Links */}
-            <div className="mt-6">
-              <div className="text-xs font-semibold text-slate-900 mb-3">Follow Us</div>
-              <div className="flex flex-wrap items-center gap-3">
-                {socialLinks.map((social) => (
-                  <a
-                    key={social.name}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-saffron-100 to-amber-100 border-2 border-saffron-200 flex items-center justify-center text-lg hover:from-saffron-200 hover:to-amber-200 hover:scale-110 transition-all shadow-sm"
-                    title={social.label}
-                    aria-label={social.label}
-                  >
-                    {social.icon}
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {/* Newsletter Subscription */}
-            <div className="mt-6">
-              <div className="text-xs font-semibold text-slate-900 mb-2">Subscribe to Newsletter</div>
-              <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); }}>
-                <input
-                  type="email"
-                  placeholder="Your email"
-                  className="flex-1 px-3 py-2 text-sm border-2 border-slate-300 rounded-lg focus:outline-none focus:border-saffron-500 focus:ring-2 focus:ring-saffron-200"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-gradient-to-r from-saffron-500 to-amber-600 text-white text-sm font-semibold rounded-lg hover:from-saffron-600 hover:to-amber-700 transition-all shadow-md"
-                >
-                  Subscribe
-                </button>
-              </form>
-            </div>
-
-            {/* Trust Signals */}
-            <div className="mt-6 flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <span className="text-green-600">✓</span>
-                <span>Secure Payments</span>
-              </div>
-            </div>
           </div>
 
-          {/* Services Column */}
+          {/* Center: Legal Links */}
           <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-4">Our Services</h3>
-            <ul className="space-y-2.5">
-              {footerLinks.services.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-slate-600 hover:text-saffron-600 transition-colors flex items-center gap-2 group"
-                  >
-                    {link.icon && <span className="text-base group-hover:scale-110 transition-transform">{link.icon}</span>}
-                    <span>{link.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Reports Column */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-4">Reports</h3>
-            <ul className="space-y-2.5">
-              {footerLinks.reports.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-slate-600 hover:text-saffron-600 transition-colors flex items-center gap-2 group"
-                  >
-                    {link.icon && <span className="text-base group-hover:scale-110 transition-transform">{link.icon}</span>}
-                    <span>{link.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Information Column */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-4">Information</h3>
-            <ul className="space-y-2.5">
-              {footerLinks.information.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-slate-600 hover:text-saffron-600 transition-colors flex items-center gap-2 group"
-                  >
-                    {link.icon && <span className="text-base group-hover:scale-110 transition-transform">{link.icon}</span>}
-                    <span>{link.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Company & Legal Column */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-4">Company</h3>
-            <ul className="space-y-2.5 mb-6">
-              {footerLinks.company.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-slate-600 hover:text-saffron-600 transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            
-            <h3 className="text-sm font-bold text-slate-900 mb-4">Legal</h3>
-            <ul className="space-y-2.5">
-              {footerLinks.legal.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-slate-600 hover:text-saffron-600 transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Contact & Language Section */}
-        <div className="mt-10 pt-8 border-t-2 border-slate-200 grid md:grid-cols-2 gap-6">
-          {/* Contact Information */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-3">Legal & Compliance Contact</h3>
-            <div className="space-y-2 text-sm text-slate-600">
-              <div className="flex items-center gap-2">
-                <span>📧</span>
-                <a href="mailto:support@astrosetu.app" className="hover:text-saffron-600 transition-colors">
-                  support@astrosetu.app
-                </a>
-                <span className="text-xs text-slate-500">(Legal & compliance only)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>🔒</span>
-                <a href="mailto:privacy@astrosetu.app" className="hover:text-saffron-600 transition-colors">
-                  privacy@astrosetu.app
-                </a>
-                <span className="text-xs text-slate-500">(Privacy requests)</span>
-              </div>
-              <div className="flex items-start gap-2 mt-3">
-                <span>📍</span>
-                <span className="text-xs">
-                  AstroSetu Services Pvt. Ltd.<br />
-                  Mumbai, Maharashtra, India
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Languages */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-3">Available Languages</h3>
-            <div className="flex flex-wrap gap-2">
-              {languages.map((lang) => (
-                <Link
-                  key={lang.code}
-                  href={`?lang=${lang.code}`}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-saffron-100 hover:text-saffron-700 rounded-lg border border-slate-200 hover:border-saffron-300 transition-all flex items-center gap-1.5"
-                >
-                  <span>{lang.flag}</span>
-                  <span>{lang.name}</span>
-                </Link>
-              ))}
-            </div>
-            
-            {/* App Download Links */}
-            <div className="mt-4">
-              <div className="text-xs font-semibold text-slate-900 mb-2">Download Our App</div>
-              <div className="flex flex-wrap gap-2">
-                <a
-                  href="https://play.google.com/store/apps/details?id=com.astrosetu"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-all flex items-center gap-1.5"
-                >
-                  <span>🤖</span>
-                  <span>Google Play</span>
-                </a>
-                <a
-                  href="https://apps.apple.com/app/astrosetu"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-all flex items-center gap-1.5"
-                >
-                  <span>🍎</span>
-                  <span>App Store</span>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Gateways & Certifications */}
-        <div className="mt-8 pt-6 border-t border-slate-200">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Payment Methods */}
-            <div>
-              <div className="text-xs font-semibold text-slate-900 mb-2">Accepted Payment Methods</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="px-3 py-1.5 bg-white border-2 border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
-                  💳 Cards
-                </div>
-                <div className="px-3 py-1.5 bg-white border-2 border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
-                  🏦 UPI
-                </div>
-                <div className="px-3 py-1.5 bg-white border-2 border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
-                  📱 Wallets
-                </div>
-                <div className="px-3 py-1.5 bg-white border-2 border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
-                  🔒 Secure
-                </div>
-              </div>
-            </div>
-
-            {/* Certifications */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <span className="text-green-600 font-bold">✓</span>
-                <span>SSL Secured</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <span className="text-blue-600 font-bold">✓</span>
-                <span>ISO Certified</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Bar */}
-      <div className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-            <div className="text-slate-600 text-xs">
-              © {currentYear} <span className="font-semibold text-slate-900">AstroSetu</span>. All rights reserved.
-              <br className="hidden sm:block" />
-              <span className="hidden sm:inline">
-                ABN: [To be provided] | 
-                <Link href="/disputes" className="hover:text-saffron-600 transition-colors ml-1">Disputes</Link>
-                <span> | </span>
-                <Link href="/accessibility" className="hover:text-saffron-600 transition-colors">Accessibility</Link>
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
               <Link href="/privacy" className="hover:text-saffron-600 transition-colors">
-                Privacy Policy
+                Privacy
               </Link>
-              <span>•</span>
               <Link href="/terms" className="hover:text-saffron-600 transition-colors">
-                Terms of Service
+                Terms
               </Link>
-              <span>•</span>
               <Link href="/disclaimer" className="hover:text-saffron-600 transition-colors">
                 Disclaimer
               </Link>
-              <span className="hidden sm:inline">•</span>
-              <span className="hidden sm:inline">Made with 🔮 for the Indian market</span>
+              <Link href="/refund" className="hover:text-saffron-600 transition-colors">
+                Refund
+              </Link>
+              <Link href="/cookies" className="hover:text-saffron-600 transition-colors">
+                Cookies
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: Autonomous Notice */}
+          <div className="text-xs text-slate-500 text-right md:text-left">
+            <p>This platform is fully automated.</p>
+            <p className="mt-1">No live support provided.</p>
+          </div>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="border-t border-slate-200 pt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+            <div>
+              © {currentYear} <span className="font-semibold text-slate-900">AstroSetu</span>
+            </div>
+            <div className="text-slate-500">
+              <a href="mailto:support@astrosetu.app" className="hover:text-saffron-600 transition-colors">
+                support@astrosetu.app
+              </a>
+              {" • "}
+              <a href="mailto:privacy@astrosetu.app" className="hover:text-saffron-600 transition-colors">
+                privacy@astrosetu.app
+              </a>
             </div>
           </div>
         </div>

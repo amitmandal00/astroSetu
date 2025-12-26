@@ -151,7 +151,7 @@ export default function TransitPage() {
 
           <div className="mt-4 flex items-center gap-3">
             <Button onClick={onSubmit} disabled={!canSubmit || loading}>
-              {loading ? "Calculating Transits..." : "Get Transit Chart"}
+              {loading ? "Computing planetary transits and their effects" : "Get Transit Chart"}
             </Button>
             {err ? <span className="text-sm text-rose-700">{err}</span> : null}
           </div>

@@ -92,7 +92,7 @@ export default function NumerologyPage() {
 
           <div className="mt-4 flex items-center gap-3">
             <Button onClick={onSubmit} disabled={!canSubmit || loading}>
-              {loading ? "Calculating..." : "Calculate"}
+              {loading ? "Computing numerology values from name and date" : "Calculate"}
             </Button>
             {err ? <span className="text-sm text-rose-700">{err}</span> : null}
           </div>

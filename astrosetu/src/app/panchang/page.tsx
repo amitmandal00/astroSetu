@@ -83,7 +83,7 @@ export default function PanchangPage() {
 
           <div className="mt-4 flex items-center gap-3">
             <Button onClick={onSubmit} disabled={!canSubmit || loading}>
-              {loading ? "Loading..." : "Get Panchang"}
+              {loading ? "Fetching panchang data for selected date" : "Get Panchang"}
             </Button>
             {err ? <span className="text-sm text-rose-700">{err}</span> : null}
           </div>

@@ -85,7 +85,7 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
       )}
 
       {/* Main chart grid with North Indian Diamond Style - improved spacing and colors */}
-      <div className="relative grid grid-cols-4 gap-2 p-6 bg-white rounded-xl border-2 border-slate-200 shadow-lg chart-container">
+      <div className="relative grid grid-cols-4 gap-3 p-6 bg-white rounded-xl border-2 border-slate-200 shadow-lg" style={{ margin: '24px' }}>
         {gridLayout.map((row, rowIdx) => (
           row.map((houseNum, colIdx) => {
             const house = getHouseData(houseNum);
@@ -146,14 +146,15 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
                       const planetInfo = PLANET_NAMES[planet] || { hindi: planet, symbol: "•", color: "from-slate-400 to-slate-500" };
                       const abbr = getPlanetAbbr(planet);
                       // Improved color mapping - muted jewel tones (P0 fix)
-                      const planetColor = planet === "Rahu" || planet === "Uranus" ? "text-red-500" :
-                                        planet === "Jupiter" || planet === "Moon" ? "text-indigo-600" :
-                                        planet === "Venus" || planet === "Neptune" ? "text-teal-600" :
+                      // Benefics: soft green/teal, Malefics: muted red (not bright)
+                      const planetColor = planet === "Rahu" || planet === "Uranus" ? "text-red-600" :
+                                        planet === "Jupiter" || planet === "Moon" ? "text-teal-600" :
+                                        planet === "Venus" || planet === "Neptune" ? "text-emerald-600" :
                                         planet === "Mercury" ? "text-blue-600" :
                                         planet === "Sun" ? "text-amber-600" :
-                                        planet === "Mars" ? "text-red-500" :
-                                        planet === "Saturn" ? "text-slate-600" :
-                                        planet === "Ketu" ? "text-amber-600" :
+                                        planet === "Mars" ? "text-red-700" :
+                                        planet === "Saturn" ? "text-slate-700" :
+                                        planet === "Ketu" ? "text-amber-700" :
                                         "text-slate-700";
                       return (
                         <div
@@ -167,7 +168,7 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
                     })}
                   </div>
                 ) : (
-                  <div className="text-[10px] text-slate-400 mt-2" title="No planets in this house">—</div>
+                  <div className="text-[10px] text-slate-400 mt-2" title="No planets in this house">Empty house</div>
                 )}
 
                 {/* Sign name - Improved visibility and hierarchy */}

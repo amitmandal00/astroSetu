@@ -208,7 +208,7 @@ export default function SynastryPage() {
 
           <div className="mt-4 flex items-center gap-3">
             <Button onClick={onSubmit} disabled={!canSubmit || loading}>
-              {loading ? "Calculating Compatibility..." : "Calculate Synastry"}
+              {loading ? "Analyzing compatibility between two charts" : "Calculate Synastry"}
             </Button>
             {err ? <span className="text-sm text-rose-700">{err}</span> : null}
           </div>

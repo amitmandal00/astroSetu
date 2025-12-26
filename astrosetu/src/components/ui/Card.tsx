@@ -44,5 +44,5 @@ export function CardHeader({ eyebrow, title, subtitle, icon }: { eyebrow?: strin
 }
 
 export function CardContent({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={clsx("px-5 sm:px-6 pb-5 sm:pb-6", className)}>{children}</div>;
+  return <div className={clsx("px-5 sm:px-6 pb-5 sm:pb-6 card-enhanced", className)}>{children}</div>;
 }
