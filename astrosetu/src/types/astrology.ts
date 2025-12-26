@@ -40,6 +40,21 @@ export type GunaBreakdownItem = {
   note: string;
 };
 
+export type NakshatraPorutham = {
+  totalScore: number;
+  maxScore: number;
+  compatibility: "Excellent" | "Good" | "Average" | "Challenging";
+  points: Array<{
+    nakshatra: string;
+    score: number;
+    maxScore: number;
+    note: string;
+    compatibility: "Excellent" | "Good" | "Average" | "Challenging";
+  }>;
+  summary: string;
+  remedies?: string[];
+};
+
 export type MatchResult = {
   totalGuna: number;
   maxGuna: number;
@@ -47,6 +62,7 @@ export type MatchResult = {
   breakdown: GunaBreakdownItem[];
   manglik: { a: "Non-Manglik" | "Manglik"; b: "Non-Manglik" | "Manglik"; note: string };
   guidance: string[];
+  nakshatraPorutham?: NakshatraPorutham; // Enhanced with Nakshatra Porutham
 };
 
 export type HoroscopeDaily = {

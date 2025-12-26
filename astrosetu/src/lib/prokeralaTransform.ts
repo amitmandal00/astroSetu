@@ -3,7 +3,7 @@
  * Transforms Prokerala API responses to AstroSetu format
  */
 
-import type { KundliResult, MatchResult, Panchang, DoshaAnalysis, KundliChart, Choghadiya } from "@/types/astrology";
+import type { KundliResult, MatchResult, Panchang, DoshaAnalysis, KundliChart, Choghadiya, NakshatraPorutham } from "@/types/astrology";
 
 /**
  * Transform Prokerala Kundli response to AstroSetu format
@@ -758,6 +758,9 @@ export function transformMatchResponse(prokeralaData: any, inputA: any, inputB: 
   const manglikA = data.girl?.manglik || data.personA?.manglik || false;
   const manglikB = data.boy?.manglik || data.personB?.manglik || false;
   
+  // Extract Nakshatra Porutham data if available
+  const nakshatraPorutham = extractNakshatraPorutham(data, match, inputA, inputB);
+  
   return {
     totalGuna,
     maxGuna: 36,
@@ -769,6 +772,7 @@ export function transformMatchResponse(prokeralaData: any, inputA: any, inputB: 
       note: manglikA || manglikB ? "One or both partners have Manglik dosha" : "Both partners are Non-Manglik"
     },
     guidance: [`Total Guna Score: ${totalGuna}/36. ${verdict} match.`],
+    nakshatraPorutham,
   };
 }
 
@@ -895,11 +899,54 @@ export function transformDoshaResponse(prokeralaData: any, planets?: any[]): Dos
   );
   const marsHouse = marsPlanet?.house || manglikHouse;
   
-  // Kaal Sarp Dosha - Enhanced extraction
-  const kaalSarp = data.kaalSarp || data.kaalSarpDosha || data.kaalSarpaDosha || {};
-  const kaalSarpPresent = kaalSarp.present || kaalSarp.hasDosha || kaalSarp.status === "Present" || false;
-  const kaalSarpType = kaalSarp.type || kaalSarp.doshaType || kaalSarp.kaalSarpType;
-  const kaalSarpSeverity = kaalSarp.severity || kaalSarp.level || (kaalSarpPresent ? "Medium" : "Low");
+  // Kaal Sarp Dosha - Enhanced extraction with detailed type detection
+  const kaalSarp = data.kaalSarp || data.kaalSarpDosha || data.kaalSarpaDosha || data.kaalsarp || {};
+  const kaalSarpPresent = kaalSarp.present !== undefined 
+    ? kaalSarp.present 
+    : kaalSarp.hasDosha !== undefined 
+    ? kaalSarp.hasDosha 
+    : kaalSarp.status === "Present" || kaalSarp.status === "Yes"
+    ? true
+    : kaalSarp.has_dosha !== undefined
+    ? kaalSarp.has_dosha
+    : false;
+  
+  // Enhanced type detection - check multiple possible field names
+  let kaalSarpType = kaalSarp.type || kaalSarp.doshaType || kaalSarp.kaalSarpType || kaalSarp.kaalsarpType;
+  
+  // If type not found but description mentions a type, extract it
+  if (!kaalSarpType && kaalSarp.description) {
+    const typeNames = ["Anant", "Kulik", "Vasuki", "Shankhpal", "Padma", "Mahapadma", "Takshak", "Karkotak"];
+    for (const typeName of typeNames) {
+      if (kaalSarp.description.toLowerCase().includes(typeName.toLowerCase())) {
+        kaalSarpType = typeName;
+        break;
+      }
+    }
+  }
+  
+  // Determine severity based on type (Anant and Mahapadma are most severe)
+  let kaalSarpSeverity: "High" | "Medium" | "Low" = "Medium";
+  if (kaalSarpPresent) {
+    if (kaalSarp.severity) {
+      kaalSarpSeverity = kaalSarp.severity as "High" | "Medium" | "Low";
+    } else if (kaalSarp.level) {
+      const level = kaalSarp.level.toString().toLowerCase();
+      if (level.includes("high") || level.includes("severe")) {
+        kaalSarpSeverity = "High";
+      } else if (level.includes("medium") || level.includes("moderate")) {
+        kaalSarpSeverity = "Medium";
+      } else {
+        kaalSarpSeverity = "Low";
+      }
+    } else if (kaalSarpType === "Anant" || kaalSarpType === "Mahapadma") {
+      kaalSarpSeverity = "High";
+    } else {
+      kaalSarpSeverity = "Medium";
+    }
+  } else {
+    kaalSarpSeverity = "Low";
+  }
   
   // Shani Dosha - Enhanced extraction
   const shani = data.shani || data.sadeSati || data.sadeSatiPeriod || {};
@@ -1118,5 +1165,143 @@ function addTime(time: string, hours: number): string {
   const [h, m] = time.split(":").map(Number);
   const newHours = (h + hours) % 24;
   return `${String(Math.floor(newHours)).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * Extract and calculate Nakshatra Porutham from match data
+ */
+function extractNakshatraPorutham(data: any, match: any, inputA?: any, inputB?: any): NakshatraPorutham | undefined {
+  // Try to extract nakshatra porutham from Prokerala response
+  const porutham = data.porutham || data.nakshatraPorutham || match.porutham || match.nakshatraPorutham || {};
+  
+  // Get nakshatra details from both persons
+  const nakshatraA = data.girl?.nakshatra || data.personA?.nakshatra || 
+                     data.girl?.nakshatra_details?.nakshatra?.name || 
+                     match.girlNakshatra || inputA?.nakshatra;
+  const nakshatraB = data.boy?.nakshatra || data.personB?.nakshatra ||
+                     data.boy?.nakshatra_details?.nakshatra?.name ||
+                     match.boyNakshatra || inputB?.nakshatra;
+  
+  if (!nakshatraA || !nakshatraB) {
+    // Try to calculate from available data
+    return calculateNakshatraPorutham(nakshatraA || "Unknown", nakshatraB || "Unknown", porutham);
+  }
+  
+  // If Prokerala provides porutham data, use it
+  if (porutham.total || porutham.score || porutham.points) {
+    const points = porutham.points || porutham.details || [];
+    const totalScore = porutham.total || porutham.score || 0;
+    const maxScore = porutham.max || 27; // Standard Nakshatra Porutham has 27 points
+    
+    let compatibility: "Excellent" | "Good" | "Average" | "Challenging" = "Average";
+    const scorePercent = (totalScore / maxScore) * 100;
+    if (scorePercent >= 80) compatibility = "Excellent";
+    else if (scorePercent >= 60) compatibility = "Good";
+    else if (scorePercent >= 40) compatibility = "Average";
+    else compatibility = "Challenging";
+    
+    return {
+      totalScore,
+      maxScore,
+      compatibility,
+      points: points.map((p: any) => ({
+        nakshatra: p.name || p.nakshatra || "",
+        score: p.score || 0,
+        maxScore: p.max || 1,
+        note: p.note || p.description || "",
+        compatibility: p.compatibility || (p.score >= p.max * 0.8 ? "Excellent" : p.score >= p.max * 0.6 ? "Good" : p.score >= p.max * 0.4 ? "Average" : "Challenging"),
+      })),
+      summary: porutham.summary || porutham.description || generateNakshatraPoruthamSummary(totalScore, maxScore, compatibility),
+      remedies: porutham.remedies || [],
+    };
+  }
+  
+  // Fallback: Calculate from nakshatra names
+  return calculateNakshatraPorutham(nakshatraA, nakshatraB, porutham);
+}
+
+/**
+ * Calculate Nakshatra Porutham from nakshatra names
+ */
+function calculateNakshatraPorutham(nakshatraA: string, nakshatraB: string, existingData: any): NakshatraPorutham {
+  // Nakshatra Porutham calculation - 27 points system
+  // This is a simplified calculation - real calculation requires detailed nakshatra analysis
+  
+  // Get nakshatra indices (27 nakshatras)
+  const nakshatras = [
+    "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashirsha",
+    "Ardra", "Punarvasu", "Pushya", "Ashlesha", "Magha",
+    "Purva Phalguni", "Uttara Phalguni", "Hasta", "Chitra", "Swati",
+    "Vishakha", "Anuradha", "Jyeshtha", "Mula", "Purva Ashadha",
+    "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha", "Purva Bhadrapada",
+    "Uttara Bhadrapada", "Revati"
+  ];
+  
+  const getNakshatraIndex = (name: string): number => {
+    const index = nakshatras.findIndex(n => n.toLowerCase() === name.toLowerCase());
+    return index >= 0 ? index : -1;
+  };
+  
+  const indexA = getNakshatraIndex(nakshatraA);
+  const indexB = getNakshatraIndex(nakshatraB);
+  
+  // If we can't identify nakshatras, return a basic analysis
+  if (indexA < 0 || indexB < 0) {
+    return {
+      totalScore: 0,
+      maxScore: 27,
+      compatibility: "Average",
+      points: [],
+      summary: "Nakshatra Porutham analysis requires accurate nakshatra information. Please ensure birth details are accurate.",
+    };
+  }
+  
+  // Calculate compatibility based on nakshatra positions
+  // Simplified calculation - real porutham involves multiple factors
+  const difference = Math.abs(indexA - indexB);
+  const compatibilityScore = Math.max(0, 27 - (difference * 2)); // Simplified scoring
+  
+  let compatibility: "Excellent" | "Good" | "Average" | "Challenging" = "Average";
+  if (compatibilityScore >= 22) compatibility = "Excellent";
+  else if (compatibilityScore >= 18) compatibility = "Good";
+  else if (compatibilityScore >= 12) compatibility = "Average";
+  else compatibility = "Challenging";
+  
+  return {
+    totalScore: compatibilityScore,
+    maxScore: 27,
+    compatibility,
+    points: [
+      {
+        nakshatra: `${nakshatraA} - ${nakshatraB}`,
+        score: compatibilityScore,
+        maxScore: 27,
+        note: "Nakshatra compatibility based on position analysis",
+        compatibility,
+      },
+    ],
+    summary: generateNakshatraPoruthamSummary(compatibilityScore, 27, compatibility),
+    remedies: compatibilityScore < 18 ? [
+      "Perform Nakshatra Shanti Puja",
+      "Consult expert astrologer for detailed analysis",
+      "Follow recommended remedies for better compatibility",
+    ] : [],
+  };
+}
+
+/**
+ * Generate summary for Nakshatra Porutham
+ */
+function generateNakshatraPoruthamSummary(score: number, max: number, compatibility: string): string {
+  const percentage = Math.round((score / max) * 100);
+  if (compatibility === "Excellent") {
+    return `Excellent Nakshatra compatibility (${score}/${max} points, ${percentage}%). The nakshatras are highly compatible, indicating strong spiritual and emotional alignment.`;
+  } else if (compatibility === "Good") {
+    return `Good Nakshatra compatibility (${score}/${max} points, ${percentage}%). The nakshatras show good alignment with some areas requiring attention. Remedies can enhance compatibility further.`;
+  } else if (compatibility === "Average") {
+    return `Average Nakshatra compatibility (${score}/${max} points, ${percentage}%). Some compatibility factors need attention. Following recommended remedies and consulting an expert astrologer is advisable.`;
+  } else {
+    return `Challenging Nakshatra compatibility (${score}/${max} points, ${percentage}%). The nakshatras show significant differences. Comprehensive remedies and expert consultation are strongly recommended to improve compatibility.`;
+  }
 }
 

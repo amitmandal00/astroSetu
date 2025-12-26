@@ -157,31 +157,49 @@ export function generateManglikRemedies(house?: number, severity: "High" | "Medi
 
 /**
  * Generate comprehensive remedies for Kaal Sarp Dosha
+ * Enhanced with type-specific remedies
  */
 export function generateKaalSarpRemedies(type?: string): RemedyDetail[] {
   const remedies: RemedyDetail[] = [];
   
+  // Type-specific puja recommendations
+  const typeInfo: Record<string, { deity: string; specialNote: string }> = {
+    Anant: { deity: "Lord Vishnu", specialNote: "Anant Kaal Sarp - Most severe type, requires intensive remedies" },
+    Kulik: { deity: "Lord Shiva", specialNote: "Kulik Kaal Sarp - Affects family and lineage" },
+    Vasuki: { deity: "Lord Shiva", specialNote: "Vasuki Kaal Sarp - Affects health and longevity" },
+    Shankhpal: { deity: "Lord Vishnu", specialNote: "Shankhpal Kaal Sarp - Affects wealth and prosperity" },
+    Padma: { deity: "Goddess Lakshmi", specialNote: "Padma Kaal Sarp - Affects relationships and harmony" },
+    Mahapadma: { deity: "Lord Vishnu", specialNote: "Mahapadma Kaal Sarp - Very severe, affects all life areas" },
+    Takshak: { deity: "Lord Shiva", specialNote: "Takshak Kaal Sarp - Affects career and profession" },
+    Karkotak: { deity: "Lord Shiva", specialNote: "Karkotak Kaal Sarp - Affects mental peace and stability" },
+  };
+
+  const typeData = type && typeInfo[type] ? typeInfo[type] : { deity: "Lord Shiva", specialNote: "Kaal Sarp dosha requires immediate attention" };
+  
   remedies.push({
     type: "Puja",
-    name: "Kaal Sarp Dosha Nivaran Puja",
-    description: "Special puja to remove Kaal Sarp dosha effects. One of the most effective remedies.",
+    name: `Kaal Sarp Dosha Nivaran Puja${type ? ` (${type} Type)` : ""}`,
+    description: `Special puja to remove ${type || "Kaal Sarp"} dosha effects. ${typeData.specialNote}. This is one of the most effective remedies.`,
     instructions: [
-      "Perform at Lord Shiva temple or with qualified priest",
-      "Use silver or gold snake idol",
-      "Perform Nag Panchami puja",
-      "Chant Maha Mrityunjaya Mantra",
+      `Perform at ${typeData.deity} temple or with qualified priest`,
+      "Use silver or gold snake idol (minimum 10 grams)",
+      "Perform Nag Panchami puja with full rituals",
+      "Chant Maha Mrityunjaya Mantra 108 times",
+      "Perform Rudrabhishek with milk and water",
       "Donate silver snake to temple after puja",
-    ],
-    timing: "Nag Panchami, Shravan month, or any Monday",
-    duration: "2-3 hours",
+      type === "Anant" || type === "Mahapadma" ? "Requires multiple sessions - consult astrologer" : undefined,
+    ].filter(Boolean) as string[],
+    timing: "Nag Panchami, Shravan month, or any Monday during Shukla Paksha",
+    duration: "2-4 hours (longer for severe types)",
     benefits: [
-      "Removes Kaal Sarp dosha",
-      "Removes obstacles in life",
-      "Brings peace and prosperity",
-      "Improves health and longevity",
+      "Removes Kaal Sarp dosha completely",
+      "Removes obstacles in all life areas",
+      "Brings peace, prosperity, and longevity",
+      "Improves health and mental peace",
+      "Enhances spiritual growth",
     ],
-    frequency: "Once or as advised",
-    priority: "High",
+    frequency: type === "Anant" || type === "Mahapadma" ? "Multiple times as advised" : "Once or as advised",
+    priority: type === "Anant" || type === "Mahapadma" ? "High" : "High",
   });
   
   remedies.push({
@@ -597,11 +615,15 @@ export function getDoshaImpact(doshaType: string, present: boolean, severity?: s
       "Consultation recommended for timing",
     ],
     kaalSarp: [
-      "May create obstacles in life",
-      "Potential delays in achievements",
-      "Health-related concerns possible",
-      "Financial challenges may arise",
-      "Overall progress may be slower",
+      "May create obstacles in all life areas",
+      "Potential delays in achievements and progress",
+      "Health-related concerns and longevity issues possible",
+      "Financial challenges and instability may arise",
+      "Relationship and family harmony may be affected",
+      "Career and professional growth may face hurdles",
+      "Mental peace and emotional stability may be disrupted",
+      "Overall life progress may be slower than expected",
+      "Immediate remedies and spiritual practices are recommended",
     ],
     shani: [
       "Sade Sati period effects",
@@ -646,10 +668,23 @@ export function getDoshaExplanation(doshaType: string, details: any): string {
     },
     kaalSarp: (d: any) => {
       if (!d.present) {
-        return "All planets are not confined between Rahu and Ketu. No Kaal Sarp dosha is present in your chart.";
+        return "All planets are not confined between Rahu and Ketu. No Kaal Sarp dosha is present in your chart. Your planetary positions are well-balanced.";
       }
-      const type = d.type ? ` (${d.type} type)` : "";
-      return `Kaal Sarp Dosha${type} is present as all planets are positioned between Rahu and Ketu. This creates obstacles in various life areas. Proper remedies can help mitigate the effects.`;
+      const type = d.type || "Unknown";
+      const typeDescriptions: Record<string, string> = {
+        Anant: "Anant Kaal Sarp Dosha is the most severe form. All planets are between Rahu and Ketu, creating significant obstacles in life, health, career, and relationships. Immediate remedies are strongly recommended.",
+        Kulik: "Kulik Kaal Sarp Dosha affects family lineage and relationships. It may cause challenges in family matters and lineage continuity. Family-oriented remedies are beneficial.",
+        Vasuki: "Vasuki Kaal Sarp Dosha primarily affects health and longevity. It may cause health issues and concerns about life span. Health-focused remedies and regular check-ups are recommended.",
+        Shankhpal: "Shankhpal Kaal Sarp Dosha impacts wealth and financial stability. Financial ups and downs are common. Wealth-building remedies and financial planning are essential.",
+        Padma: "Padma Kaal Sarp Dosha affects relationships and marital harmony. It may cause challenges in partnerships and relationships. Relationship-focused remedies are important.",
+        Mahapadma: "Mahapadma Kaal Sarp Dosha is very severe and affects all aspects of life. Comprehensive remedies and regular spiritual practices are essential for mitigation.",
+        Takshak: "Takshak Kaal Sarp Dosha affects career and professional growth. Career obstacles and professional challenges are common. Career-focused remedies are recommended.",
+        Karkotak: "Karkotak Kaal Sarp Dosha affects mental peace and emotional stability. Stress and mental unrest may be experienced. Mental peace and meditation practices are beneficial.",
+      };
+      
+      const typeDescription = typeDescriptions[type] || `Kaal Sarp Dosha (${type} type) is present as all planets are positioned between Rahu and Ketu. This creates obstacles in various life areas.`;
+      
+      return `${typeDescription} Proper remedies, regular puja, and consultation with an expert astrologer are strongly recommended to mitigate the effects and bring positive changes.`;
     },
     shani: (d: any) => {
       return `Saturn's influence in your chart may bring challenges during Sade Sati or related periods. This is a time of learning, discipline, and transformation. With proper remedies and patience, you can overcome challenges.`;

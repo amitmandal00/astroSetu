@@ -286,6 +286,65 @@ export default function MatchPage() {
             </CardContent>
           </Card>
 
+          {/* Nakshatra Porutham Section */}
+          {data.nakshatraPorutham ? (
+            <Card>
+              <CardHeader eyebrow="Nakshatra Compatibility" title="Nakshatra Porutham (27 Points)" subtitle="Detailed nakshatra compatibility analysis for marriage matching." />
+              <CardContent>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="text-2xl font-bold text-indigo-600">{data.nakshatraPorutham.totalScore}</div>
+                      <div className="text-sm text-slate-600">out of {data.nakshatraPorutham.maxScore} points</div>
+                      <div className="mt-2">
+                        <Badge tone={data.nakshatraPorutham.compatibility === "Excellent" ? "green" : data.nakshatraPorutham.compatibility === "Good" ? "indigo" : data.nakshatraPorutham.compatibility === "Average" ? "amber" : "red"}>
+                          {data.nakshatraPorutham.compatibility} Compatibility
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-slate-600">Percentage</div>
+                      <div className="text-xl font-bold">
+                        {Math.round((data.nakshatraPorutham.totalScore / data.nakshatraPorutham.maxScore) * 100)}%
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-slate-700 mt-3 p-3 bg-indigo-50 rounded-lg">
+                    {data.nakshatraPorutham.summary}
+                  </div>
+                </div>
+
+                {data.nakshatraPorutham.points && data.nakshatraPorutham.points.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold text-slate-700 mb-2">Nakshatra Compatibility Points:</div>
+                    {data.nakshatraPorutham.points.map((point, idx) => (
+                      <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm font-semibold text-slate-900">{point.nakshatra}</div>
+                          <Badge tone={point.compatibility === "Excellent" ? "green" : point.compatibility === "Good" ? "indigo" : point.compatibility === "Average" ? "amber" : "red"}>
+                            {point.score}/{point.maxScore}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-slate-600">{point.note}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {data.nakshatraPorutham.remedies && data.nakshatraPorutham.remedies.length > 0 && (
+                  <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                    <div className="text-sm font-semibold text-amber-900 mb-2">Recommended Remedies:</div>
+                    <ul className="text-sm text-amber-800 space-y-1">
+                      {data.nakshatraPorutham.remedies.map((remedy, idx) => (
+                        <li key={idx}>• {remedy}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
           {data.doshaA && data.doshaB ? (
             <Card>
               <CardHeader eyebrow="Dosha Analysis" title="Individual Dosha Analysis" subtitle="Detailed dosha analysis for both persons." />
