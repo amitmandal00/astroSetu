@@ -397,7 +397,7 @@ function generateAdminNotificationEmail(data: {
           </div>
           <div class="field">
             <div class="label">Name:</div>
-            <div class="value">${name}</div>
+            <div class="value">${name || "Not provided"}</div>
           </div>
           <div class="field">
             <div class="label">Email:</div>
