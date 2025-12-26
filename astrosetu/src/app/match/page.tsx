@@ -399,6 +399,9 @@ export default function MatchPage() {
               </CardContent>
             </Card>
           ) : null}
+
+          {/* Astrology Disclaimer */}
+          {data && <AstrologyDisclaimer variant="compact" />}
         </div>
       ) : null}
     </div>

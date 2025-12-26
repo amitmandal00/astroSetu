@@ -1197,6 +1197,9 @@ function KundliPageContent() {
           </div>
         </>
       ) : null}
+
+      {/* Astrology Disclaimer */}
+      {data && <AstrologyDisclaimer variant="compact" />}
     </div>
   );
 }

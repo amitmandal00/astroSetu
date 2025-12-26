@@ -605,6 +605,9 @@ function LifeReportPageContent() {
           🖨️ Print Report
         </Button>
       </div>
+
+      {/* Astrology Disclaimer */}
+      {kundli && <AstrologyDisclaimer variant="compact" />}
     </div>
   );
 }
