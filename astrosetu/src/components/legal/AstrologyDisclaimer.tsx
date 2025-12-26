@@ -18,7 +18,7 @@ export function AstrologyDisclaimer({ variant = "compact", className = "" }: Ast
             <div className="flex-1 text-sm text-amber-900">
               <div className="font-semibold mb-1">Astrology Disclaimer</div>
               <p className="text-amber-800 leading-relaxed">
-                Astrology is a belief-based system and not a science. Interpretations are for informational purposes only and should not be treated as deterministic facts. This service does not provide professional medical, legal, financial, or psychological advice. Please consult qualified experts for matters requiring licensed expertise.{" "}
+                Astrology is a belief-based system and not a science. Interpretations are for informational and spiritual guidance purposes only. This service does not provide professional medical, legal, financial, or psychological advice. Please consult qualified experts for matters requiring licensed expertise.{" "}
                 <Link href="/disclaimer" className="text-amber-700 underline font-medium hover:text-amber-900">
                   Read full disclaimer
                 </Link>

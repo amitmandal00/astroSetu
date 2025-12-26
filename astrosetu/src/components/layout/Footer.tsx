@@ -225,8 +225,8 @@ export function Footer() {
             <div className="space-y-2 text-sm text-slate-600">
               <div className="flex items-center gap-2">
                 <span>📧</span>
-                <a href="mailto:support@astrosetu.com" className="hover:text-saffron-600 transition-colors">
-                  support@astrosetu.com
+                <a href="mailto:support@astrosetu.app" className="hover:text-saffron-600 transition-colors">
+                  support@astrosetu.app
                 </a>
               </div>
               <div className="flex items-center gap-2">
