@@ -114,16 +114,19 @@ export async function getTransitChart(
   // This is a simplified version - in production, use ephemeris data
   const transits = generateTransitData(natalChart, transitDate);
   
-  const majorTransits = transits
+  const majorTransits: TransitChart["majorTransits"] = transits
     .filter(t => t.aspectsToNatal.some(a => 
       a.quality === "Positive" || a.quality === "Challenging"
     ))
-    .map(t => ({
-      transit: `${t.planet} in ${t.sign}`,
-      effect: t.aspectsToNatal[0]?.effect || "Ongoing transit",
-      dates: `${transitDate} - ${getNextTransitDate(t.planet)}`,
-      importance: t.aspectsToNatal.some(a => Math.abs(a.orb) < 1) ? "Major" : "Moderate" as const,
-    }))
+    .map(t => {
+      const importance: "Major" | "Moderate" = t.aspectsToNatal.some(a => Math.abs(a.orb) < 1) ? "Major" : "Moderate";
+      return {
+        transit: `${t.planet} in ${t.sign}`,
+        effect: t.aspectsToNatal[0]?.effect || "Ongoing transit",
+        dates: `${transitDate} - ${getNextTransitDate(t.planet)}`,
+        importance,
+      };
+    })
     .slice(0, 5);
 
   return {
