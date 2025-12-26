@@ -6,6 +6,8 @@ import Link from "next/link";
 import { apiPost, apiGet } from "@/lib/http";
 import { session } from "@/lib/session";
 import { logEvent, logError } from "@/lib/telemetry";
+import { logPrivacyAcceptance, logTermsAcceptance } from "@/lib/consentLogging";
+import { getLegalVersion } from "@/lib/legalVersions";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -71,6 +73,9 @@ function LoginPageContent() {
       setErr("Please confirm that you understand how your data is used.");
       return;
     }
+    
+    // Consent logging is handled in checkbox onChange handlers above
+    // This ensures consent is logged when user checks the box, not just on submit
     
     setErr(null);
     setLoading(true);

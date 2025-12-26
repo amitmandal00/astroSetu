@@ -125,7 +125,11 @@ export async function POST(req: NextRequest) {
       { headers: { 'X-Request-ID': requestId } }
     );
   } catch (error) {
-    return handleApiError(error, requestId);
+    console.error("Consent logging error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: { 'X-Request-ID': requestId } }
+    );
   }
 }
 
