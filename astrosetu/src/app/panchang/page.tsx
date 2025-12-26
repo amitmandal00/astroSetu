@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { ServiceIcon } from "@/components/ui/ServiceIcon";
 import { AstroImage } from "@/components/ui/AstroImage";
+import { InauspiciousPeriod } from "@/components/panchang/InauspiciousPeriod";
 
 export default function PanchangPage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -26,8 +27,25 @@ export default function PanchangPage() {
     setErr(null);
     setLoading(true);
     try {
+      // Try to get coordinates from place name
+      let lat = latitude;
+      let lon = longitude;
+      
+      try {
+        const { resolvePlaceCoordinates } = await import("@/lib/indianCities");
+        const coords = await resolvePlaceCoordinates(place);
+        if (coords) {
+          lat = coords.latitude;
+          lon = coords.longitude;
+          setLatitude(coords.latitude);
+          setLongitude(coords.longitude);
+        }
+      } catch {
+        // Keep default coordinates if resolution fails
+      }
+
       const res = await apiGet<{ ok: boolean; data?: Panchang; error?: string }>(
-        `/api/astrology/panchang?date=${encodeURIComponent(date)}&place=${encodeURIComponent(place)}`
+        `/api/astrology/panchang?date=${encodeURIComponent(date)}&place=${encodeURIComponent(place)}${lat ? `&latitude=${lat}` : ""}${lon ? `&longitude=${lon}` : ""}`
       );
       if (!res.ok) throw new Error(res.error || "Failed");
       setData(res.data ?? null);
@@ -222,6 +240,15 @@ export default function PanchangPage() {
               </CardContent>
             </Card>
           ) : null}
+
+          {/* Inauspicious Periods */}
+          {data && latitude && longitude && (
+            <InauspiciousPeriod 
+              date={date}
+              latitude={latitude}
+              longitude={longitude}
+            />
+          )}
         </div>
       ) : null}
     </div>

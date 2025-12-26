@@ -665,10 +665,12 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
     // Transform Prokerala response
     const match = transformMatchResponse(response, a, b);
     
-    // Get dosha analysis for both
+    // Get dosha analysis and Nakshatra Porutham for both
     let doshaA: DoshaAnalysis, doshaB: DoshaAnalysis;
+    let nakshatraPorutham: any = undefined;
+    
     try {
-      const [doshaAResponse, doshaBResponse] = await Promise.all([
+      const [doshaAResponse, doshaBResponse, poruthamResult] = await Promise.all([
         prokeralaRequest("/dosha", {
           ayanamsa: 1,
           coordinates: `${a.latitude},${a.longitude}`,
@@ -681,7 +683,13 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
           datetime: parseDate(b.dob, b.tob),
           timezone: b.timezone || "Asia/Kolkata",
         }, 2, "GET" as const).catch(() => null),
+        getNakshatraPorutham(a, b).catch(() => null), // Get Nakshatra Porutham
       ]);
+      
+      // Store Nakshatra Porutham result if available
+      if (poruthamResult) {
+        nakshatraPorutham = poruthamResult;
+      }
       
       // Get planets for enhanced dosha analysis if dosha API response is not available
       // MatchResult doesn't contain kundli data, so we generate planets from birth details if needed
@@ -715,20 +723,8 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
       doshaB = generateDoshaAnalysis(b);
     }
     
-    // Enhanced: Try to fetch Nakshatra Porutham for deeper compatibility analysis
-    // This is done asynchronously to not block the main response
-    if (isAPIConfigured() && a.latitude && a.longitude && b.latitude && b.longitude) {
-      getNakshatraPorutham(a, b).then((porutham) => {
-        if (porutham) {
-          console.log("[AstroSetu] Nakshatra Porutham compatibility fetched:", porutham.totalScore);
-        }
-      }).catch((err) => {
-        // Silently fail - enhanced features are optional
-        console.log("[AstroSetu] Nakshatra Porutham fetch skipped:", err?.message);
-      });
-    }
-    
-    return { ...match, doshaA, doshaB };
+    // Include Nakshatra Porutham if available
+    return { ...match, doshaA, doshaB, nakshatraPorutham };
   } catch (error) {
     // Log as warning since we're gracefully falling back to mock
     console.warn("[AstroSetu] Match API error, using mock:", error instanceof Error ? error.message : error);

@@ -25,6 +25,7 @@ import { ProgressiveDisclosure, TermTooltip } from "@/components/ui/ProgressiveD
 import { PlanetaryAnalysis } from "@/components/kundli/PlanetaryAnalysis";
 import { AspectsAndRelationships } from "@/components/kundli/AspectsAndRelationships";
 import { YogasAnalysis } from "@/components/kundli/YogasAnalysis";
+import { EnhancedYogaAnalysis } from "@/components/kundli/EnhancedYogaAnalysis";
 import { HouseAnalysis } from "@/components/kundli/HouseAnalysis";
 import { EnhancedDoshasAndRemedies } from "@/components/kundli/EnhancedDoshasAndRemedies";
 import { EnhancedDashaAnalysis } from "@/components/kundli/EnhancedDashaAnalysis";
@@ -1179,6 +1180,23 @@ function KundliPageContent() {
               {placeData && (
                 <EnhancedDashaAnalysis 
                   kundliData={data} 
+                  birthDetails={{
+                    name: name || "",
+                    gender: gender,
+                    dob: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+                    tob: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds || 0).padStart(2, "0")}`,
+                    place: place,
+                    latitude: placeData.latitude,
+                    longitude: placeData.longitude,
+                    timezone: timezone,
+                    ayanamsa: ayanamsa,
+                  }}
+                />
+              )}
+
+              {/* Enhanced Yoga Analysis (Prokerala API) */}
+              {placeData && (
+                <EnhancedYogaAnalysis
                   birthDetails={{
                     name: name || "",
                     gender: gender,

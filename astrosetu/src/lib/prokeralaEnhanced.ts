@@ -381,3 +381,114 @@ export async function getNakshatraPorutham(
   }
 }
 
+/**
+ * Get Papa Dosham (Papa Dosha) analysis
+ * Analysis of malefic planetary influences
+ */
+export async function getPapaDosham(input: BirthDetails) {
+  if (!input.latitude || !input.longitude) {
+    throw new Error("Coordinates required for dosha calculation");
+  }
+
+  try {
+    const [year, month, day] = input.dob.split("-").map(Number);
+    const [hours, minutes, seconds = 0] = input.tob.split(":").map(Number);
+
+    const response = await prokeralaRequest("/dosha/papa", {
+      ayanamsa: input.ayanamsa || 1,
+      coordinates: `${input.latitude},${input.longitude}`,
+      datetime: {
+        year,
+        month,
+        day,
+        hour: hours,
+        minute: minutes,
+        second: seconds || 0,
+      },
+      timezone: input.timezone || "Asia/Kolkata",
+    }, 2, "GET" as const);
+
+    const data = response.data || response;
+    return {
+      hasPapaDosham: data.has_papa_dosham || data.hasPapaDosham || false,
+      planets: data.afflicted_planets || data.planets || [],
+      explanation: data.explanation || data.description || "",
+      effects: data.effects || data.impact || [],
+      remedies: data.remedies || data.solutions || [],
+      severity: data.severity || "Unknown",
+    };
+  } catch (error: any) {
+    console.warn("[Enhanced] Papa dosham not available:", error?.message);
+    return null;
+  }
+}
+
+/**
+ * Get Navamsa Chart (D9 Chart)
+ * Divisional chart for marriage and relationships
+ */
+export async function getNavamsaChart(input: BirthDetails) {
+  if (!input.latitude || !input.longitude) {
+    throw new Error("Coordinates required for chart calculation");
+  }
+
+  try {
+    const [year, month, day] = input.dob.split("-").map(Number);
+    const [hours, minutes, seconds = 0] = input.tob.split(":").map(Number);
+
+    const response = await prokeralaRequest("/chart/navamsa", {
+      ayanamsa: input.ayanamsa || 1,
+      coordinates: `${input.latitude},${input.longitude}`,
+      datetime: {
+        year,
+        month,
+        day,
+        hour: hours,
+        minute: minutes,
+        second: seconds || 0,
+      },
+      timezone: input.timezone || "Asia/Kolkata",
+    }, 2, "GET" as const);
+
+    const data = response.data || response;
+    return {
+      chart: data.chart || data.navamsa_chart || data,
+      planets: data.planets || data.planet_positions || [],
+      houses: data.houses || data.house_positions || [],
+      ascendant: data.ascendant || data.lagna || null,
+    };
+  } catch (error: any) {
+    console.warn("[Enhanced] Navamsa chart not available:", error?.message);
+    return null;
+  }
+}
+
+/**
+ * Get Inauspicious Periods
+ * Rahu Kalam, Yamagandam, Gulika Kalam, etc.
+ */
+export async function getInauspiciousPeriod(
+  location: { latitude: number; longitude: number },
+  date: string
+) {
+  try {
+    const response = await prokeralaRequest("/inauspicious-period", {
+      coordinates: `${location.latitude},${location.longitude}`,
+      date: date, // Format: YYYY-MM-DD
+    }, 2, "GET" as const);
+
+    const data = response.data || response;
+    return {
+      periods: data.periods || data.inauspicious_periods || [],
+      rahuKalam: data.rahu_kalam || data.rahukalam || null,
+      yamagandam: data.yamagandam || data.yamaganda || null,
+      gulikaKalam: data.gulika_kalam || data.gulikakalam || null,
+      durmuhurat: data.durmuhurat || data.durmuhurtham || null,
+      recommendations: data.recommendations || [],
+    };
+  } catch (error: any) {
+    console.warn("[Enhanced] Inauspicious period not available:", error?.message);
+    return null;
+  }
+}
+
