@@ -51,7 +51,21 @@ export default function NotificationSettingsPage() {
       // Initialize web push service
       const initialized = await webPushService.initialize();
       if (!initialized) {
-        setError("Failed to initialize push notifications");
+        // Check if service worker failed
+        if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (!registration) {
+              setError("Service worker registration failed. Please check browser console for details.");
+            } else {
+              setError("Failed to initialize push notifications. VAPID keys may not be configured.");
+            }
+          } catch (swError) {
+            setError("Service worker not available. Please refresh the page and try again.");
+          }
+        } else {
+          setError("Push notifications are not supported in this browser");
+        }
         setLoading(false);
         return;
       }
@@ -217,7 +231,34 @@ export default function NotificationSettingsPage() {
       {error && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-4">
-            <div className="text-sm text-red-800">{error}</div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl">⚠️</span>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-red-900 mb-1">Notification Error</div>
+                <div className="text-sm text-red-800">{error}</div>
+                {error.includes("permission was denied") && (
+                  <div className="mt-3 text-xs text-red-700">
+                    <div className="font-semibold mb-1">How to enable notifications:</div>
+                    <ol className="list-decimal list-inside space-y-1 ml-2">
+                      <li>Click the lock/info icon in your browser&apos;s address bar</li>
+                      <li>Find &quot;Notifications&quot; in the site settings</li>
+                      <li>Change it to &quot;Allow&quot;</li>
+                      <li>Refresh this page and try again</li>
+                    </ol>
+                  </div>
+                )}
+                {error.includes("not supported") && (
+                  <div className="mt-3 text-xs text-red-700">
+                    Push notifications require a modern browser with service worker support. Please try using Chrome, Firefox, or Edge.
+                  </div>
+                )}
+                {error.includes("initialize") && (
+                  <div className="mt-3 text-xs text-red-700">
+                    Unable to set up push notifications. This may be due to missing service worker or VAPID configuration. Please contact support if this persists.
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -260,8 +301,25 @@ export default function NotificationSettingsPage() {
 
           {permissionStatus === "denied" && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="text-sm text-amber-800">
-                Notifications are blocked. Please enable them in your browser settings.
+              <div className="flex items-start gap-3">
+                <span className="text-lg">🔔</span>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-amber-900 mb-1">
+                    Notifications are blocked
+                  </div>
+                  <div className="text-sm text-amber-800 mb-3">
+                    Please enable notifications in your browser settings to receive updates.
+                  </div>
+                  <div className="text-xs text-amber-700">
+                    <div className="font-semibold mb-1">How to enable:</div>
+                    <ol className="list-decimal list-inside space-y-1 ml-2">
+                      <li>Look for the lock 🔒 or info ℹ️ icon in your browser&apos;s address bar</li>
+                      <li>Click on it and find &quot;Notifications&quot; or &quot;Site settings&quot;</li>
+                      <li>Change the notification permission to &quot;Allow&quot;</li>
+                      <li>Refresh this page</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
             </div>
           )}

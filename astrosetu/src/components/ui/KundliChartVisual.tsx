@@ -168,9 +168,14 @@ export function KundliChartVisual({ chart, title }: { chart: KundliChart; title?
                   <div className="text-[9px] text-slate-400 mt-1">—</div>
                 )}
 
+                {/* Sign name - Enhanced visibility */}
+                <div className="absolute bottom-0 left-0 right-0 text-[8px] sm:text-[9px] font-bold text-slate-900 bg-white/90 px-1 py-0.5 rounded-b border-t border-slate-200">
+                  {signAbbr}
+                </div>
+
                 {/* Lagna indicator */}
                 {isLagna && (
-                  <div className="absolute bottom-1 right-1 text-[8px] font-bold text-saffron-700 bg-saffron-100 px-1.5 py-0.5 rounded border border-saffron-300">
+                  <div className="absolute bottom-6 right-1 text-[8px] font-bold text-saffron-700 bg-saffron-100 px-1.5 py-0.5 rounded border border-saffron-300 shadow-sm">
                     लग्न
                   </div>
                 )}

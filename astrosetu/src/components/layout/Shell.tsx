@@ -7,6 +7,7 @@ import { AIChatbot } from "@/components/ai/AIChatbot";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { BottomNav } from "./BottomNav";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { Footer } from "./Footer";
 
 const nav = [
   { href: "/kundli", label: "Kundli", icon: "🔮" },
@@ -38,8 +39,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="absolute top-2 left-4 text-2xl drop-shadow-md">ॐ</div>
             <div className="absolute top-2 right-4 text-2xl drop-shadow-md">🕉️</div>
           </div>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3 lg:py-4 relative z-10">
-          <div className="flex items-center justify-between gap-2 lg:gap-3">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 xl:px-8 py-2 sm:py-3 lg:py-4 relative z-10">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2 lg:gap-3">
             <Logo size="md" showText={true} className="flex-shrink-0" />
 
             {/* Primary navigation – pill tabs with icons and labels, horizontally scrollable */}
@@ -48,40 +49,41 @@ export function Shell({ children }: { children: ReactNode }) {
                 <Link 
                   key={i.href} 
                   href={i.href} 
-                  className="px-4 py-2 rounded-xl text-sm font-bold text-white hover:text-white hover:bg-white/25 transition-all relative group flex items-center gap-2 whitespace-nowrap flex-shrink-0 border border-transparent hover:border-white/30 shadow-sm"
+                  className="px-3 xl:px-4 py-2 rounded-xl text-xs xl:text-sm font-bold text-white hover:text-white hover:bg-white/25 transition-all relative group flex items-center gap-1.5 xl:gap-2 whitespace-nowrap flex-shrink-0 border border-transparent hover:border-white/30 shadow-sm"
                 >
-                  {i.icon && <span className="text-base drop-shadow-md">{i.icon}</span>}
+                  {i.icon && <span className="text-sm xl:text-base drop-shadow-md">{i.icon}</span>}
                   <span className="drop-shadow-sm">{i.label}</span>
                 </Link>
               ))}
             </nav>
 
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
               <div className="hidden md:block">
                 <LanguageSwitcher />
               </div>
             <Link 
               href="/wallet" 
-              className="hidden lg:block px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-white/15 hover:bg-white/25 border-2 border-white/30 transition-all whitespace-nowrap shadow-md"
+              className="hidden xl:block px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-white/15 hover:bg-white/25 border-2 border-white/30 transition-all whitespace-nowrap shadow-md"
             >
               💰 Wallet
             </Link>
             <Link 
               href="/profile" 
-              className="hidden lg:block px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-white/15 hover:bg-white/25 border-2 border-white/30 transition-all whitespace-nowrap shadow-md"
+              className="hidden xl:block px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-white/15 hover:bg-white/25 border-2 border-white/30 transition-all whitespace-nowrap shadow-md"
             >
               👤 Profile
             </Link>
             <Link
               href="/premium"
-              className="hidden lg:block px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-xl border-2 border-amber-400/50 whitespace-nowrap hover:from-amber-600 hover:to-amber-700 transition-all cursor-pointer"
+              className="hidden lg:block px-2 xl:px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-xl border-2 border-amber-400/50 whitespace-nowrap hover:from-amber-600 hover:to-amber-700 transition-all cursor-pointer"
             >
-              Premium
+              <span className="hidden xl:inline">Premium</span>
+              <span className="xl:hidden">⭐</span>
             </Link>
               {/* Mobile menu button */}
               <Link
                 href="/kundli"
-                className="lg:hidden px-4 py-2 rounded-lg text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-all"
+                className="lg:hidden px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-all"
               >
                 Menu
               </Link>
@@ -89,16 +91,16 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
           
           {/* Mobile navigation */}
-          <nav className="lg:hidden mt-3 pt-3 border-t border-white/20 overflow-x-auto scrollbar-hide">
-            <div className="flex items-center gap-2 min-w-max pb-2">
+          <nav className="lg:hidden mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/20 overflow-x-auto scrollbar-hide -mx-3 sm:mx-0 px-3 sm:px-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-max pb-2">
               {nav.slice(0, 6).map((i) => (
                 <Link 
                   key={i.href} 
                   href={i.href} 
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white/90 bg-white/10 hover:bg-white/20 hover:text-white transition-all whitespace-nowrap border border-white/20 flex items-center gap-1.5"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-semibold text-white/90 bg-white/10 hover:bg-white/20 hover:text-white transition-all whitespace-nowrap border border-white/20 flex items-center gap-1 sm:gap-1.5 flex-shrink-0"
                 >
-                  {i.icon && <span className="text-sm">{i.icon}</span>}
-                  {i.label}
+                  {i.icon && <span className="text-xs sm:text-sm">{i.icon}</span>}
+                  <span className="hidden xs:inline">{i.label}</span>
                 </Link>
               ))}
             </div>
@@ -107,49 +109,12 @@ export function Shell({ children }: { children: ReactNode }) {
       </header>
 
       {/* Main content on soft light background */}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-20 lg:pb-12">
+      <main className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8 pb-20 sm:pb-20 lg:pb-12">
         {children}
       </main>
 
-      {/* Footer on light surface */}
-      <footer className="border-t border-slate-200 bg-white/80 backdrop-blur-md mt-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <Logo size="sm" showText={true} />
-              <p className="text-sm text-slate-600 mt-3 max-w-xs">
-                Bridging humans with cosmic guidance. Your trusted companion for astrology, horoscopes, and consultations.
-              </p>
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-slate-900 mb-3">Quick Links</div>
-              <div className="space-y-2 text-sm text-slate-600">
-                {nav.slice(0, 4).map((i) => (
-                  <Link key={i.href} href={i.href} className="block hover:text-amber-600 transition-colors">
-                    {i.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-slate-900 mb-3">Support</div>
-              <div className="space-y-2 text-sm text-slate-600">
-                <Link href="/astrologers" className="block hover:text-amber-600 transition-colors">Consult Astrologer</Link>
-                <Link href="/profile" className="block hover:text-amber-600 transition-colors">My Profile</Link>
-                <Link href="/privacy" className="block hover:text-amber-600 transition-colors">Privacy & Data Use</Link>
-                <div className="text-xs text-slate-500 mt-4">Available in: हिंदी, English, தமிழ்</div>
-              </div>
-            </div>
-          </div>
-          <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
-            <div>© {new Date().getFullYear()} AstroSetu. All rights reserved.</div>
-            <div className="flex items-center gap-4 text-xs">
-              <Link href="/privacy" className="hover:text-amber-600 transition-colors">Privacy Policy</Link>
-              <span>Made with 🔮 for the Indian market</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      {/* Enhanced Footer */}
+      <Footer />
 
       {/* AI Chatbot */}
       <AIChatbot />

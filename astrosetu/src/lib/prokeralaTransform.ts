@@ -361,7 +361,36 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
         tithi = tithiNames[tithiNumber - 1];
         console.log("[Transform] Calculated tithi from moon-sun difference:", tithi);
       }
+    } else if (input?.dob) {
+      // Fallback: Calculate tithi from date (approximation)
+      try {
+        tithi = calculateTithiFromDate(input.dob);
+        if (tithi && tithi !== "Unknown") {
+          console.log("[Transform] Calculated tithi from date:", tithi);
+        }
+      } catch (calcError) {
+        console.warn("[Transform] Failed to calculate tithi from date:", calcError);
+      }
     }
+  }
+  
+  if (tithi === "Unknown") {
+  // Log tithi extraction result
+  if (tithi === "Unknown") {
+    console.log("[Transform] ❌ FAILED to extract tithi after all attempts!");
+    console.log("[Transform] Debug info:", {
+      hasTithiField: !!data.tithi,
+      hasPanchang: !!data.panchang,
+      panchangTithi: data.panchang?.tithi,
+      hasMoon: !!moonDataForPlanets,
+      hasSun: !!planetMap.sun,
+      moonLongitude: moonDataForPlanets.longitude,
+      sunLongitude: planetMap.sun?.longitude
+    });
+  }
+    // Set a default fallback
+    tithi = "Pratipada";
+    console.log("[Transform] Using fallback tithi:", tithi);
   }
   
   // Get moon data for planet map (defined here for scope)
@@ -396,6 +425,47 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   }
   
   console.log("[Transform] Extracted planets:", Object.keys(planetMap).filter(k => planetMap[k]));
+  
+  // If no planets found in standard locations, try extracting from zodiac/rashi data
+  if (Object.keys(planetMap).filter(k => planetMap[k]).length === 0) {
+    // Try to extract from soorya_rasi (sun sign) and chandra_rasi (moon sign) if available
+    if (data.nakshatra_details) {
+      const nakDetails = data.nakshatra_details;
+      
+      // Moon sign is available
+      if (nakDetails.chandra_rasi) {
+        const moonSign = nakDetails.chandra_rasi.name || nakDetails.chandra_rasi;
+        planetMap.moon = {
+          name: "Moon",
+          sign: moonSign,
+          rashi: moonSign,
+          zodiac: moonSign,
+          degree: 0, // Approximate
+        };
+      }
+      
+      // Sun sign is available
+      if (nakDetails.soorya_rasi) {
+        const sunSign = nakDetails.soorya_rasi.name || nakDetails.soorya_rasi;
+        planetMap.sun = {
+          name: "Sun",
+          sign: sunSign,
+          rashi: sunSign,
+          zodiac: sunSign,
+          degree: 0, // Approximate
+        };
+      }
+      
+      // Zodiac sign
+      if (nakDetails.zodiac) {
+        const zodiacSign = nakDetails.zodiac.name || nakDetails.zodiac;
+        // This might be ascendant
+        if (ascendant === "Unknown" || ascendant === rashi) {
+          ascendant = zodiacSign;
+        }
+      }
+    }
+  }
   
   const planets = Object.entries(planetMap)
     .filter(([_, planet]) => planet)
@@ -793,50 +863,168 @@ export function transformPanchangResponse(prokeralaData: any, date: string, plac
 
 /**
  * Transform Prokerala Dosha response
+ * Enhanced with comprehensive remedies and analysis
+ * Also handles dosha data embedded in kundli responses
  */
-export function transformDoshaResponse(prokeralaData: any): DoshaAnalysis {
+import { 
+  generateManglikRemedies, 
+  generateKaalSarpRemedies, 
+  generateShaniRemedies,
+  generateRahuKetuRemedies,
+  generatePitraRemedies,
+  getDoshaImpact,
+  getDoshaExplanation
+} from "./doshaAnalysis";
+
+export function transformDoshaResponse(prokeralaData: any, planets?: any[]): DoshaAnalysis {
   const data = prokeralaData.data || prokeralaData;
   
-  // Manglik Dosha
-  const manglik = data.manglik || data.mangalDosha || {};
-  const manglikStatus = manglik.present || manglik.hasDosha ? "Manglik" : "Non-Manglik";
-  const manglikSeverity = manglik.severity || (manglikStatus === "Manglik" ? "Medium" : "Low");
+  // Handle dosha data that might be embedded in kundli response
+  // Prokerala sometimes returns dosha info in the kundli response itself
+  const doshaData = data.dosha || data.mangal_dosha || data.manglik || data;
   
-  // Kaal Sarp Dosha
-  const kaalSarp = data.kaalSarp || data.kaalSarpDosha || {};
-  const kaalSarpPresent = kaalSarp.present || kaalSarp.hasDosha || false;
-  const kaalSarpType = kaalSarp.type || kaalSarp.doshaType;
+  // Manglik Dosha - Enhanced extraction (handle both standalone and embedded formats)
+  const manglik = doshaData.manglik || doshaData.mangalDosha || doshaData.mangal_dosha || data.manglik || data.mangalDosha || data.mangal_dosha || {};
   
-  // Shani Dosha
-  const shani = data.shani || data.sadeSati || {};
-  const shaniEffects = shani.effects || (shani.active ? ["Sade Sati period may be active"] : []);
+  // Handle different response formats
+  let manglikStatus: "Manglik" | "Non-Manglik";
+  if (manglik.has_dosha !== undefined) {
+    manglikStatus = manglik.has_dosha ? "Manglik" : "Non-Manglik";
+  } else if (manglik.present !== undefined) {
+    manglikStatus = manglik.present ? "Manglik" : "Non-Manglik";
+  } else if (manglik.hasDosha !== undefined) {
+    manglikStatus = manglik.hasDosha ? "Manglik" : "Non-Manglik";
+  } else if (manglik.status === "Manglik" || manglik.status === "Non-Manglik") {
+    manglikStatus = manglik.status;
+  } else {
+    // Check description for manglik indication
+    const description = manglik.description || manglik.detail || "";
+    manglikStatus = description.toLowerCase().includes("manglik") || description.toLowerCase().includes("mangal dosha") ? "Manglik" : "Non-Manglik";
+  }
   
-  // Rahu-Ketu Dosha
-  const rahuKetu = data.rahuKetu || {};
-  const rahuKetuEffects = rahuKetu.effects || ["Rahu-Ketu axis affects life areas"];
+  const manglikSeverity = manglik.severity || manglik.level || (manglikStatus === "Manglik" ? "Medium" : "Low");
+  const manglikHouse = manglik.house || manglik.houseNumber;
+  
+  // Extract house from description if available (e.g., "Mars is positioned in the 7th house")
+  if (!manglikHouse && manglik.description) {
+    const houseMatch = manglik.description.match(/(\d+)(?:st|nd|rd|th)?\s+house/i);
+    if (houseMatch) {
+      manglikHouse = parseInt(houseMatch[1]);
+    }
+  }
+  
+  // Extract Mars position from planets if available
+  const marsPlanet = planets?.find((p: any) => 
+    p.name === "Mars" || 
+    (typeof p === 'string' && p.toLowerCase().includes('mars'))
+  );
+  const marsHouse = marsPlanet?.house || manglikHouse;
+  
+  // Kaal Sarp Dosha - Enhanced extraction
+  const kaalSarp = data.kaalSarp || data.kaalSarpDosha || data.kaalSarpaDosha || {};
+  const kaalSarpPresent = kaalSarp.present || kaalSarp.hasDosha || kaalSarp.status === "Present" || false;
+  const kaalSarpType = kaalSarp.type || kaalSarp.doshaType || kaalSarp.kaalSarpType;
+  const kaalSarpSeverity = kaalSarp.severity || kaalSarp.level || (kaalSarpPresent ? "Medium" : "Low");
+  
+  // Shani Dosha - Enhanced extraction
+  const shani = data.shani || data.sadeSati || data.sadeSatiPeriod || {};
+  const shaniEffects = shani.effects || shani.challenges || (shani.active ? ["Sade Sati period may be active"] : []);
+  const shaniPeriod = shani.period || shani.activePeriod || shani.duration;
+  const shaniSeverity = shani.severity || shani.level || (shani.active ? "Medium" : "Low");
+  
+  // Rahu-Ketu Dosha - Enhanced extraction
+  const rahuKetu = data.rahuKetu || data.rahuKetuDosha || {};
+  const rahuKetuEffects = rahuKetu.effects || rahuKetu.challenges || ["Rahu-Ketu axis affects life areas"];
+  const rahuKetuSeverity = rahuKetu.severity || rahuKetu.level || "Medium";
+  
+  // Pitra Dosha - Check if present
+  const pitra = data.pitra || data.pitraDosha || {};
+  const pitraPresent = pitra.present || pitra.hasDosha || false;
+  
+  // Generate comprehensive remedies
+  const manglikDetailedRemedies = manglikStatus === "Manglik" 
+    ? generateManglikRemedies(marsHouse, manglikSeverity as "High" | "Medium" | "Low")
+    : [];
+  
+  const kaalSarpDetailedRemedies = kaalSarpPresent 
+    ? generateKaalSarpRemedies(kaalSarpType)
+    : [];
+  
+  const shaniDetailedRemedies = generateShaniRemedies(shaniPeriod);
+  const rahuKetuDetailedRemedies = generateRahuKetuRemedies();
+  const pitraDetailedRemedies = pitraPresent ? generatePitraRemedies() : [];
+  
+  // Convert detailed remedies to simple string array for backward compatibility
+  const convertRemediesToStrings = (remedies: any[]) => {
+    return remedies.map(r => r.name || `${r.type}: ${r.description}`).slice(0, 4);
+  };
+  
+  // Count total doshas
+  let totalDoshas = 0;
+  if (manglikStatus === "Manglik") totalDoshas++;
+  if (kaalSarpPresent) totalDoshas++;
+  if (shaniEffects.length > 0 && shaniEffects[0] !== "Shani is well-placed") totalDoshas++;
+  if (rahuKetuEffects.length > 0) totalDoshas++;
+  if (pitraPresent) totalDoshas++;
+  
+  // Generate overall recommendation
+  let recommendation = "";
+  if (totalDoshas === 0) {
+    recommendation = "Your chart shows good planetary balance. Minor remedies may be beneficial for specific goals.";
+  } else if (totalDoshas === 1) {
+    recommendation = "One dosha is present. Follow recommended remedies and consult an astrologer for personalized guidance.";
+  } else if (totalDoshas === 2) {
+    recommendation = "Two doshas are present. It's recommended to perform remedies and consult an expert astrologer for detailed analysis.";
+  } else {
+    recommendation = "Multiple doshas are present. Immediate consultation with an expert astrologer is highly recommended. Follow all remedies diligently.";
+  }
   
   return {
     manglik: {
       status: manglikStatus as "Manglik" | "Non-Manglik",
       severity: manglikSeverity as "High" | "Medium" | "Low",
-      remedies: manglik.remedies || [],
+      remedies: manglik.remedies || convertRemediesToStrings(manglikDetailedRemedies),
+      detailedRemedies: manglikDetailedRemedies,
+      impact: getDoshaImpact("manglik", manglikStatus === "Manglik", manglikSeverity),
+      house: marsHouse,
+      explanation: getDoshaExplanation("manglik", { status: manglikStatus, severity: manglikSeverity, house: marsHouse }),
     },
     kaalSarp: {
       present: kaalSarpPresent,
       type: kaalSarpType,
-      remedies: kaalSarp.remedies || [],
+      remedies: kaalSarp.remedies || convertRemediesToStrings(kaalSarpDetailedRemedies),
+      detailedRemedies: kaalSarpDetailedRemedies,
+      impact: getDoshaImpact("kaalSarp", kaalSarpPresent, kaalSarpSeverity),
+      explanation: getDoshaExplanation("kaalSarp", { present: kaalSarpPresent, type: kaalSarpType }),
+      severity: kaalSarpSeverity as "High" | "Medium" | "Low",
     },
     shani: {
       effects: shaniEffects,
-      remedies: shani.remedies || [],
+      remedies: shani.remedies || convertRemediesToStrings(shaniDetailedRemedies),
+      detailedRemedies: shaniDetailedRemedies,
+      period: shaniPeriod,
+      explanation: getDoshaExplanation("shani", { period: shaniPeriod, effects: shaniEffects }),
+      severity: shaniSeverity as "High" | "Medium" | "Low",
     },
     rahuKetu: {
       effects: rahuKetuEffects,
-      remedies: rahuKetu.remedies || [],
+      remedies: rahuKetu.remedies || convertRemediesToStrings(rahuKetuDetailedRemedies),
+      detailedRemedies: rahuKetuDetailedRemedies,
+      explanation: getDoshaExplanation("rahuKetu", { effects: rahuKetuEffects }),
+      severity: rahuKetuSeverity as "High" | "Medium" | "Low",
     },
-    overall: manglikStatus === "Manglik" || kaalSarpPresent
-      ? "Some doshas are present. Consult an astrologer for detailed remedies and timing."
-      : "Overall chart is balanced. Minor remedies may be beneficial for specific goals.",
+    pitra: pitraPresent ? {
+      present: pitraPresent,
+      effects: pitra.effects || ["Obstacles in family matters", "Delays in success"],
+      remedies: pitra.remedies || convertRemediesToStrings(pitraDetailedRemedies),
+      detailedRemedies: pitraDetailedRemedies,
+      explanation: getDoshaExplanation("pitra", { present: pitraPresent }),
+    } : undefined,
+    overall: manglikStatus === "Manglik" || kaalSarpPresent || totalDoshas > 0
+      ? "Some doshas are present in your chart. Following recommended remedies can help mitigate their effects. For best results, consult an expert astrologer for personalized guidance and timing."
+      : "Overall chart is well-balanced. Minor remedies may still be beneficial for specific goals and overall well-being.",
+    recommendation,
+    totalDoshas,
   };
 }
 

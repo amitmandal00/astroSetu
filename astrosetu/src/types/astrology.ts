@@ -240,12 +240,63 @@ export type User = {
 
 export type ConsultationType = "chat" | "call" | "video";
 
+// Enhanced Dosha types with comprehensive remedies
+export type RemedyDetail = {
+  type: "Mantra" | "Puja" | "Gemstone" | "Donation" | "Fasting" | "Ritual" | "Yantra" | "Other";
+  name: string;
+  description: string;
+  instructions: string[];
+  timing?: string;
+  duration?: string;
+  benefits: string[];
+  frequency?: string;
+  priority?: "High" | "Medium" | "Low";
+};
+
 export type DoshaAnalysis = {
-  manglik: { status: "Manglik" | "Non-Manglik"; severity: "High" | "Medium" | "Low"; remedies: string[] };
-  kaalSarp: { present: boolean; type?: string; remedies: string[] };
-  shani: { effects: string[]; remedies: string[] };
-  rahuKetu: { effects: string[]; remedies: string[] };
+  manglik: { 
+    status: "Manglik" | "Non-Manglik"; 
+    severity: "High" | "Medium" | "Low"; 
+    remedies: string[];
+    detailedRemedies?: RemedyDetail[];
+    impact?: string[];
+    house?: number;
+    explanation?: string;
+  };
+  kaalSarp: { 
+    present: boolean; 
+    type?: string; 
+    remedies: string[];
+    detailedRemedies?: RemedyDetail[];
+    impact?: string[];
+    explanation?: string;
+    severity?: "High" | "Medium" | "Low";
+  };
+  shani: { 
+    effects: string[]; 
+    remedies: string[];
+    detailedRemedies?: RemedyDetail[];
+    period?: string;
+    explanation?: string;
+    severity?: "High" | "Medium" | "Low";
+  };
+  rahuKetu: { 
+    effects: string[]; 
+    remedies: string[];
+    detailedRemedies?: RemedyDetail[];
+    explanation?: string;
+    severity?: "High" | "Medium" | "Low";
+  };
+  pitra?: {
+    present: boolean;
+    effects: string[];
+    remedies: string[];
+    detailedRemedies?: RemedyDetail[];
+    explanation?: string;
+  };
   overall: string;
+  recommendation?: string;
+  totalDoshas?: number;
 };
 
 export type KundliChart = {

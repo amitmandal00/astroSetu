@@ -6,6 +6,8 @@ const PDFRequestSchema = z.object({
   type: z.string().min(1).max(100),
   data: z.any(), // PDF data can be any structure
   title: z.string().max(200).optional(),
+  format: z.enum(["basic", "detailed", "premium"]).optional(),
+  options: z.any().optional(),
 });
 
 export async function POST(req: Request) {
@@ -23,20 +25,24 @@ export async function POST(req: Request) {
       type: json.type,
       data: json.data,
       title: json.title,
+      format: json.format || "detailed",
+      options: json.options,
     });
     
-    const { type, data, title } = validated;
+    const { type, data, format, options } = validated;
 
-    // In production, use a library like jsPDF or puppeteer
-    // For now, return a JSON response that can be used to generate PDF client-side
+    // Return data for client-side PDF generation
+    // The actual PDF generation happens client-side using pdfGenerator.ts
     return NextResponse.json({
       ok: true,
       data: {
         type,
-        title: title || `${type} Report`,
+        format: format || "detailed",
+        title: validated.title || `${type} Report`,
         content: data,
+        options: options || {},
         generatedAt: new Date().toISOString(),
-        message: "PDF generation ready. Use jsPDF or similar library for client-side generation, or puppeteer for server-side."
+        message: "PDF data ready for client-side generation using jsPDF"
       }
     });
   } catch (error) {

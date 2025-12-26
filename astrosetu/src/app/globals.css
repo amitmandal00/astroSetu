@@ -148,6 +148,121 @@ html {
   border-radius: 4px;
 }
 
+/* Enhanced Print Styles for PDF Generation */
+@media print {
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  /* Hide interactive elements */
+  button,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Ensure proper page breaks */
+  .page-break-after-always {
+    page-break-after: always !important;
+  }
+
+  .page-break-before-always {
+    page-break-before: always !important;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid !important;
+  }
+
+  /* Optimize colors for printing */
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Remove shadows and borders that don't print well */
+  .shadow-lg,
+  .shadow-md,
+  .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  /* Ensure text is readable */
+  body {
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #000;
+  }
+
+  /* Optimize card layouts */
+  .card,
+  [class*="Card"] {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Table optimizations */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Heading styles */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Lists */
+  ul, ol {
+    page-break-inside: avoid;
+  }
+
+  li {
+    page-break-inside: avoid;
+  }
+
+  /* Images and charts */
+  img,
+  svg,
+  canvas {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure background colors print */
+  [class*="bg-"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Footer on each page */
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9pt;
+    color: #666;
+    padding: 10pt;
+  }
+}
+
 /* Safe area insets for mobile devices (notches, etc.) */
 .safe-area-inset-bottom {
   padding-bottom: env(safe-area-inset-bottom);
@@ -166,5 +281,144 @@ html {
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+  }
+}
+
+/* Responsive container improvements */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Prevent horizontal scroll on all devices */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Responsive text scaling */
+@media (max-width: 640px) {
+  h1 {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+  }
+  h2 {
+    font-size: clamp(1.25rem, 4vw, 1.75rem);
+  }
+  h3 {
+    font-size: clamp(1.125rem, 3.5vw, 1.5rem);
+  }
+}
+
+/* Responsive table wrapper */
+.table-responsive {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  .table-responsive {
+    display: table;
+  }
+}
+
+/* Responsive grid improvements */
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ensure images scale properly */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Better form field spacing on mobile */
+@media (max-width: 640px) {
+  .form-field {
+    margin-bottom: 1rem;
+  }
+  
+  input, select, textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Responsive button spacing */
+@media (max-width: 640px) {
+  .btn-group {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .btn-group button,
+  .btn-group a {
+    width: 100%;
+  }
+}
+
+/* Fix for mobile viewport issues */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific */
+  body {
+    min-height: -webkit-fill-available;
+  }
+  
+  html {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Touch manipulation optimization */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Better mobile tap targets */
+@media (max-width: 768px) {
+  a, button {
+    -webkit-tap-highlight-color: rgba(244, 196, 48, 0.2);
+    tap-highlight-color: rgba(244, 196, 48, 0.2);
+  }
+}
+
+/* Responsive padding utilities */
+@media (max-width: 640px) {
+  .px-mobile-safe {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .py-mobile-safe {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+}
+
+/* Card responsive improvements */
+@media (max-width: 640px) {
+  .card {
+    border-radius: 1rem;
+    padding: 1rem;
+  }
+}
+
+/* Fix for text overflow */
+.text-ellipsis-multiline {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Responsive gap adjustments */
+@media (max-width: 640px) {
+  .gap-responsive {
+    gap: 0.75rem;
   }
 }

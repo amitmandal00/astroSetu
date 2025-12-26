@@ -11,6 +11,32 @@ import { apiGet, apiPost } from "@/lib/http";
 import { session } from "@/lib/session";
 import type { KundliResult, DoshaAnalysis, KundliChart } from "@/types/astrology";
 import { KundliChartVisual } from "@/components/ui/KundliChartVisual";
+import { PlanetaryAnalysis } from "@/components/kundli/PlanetaryAnalysis";
+import { AspectsAndRelationships } from "@/components/kundli/AspectsAndRelationships";
+import { YogasAnalysis } from "@/components/kundli/YogasAnalysis";
+import { HouseAnalysis } from "@/components/kundli/HouseAnalysis";
+import { EnhancedDoshasAndRemedies } from "@/components/kundli/EnhancedDoshasAndRemedies";
+import {
+  analyzePersonality,
+  analyzeCareer,
+  analyzeHealth,
+  analyzeFinance,
+  analyzeRelationships,
+  analyzeEducation,
+  getLuckyElements,
+  generateYearlyPrediction,
+  type PersonalityAnalysis,
+  type CareerAnalysis,
+  type HealthAnalysis,
+  type FinanceAnalysis,
+  type RelationshipAnalysis,
+  type EducationAnalysis,
+  type LuckyElements,
+  type YearlyPrediction,
+} from "@/lib/lifeReportAnalysis";
+import { PersonalitySection } from "@/components/lifereport/PersonalitySection";
+import { LifeAreaSection } from "@/components/lifereport/LifeAreaSection";
+import { LuckyElementsSection } from "@/components/lifereport/LuckyElementsSection";
 
 type LifeReportData = {
   kundli: KundliResult & { dosha?: DoshaAnalysis; chart?: KundliChart };
@@ -87,30 +113,46 @@ function LifeReportPageContent() {
     }
   }
 
+  const [pdfFormat, setPdfFormat] = useState<"basic" | "detailed" | "premium">("detailed");
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+
   async function downloadPDF() {
     if (!reportData) return;
+    
+    setPdfGenerating(true);
     try {
-      const res = await apiPost<{ ok: boolean; data?: { url?: string; blob?: string }; error?: string }>("/api/reports/pdf", {
-        type: "life",
-        data: reportData,
-        title: "Life Report"
-      });
-      if (res.ok && res.data?.blob) {
-        // Create download link
-        const blob = new Blob([res.data.blob], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `LifeReport_${new Date().toISOString().split("T")[0]}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        // Fallback: Use browser print
-        window.print();
-      }
-    } catch (e) {
+      // Use enhanced PDF generator
+      const { downloadPDF: generatePDF } = await import("@/lib/pdfGenerator");
+      
+      // Prepare report data with all analysis
+      const pdfData = {
+        ...reportData,
+        personality,
+        career,
+        health,
+        finance,
+        relationships,
+        education,
+        luckyElements,
+        yearlyPrediction,
+      };
+
+      await generatePDF(pdfData, {
+        format: pdfFormat,
+        includeChart: true,
+        includeAnalysis: true,
+        branding: {
+          name: "AstroSetu",
+          footer: "AstroSetu - Bridging humans with cosmic guidance",
+        },
+      }, `LifeReport_${reportData.userName}_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (e: any) {
+      console.error("PDF generation error:", e);
       // Fallback: Use browser print
+      alert(`PDF generation failed: ${e?.message || "Unknown error"}. Using browser print instead.`);
       window.print();
+    } finally {
+      setPdfGenerating(false);
     }
   }
 
@@ -145,6 +187,17 @@ function LifeReportPageContent() {
   }
 
   const { kundli, userName, generatedAt } = reportData;
+
+  // Generate comprehensive analysis
+  const personality = analyzePersonality(kundli, kundli.chart);
+  const career = analyzeCareer(kundli, kundli.chart);
+  const health = analyzeHealth(kundli, kundli.chart);
+  const finance = analyzeFinance(kundli, kundli.chart);
+  const relationships = analyzeRelationships(kundli, kundli.dosha, kundli.chart);
+  const education = analyzeEducation(kundli, kundli.chart);
+  const luckyElements = getLuckyElements(kundli, kundli.chart);
+  const currentYear = new Date().getFullYear();
+  const yearlyPrediction = generateYearlyPrediction(kundli, currentYear, kundli.chart);
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -319,147 +372,82 @@ function LifeReportPageContent() {
         </Card>
       )}
 
-      {/* Life Predictions */}
-      <Card className="print:border-0 print:shadow-none">
-        <CardHeader eyebrow="🔮 Predictions" title="Life Predictions (जीवन भविष्यवाणी)" icon="🔮" />
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="p-5 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50">
-              <div className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-                <span>💼</span>
-                <span>Career & Profession</span>
-              </div>
-              <p className="text-sm text-slate-700 leading-relaxed mb-3">
-                Your 10th house placement indicates strong potential in {kundli.planets.find(p => p.house === 10)?.sign || "various"} fields. Focus on building expertise and maintaining professional relationships.
-              </p>
-              <div className="text-xs text-slate-600">
-                <div className="font-semibold mb-1">Favorable Periods:</div>
-                <div>Jupiter and Venus periods bring career growth</div>
-              </div>
-            </div>
+      {/* Personality Analysis */}
+      <PersonalitySection analysis={personality} />
 
-            <div className="p-5 rounded-xl border-2 border-rose-200 bg-gradient-to-br from-rose-50 to-pink-50">
-              <div className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-                <span>💑</span>
-                <span>Relationships & Marriage</span>
-              </div>
-              <p className="text-sm text-slate-700 leading-relaxed mb-3">
-                Your 7th house analysis suggests {kundli.planets.find(p => p.house === 7) ? "harmonious" : "balanced"} relationships. Venus placement indicates appreciation for beauty and harmony in partnerships.
-              </p>
-              <div className="text-xs text-slate-600">
-                <div className="font-semibold mb-1">Marriage Timing:</div>
-                <div>Consult expert for specific timing predictions</div>
-              </div>
-            </div>
+      {/* Detailed Life Area Analysis */}
+      <LifeAreaSection
+        title="Career & Profession"
+        icon="💼"
+        eyebrow="Career Analysis"
+        overview={career.overview}
+        details={career.suitableProfessions}
+        recommendations={career.careerTips}
+        tips={career.growthAreas}
+        favorablePeriods={career.favorablePeriods}
+        cautionPeriods={career.challenges}
+        colorScheme="emerald"
+      />
 
-            <div className="p-5 rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
-              <div className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-                <span>💰</span>
-                <span>Finance & Wealth</span>
-              </div>
-              <p className="text-sm text-slate-700 leading-relaxed mb-3">
-                Your 2nd and 11th house placements indicate {kundli.planets.find(p => p.house === 2 || p.house === 11) ? "good" : "moderate"} earning potential. Focus on stable investments and avoid speculation.
-              </p>
-              <div className="text-xs text-slate-600">
-                <div className="font-semibold mb-1">Wealth Periods:</div>
-                <div>Jupiter and Mercury periods favor financial growth</div>
-              </div>
-            </div>
+      <LifeAreaSection
+        title="Relationships & Marriage"
+        icon="💑"
+        eyebrow="Relationship Analysis"
+        overview={relationships.overview}
+        details={[relationships.marriageTiming, ...relationships.partnerCharacteristics]}
+        recommendations={relationships.relationshipTips}
+        favorablePeriods={relationships.favorablePeriods}
+        cautionPeriods={relationships.challenges}
+        colorScheme="rose"
+      />
 
-            <div className="p-5 rounded-xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50">
-              <div className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-                <span>🏥</span>
-                <span>Health & Wellbeing</span>
-              </div>
-              <p className="text-sm text-slate-700 leading-relaxed mb-3">
-                Your 6th house analysis suggests {kundli.planets.find(p => p.house === 6)?.name === "Mars" ? "good immunity" : "moderate"} health. Regular exercise and stress management are recommended.
-              </p>
-              <div className="text-xs text-slate-600">
-                <div className="font-semibold mb-1">Health Tips:</div>
-                <div>Maintain regular health check-ups and balanced diet</div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <LifeAreaSection
+        title="Finance & Wealth"
+        icon="💰"
+        eyebrow="Financial Analysis"
+        overview={finance.overview}
+        details={[`Earning Potential: ${finance.earningPotential}`, ...finance.wealthFactors]}
+        recommendations={finance.investmentAdvice}
+        favorablePeriods={finance.favorablePeriods}
+        cautionPeriods={finance.cautionPeriods}
+        colorScheme="blue"
+      />
 
-      {/* Dosha Analysis */}
+      <LifeAreaSection
+        title="Health & Wellbeing"
+        icon="🏥"
+        eyebrow="Health Analysis"
+        overview={health.overview}
+        recommendations={health.healthTips}
+        tips={health.preventiveMeasures}
+        favorablePeriods={health.favorablePeriods}
+        cautionPeriods={[...health.potentialIssues, ...health.cautionPeriods]}
+        colorScheme="teal"
+      />
+
+      <LifeAreaSection
+        title="Education & Learning"
+        icon="📚"
+        eyebrow="Education Analysis"
+        overview={education.overview}
+        details={[`Learning Style: ${education.learningStyle}`, ...education.suitableFields]}
+        recommendations={education.recommendations}
+        favorablePeriods={education.favorablePeriods}
+        colorScheme="purple"
+      />
+
+      {/* Lucky Elements */}
+      <LuckyElementsSection elements={luckyElements} />
+
+      {/* Enhanced Chart Analysis Components */}
+      <PlanetaryAnalysis planets={kundli.planets} />
+      <AspectsAndRelationships planets={kundli.planets} />
+      <YogasAnalysis planets={kundli.planets} chart={kundli.chart} />
+      <HouseAnalysis planets={kundli.planets} chart={kundli.chart} />
+
+      {/* Enhanced Dosha Analysis */}
       {kundli.dosha && (
-        <Card className="print:border-0 print:shadow-none">
-          <CardHeader eyebrow="💎 Dosha Analysis" title="Planetary Doshas & Remedies" icon="💎" />
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl border-2 border-red-200 bg-red-50">
-                <div className="text-sm font-bold text-red-900 mb-2">Manglik Dosha</div>
-                <Badge tone={kundli.dosha?.manglik?.status === "Manglik" ? "red" : "green"} className="mb-2">
-                  {kundli.dosha?.manglik?.status} ({kundli.dosha?.manglik?.severity})
-                </Badge>
-                {kundli.dosha?.manglik?.remedies && kundli.dosha?.manglik?.remedies.length > 0 && (
-                  <div className="text-xs text-red-800 mt-2">
-                    <div className="font-semibold mb-1">Remedies:</div>
-                    <ul className="list-disc pl-4 space-y-1">
-                      {kundli.dosha?.manglik?.remedies?.slice(0, 2).map((r, i) => (
-                        <li key={i}>{r}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 rounded-xl border-2 border-orange-200 bg-orange-50">
-                <div className="text-sm font-bold text-orange-900 mb-2">Kaal Sarp Dosha</div>
-                <Badge tone={kundli.dosha?.kaalSarp?.present ? "red" : "green"} className="mb-2">
-                  {kundli.dosha?.kaalSarp?.present ? `Present (${kundli.dosha.kaalSarp?.type || "Unknown"})` : "Not Present"}
-                </Badge>
-                {kundli.dosha?.kaalSarp?.remedies && kundli.dosha?.kaalSarp?.remedies.length > 0 && (
-                  <div className="text-xs text-orange-800 mt-2">
-                    <div className="font-semibold mb-1">Remedies:</div>
-                    <ul className="list-disc pl-4 space-y-1">
-                      {kundli.dosha?.kaalSarp?.remedies?.slice(0, 2).map((r, i) => (
-                        <li key={i}>{r}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50">
-                <div className="text-sm font-bold text-slate-900 mb-2">Shani Effects</div>
-                <div className="text-xs text-slate-700 space-y-1 mb-2">
-                  {kundli.dosha?.shani?.effects?.slice(0, 2).map((e, i) => (
-                    <div key={i}>• {e}</div>
-                  )) || []}
-                </div>
-                <div className="text-xs font-semibold text-slate-600 mt-2">Remedies:</div>
-                <div className="text-xs text-slate-700">
-                  {kundli.dosha?.shani?.remedies?.slice(0, 2).map((r, i) => (
-                    <div key={i}>• {r}</div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl border-2 border-purple-200 bg-purple-50">
-                <div className="text-sm font-bold text-purple-900 mb-2">Rahu-Ketu Effects</div>
-                <div className="text-xs text-purple-800 space-y-1 mb-2">
-                  {kundli.dosha?.rahuKetu?.effects?.slice(0, 2).map((e, i) => (
-                    <div key={i}>• {e}</div>
-                  ))}
-                </div>
-                <div className="text-xs font-semibold text-purple-700 mt-2">Remedies:</div>
-                <div className="text-xs text-purple-800">
-                  {kundli.dosha?.rahuKetu?.remedies?.slice(0, 2).map((r, i) => (
-                    <div key={i}>• {r}</div>
-                  )) || []}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 p-5 rounded-xl border-2 border-saffron-200 bg-gradient-to-r from-saffron-50 to-amber-50">
-              <div className="text-sm font-bold text-saffron-900 mb-2">Overall Assessment</div>
-              <p className="text-sm text-slate-700 leading-relaxed">{kundli.dosha?.overall || "N/A"}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <EnhancedDoshasAndRemedies dosha={kundli.dosha} />
       )}
 
       {/* Remedies & Recommendations */}
@@ -505,24 +493,63 @@ function LifeReportPageContent() {
 
       {/* Yearly Predictions */}
       <Card className="print:border-0 print:shadow-none">
-        <CardHeader eyebrow="📅 Yearly Analysis" title="Varshphal (वर्षफल)" icon="📅" />
-        <CardContent>
+        <CardHeader eyebrow="📅 Yearly Analysis" title={`Varshphal ${yearlyPrediction.year} (वर्षफल)`} icon="📅" />
+        <CardContent className="space-y-5">
+          {/* Year Overview */}
           <div className="p-5 rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
-            <p className="text-sm text-slate-700 leading-relaxed mb-4">
-              Based on your birth chart, the current year brings opportunities for growth in career and relationships. 
-              Focus on maintaining balance in all aspects of life. Consult with an expert astrologer for detailed yearly predictions.
-            </p>
-            <div className="grid sm:grid-cols-2 gap-4 text-xs">
-              <div>
-                <div className="font-semibold text-slate-700 mb-1">Favorable Months:</div>
-                <div className="text-slate-600">Consult expert for specific timing</div>
+            <div className="text-sm font-semibold text-blue-900 mb-2">Year Overview</div>
+            <p className="text-sm text-slate-700 leading-relaxed">{yearlyPrediction.overview}</p>
+          </div>
+
+          {/* Area-wise Predictions */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl border-2 border-emerald-200 bg-emerald-50">
+              <div className="text-sm font-bold text-emerald-900 mb-2 flex items-center gap-2">
+                <span>💼</span>
+                <span>Career</span>
               </div>
-              <div>
-                <div className="font-semibold text-slate-700 mb-1">Caution Periods:</div>
-                <div className="text-slate-600">Be careful during planetary transits</div>
+              <p className="text-xs text-slate-700">{yearlyPrediction.career}</p>
+            </div>
+
+            <div className="p-4 rounded-xl border-2 border-teal-200 bg-teal-50">
+              <div className="text-sm font-bold text-teal-900 mb-2 flex items-center gap-2">
+                <span>🏥</span>
+                <span>Health</span>
               </div>
+              <p className="text-xs text-slate-700">{yearlyPrediction.health}</p>
+            </div>
+
+            <div className="p-4 rounded-xl border-2 border-blue-200 bg-blue-50">
+              <div className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-2">
+                <span>💰</span>
+                <span>Finance</span>
+              </div>
+              <p className="text-xs text-slate-700">{yearlyPrediction.finance}</p>
+            </div>
+
+            <div className="p-4 rounded-xl border-2 border-rose-200 bg-rose-50">
+              <div className="text-sm font-bold text-rose-900 mb-2 flex items-center gap-2">
+                <span>💑</span>
+                <span>Relationships</span>
+              </div>
+              <p className="text-xs text-slate-700">{yearlyPrediction.relationships}</p>
             </div>
           </div>
+
+          {/* Important Months */}
+          {yearlyPrediction.importantMonths.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold text-slate-700 mb-3">Important Months & Events</div>
+              <div className="space-y-2">
+                {yearlyPrediction.importantMonths.map((month, idx) => (
+                  <div key={idx} className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                    <div className="text-xs font-semibold text-slate-900 mb-1">{month.month}</div>
+                    <div className="text-xs text-slate-700">{month.event}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -545,9 +572,34 @@ function LifeReportPageContent() {
       </Card>
 
       {/* Action Buttons - Hidden in Print */}
-      <div className="print:hidden flex gap-4 justify-center pt-6">
-        <Button onClick={downloadPDF} className="px-8 py-4">
-          📄 Download PDF
+      <div className="print:hidden flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
+        {/* PDF Format Selection */}
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-slate-300 bg-white">
+          <span className="text-xs font-semibold text-slate-600">PDF Format:</span>
+          <select
+            value={pdfFormat}
+            onChange={(e) => setPdfFormat(e.target.value as "basic" | "detailed" | "premium")}
+            className="text-xs font-semibold text-slate-900 bg-transparent border-none outline-none cursor-pointer"
+          >
+            <option value="basic">Basic</option>
+            <option value="detailed">Detailed</option>
+            <option value="premium">Premium</option>
+          </select>
+        </div>
+        
+        <Button 
+          onClick={downloadPDF} 
+          disabled={pdfGenerating}
+          className="px-8 py-4"
+        >
+          {pdfGenerating ? (
+            <>
+              <span className="animate-spin inline-block mr-2">⏳</span>
+              Generating PDF...
+            </>
+          ) : (
+            "📄 Download PDF"
+          )}
         </Button>
         <Button variant="secondary" onClick={() => window.print()} className="px-8 py-4">
           🖨️ Print Report

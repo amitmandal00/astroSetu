@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Shell } from "@/components/layout/Shell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -15,10 +15,16 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   other: {
-    "mobile-web-app-capable": "yes",
-    "viewport": "width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes",
-    "theme-color": "#6366f1"
+    "mobile-web-app-capable": "yes"
   }
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: "#6366f1"
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

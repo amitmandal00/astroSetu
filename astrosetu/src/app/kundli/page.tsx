@@ -19,8 +19,14 @@ import { DecorativePattern } from "@/components/ui/DecorativePattern";
 import { AstroImage } from "@/components/ui/AstroImage";
 import { KundliDashboard } from "@/components/kundli/KundliDashboard";
 import { CalculationTrustPanel } from "@/components/kundli/CalculationTrustPanel";
+import { PlanetaryAnalysis } from "@/components/kundli/PlanetaryAnalysis";
+import { AspectsAndRelationships } from "@/components/kundli/AspectsAndRelationships";
+import { YogasAnalysis } from "@/components/kundli/YogasAnalysis";
+import { HouseAnalysis } from "@/components/kundli/HouseAnalysis";
+import { EnhancedDoshasAndRemedies } from "@/components/kundli/EnhancedDoshasAndRemedies";
 import { logEvent, logError } from "@/lib/telemetry";
 import { resolvePlaceCoordinates } from "@/lib/indianCities";
+import { shareKundli, copyToClipboard, downloadAsJSON } from "@/lib/shareUtils";
 
 const MONTHS = [
   { value: 1, label: "January" },
@@ -441,29 +447,29 @@ function KundliPageContent() {
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4 sm:gap-6">
       {/* Hero Section - Indian spiritual theme */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-saffron-500 via-amber-500 to-orange-500 text-white p-8 lg:p-12 mb-6 shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-saffron-500 via-amber-500 to-orange-500 text-white p-4 sm:p-6 lg:p-8 xl:p-12 mb-4 sm:mb-6 shadow-xl">
         <HeaderPattern />
         {/* Spiritual symbols overlay */}
         <div className="absolute inset-0 opacity-15">
-          <div className="absolute top-6 left-6 text-5xl">ॐ</div>
-          <div className="absolute top-6 right-6 text-5xl">🕉️</div>
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-4xl">🪷</div>
+          <div className="absolute top-3 left-3 sm:top-6 sm:left-6 text-3xl sm:text-4xl lg:text-5xl">ॐ</div>
+          <div className="absolute top-3 right-3 sm:top-6 sm:right-6 text-3xl sm:text-4xl lg:text-5xl">🕉️</div>
+          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 text-2xl sm:text-3xl lg:text-4xl">🪷</div>
         </div>
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-3 sm:mb-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl sm:text-3xl flex-shrink-0">
               🔮
             </div>
-            <div>
-              <h1 className="text-4xl lg:text-5xl font-bold mb-2 text-white">Generate Your Kundli (कुंडली)</h1>
-              <p className="text-white/90 text-lg">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2 text-white break-words">Generate Your Kundli (कुंडली)</h1>
+              <p className="text-white/90 text-sm sm:text-base lg:text-lg">
                 Complete birth chart analysis with AI-powered insights
               </p>
             </div>
           </div>
-          <p className="text-white/90 max-w-3xl text-base leading-relaxed">
+          <p className="text-white/90 max-w-3xl text-sm sm:text-base leading-relaxed">
             Kundli is the term used for Birth Chart in Vedic Astrology. Twelve houses of Kundli show ascendant and planet position in various zodiac signs at the time of birth as seen from the place of birth.
           </p>
         </div>
@@ -476,28 +482,28 @@ function KundliPageContent() {
           subtitle="Enter your complete birth information for accurate Kundli generation"
           icon="🔮"
         />
-        <CardContent className="p-8">
-          <div className="grid gap-6">
+        <CardContent className="p-4 sm:p-6 lg:p-8">
+          <div className="grid gap-4 sm:gap-5 lg:gap-6">
             {/* Name Field */}
-            <div className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+            <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+              <label className="block text-xs sm:text-sm font-bold text-slate-900 mb-2 sm:mb-3">
                 <span className="text-purple-600 mr-2">1.</span> Full Name
               </label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter your full name"
-                className="w-full text-base"
+                className="w-full text-sm sm:text-base"
               />
               <p className="text-xs text-slate-500 mt-2">Optional: Used for personalized reports</p>
             </div>
 
             {/* Gender Selection */}
-            <div className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+            <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+              <label className="block text-xs sm:text-sm font-bold text-slate-900 mb-2 sm:mb-3">
                 <span className="text-purple-600 mr-2">2.</span> Gender
               </label>
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -506,7 +512,7 @@ function KundliPageContent() {
                     console.log("Gender set to Male");
                     setGender("Male");
                   }}
-                  className={`flex-1 px-6 py-4 rounded-2xl font-bold text-base transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+                  className={`flex-1 px-3 sm:px-4 lg:px-6 py-3 sm:py-3.5 lg:py-4 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
                     gender === "Male"
                       ? "bg-gradient-to-r from-purple-600 via-purple-700 to-orange-500 text-white shadow-lg scale-[1.02]"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 shadow-sm"
@@ -522,7 +528,7 @@ function KundliPageContent() {
                     console.log("Gender set to Female");
                     setGender("Female");
                   }}
-                  className={`flex-1 px-6 py-4 rounded-2xl font-bold text-base transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+                  className={`flex-1 px-3 sm:px-4 lg:px-6 py-3 sm:py-3.5 lg:py-4 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
                     gender === "Female"
                       ? "bg-gradient-to-r from-purple-600 via-purple-700 to-orange-500 text-white shadow-lg scale-[1.02]"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 shadow-sm"
@@ -534,13 +540,13 @@ function KundliPageContent() {
             </div>
 
             {/* Date Fields */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+            <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+              <label className="block text-xs sm:text-sm font-bold text-slate-900 mb-2 sm:mb-3">
                 <span className="text-purple-600">3.</span> Date of Birth
               </label>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Day</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Day</label>
                   <Input
                     type="number"
                     value={day}
@@ -548,15 +554,15 @@ function KundliPageContent() {
                     placeholder="DD"
                     min="1"
                     max="31"
-                    className="text-center text-lg font-semibold"
+                    className="text-center text-base sm:text-lg font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Month</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Month</label>
                   <select
                     value={month}
                     onChange={(e) => setMonth(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 px-4 py-3 text-base font-semibold outline-none transition-all focus:border-purple-500 focus:ring-2 focus:ring-purple-200 hover:border-slate-400"
+                    className="w-full rounded-lg sm:rounded-xl border border-slate-300 bg-white text-slate-900 px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3 text-sm sm:text-base font-semibold outline-none transition-all focus:border-purple-500 focus:ring-2 focus:ring-purple-200 hover:border-slate-400"
                   >
                     <option value="">Select</option>
                     {MONTHS.map((m) => (
@@ -567,7 +573,7 @@ function KundliPageContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Year</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Year</label>
                   <Input
                     type="number"
                     value={year}
@@ -575,20 +581,20 @@ function KundliPageContent() {
                     placeholder="YYYY"
                     min="1900"
                     max="2100"
-                    className="text-center text-lg font-semibold"
+                    className="text-center text-base sm:text-lg font-semibold"
                   />
                 </div>
               </div>
             </div>
 
             {/* Time Fields */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+            <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+              <label className="block text-xs sm:text-sm font-bold text-slate-900 mb-2 sm:mb-3">
                 <span className="text-purple-600">4.</span> Time of Birth
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Hrs</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Hrs</label>
                   <Input
                     type="number"
                     value={hours}
@@ -596,11 +602,11 @@ function KundliPageContent() {
                     placeholder="21"
                     min="0"
                     max="23"
-                    className="text-center text-lg font-semibold"
+                    className="text-center text-base sm:text-lg font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Min</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Min</label>
                   <Input
                     type="number"
                     value={minutes}
@@ -608,11 +614,11 @@ function KundliPageContent() {
                     placeholder="40"
                     min="0"
                     max="59"
-                    className="text-center text-lg font-semibold"
+                    className="text-center text-base sm:text-lg font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Sec</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 sm:mb-2 uppercase tracking-wide">Sec</label>
                   <Input
                     type="number"
                     value={seconds}
@@ -620,23 +626,23 @@ function KundliPageContent() {
                     placeholder="00"
                     min="0"
                     max="59"
-                    className="text-center text-lg font-semibold"
+                    className="text-center text-base sm:text-lg font-semibold"
                   />
                 </div>
               </div>
-              <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+              <div className="text-xs text-slate-500 mt-2 flex items-center gap-2 flex-wrap">
                 <span>💡</span>
                 <span>Enter time in 24-hour format (e.g., 21:40:00)</span>
               </div>
             </div>
 
             {/* Place of Birth */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+            <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+              <label className="block text-xs sm:text-sm font-bold text-slate-900 mb-2 sm:mb-3">
                 <span className="text-purple-600">5.</span> Place of Birth
               </label>
-              <div className="flex gap-3">
-                <div className="flex-1">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <div className="flex-1 min-w-0">
                   <AutocompleteInput
                     value={place}
                     onChange={setPlace}
@@ -668,16 +674,18 @@ function KundliPageContent() {
                     handleCurrentLocation(e);
                   }}
                   disabled={locationLoading}
-                  className="whitespace-nowrap px-6"
+                  className="whitespace-nowrap px-4 sm:px-6 w-full sm:w-auto flex-shrink-0"
                 >
                   {locationLoading ? (
                     <>
                       <span className="animate-spin inline-block mr-2">⏳</span>
-                      Getting Location...
+                      <span className="hidden sm:inline">Getting Location...</span>
+                      <span className="sm:hidden">Getting...</span>
                     </>
                   ) : (
                     <>
-                      📍 Use Current Location
+                      📍 <span className="hidden sm:inline">Use Current Location</span>
+                      <span className="sm:hidden">Current Location</span>
                     </>
                   )}
                 </Button>
@@ -685,17 +693,17 @@ function KundliPageContent() {
               <p className="text-xs text-slate-500 mt-2">Autocomplete will suggest cities as you type</p>
               <div className="text-xs text-slate-600 mt-2 font-semibold">Standard time</div>
               {err && (
-                <div className="mt-2 p-3 rounded-xl bg-rose-50 border-2 border-rose-200 text-rose-700 text-sm">
+                <div className="mt-2 p-3 rounded-lg sm:rounded-xl bg-rose-50 border-2 border-rose-200 text-rose-700 text-xs sm:text-sm">
                   <div className="flex items-start gap-2">
                     <span>⚠️</span>
-                    <span>{err}</span>
+                    <span className="break-words">{err}</span>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Action Buttons - AstroSage Style */}
-            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-4 border-t border-slate-200">
               <button
                 type="button"
                 onClick={(e) => {
@@ -704,7 +712,7 @@ function KundliPageContent() {
                   console.log("Settings toggle clicked");
                   setShowSettings(!showSettings);
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-bold text-red-600 bg-white hover:bg-slate-50 border-2 border-slate-300 transition-all shadow-sm"
+                className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold text-red-600 bg-white hover:bg-slate-50 border-2 border-slate-300 transition-all shadow-sm"
               >
                 {showSettings ? "[-]" : "[+]"} SETTINGS
               </button>
@@ -717,7 +725,7 @@ function KundliPageContent() {
                   handleCurrentLocation(e);
                 }}
                 disabled={locationLoading}
-                className="px-4 py-2 text-sm font-bold text-red-600 bg-white hover:bg-slate-50 border-2 border-slate-300 shadow-sm whitespace-nowrap"
+                className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-red-600 bg-white hover:bg-slate-50 border-2 border-slate-300 shadow-sm whitespace-nowrap"
               >
                 {locationLoading ? (
                   <>
@@ -736,17 +744,17 @@ function KundliPageContent() {
                   e.stopPropagation();
                   handleNow(e);
                 }}
-                className="px-4 py-2 text-sm font-bold text-red-600 bg-white hover:bg-slate-50 border-2 border-slate-300 shadow-sm"
+                className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-red-600 bg-white hover:bg-slate-50 border-2 border-slate-300 shadow-sm"
               >
                 NOW
               </Button>
             </div>
             
             {/* DONE Buttons - AstroSage Style */}
-            <div className="flex gap-4 pt-6 border-t border-slate-200">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-slate-200">
               {/* Debug info in development */}
               {process.env.NODE_ENV === 'development' && (
-                <div className="text-xs text-slate-500 mb-2 w-full">
+                <div className="text-xs text-slate-500 mb-2 w-full break-words">
                   Validation: Day={day || 'empty'} Month={month || 'empty'} Year={year || 'empty'} Hours={hours || 'empty'} Minutes={minutes || 'empty'} Place={place ? place.substring(0, 20) : 'empty'} | Can Submit: {canSubmit ? 'YES' : 'NO'}
                 </div>
               )}
@@ -758,7 +766,7 @@ function KundliPageContent() {
                   onSubmit(e);
                 }}
                 disabled={!canSubmit || loading} 
-                className={`flex-1 px-8 py-4 text-base font-bold shadow-lg transition-all ${
+                className={`flex-1 px-4 sm:px-6 lg:px-8 py-3 sm:py-3.5 lg:py-4 text-sm sm:text-base font-bold shadow-lg transition-all ${
                   canSubmit && !loading
                     ? 'bg-gradient-to-r from-orange-500 to-saffron-500 hover:from-orange-600 hover:to-saffron-600 text-white cursor-pointer'
                     : 'bg-gradient-to-r from-orange-300 to-saffron-300 text-white/70 cursor-not-allowed opacity-60'
@@ -782,7 +790,7 @@ function KundliPageContent() {
                   onSubmit(e);
                 }}
                 disabled={!canSubmit || loading} 
-                className={`flex-1 px-8 py-4 text-base font-bold shadow-lg transition-all ${
+                className={`flex-1 px-4 sm:px-6 lg:px-8 py-3 sm:py-3.5 lg:py-4 text-sm sm:text-base font-bold shadow-lg transition-all ${
                   canSubmit && !loading
                     ? 'bg-gradient-to-r from-orange-500 to-saffron-500 hover:from-orange-600 hover:to-saffron-600 text-white cursor-pointer'
                     : 'bg-gradient-to-r from-orange-300 to-saffron-300 text-white/70 cursor-not-allowed opacity-60'
@@ -795,19 +803,19 @@ function KundliPageContent() {
                     Saving...
                   </span>
                 ) : (
-                  "DONE AND SAVE"
+                  <span className="break-words">DONE AND SAVE</span>
                 )}
               </Button>
             </div>
 
             {/* Settings Panel */}
             {showSettings && (
-              <div className="mt-4 p-6 rounded-2xl border border-slate-200 bg-slate-50 animate-in slide-in-from-top-2">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-xl">⚙️</span>
-                  <div className="text-base font-bold text-slate-900">Advanced Settings (Match AstroSage)</div>
+              <div className="mt-4 p-4 sm:p-5 lg:p-6 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50 animate-in slide-in-from-top-2">
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                  <span className="text-lg sm:text-xl">⚙️</span>
+                  <div className="text-sm sm:text-base font-bold text-slate-900">Advanced Settings (Match AstroSage)</div>
                 </div>
-                <div className="grid md:grid-cols-2 gap-5">
+                <div className="grid md:grid-cols-2 gap-4 sm:gap-5">
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                       Ayanamsa <span className="text-xs text-slate-500">(Default: Lahiri - matches AstroSage)</span>
@@ -915,33 +923,33 @@ function KundliPageContent() {
           <KundliDashboard kundliData={data} userName={name || "User"} />
           
           {/* Quick Link to Services Page */}
-          <div className="mt-6 text-center">
-            <Link href="/services">
-              <Button className="px-8 py-4 text-base">
+          <div className="mt-4 sm:mt-6 text-center">
+            <Link href="/services" className="inline-block w-full sm:w-auto">
+              <Button className="px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base w-full sm:w-auto">
                 📊 View All Services & Reports →
               </Button>
             </Link>
           </div>
           
           {/* Detailed Results Section - Collapsible */}
-          <div className="space-y-6 mt-8" id="chart">
+          <div className="space-y-4 sm:space-y-5 lg:space-y-6 mt-6 sm:mt-8" id="chart">
           {/* Success Message with Birth Chart Image */}
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 border-2 border-emerald-300 shadow-lg relative overflow-hidden">
+          <div className="p-4 sm:p-5 lg:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 border-2 border-emerald-300 shadow-lg relative overflow-hidden">
             {/* Subtle pattern overlay */}
             <div className="absolute inset-0 opacity-5" style={{
               backgroundImage: `radial-gradient(circle, #10b981 1px, transparent 1px)`,
               backgroundSize: '20px 20px'
             }} />
-            <div className="relative z-10 flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-3xl shadow-lg border-2 border-white">
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-2xl sm:text-3xl shadow-lg border-2 border-white flex-shrink-0">
                 ✅
               </div>
-              <div>
-                <div className="font-bold text-emerald-900 text-xl mb-1">Kundli Generated Successfully!</div>
-                <div className="text-sm text-emerald-700">Your complete birth chart analysis is ready</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-emerald-900 text-lg sm:text-xl mb-1">Kundli Generated Successfully!</div>
+                <div className="text-xs sm:text-sm text-emerald-700">Your complete birth chart analysis is ready</div>
               </div>
             </div>
-            <div className="mt-6 relative h-56 rounded-xl overflow-hidden bg-gradient-to-br from-saffron-50 via-amber-50 to-orange-50 border-2 border-saffron-200 flex items-center justify-center shadow-lg">
+            <div className="mt-4 sm:mt-6 relative h-48 sm:h-56 rounded-lg sm:rounded-xl overflow-hidden bg-gradient-to-br from-saffron-50 via-amber-50 to-orange-50 border-2 border-saffron-200 flex items-center justify-center shadow-lg">
               {/* Spiritual pattern overlay */}
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-4 left-4 text-4xl">☉</div>
@@ -954,26 +962,26 @@ function KundliPageContent() {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 border-2 border-saffron-400 rounded-full"></div>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-saffron-300 rounded-full"></div>
               </div>
-              <div className="text-center relative z-10">
+              <div className="text-center relative z-10 px-2">
                 {/* Central Om symbol with Kundli icon */}
-                <div className="relative inline-block mb-4">
+                <div className="relative inline-block mb-2 sm:mb-4">
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-6xl opacity-20 text-saffron-600">ॐ</div>
+                    <div className="text-4xl sm:text-5xl lg:text-6xl opacity-20 text-saffron-600">ॐ</div>
                   </div>
-                  <div className="relative text-8xl mb-2 drop-shadow-lg">🔮</div>
+                  <div className="relative text-5xl sm:text-6xl lg:text-8xl mb-1 sm:mb-2 drop-shadow-lg">🔮</div>
                 </div>
-                <div className="text-lg font-bold text-slate-900 mb-2 drop-shadow-sm bg-white/80 px-4 py-2 rounded-full inline-block">
+                <div className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 mb-1 sm:mb-2 drop-shadow-sm bg-white/80 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full inline-block">
                   Birth Chart (कुंडली)
                 </div>
-                <div className="text-xs text-slate-700 font-semibold mt-1">
+                <div className="text-xs text-slate-700 font-semibold mt-1 break-words">
                   Planetary positions & houses • Vedic Astrology
                 </div>
               </div>
               {/* Circular chart representation */}
               <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                <div className="w-32 h-32 rounded-full border-4 border-saffron-400 border-dashed flex items-center justify-center">
-                  <div className="w-20 h-20 rounded-full border-2 border-purple-300/50 border-dashed flex items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-200 to-orange-200 flex items-center justify-center text-2xl">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 rounded-full border-4 border-saffron-400 border-dashed flex items-center justify-center">
+                  <div className="w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 rounded-full border-2 border-purple-300/50 border-dashed flex items-center justify-center">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-amber-200 to-orange-200 flex items-center justify-center text-xl sm:text-2xl">
                       ॐ
                     </div>
                   </div>
@@ -982,11 +990,11 @@ function KundliPageContent() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
             <Card className="bg-gradient-to-br from-purple-50/30 to-white">
               <CardHeader eyebrow="Highlights" title="At a Glance" icon="✨" />
               <CardContent>
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="p-4 rounded-xl bg-white border-2 border-purple-100">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Ascendant</div>
                     <div className="text-xl font-bold text-purple-700">{data.ascendant || "Calculating..."}</div>
@@ -1024,35 +1032,70 @@ function KundliPageContent() {
             <Card className="lg:col-span-2">
               <CardHeader eyebrow="Planets" title="Planetary Positions" subtitle="Detailed planetary positions in your birth chart." icon="🪐" />
               <CardContent>
-                <div className="overflow-x-auto rounded-xl border-2 border-slate-200">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto rounded-lg sm:rounded-xl border-2 border-slate-200 -mx-2 sm:mx-0 table-responsive">
+                  <table className="w-full text-xs sm:text-sm min-w-[700px] sm:min-w-0">
                     <thead className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
                       <tr>
-                        <th className="py-4 px-6 text-left font-bold">Planet</th>
-                        <th className="py-4 px-6 text-left font-bold">Sign</th>
-                        <th className="py-4 px-6 text-left font-bold">Degree</th>
-                        <th className="py-4 px-6 text-left font-bold">House</th>
-                        <th className="py-4 px-6 text-left font-bold">Retrograde</th>
+                        <th className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-left font-bold">Planet</th>
+                        <th className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-left font-bold">Sign</th>
+                        <th className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-left font-bold">Degree</th>
+                        <th className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-left font-bold">House</th>
+                        <th className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-left font-bold">Position</th>
+                        <th className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-left font-bold">Status</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                      {data.planets.map((p, idx) => (
-                        <tr key={p.name} className={`hover:bg-purple-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                          <td className="py-4 px-6 font-bold text-slate-900">{p.name}</td>
-                          <td className="py-4 px-6 text-slate-700">{p.sign}</td>
-                          <td className="py-4 px-6 text-slate-700 font-semibold">{p.degree}°</td>
-                          <td className="py-4 px-6">
-                            <Badge tone="indigo">House {p.house}</Badge>
-                          </td>
-                          <td className="py-4 px-6">
-                            {p.retrograde ? (
-                              <Badge tone="red">Yes</Badge>
-                            ) : (
-                              <Badge tone="green">No</Badge>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {data.planets.map((p, idx) => {
+                        // Calculate position status - use dynamic import to avoid require
+                        let strength: any = null;
+                        try {
+                          const { calculatePlanetaryStrengths } = require("@/lib/chartAnalysis");
+                          const strengths = calculatePlanetaryStrengths([p]);
+                          strength = strengths[p.name];
+                        } catch (e) {
+                          // Fallback if calculation fails
+                          strength = { position: "neutral", description: `${p.name} in ${p.sign}` };
+                        }
+                        
+                        const getPositionBadge = () => {
+                          if (!strength) return <Badge tone="slate" className="text-xs">—</Badge>;
+                          switch (strength.position) {
+                            case "exalted":
+                              return <Badge tone="emerald" className="text-xs">Exalted</Badge>;
+                            case "own":
+                              return <Badge tone="blue" className="text-xs">Own Sign</Badge>;
+                            case "friendly":
+                              return <Badge tone="indigo" className="text-xs">Friendly</Badge>;
+                            case "enemy":
+                              return <Badge tone="orange" className="text-xs">Enemy</Badge>;
+                            case "debilitated":
+                              return <Badge tone="red" className="text-xs">Debilitated</Badge>;
+                            default:
+                              return <Badge tone="slate" className="text-xs">Neutral</Badge>;
+                          }
+                        };
+                        
+                        return (
+                          <tr key={p.name} className={`hover:bg-purple-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                            <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 font-bold text-slate-900">{p.name}</td>
+                            <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-slate-700">{p.sign}</td>
+                            <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-slate-700 font-semibold">{p.degree}°</td>
+                            <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6">
+                              <Badge tone="indigo" className="text-xs">H{p.house}</Badge>
+                            </td>
+                            <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6">
+                              {getPositionBadge()}
+                            </td>
+                            <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6">
+                              {p.retrograde ? (
+                                <Badge tone="red" className="text-xs">Retrograde</Badge>
+                              ) : (
+                                <Badge tone="green" className="text-xs">Direct</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1079,64 +1122,18 @@ function KundliPageContent() {
             </Card>
           ) : null}
 
+          {/* Enhanced Analysis Sections */}
+          {data.chart && (
+            <>
+              <PlanetaryAnalysis planets={data.planets} />
+              <AspectsAndRelationships planets={data.planets} />
+              <YogasAnalysis planets={data.planets} chart={data.chart} />
+              <HouseAnalysis planets={data.planets} chart={data.chart} />
+            </>
+          )}
+
           {data.dosha ? (
-            <Card className="lg:col-span-2">
-              <CardHeader eyebrow="Dosha Analysis" title="Planetary Doshas & Remedies" subtitle="Detailed analysis of doshas and recommended remedies." icon="💎" />
-              <CardContent className="grid gap-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold mb-2">Manglik Dosha</div>
-                    <Badge tone={data.dosha?.manglik?.status === "Manglik" ? "red" : "green"} className="mb-2">
-                      {data.dosha?.manglik?.status} ({data.dosha?.manglik?.severity})
-                    </Badge>
-                    {data.dosha?.manglik?.remedies && data.dosha?.manglik?.remedies.length > 0 && (
-                      <ul className="list-disc pl-5 text-xs text-slate-700 space-y-1 mt-2">
-                        {data.dosha?.manglik?.remedies?.map((r, i) => <li key={i}>{r}</li>)}
-                      </ul>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold mb-2">Kaal Sarp Dosha</div>
-                    <Badge tone={data.dosha?.kaalSarp?.present ? "red" : "green"} className="mb-2">
-                      {data.dosha?.kaalSarp?.present ? `Present (${data.dosha.kaalSarp?.type || "Unknown"})` : "Not Present"}
-                    </Badge>
-                    {data.dosha?.kaalSarp?.remedies && data.dosha?.kaalSarp?.remedies.length > 0 && (
-                      <ul className="list-disc pl-5 text-xs text-slate-700 space-y-1 mt-2">
-                        {data.dosha?.kaalSarp?.remedies?.map((r, i) => <li key={i}>{r}</li>)}
-                      </ul>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold mb-2">Shani Effects</div>
-                    <ul className="list-disc pl-5 text-xs text-slate-700 space-y-1 mb-2">
-                      {data.dosha?.shani?.effects?.map((e, i) => <li key={i}>{e}</li>) || []}
-                    </ul>
-                    <div className="text-xs font-semibold text-slate-600 mt-2">Remedies:</div>
-                    <ul className="list-disc pl-5 text-xs text-slate-700 space-y-1">
-                      {data.dosha?.shani?.remedies?.slice(0, 2).map((r, i) => <li key={i}>{r}</li>) || []}
-                    </ul>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold mb-2">Rahu-Ketu Effects</div>
-                    <ul className="list-disc pl-5 text-xs text-slate-700 space-y-1 mb-2">
-                      {data.dosha?.rahuKetu?.effects?.map((e, i) => <li key={i}>{e}</li>) || []}
-                    </ul>
-                    <div className="text-xs font-semibold text-slate-600 mt-2">Remedies:</div>
-                    <ul className="list-disc pl-5 text-xs text-slate-700 space-y-1">
-                      {data.dosha?.rahuKetu?.remedies?.slice(0, 2).map((r, i) => <li key={i}>{r}</li>) || []}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
-                  <div className="text-sm font-semibold text-purple-900 mb-1">Overall Assessment</div>
-                  <div className="text-sm text-purple-800">{data.dosha?.overall || "No assessment available"}</div>
-                </div>
-              </CardContent>
-            </Card>
+            <EnhancedDoshasAndRemedies dosha={data.dosha} />
           ) : null}
           </div>
           </div>
@@ -1145,18 +1142,46 @@ function KundliPageContent() {
           <AIInsights kundliData={data} />
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap gap-4 justify-end">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-end">
             <Link 
               href={`/lifereport?kundliData=${encodeURIComponent(JSON.stringify(data))}`}
+              className="w-full sm:w-auto"
             >
               <Button
                 type="button"
                 variant="secondary"
-                className="px-8"
+                className="px-6 sm:px-8 w-full sm:w-auto"
               >
                 📖 Generate Life Report
               </Button>
             </Link>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const success = await shareKundli(data, name || "User");
+                if (success) {
+                  // Optional: Show toast notification
+                }
+              }}
+              className="px-6 sm:px-8 w-full sm:w-auto"
+            >
+              📤 Share Kundli
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                downloadAsJSON(data, `kundli-${name || 'user'}-${new Date().toISOString().split('T')[0]}.json`);
+              }}
+              className="px-6 sm:px-8 w-full sm:w-auto"
+            >
+              💾 Save as JSON
+            </Button>
             <Button
               type="button"
               variant="secondary"
@@ -1165,9 +1190,9 @@ function KundliPageContent() {
                 e.stopPropagation();
                 window.print();
               }}
-              className="px-8"
+              className="px-6 sm:px-8 w-full sm:w-auto"
             >
-              📄 Download PDF Report
+              📄 Print/PDF
             </Button>
           </div>
         </>

@@ -63,3 +63,12 @@ test-results/
 *.tmp
 *.temp
 
+# Large files and archives
+*.zip
+*.tar.gz
+*.rar
+*testing*.zip
+*package*.zip
+astrosetu-gpt-testing.zip
+AstroSetu_Testing_Package_*.zip
+

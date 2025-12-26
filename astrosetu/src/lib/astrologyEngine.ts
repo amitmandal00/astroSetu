@@ -29,46 +29,99 @@ export function generateKundli(input: BirthDetails): KundliResult {
   return { ascendant: asc, rashi, nakshatra: nak, tithi, planets, summary };
 }
 
-export function generateDoshaAnalysis(input: BirthDetails): DoshaAnalysis {
+import { 
+  generateManglikRemedies, 
+  generateKaalSarpRemedies, 
+  generateShaniRemedies,
+  generateRahuKetuRemedies,
+  getDoshaImpact,
+  getDoshaExplanation
+} from "./doshaAnalysis";
+
+export function generateDoshaAnalysis(input: BirthDetails, planets?: any[]): DoshaAnalysis {
   const seed = hash(`${input.dob}|${input.tob}|${input.place}`);
   const manglikStatus = (seed % 7) <= 1 ? "Manglik" : "Non-Manglik";
   const manglikSeverity = manglikStatus === "Manglik" ? (seed % 3 === 0 ? "High" : "Medium") : "Low";
   const kaalSarpPresent = (seed % 5) === 0;
   const kaalSarpTypes = ["Anant", "Kulik", "Vasuki", "Shankhpal", "Padma", "Mahapadma", "Takshak", "Karkotak"];
+  const kaalSarpType = kaalSarpPresent ? pick(kaalSarpTypes, seed) : undefined;
+  
+  // Find Mars house from planets if available
+  const marsPlanet = planets?.find((p: any) => 
+    p.name === "Mars" || 
+    (typeof p === 'string' && p.toLowerCase().includes('mars'))
+  );
+  const marsHouse = marsPlanet?.house || ((seed % 12) + 1);
+  
+  const shaniActive = (seed % 3) === 0;
+  const shaniEffects = shaniActive ? [
+    "Sade Sati period may be active",
+    "Delays and obstacles possible",
+    "Karmic lessons to learn"
+  ] : ["Shani is well-placed"];
+  
+  // Generate comprehensive remedies
+  const manglikDetailedRemedies = manglikStatus === "Manglik" 
+    ? generateManglikRemedies(marsHouse, manglikSeverity)
+    : [];
+  
+  const kaalSarpDetailedRemedies = kaalSarpPresent 
+    ? generateKaalSarpRemedies(kaalSarpType)
+    : [];
+  
+  const shaniDetailedRemedies = generateShaniRemedies(shaniActive ? "Active" : undefined);
+  const rahuKetuDetailedRemedies = generateRahuKetuRemedies();
+  
+  // Convert detailed remedies to simple string array for backward compatibility
+  const convertRemediesToStrings = (remedies: any[]) => {
+    return remedies.map(r => r.name || `${r.type}: ${r.description}`).slice(0, 4);
+  };
+  
+  // Count total doshas
+  let totalDoshas = 0;
+  if (manglikStatus === "Manglik") totalDoshas++;
+  if (kaalSarpPresent) totalDoshas++;
+  if (shaniActive) totalDoshas++;
+  totalDoshas++; // Rahu-Ketu always has effects
+  
+  // Generate overall recommendation
+  let recommendation = "";
+  if (totalDoshas === 0) {
+    recommendation = "Your chart shows good planetary balance. Minor remedies may be beneficial for specific goals.";
+  } else if (totalDoshas === 1) {
+    recommendation = "One dosha is present. Follow recommended remedies and consult an astrologer for personalized guidance.";
+  } else if (totalDoshas === 2) {
+    recommendation = "Two doshas are present. It's recommended to perform remedies and consult an expert astrologer for detailed analysis.";
+  } else {
+    recommendation = "Multiple doshas are present. Immediate consultation with an expert astrologer is highly recommended. Follow all remedies diligently.";
+  }
   
   return {
     manglik: {
       status: manglikStatus as "Manglik" | "Non-Manglik",
       severity: manglikSeverity as "High" | "Medium" | "Low",
-      remedies: manglikStatus === "Manglik" ? [
-        "Perform Manglik Dosha Puja",
-        "Wear Red Coral (Moonga)",
-        "Marry a Manglik person",
-        "Chant Mangal Mantra daily"
-      ] : []
+      remedies: convertRemediesToStrings(manglikDetailedRemedies),
+      detailedRemedies: manglikDetailedRemedies,
+      impact: getDoshaImpact("manglik", manglikStatus === "Manglik", manglikSeverity),
+      house: marsHouse,
+      explanation: getDoshaExplanation("manglik", { status: manglikStatus, severity: manglikSeverity, house: marsHouse }),
     },
     kaalSarp: {
       present: kaalSarpPresent,
-      type: kaalSarpPresent ? pick(kaalSarpTypes, seed) : undefined,
-      remedies: kaalSarpPresent ? [
-        "Perform Kaal Sarp Dosha Puja",
-        "Wear Gomed (Hessonite)",
-        "Donate black items on Saturdays",
-        "Chant Mahamrityunjaya Mantra"
-      ] : []
+      type: kaalSarpType,
+      remedies: convertRemediesToStrings(kaalSarpDetailedRemedies),
+      detailedRemedies: kaalSarpDetailedRemedies,
+      impact: getDoshaImpact("kaalSarp", kaalSarpPresent, "Medium"),
+      explanation: getDoshaExplanation("kaalSarp", { present: kaalSarpPresent, type: kaalSarpType }),
+      severity: kaalSarpPresent ? "Medium" : "Low",
     },
     shani: {
-      effects: (seed % 3 === 0) ? [
-        "Sade Sati period may be active",
-        "Delays and obstacles possible",
-        "Karmic lessons to learn"
-      ] : ["Shani is well-placed"],
-      remedies: [
-        "Wear Blue Sapphire (Neelam) after consultation",
-        "Donate black sesame on Saturdays",
-        "Chant Shani Mantra",
-        "Serve elderly people"
-      ]
+      effects: shaniEffects,
+      remedies: convertRemediesToStrings(shaniDetailedRemedies),
+      detailedRemedies: shaniDetailedRemedies,
+      period: shaniActive ? "Active" : undefined,
+      explanation: getDoshaExplanation("shani", { period: shaniActive ? "Active" : undefined, effects: shaniEffects }),
+      severity: shaniActive ? "Medium" : "Low",
     },
     rahuKetu: {
       effects: [
@@ -76,16 +129,16 @@ export function generateDoshaAnalysis(input: BirthDetails): DoshaAnalysis {
         "Spiritual growth opportunities",
         "Unexpected changes possible"
       ],
-      remedies: [
-        "Wear appropriate gemstones (Gomed/Cat's Eye)",
-        "Perform Rahu-Ketu Puja",
-        "Chant Rahu-Ketu Mantras",
-        "Practice meditation"
-      ]
+      remedies: convertRemediesToStrings(rahuKetuDetailedRemedies),
+      detailedRemedies: rahuKetuDetailedRemedies,
+      explanation: getDoshaExplanation("rahuKetu", { effects: ["Rahu-Ketu axis affects life areas"] }),
+      severity: "Medium",
     },
-    overall: manglikStatus === "Manglik" || kaalSarpPresent
-      ? "Some doshas are present. Consult an astrologer for detailed remedies and timing."
-      : "Overall chart is balanced. Minor remedies may be beneficial for specific goals."
+    overall: manglikStatus === "Manglik" || kaalSarpPresent || totalDoshas > 0
+      ? "Some doshas are present in your chart. Following recommended remedies can help mitigate their effects. For best results, consult an expert astrologer for personalized guidance and timing."
+      : "Overall chart is well-balanced. Minor remedies may still be beneficial for specific goals and overall well-being.",
+    recommendation,
+    totalDoshas,
   };
 }
 

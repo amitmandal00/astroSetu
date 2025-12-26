@@ -51,10 +51,20 @@ class WebPushService {
     }
 
     try {
-      // Register service worker
-      this.registration = await navigator.serviceWorker.register("/sw.js", {
-        scope: "/",
-      });
+      // Register service worker - try to get existing first
+      let registration = await navigator.serviceWorker.getRegistration("/");
+      
+      if (!registration) {
+        // Register new service worker if none exists
+        registration = await navigator.serviceWorker.register("/sw.js", {
+          scope: "/",
+        });
+      }
+      
+      // Wait for service worker to be ready
+      await navigator.serviceWorker.ready;
+      
+      this.registration = registration;
 
       // Get VAPID public key from server
       const response = await fetch("/api/notifications/vapid-public-key");

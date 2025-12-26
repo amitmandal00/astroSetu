@@ -2,11 +2,15 @@
  * Astrology API Abstraction Layer
  * Uses Prokerala API for real astrology calculations
  * Falls back to mock data if API key not configured
+ * Enhanced with caching, batching, and optimization
  */
 
 import type { BirthDetails, KundliResult, MatchResult, HoroscopeDaily, HoroscopeWeekly, HoroscopeMonthly, HoroscopeYearly, Panchang, Muhurat, Numerology, Remedy, DoshaAnalysis, KundliChart } from "@/types/astrology";
 import { generateKundli, matchKundli, dailyHoroscope, weeklyHoroscope, monthlyHoroscope, yearlyHoroscope, generatePanchang, findMuhurat, calculateNumerology, getRemedies, generateDoshaAnalysis, generateKundliChart } from "./astrologyEngine";
 import { transformKundliResponse, transformMatchResponse, transformPanchangResponse, transformDoshaResponse } from "./prokeralaTransform";
+import { generateChartFromProkerala } from "./enhancedChartTransform";
+import { generateCacheKey, getCached, setCached, invalidateCache } from "./apiCache";
+import { deduplicateRequest } from "./apiBatch";
 
 const PROKERALA_API_URL = "https://api.prokerala.com/v2/astrology";
 const API_KEY = process.env.PROKERALA_API_KEY || "";
@@ -46,11 +50,32 @@ function getAPICredentials() {
 // Cache for access token
 let accessTokenCache: { token: string; expiresAt: number } | null = null;
 
-async function prokeralaRequest(endpoint: string, params: Record<string, any>, retries: number = 2, method: "GET" | "POST" = "POST"): Promise<any> {
+async function prokeralaRequest(endpoint: string, params: Record<string, any>, retries: number = 2, method: "GET" | "POST" = "POST", skipCache: boolean = false): Promise<any> {
   const credentials = getAPICredentials();
   if (!credentials) {
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
   }
+
+  // Check cache for GET requests (only cacheable requests)
+  if (!skipCache && method === "GET") {
+    const cacheKey = generateCacheKey(endpoint, params);
+    const cached = getCached(cacheKey);
+    if (cached) {
+      console.log(`[AstroSetu] Cache HIT for ${endpoint}`);
+      return cached;
+    }
+    console.log(`[AstroSetu] Cache MISS for ${endpoint}`);
+  }
+
+  // Deduplicate identical requests
+  const requestKey = `${method}:${endpoint}:${JSON.stringify(params)}`;
+  
+  return deduplicateRequest(requestKey, async () => {
+    return await executeProkeralaRequest(endpoint, params, retries, method, skipCache);
+  });
+}
+
+async function executeProkeralaRequest(endpoint: string, params: Record<string, any>, retries: number = 2, method: "GET" | "POST" = "POST", skipCache: boolean = false): Promise<any> {
 
   // CRITICAL: ABSOLUTE ENFORCEMENT - Panchang, Kundli, Dosha, Horoscope, and Muhurat endpoints MUST use GET, no exceptions
   // This overrides ANY method parameter passed, including defaults
@@ -230,6 +255,8 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
 
   // Retry logic with exponential backoff
   let lastError: Error | null = null;
+  let result: any = null;
+  
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController();
@@ -308,7 +335,7 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
       
       // Log response structure for debugging kundli/panchang
       if (mustUseGet) {
-        const endpointName = isPanchangEndpoint ? "PANCHANG" : "KUNDLI";
+        const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : "MUHURAT";
         console.log(`[AstroSetu] ${endpointName} Response received:`, {
           hasData: !!responseData.data,
           hasResult: !!responseData.result,
@@ -319,7 +346,8 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
         });
       }
       
-      return responseData;
+      result = responseData;
+      break; // Success, exit retry loop
     } catch (error: any) {
       lastError = error;
       
@@ -341,11 +369,25 @@ async function prokeralaRequest(endpoint: string, params: Record<string, any>, r
     }
   }
 
-  throw lastError || new Error("Prokerala API request failed after retries");
+      throw lastError || new Error("Prokerala API request failed after retries");
+  
+  // Cache successful GET responses
+  if (!skipCache && method === "GET" && result) {
+    try {
+      const cacheKey = generateCacheKey(endpoint, params);
+      setCached(cacheKey, result);
+      console.log(`[AstroSetu] Cached response for ${endpoint}`);
+    } catch (cacheError) {
+      console.warn("[AstroSetu] Failed to cache response:", cacheError);
+    }
+  }
+  
+  return result;
 }
 
 /**
  * Get Kundli (Birth Chart)
+ * Enhanced with progressive loading support
  */
 export async function getKundli(input: BirthDetails): Promise<KundliResult & { dosha: DoshaAnalysis; chart: KundliChart }> {
   // If Prokerala is not configured OR coordinates are missing, fall back to local engine.
@@ -356,7 +398,7 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
       console.warn("[AstroSetu] Coordinates missing - using local engine instead of Prokerala.");
     }
     const kundli = generateKundli(input);
-    const dosha = generateDoshaAnalysis(input);
+    const dosha = generateDoshaAnalysis(input, kundli.planets);
     const chart = generateKundliChart(input);
     return { ...kundli, dosha, chart };
   }
@@ -406,37 +448,62 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
       planetsCount: kundli.planets?.length || 0,
     });
     
-    // Get dosha analysis (may need separate API call)
+    // Extract dosha analysis from kundli response first (Prokerala includes mangal_dosha in kundli response)
+    // The standalone /dosha endpoint may not be available in all plans, so prefer extracting from kundli
     let dosha: DoshaAnalysis;
     try {
-      // Dosha endpoint requires GET method
-      const doshaResponse = await prokeralaRequest("/dosha", {
-        ayanamsa: input.ayanamsa || 1,
-        coordinates: `${input.latitude},${input.longitude}`,
-        datetime: {
-          year,
-          month,
-          day,
-          hour: hours,
-          minute: minutes,
-          second: seconds || 0,
-        },
-        timezone: input.timezone || "Asia/Kolkata",
-      }, 2, "GET" as const);
-      dosha = transformDoshaResponse(doshaResponse);
-    } catch (doshaError: any) {
-      // Only log as warning if it's not a critical error (4xx/5xx)
-      // Don't log debug errors for successful fallbacks
-      const isClientError = doshaError?.message?.includes('40') || doshaError?.message?.includes('50');
-      if (isClientError) {
-        console.warn("[AstroSetu] Dosha API call failed, using mock:", doshaError?.message?.substring(0, 200));
+      // First, try to extract dosha data from the kundli response
+      const kundliData = response.data || response;
+      if (kundliData.mangal_dosha || kundliData.manglik || kundliData.dosha) {
+        // Transform dosha from kundli response
+        dosha = transformDoshaResponse({ data: kundliData }, kundli.planets);
+        console.log("[AstroSetu] Extracted dosha from kundli response");
+      } else {
+        // If not in kundli response, try standalone dosha endpoint (may not exist in all plans)
+        const doshaParams = {
+          ayanamsa: input.ayanamsa || 1,
+          coordinates: `${input.latitude},${input.longitude}`,
+          datetime: {
+            year,
+            month,
+            day,
+            hour: hours,
+            minute: minutes,
+            second: seconds || 0,
+          },
+          timezone: input.timezone || "Asia/Kolkata",
+        };
+        try {
+          // Try dosha endpoint (may not exist - returns 404)
+          const doshaResponse = await prokeralaRequest("/dosha", doshaParams, 1, "GET" as const);
+          dosha = transformDoshaResponse(doshaResponse, kundli.planets);
+          console.log("[AstroSetu] Retrieved dosha from standalone endpoint");
+        } catch (doshaError: any) {
+          // If dosha endpoint fails (404), use mock dosha
+          console.warn("[AstroSetu] Dosha endpoint not available (404), using mock dosha");
+          dosha = generateDoshaAnalysis(input, kundli.planets);
+        }
       }
-      // Fallback to mock dosha if dosha endpoint not available
-      dosha = generateDoshaAnalysis(input);
+    } catch (doshaError: any) {
+      console.warn("[AstroSetu] Dosha extraction failed, using mock:", doshaError?.message?.substring(0, 200));
+      // Fallback to mock dosha
+      dosha = generateDoshaAnalysis(input, kundli.planets);
     }
     
-    // Generate chart (Prokerala may not provide chart visualization)
-    const chart = generateKundliChart(input);
+    // Generate enhanced chart from Prokerala data (extracts actual chart structure)
+    let chart: KundliChart;
+    try {
+      chart = generateChartFromProkerala(response, kundli.planets);
+      console.log("[AstroSetu] Generated chart from Prokerala data:", {
+        housesCount: chart.houses.length,
+        aspectsCount: chart.aspects.length,
+        hasDasha: !!chart.dasha.current,
+      });
+    } catch (chartError: any) {
+      console.warn("[AstroSetu] Failed to generate chart from Prokerala, using fallback:", chartError?.message);
+      // Fallback to generated chart
+      chart = generateKundliChart(input);
+    }
     
     return { ...kundli, dosha, chart };
   } catch (error: any) {
@@ -449,7 +516,7 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
     // In development, allow fallback for testing
     console.warn("[AstroSetu] Falling back to mock data (development mode only)");
     const kundli = generateKundli(input);
-    const dosha = generateDoshaAnalysis(input);
+    const dosha = generateDoshaAnalysis(input, kundli.planets);
     const chart = generateKundliChart(input);
     return { ...kundli, dosha, chart };
   }
@@ -461,8 +528,10 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
 export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<MatchResult & { doshaA: DoshaAnalysis; doshaB: DoshaAnalysis }> {
   if (!isAPIConfigured()) {
     const match = matchKundli(a, b);
-    const doshaA = generateDoshaAnalysis(a);
-    const doshaB = generateDoshaAnalysis(b);
+    const kundliA = generateKundli(a);
+    const kundliB = generateKundli(b);
+    const doshaA = generateDoshaAnalysis(a, kundliA.planets);
+    const doshaB = generateDoshaAnalysis(b, kundliB.planets);
     return { ...match, doshaA, doshaB };
   }
 
@@ -478,8 +547,10 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
     if (!a.latitude || !a.longitude || !b.latitude || !b.longitude) {
       console.warn("[AstroSetu] Match API: Missing coordinates, using mock data");
       const match = matchKundli(a, b);
-      const doshaA = generateDoshaAnalysis(a);
-      const doshaB = generateDoshaAnalysis(b);
+      const kundliA = generateKundli(a);
+      const kundliB = generateKundli(b);
+      const doshaA = generateDoshaAnalysis(a, kundliA.planets);
+      const doshaB = generateDoshaAnalysis(b, kundliB.planets);
       return { ...match, doshaA, doshaB };
     }
 
@@ -543,8 +614,15 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
         }, 2, "GET" as const).catch(() => null),
       ]);
       
-      doshaA = doshaAResponse ? transformDoshaResponse(doshaAResponse) : generateDoshaAnalysis(a);
-      doshaB = doshaBResponse ? transformDoshaResponse(doshaBResponse) : generateDoshaAnalysis(b);
+      // Get planets from match result if available for enhanced dosha analysis
+      const matchKundliA = match.kundliA || null;
+      const matchKundliB = match.kundliB || null;
+      doshaA = doshaAResponse 
+        ? transformDoshaResponse(doshaAResponse, matchKundliA?.planets) 
+        : (matchKundliA ? generateDoshaAnalysis(a, matchKundliA.planets) : generateDoshaAnalysis(a));
+      doshaB = doshaBResponse 
+        ? transformDoshaResponse(doshaBResponse, matchKundliB?.planets) 
+        : (matchKundliB ? generateDoshaAnalysis(b, matchKundliB.planets) : generateDoshaAnalysis(b));
     } catch {
       doshaA = generateDoshaAnalysis(a);
       doshaB = generateDoshaAnalysis(b);
@@ -555,8 +633,10 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
     // Log as warning since we're gracefully falling back to mock
     console.warn("[AstroSetu] Match API error, using mock:", error instanceof Error ? error.message : error);
     const match = matchKundli(a, b);
-    const doshaA = generateDoshaAnalysis(a);
-    const doshaB = generateDoshaAnalysis(b);
+    const kundliA = generateKundli(a);
+    const kundliB = generateKundli(b);
+    const doshaA = generateDoshaAnalysis(a, kundliA.planets);
+    const doshaB = generateDoshaAnalysis(b, kundliB.planets);
     return { ...match, doshaA, doshaB };
   }
 }
@@ -882,7 +962,8 @@ export async function getDashaPeriods(input: BirthDetails): Promise<any> {
  */
 export async function getDoshaAnalysis(input: BirthDetails): Promise<DoshaAnalysis> {
   if (!isAPIConfigured()) {
-    return generateDoshaAnalysis(input);
+    const kundli = generateKundli(input);
+    return generateDoshaAnalysis(input, kundli.planets);
   }
 
   try {
@@ -908,10 +989,32 @@ export async function getDoshaAnalysis(input: BirthDetails): Promise<DoshaAnalys
       timezone: input.timezone || "Asia/Kolkata",
     }, 2, "GET" as const);
 
-    return transformDoshaResponse(doshaResponse);
+    // Get planets data for enhanced dosha analysis
+    let planets: any[] | undefined;
+    try {
+      const kundliResponse = await prokeralaRequest("/kundli", {
+        ayanamsa: input.ayanamsa || 1,
+        coordinates: `${input.latitude},${input.longitude}`,
+        datetime: {
+          year,
+          month,
+          day,
+          hour: hours,
+          minute: minutes,
+          second: seconds || 0,
+        },
+        timezone: input.timezone || "Asia/Kolkata",
+      }, 2, "GET" as const);
+      const transformedKundli = transformKundliResponse(kundliResponse, input);
+      planets = transformedKundli.planets;
+    } catch {
+      // If kundli fetch fails, proceed without planets
+    }
+    return transformDoshaResponse(doshaResponse, planets);
   } catch (error: any) {
     console.warn("[AstroSetu] API error, using mock:", error?.message || error);
-    return generateDoshaAnalysis(input);
+    const kundli = generateKundli(input);
+    return generateDoshaAnalysis(input, kundli.planets);
   }
 }
 
