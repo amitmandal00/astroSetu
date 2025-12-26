@@ -420,7 +420,7 @@ function generateAdminNotificationEmail(data: {
           <a href="mailto:${email}?subject=Re: ${encodeURIComponent(subject)}" class="action-button">Reply to ${name || email}</a>
           <div class="footer">
             <p>This email was automatically generated from the AstroSetu contact form.</p>
-            <p>Reply to this email to respond directly to ${name}.</p>
+            <p>Reply to this email to respond directly to ${name || email}.</p>
           </div>
         </div>
       </div>
