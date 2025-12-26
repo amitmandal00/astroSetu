@@ -586,7 +586,7 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
 
     // Check if coordinates are available - if not, fall back to mock
     if (!a.latitude || !a.longitude || !b.latitude || !b.longitude) {
-      console.warn("[AstroSetu] Match API: Missing coordinates, using mock data");
+      console.log("[AstroSetu] Match API: Missing coordinates, using mock data");
       const match = matchKundli(a, b);
       const kundliA = generateKundli(a);
       const kundliB = generateKundli(b);
@@ -802,8 +802,12 @@ export async function getHoroscope(mode: "daily" | "weekly" | "monthly" | "yearl
       };
     }
   } catch (error: any) {
-    // Log as warning instead of error since we're gracefully falling back
-    console.warn("[AstroSetu] Horoscope API error, using mock:", error?.message || error);
+    // Prokerala horoscope endpoint may not exist - silently fallback to mock
+    if (error?.message?.includes("404") || error?.message?.includes("No route found")) {
+      console.log(`[AstroSetu] Horoscope ${mode} endpoint not available in Prokerala API, using mock data`);
+    } else {
+      console.warn("[AstroSetu] Horoscope API error, using mock:", error?.message || error);
+    }
     const dateStr = date || new Date().toISOString().slice(0, 10);
     if (mode === "weekly") return weeklyHoroscope(sign, dateStr);
     if (mode === "monthly") return monthlyHoroscope(sign, month || new Date().toLocaleString("en-US", { month: "long" }), year || new Date().getFullYear());
@@ -823,7 +827,8 @@ export async function getPanchangAPI(date: string, place: string, latitude?: num
   try {
     // Ensure coordinates are available
     if (!latitude || !longitude) {
-      throw new Error("Latitude and longitude are required for Panchang");
+      console.log("[AstroSetu] Panchang API: Missing coordinates, using mock data");
+      return generatePanchang(date, place);
     }
 
     // ProKerala panchang endpoint requires GET method
@@ -894,7 +899,12 @@ export async function findMuhuratAPI(date: string, type: Muhurat["type"]): Promi
       })),
     };
   } catch (error: any) {
-    console.warn("[AstroSetu] API error, using mock:", error?.message || error);
+    // Prokerala muhurat endpoint may not exist - silently fallback to mock
+    if (error?.message?.includes("404") || error?.message?.includes("No route found")) {
+      console.log("[AstroSetu] Muhurat endpoint not available in Prokerala API, using mock data");
+    } else {
+      console.warn("[AstroSetu] Muhurat API error, using mock:", error?.message || error);
+    }
     return findMuhurat(date, type);
   }
 }

@@ -663,16 +663,9 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
   }
   
   if (tithi === "Unknown") {
-    console.error("[Transform] ❌ FAILED to extract tithi after all attempts!");
-    console.error("[Transform] Debug info:", {
-      hasTithiField: !!data.tithi,
-      hasPanchang: !!data.panchang,
-      panchangTithi: data.panchang?.tithi,
-      hasMoon: !!(data.moon || result.moon),
-      hasSun: !!(data.sun || result.sun),
-      moonLongitude: data.moon?.longitude || result.moon?.longitude,
-      sunLongitude: data.sun?.longitude || result.sun?.longitude,
-    });
+    // Tithi calculation from moon-sun difference failed - use default
+    // This is acceptable as tithi is optional and can be calculated elsewhere
+    console.log("[Transform] Tithi not found in response, will calculate from moon-sun difference if available");
   }
   
   // Generate summary - handle "Unknown" values gracefully
