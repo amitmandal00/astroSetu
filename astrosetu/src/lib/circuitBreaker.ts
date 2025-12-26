@@ -50,7 +50,8 @@ class CircuitBreaker {
     fallback?: () => Promise<T>
   ): Promise<T> {
     // Check if we should attempt the operation
-    if (this.state === "open") {
+    const currentState = this.state;
+    if (currentState === "open") {
       const now = Date.now();
       
       // Check if cooldown period has passed
@@ -81,11 +82,9 @@ class CircuitBreaker {
       this.onFailure();
       
       // Check if circuit is now open and we have a fallback
-      // TypeScript needs us to check the state as a string to avoid narrowing issues
-      const stateAfterFailure = this.state as CircuitState;
-      
-      // If circuit is now open (after onFailure), use fallback if available
-      if (stateAfterFailure === "open" && fallback && previousState !== "open") {
+      // Read state again after onFailure to get updated state
+      const newState = this.state;
+      if (newState === "open" && fallback && previousState !== "open") {
         console.log("[CircuitBreaker] Circuit opened after failure, using fallback");
         try {
           return await fallback();
