@@ -21,7 +21,7 @@ export const astrologers: Astrologer[] = [
     title: "KP • Vedic • Timelines",
     bio: "KP + Vedic blend for sharper timelines and event windows with calm explanations.",
     skills: ["KP", "Vedic", "Timing"],
-    languages: ["English", "Tamil"],
+    languages: ["English", "Hindi"],
     pricePerMin: 39,
     isOnline: false,
     ratingAvg: 4.7,
