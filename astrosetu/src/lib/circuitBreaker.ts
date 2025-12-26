@@ -77,9 +77,9 @@ class CircuitBreaker {
       return result;
     } catch (error) {
       // Failure - update state (this may open the circuit)
-      const previousState = this.state;
+      const previousState: CircuitState = this.state;
       this.onFailure();
-      const currentState = this.state;
+      const currentState: CircuitState = this.state;
       
       // If circuit is now open (after onFailure), use fallback if available
       if (currentState === "open" && fallback && previousState !== "open") {
