@@ -29,8 +29,8 @@ export default function ContactPage() {
                 <div className="text-2xl">📧</div>
                 <div>
                   <div className="font-semibold text-slate-900 mb-1">Email</div>
-                  <a href="mailto:support@astrosetu.com" className="text-indigo-600 hover:underline">
-                    support@astrosetu.com
+                  <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">
+                    support@astrosetu.app
                   </a>
                   <div className="text-sm text-slate-600 mt-1">For general inquiries</div>
                 </div>

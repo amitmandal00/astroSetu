@@ -153,7 +153,7 @@ export default function CookiesPage() {
                   If you have questions about our use of cookies, please contact us:
                 </p>
                 <ul className="list-none space-y-1 ml-4 mt-2">
-                  <li><strong>Email:</strong> <a href="mailto:privacy@astrosetu.com" className="text-indigo-600 hover:underline">privacy@astrosetu.com</a></li>
+                  <li><strong>Email:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
                   <li><strong>Website:</strong> <a href="/contact" className="text-indigo-600 hover:underline">Contact Us Page</a></li>
                 </ul>
               </section>
