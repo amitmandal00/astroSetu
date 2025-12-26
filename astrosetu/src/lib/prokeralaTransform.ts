@@ -3,7 +3,7 @@
  * Transforms Prokerala API responses to AstroSetu format
  */
 
-import type { KundliResult, MatchResult, Panchang, DoshaAnalysis, KundliChart } from "@/types/astrology";
+import type { KundliResult, MatchResult, Panchang, DoshaAnalysis, KundliChart, Choghadiya } from "@/types/astrology";
 
 /**
  * Transform Prokerala Kundli response to AstroSetu format
@@ -1001,5 +1001,122 @@ export function transformDoshaResponse(prokeralaData: any, planets?: any[]): Dos
     recommendation,
     totalDoshas,
   };
+}
+
+/**
+ * Transform Prokerala Choghadiya response to AstroSetu format
+ */
+export function transformChoghadiyaResponse(prokeralaData: any, date: string, place: string): Choghadiya {
+  const data = prokeralaData.data || prokeralaData;
+  const choghadiyaData = data.choghadiya || data;
+  
+  // Extract day and night periods
+  const dayPeriods = (choghadiyaData.day || choghadiyaData.dayPeriods || []).map((period: any) => ({
+    type: mapChoghadiyaType(period.type || period.name),
+    name: period.name || period.type || "Unknown",
+    start: period.start || period.startTime || period.start_time || "",
+    end: period.end || period.endTime || period.end_time || "",
+    quality: mapChoghadiyaQuality(period.type || period.name),
+    activities: period.activities || period.recommended || getChoghadiyaActivities(period.type || period.name),
+    avoidActivities: period.avoid || period.notRecommended || getChoghadiyaAvoidActivities(period.type || period.name),
+  }));
+
+  const nightPeriods = (choghadiyaData.night || choghadiyaData.nightPeriods || []).map((period: any) => ({
+    type: mapChoghadiyaType(period.type || period.name),
+    name: period.name || period.type || "Unknown",
+    start: period.start || period.startTime || period.start_time || "",
+    end: period.end || period.endTime || period.end_time || "",
+    quality: mapChoghadiyaQuality(period.type || period.name),
+    activities: period.activities || period.recommended || getChoghadiyaActivities(period.type || period.name),
+    avoidActivities: period.avoid || period.notRecommended || getChoghadiyaAvoidActivities(period.type || period.name),
+  }));
+
+  return {
+    date,
+    place,
+    dayPeriods,
+    nightPeriods,
+  };
+}
+
+/**
+ * Transform Panchang data to Choghadiya format (fallback when choghadiya endpoint unavailable)
+ */
+export function transformPanchangToChoghadiya(panchang: Panchang, date: string, place: string): Choghadiya {
+  // Generate mock choghadiya periods based on panchang sunrise/sunset
+  // This is a fallback when choghadiya data is not available separately
+  const sunrise = panchang.sunrise || "06:00";
+  const sunset = panchang.sunset || "18:00";
+  
+  // Generate typical day periods
+  const dayPeriods = [
+    { type: "Shubh" as const, name: "Shubh", start: sunrise, end: addTime(sunrise, 1.5), quality: "Auspicious" as const, activities: ["Starting new ventures", "Business activities"], avoidActivities: [] },
+    { type: "Labh" as const, name: "Labh", start: addTime(sunrise, 1.5), end: addTime(sunrise, 3), quality: "Auspicious" as const, activities: ["Financial transactions", "Buying/selling"], avoidActivities: [] },
+    { type: "Amrit" as const, name: "Amrit", start: addTime(sunrise, 3), end: addTime(sunrise, 4.5), quality: "Auspicious" as const, activities: ["Religious activities", "Health treatments"], avoidActivities: [] },
+    { type: "Chal" as const, name: "Chal", start: addTime(sunrise, 4.5), end: addTime(sunrise, 6), quality: "Moderate" as const, activities: ["Travel"], avoidActivities: ["Important decisions"] },
+    { type: "Kaal" as const, name: "Kaal", start: addTime(sunrise, 6), end: addTime(sunrise, 7.5), quality: "Inauspicious" as const, activities: [], avoidActivities: ["All important activities"] },
+    { type: "Rog" as const, name: "Rog", start: addTime(sunrise, 7.5), end: addTime(sunrise, 9), quality: "Inauspicious" as const, activities: [], avoidActivities: ["Health-related activities"] },
+    { type: "Udveg" as const, name: "Udveg", start: addTime(sunrise, 9), end: sunset, quality: "Inauspicious" as const, activities: [], avoidActivities: ["Important meetings"] },
+  ];
+
+  const nightPeriods = [
+    { type: "Shubh" as const, name: "Shubh", start: sunset, end: addTime(sunset, 1.5), quality: "Auspicious" as const, activities: ["Evening prayers", "Family time"], avoidActivities: [] },
+    { type: "Labh" as const, name: "Labh", start: addTime(sunset, 1.5), end: addTime(sunset, 3), quality: "Auspicious" as const, activities: ["Social gatherings"], avoidActivities: [] },
+    { type: "Amrit" as const, name: "Amrit", start: addTime(sunset, 3), end: addTime(sunset, 4.5), quality: "Auspicious" as const, activities: ["Meditation"], avoidActivities: [] },
+    { type: "Chal" as const, name: "Chal", start: addTime(sunset, 4.5), end: "24:00", quality: "Moderate" as const, activities: ["Travel"], avoidActivities: ["Important activities"] },
+  ];
+
+  return {
+    date,
+    place,
+    dayPeriods,
+    nightPeriods,
+  };
+}
+
+/**
+ * Helper functions for Choghadiya transformation
+ */
+function mapChoghadiyaType(type: string): "Shubh" | "Labh" | "Amrit" | "Chal" | "Kaal" | "Rog" | "Udveg" {
+  const typeLower = type.toLowerCase();
+  if (typeLower.includes("shubh")) return "Shubh";
+  if (typeLower.includes("labh")) return "Labh";
+  if (typeLower.includes("amrit")) return "Amrit";
+  if (typeLower.includes("chal")) return "Chal";
+  if (typeLower.includes("kaal")) return "Kaal";
+  if (typeLower.includes("rog")) return "Rog";
+  if (typeLower.includes("udveg")) return "Udveg";
+  return "Chal"; // Default to moderate
+}
+
+function mapChoghadiyaQuality(type: string): "Auspicious" | "Moderate" | "Inauspicious" {
+  const auspicious = ["Shubh", "Labh", "Amrit"];
+  const inauspicious = ["Kaal", "Rog", "Udveg"];
+  if (auspicious.includes(type)) return "Auspicious";
+  if (inauspicious.includes(type)) return "Inauspicious";
+  return "Moderate";
+}
+
+function getChoghadiyaActivities(type: string): string[] {
+  const typeLower = type.toLowerCase();
+  if (typeLower.includes("shubh")) return ["Starting new ventures", "Business activities", "Important meetings"];
+  if (typeLower.includes("labh")) return ["Financial transactions", "Buying/selling", "Starting business"];
+  if (typeLower.includes("amrit")) return ["Religious activities", "Health treatments", "Education"];
+  if (typeLower.includes("chal")) return ["Travel", "Movement"];
+  return [];
+}
+
+function getChoghadiyaAvoidActivities(type: string): string[] {
+  const typeLower = type.toLowerCase();
+  if (typeLower.includes("kaal")) return ["All important activities", "Starting new work"];
+  if (typeLower.includes("rog")) return ["Health-related activities", "Medical treatments"];
+  if (typeLower.includes("udveg")) return ["Important meetings", "Decisions"];
+  return [];
+}
+
+function addTime(time: string, hours: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const newHours = (h + hours) % 24;
+  return `${String(Math.floor(newHours)).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 

@@ -168,6 +168,31 @@ export type Panchang = {
   auspiciousTimings: { name: string; start: string; end: string }[];
 };
 
+export type Choghadiya = {
+  date: string;
+  place: string;
+  dayPeriods: Array<{
+    type: "Shubh" | "Labh" | "Amrit" | "Chal" | "Kaal" | "Rog" | "Udveg";
+    name: string;
+    start: string;
+    end: string;
+    quality: "Auspicious" | "Moderate" | "Inauspicious";
+    activities: string[];
+    avoidActivities: string[];
+  }>;
+  nightPeriods: Array<{
+    type: "Shubh" | "Labh" | "Amrit" | "Chal" | "Kaal" | "Rog" | "Udveg";
+    name: string;
+    start: string;
+    end: string;
+    quality: "Auspicious" | "Moderate" | "Inauspicious";
+    activities: string[];
+    avoidActivities: string[];
+  }>;
+};
+
+export type CalendarSystem = "Amanta" | "Purnimanta" | "VikramSamvat" | "Shaka" | "Gregorian";
+
 export type Muhurat = {
   date: string;
   type: "Marriage" | "GrihaPravesh" | "Vehicle" | "Business" | "Education" | "Travel";

@@ -5,9 +5,9 @@
  * Enhanced with caching, batching, and optimization
  */
 
-import type { BirthDetails, KundliResult, MatchResult, HoroscopeDaily, HoroscopeWeekly, HoroscopeMonthly, HoroscopeYearly, Panchang, Muhurat, Numerology, Remedy, DoshaAnalysis, KundliChart } from "@/types/astrology";
+import type { BirthDetails, KundliResult, MatchResult, HoroscopeDaily, HoroscopeWeekly, HoroscopeMonthly, HoroscopeYearly, Panchang, Muhurat, Numerology, Remedy, DoshaAnalysis, KundliChart, Choghadiya } from "@/types/astrology";
 import { generateKundli, matchKundli, dailyHoroscope, weeklyHoroscope, monthlyHoroscope, yearlyHoroscope, generatePanchang, findMuhurat, calculateNumerology, getRemedies, generateDoshaAnalysis, generateKundliChart } from "./astrologyEngine";
-import { transformKundliResponse, transformMatchResponse, transformPanchangResponse, transformDoshaResponse } from "./prokeralaTransform";
+import { transformKundliResponse, transformMatchResponse, transformPanchangResponse, transformDoshaResponse, transformChoghadiyaResponse, transformPanchangToChoghadiya } from "./prokeralaTransform";
 import { generateChartFromProkerala } from "./enhancedChartTransform";
 import { generateCacheKey, getCached, setCached, invalidateCache } from "./apiCache";
 import { deduplicateRequest } from "./apiBatch";
@@ -271,9 +271,9 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
       // This is the method that will be used - guaranteed GET for panchang, kundli, dosha, horoscope, and muhurat
       const fetchMethod: "GET" | "POST" = actualMethod;
       
-      // TRIPLE CHECK: Panchang, Kundli, Dosha, Horoscope, and Muhurat MUST be GET - throw error if not
+      // TRIPLE CHECK: Panchang, Kundli, Dosha, Horoscope, Muhurat, and Choghadiya MUST be GET - throw error if not
       if (mustUseGet && fetchMethod !== "GET") {
-        const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : isDoshaEndpoint ? "Dosha" : isHoroscopeEndpoint ? "Horoscope" : "Muhurat";
+        const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : isDoshaEndpoint ? "Dosha" : isHoroscopeEndpoint ? "Horoscope" : isMuhuratEndpoint ? "Muhurat" : isChoghadiyaEndpoint ? "Choghadiya" : "Unknown";
         const criticalError = `[CRITICAL BUG] ${endpointName} endpoint method enforcement failed! Method is ${fetchMethod} but must be GET. originalMethod=${method}, actualMethod=${actualMethod}, mustUseGet=${mustUseGet}`;
         console.error("[AstroSetu]", criticalError);
         throw new Error(criticalError);
@@ -327,7 +327,7 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
         // Add comprehensive debug info to error for all GET endpoints
         // Only log if response is NOT ok (actual error)
         if (mustUseGet && !response.ok) {
-          const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : "MUHURAT";
+          const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : isMuhuratEndpoint ? "MUHURAT" : isChoghadiyaEndpoint ? "CHOGHADIYA" : "UNKNOWN";
           const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
           errorMessage = debugInfo + " | " + errorMessage;
           console.error(`[AstroSetu] ${endpointName} ERROR WITH DEBUG:`, debugInfo, "Error:", errorMessage);
@@ -864,6 +864,82 @@ export async function findMuhuratAPI(date: string, type: Muhurat["type"]): Promi
     console.warn("[AstroSetu] API error, using mock:", error?.message || error);
     return findMuhurat(date, type);
   }
+}
+
+/**
+ * Get Choghadiya (Auspicious/Inauspicious Timings)
+ * ProKerala choghadiya endpoint uses GET method
+ * Choghadiya is typically part of panchang data but can be requested separately
+ */
+export async function getChoghadiyaAPI(date: string, place: string, latitude?: number, longitude?: number): Promise<Choghadiya> {
+  if (!isAPIConfigured()) {
+    // Generate mock choghadiya data
+    return generateMockChoghadiya(date, place);
+  }
+
+  try {
+    // Ensure coordinates are available
+    if (!latitude || !longitude) {
+      throw new Error("Latitude and longitude are required for Choghadiya");
+    }
+
+    // Parse date for GET request
+    const [year, month, day] = date.split("-").map(Number);
+    
+    // Choghadiya endpoint requires GET method
+    // ProKerala may have choghadiya in panchang endpoint or separate endpoint
+    const response = await prokeralaRequest("/choghadiya", {
+      datetime: {
+        year,
+        month,
+        day,
+      },
+      coordinates: `${latitude},${longitude}`,
+    }, 2, "GET" as const);
+
+    // Transform ProKerala response
+    return transformChoghadiyaResponse(response, date, place);
+  } catch (error: any) {
+    // If choghadiya endpoint doesn't exist, try extracting from panchang
+    try {
+      console.log("[AstroSetu] Choghadiya endpoint not available, trying panchang endpoint");
+      const panchang = await getPanchangAPI(date, place, latitude, longitude);
+      // Extract choghadiya from panchang if available
+      return transformPanchangToChoghadiya(panchang, date, place);
+    } catch (panchangError) {
+      console.warn("[AstroSetu] Failed to get choghadiya from panchang, using mock:", error?.message || error);
+      return generateMockChoghadiya(date, place);
+    }
+  }
+}
+
+/**
+ * Generate mock Choghadiya data for fallback
+ */
+function generateMockChoghadiya(date: string, place: string): Choghadiya {
+  const dayPeriods = [
+    { type: "Shubh" as const, name: "Shubh", start: "06:00", end: "07:30", quality: "Auspicious" as const, activities: ["Starting new ventures", "Business activities", "Important meetings"], avoidActivities: [] },
+    { type: "Labh" as const, name: "Labh", start: "07:30", end: "09:00", quality: "Auspicious" as const, activities: ["Financial transactions", "Buying/selling", "Starting business"], avoidActivities: [] },
+    { type: "Amrit" as const, name: "Amrit", start: "09:00", end: "10:30", quality: "Auspicious" as const, activities: ["Religious activities", "Health treatments", "Education"], avoidActivities: [] },
+    { type: "Chal" as const, name: "Chal", start: "10:30", end: "12:00", quality: "Moderate" as const, activities: ["Travel", "Movement"], avoidActivities: ["Important decisions"] },
+    { type: "Kaal" as const, name: "Kaal", start: "12:00", end: "13:30", quality: "Inauspicious" as const, activities: [], avoidActivities: ["All important activities", "Starting new work"] },
+    { type: "Rog" as const, name: "Rog", start: "13:30", end: "15:00", quality: "Inauspicious" as const, activities: [], avoidActivities: ["Health-related activities", "Medical treatments"] },
+    { type: "Udveg" as const, name: "Udveg", start: "15:00", end: "16:30", quality: "Inauspicious" as const, activities: [], avoidActivities: ["Important meetings", "Decisions"] },
+  ];
+
+  const nightPeriods = [
+    { type: "Shubh" as const, name: "Shubh", start: "18:00", end: "19:30", quality: "Auspicious" as const, activities: ["Evening prayers", "Family time"], avoidActivities: [] },
+    { type: "Labh" as const, name: "Labh", start: "19:30", end: "21:00", quality: "Auspicious" as const, activities: ["Social gatherings", "Entertainment"], avoidActivities: [] },
+    { type: "Amrit" as const, name: "Amrit", start: "21:00", end: "22:30", quality: "Auspicious" as const, activities: ["Meditation", "Spiritual activities"], avoidActivities: [] },
+    { type: "Chal" as const, name: "Chal", start: "22:30", end: "00:00", quality: "Moderate" as const, activities: ["Travel"], avoidActivities: ["Important activities"] },
+  ];
+
+  return {
+    date,
+    place,
+    dayPeriods,
+    nightPeriods,
+  };
 }
 
 /**
