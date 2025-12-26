@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAPIConfigured } from "@/lib/astrologyAPI";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { getAllKeyAlerts, getKeyExpirationMonitor } from "@/lib/keyExpirationMonitor";
 
 /**
  * GET /api/admin/status
@@ -49,9 +50,21 @@ export async function GET(req: Request) {
       },
     };
 
+    // Check key expiration status
+    const keyAlerts = getAllKeyAlerts();
+    const keySummary = getKeyExpirationMonitor().getSummary();
+    const hasKeyIssues = keySummary.expired > 0 || keySummary.expiringSoon > 0;
+
     // Determine overall status
     const criticalServicesOk = checks.prokerala.configured && checks.supabase.configured;
-    const overallStatus = criticalServicesOk ? "healthy" : "degraded";
+    let overallStatus = criticalServicesOk ? "healthy" : "degraded";
+    
+    // Override to warning/critical if keys are expiring
+    if (keySummary.expired > 0) {
+      overallStatus = "critical";
+    } else if (keySummary.expiringSoon > 0) {
+      overallStatus = overallStatus === "healthy" ? "warning" : overallStatus;
+    }
 
     const responseTime = Date.now() - startTime;
 
@@ -61,6 +74,11 @@ export async function GET(req: Request) {
       uptime: process.uptime(),
       responseTime: `${responseTime}ms`,
       checks,
+      keys: {
+        summary: keySummary,
+        alerts: keyAlerts,
+        hasIssues: hasKeyIssues,
+      },
       version: "1.0.0",
     });
   } catch (error: any) {
