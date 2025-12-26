@@ -3,7 +3,7 @@
  * Handles Natal Charts, Synastry, and Transit Charts
  */
 
-import type { BirthDetails, WesternNatalChart, SynastryChart, TransitChart } from "@/types/astrology";
+import type { BirthDetails, WesternNatalChart, SynastryChart, TransitChart, WesternAspect } from "@/types/astrology";
 import { isAPIConfigured } from "./astrologyAPI";
 import { prokeralaRequest } from "./astrologyAPI";
 
