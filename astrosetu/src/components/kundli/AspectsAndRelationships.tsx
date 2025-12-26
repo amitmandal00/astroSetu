@@ -36,7 +36,7 @@ export function AspectsAndRelationships({ planets }: AspectsAndRelationshipsProp
                     <span className="font-bold text-sm text-purple-900">{aspect.from}</span>
                     <span className="text-purple-600">→</span>
                     <span className="font-bold text-sm text-purple-900">{aspect.to}</span>
-                    <Badge tone="purple" className="text-xs ml-auto">
+                    <Badge tone="indigo" className="text-xs ml-auto">
                       {aspect.aspect}th
                     </Badge>
                   </div>
