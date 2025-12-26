@@ -38,6 +38,8 @@ import { PersonalitySection } from "@/components/lifereport/PersonalitySection";
 import { LifeAreaSection } from "@/components/lifereport/LifeAreaSection";
 import { AstrologyDisclaimer } from "@/components/legal/AstrologyDisclaimer";
 import { LuckyElementsSection } from "@/components/lifereport/LuckyElementsSection";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { SkeletonCard } from "@/components/ui/SkeletonLoader";
 
 type LifeReportData = {
   kundli: KundliResult & { dosha?: DoshaAnalysis; chart?: KundliChart };
@@ -100,6 +102,24 @@ function LifeReportPageContent() {
     }
   }
 
+  const [pdfFormat, setPdfFormat] = useState<"basic" | "detailed" | "premium">("detailed");
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+
+  // Enhanced loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <LoadingState step="general" />
+        <div className="grid gap-6 md:grid-cols-2">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </div>
+    );
+  }
+
   async function generateReport() {
     setLoading(true);
     setErr(null);
@@ -157,16 +177,6 @@ function LifeReportPageContent() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-saffron-600 mx-auto mb-4"></div>
-          <div className="text-slate-600">Generating Life Report...</div>
-        </div>
-      </div>
-    );
-  }
 
   if (!reportData) {
     return (

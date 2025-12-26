@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { apiPost } from "@/lib/http";
 import { session } from "@/lib/session";
 import type { KundliResult } from "@/types/astrology";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 type SadeSatiReportData = {
   kundli: KundliResult;
@@ -86,12 +87,7 @@ function SadeSatiReportPageContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-saffron-600 mx-auto mb-4"></div>
-          <div className="text-slate-600">Generating Sade Sati Report...</div>
-        </div>
-      </div>
+      <LoadingState step="dasha" />
     );
   }
 

@@ -134,7 +134,14 @@ export default function MatchPage() {
 
           <div className="mt-5 flex items-center gap-3">
             <Button onClick={onSubmit} disabled={!canSubmit || loading}>
-              {loading ? "Matching..." : "Match Now"}
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="animate-spin">🌙</span>
+                  <span>Computing compatibility...</span>
+                </span>
+              ) : (
+                "Match Now"
+              )}
             </Button>
             {data && (
               <Button
