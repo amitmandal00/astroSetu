@@ -1,34 +1,49 @@
-# 🔧 Alternative Solution: Use Ignore Build Step
+# 🔧 Solution: Ignore Build Step for Main Branch
 
 Since the Production Branch setting isn't preventing deployments from `main`, we'll use **Ignore Build Step** to skip automatic deployments.
 
 ---
 
-## ✅ Method: Ignore Build Step Configuration
+## ✅ Method 1: Using `vercel.json` (Recommended)
 
-### Step 1: Go to Settings → Build and Deployment
+The `vercel.json` file already contains the correct configuration:
+
+```json
+{
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ] && exit 0 || exit 1"
+}
+```
+
+**What this does:**
+- Checks if the branch is `main`
+- If true, exits with code 0 (skip build)
+- If false, exits with code 1 (proceed with build)
+
+**This is already configured in your `vercel.json`!** ✅
+
+---
+
+## ✅ Method 2: Using Vercel Dashboard (Alternative)
+
+If you prefer to set it in the dashboard:
+
+### Step 1: Go to Settings → Git
 
 1. **Vercel Dashboard**
    - Go to your project: `astrosetu-app`
    - Click **Settings** tab
-   - Click **"Build and Deployment"** in left sidebar
+   - Click **"Git"** in the left sidebar (NOT "Build and Deployment")
 
-### Step 2: Configure Ignore Build Step
+### Step 2: Find "Ignored Build Step"
 
-1. **Find "Ignore Build Step" section**
-   - Scroll down to find this option
-
-2. **Add this command:**
+1. **Scroll down** to find the **"Ignored Build Step"** field
+2. **Enter this command:**
    ```bash
-   [ "$VERCEL_GIT_COMMIT_REF" = "main" ]
+   [ "$VERCEL_GIT_COMMIT_REF" = "main" ] && exit 0 || exit 1
    ```
-
-   **What this does:**
-   - Checks if the branch is `main`
-   - If true, Vercel will **skip** the build
-   - This prevents automatic deployments from `main`
-
 3. **Click Save**
+
+**Note:** The `vercel.json` method is already configured, so you don't need to do this manually unless you want to override the file setting.
 
 ---
 
@@ -87,5 +102,16 @@ With this approach:
 
 ---
 
-**This is the most reliable way to prevent automatic production deployments from main.**
+## 📋 Current Configuration
 
+**Location:** `vercel.json`  
+**Command:** `[ "$VERCEL_GIT_COMMIT_REF" = "main" ] && exit 0 || exit 1`  
+**Status:** ✅ Active
+
+**How it works:**
+- Exit code 0 = Skip build (deployment ignored)
+- Exit code 1 (or any non-zero) = Proceed with build (deployment created)
+
+---
+
+**This is the most reliable way to prevent automatic production deployments from main.**
