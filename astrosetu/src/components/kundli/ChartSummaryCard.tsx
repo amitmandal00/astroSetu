@@ -115,12 +115,7 @@ export function ChartSummaryCard({ kundliData, dosha }: ChartSummaryCardProps) {
             <div className="text-xl font-bold text-slate-900">{kundliData.nakshatra || "—"}</div>
           </div>
 
-          {kundliData.chart?.dasha?.current && (
-            <div className="p-4 rounded-xl bg-white/70 border border-amber-200">
-              <div className="text-xs font-semibold text-amber-600 mb-1">Current Dasha</div>
-              <div className="text-xl font-bold text-slate-900">{kundliData.chart.dasha.current}</div>
-            </div>
-          )}
+          {/* Current Dasha - removed chart.dasha access as it's not in KundliResult type */}
         </div>
 
         {/* Dosha Summary */}
