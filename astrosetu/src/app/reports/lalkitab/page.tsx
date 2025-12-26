@@ -11,6 +11,7 @@ import { session } from "@/lib/session";
 import type { KundliResult, KundliChart } from "@/types/astrology";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { KundliChartVisual } from "@/components/ui/KundliChartVisual";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 type LalKitabReportData = {
   kundli: KundliResult & { chart?: KundliChart };
