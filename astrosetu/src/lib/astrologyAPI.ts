@@ -11,6 +11,7 @@ import { transformKundliResponse, transformMatchResponse, transformPanchangRespo
 import { generateChartFromProkerala } from "./enhancedChartTransform";
 import { generateCacheKey, getCached, setCached, invalidateCache } from "./apiCache";
 import { deduplicateRequest } from "./apiBatch";
+import { withCircuitBreaker } from "./circuitBreaker";
 
 const PROKERALA_API_URL = "https://api.prokerala.com/v2/astrology";
 const API_KEY = process.env.PROKERALA_API_KEY || "";
@@ -70,8 +71,26 @@ export async function prokeralaRequest(endpoint: string, params: Record<string, 
   // Deduplicate identical requests
   const requestKey = `${method}:${endpoint}:${JSON.stringify(params)}`;
   
+  // Wrap with circuit breaker for automatic fallback
   return deduplicateRequest(requestKey, async () => {
-    return await executeProkeralaRequest(endpoint, params, retries, method, skipCache);
+    // Use circuit breaker to protect Prokerala API calls
+    // Fallback to mock data if circuit is open or service is unavailable
+    return await withCircuitBreaker(
+      "prokerala-api",
+      async () => {
+        return await executeProkeralaRequest(endpoint, params, retries, method, skipCache);
+      },
+      async () => {
+        // Fallback: Return null to signal fallback should be used
+        // The calling function will handle the fallback logic
+        console.warn("[CircuitBreaker] Prokerala API circuit is open, signal fallback needed");
+        throw new Error("PROKERALA_CIRCUIT_OPEN");
+      },
+      {
+        failureThreshold: 5, // Open after 5 failures
+        timeout: 60000, // Wait 60 seconds before retry
+      }
+    );
   });
 }
 
@@ -517,7 +536,20 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
     return { ...kundli, dosha, chart };
   } catch (error: any) {
     console.error("[AstroSetu] Prokerala API error:", error?.message || error);
-    // In production, we should NOT silently fallback to mock
+    
+    // Check if circuit breaker is open (service unavailable)
+    const isCircuitOpen = error?.message === "PROKERALA_CIRCUIT_OPEN";
+    
+    // Always allow fallback if circuit is open (service degraded)
+    if (isCircuitOpen) {
+      console.warn("[AstroSetu] Circuit breaker is open - using fallback data. Service will retry automatically after cooldown period.");
+      const kundli = generateKundli(input);
+      const dosha = generateDoshaAnalysis(input, kundli.planets);
+      const chart = generateKundliChart(input);
+      return { ...kundli, dosha, chart };
+    }
+    
+    // In production, we should NOT silently fallback to mock for other errors
     // Instead, throw the error so the user knows something went wrong
     if (process.env.NODE_ENV === 'production') {
       throw new Error(`Astrology calculation failed: ${error?.message || 'Unknown error'}. Please try again or contact support.`);
