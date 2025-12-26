@@ -619,15 +619,33 @@ export async function matchKundliAPI(a: BirthDetails, b: BirthDetails): Promise<
         }, 2, "GET" as const).catch(() => null),
       ]);
       
-      // Get planets from match result if available for enhanced dosha analysis
-      const matchKundliA = match.kundliA || null;
-      const matchKundliB = match.kundliB || null;
+      // Get planets for enhanced dosha analysis if dosha API response is not available
+      // MatchResult doesn't contain kundli data, so we generate planets from birth details if needed
+      let kundliAPlanets: any[] | undefined = undefined;
+      let kundliBPlanets: any[] | undefined = undefined;
+      
+      // If dosha response is not available, generate kundli to get planets for dosha analysis
+      if (!doshaAResponse || !doshaBResponse) {
+        try {
+          if (!doshaAResponse) {
+            const kundliA = generateKundli(a);
+            kundliAPlanets = kundliA.planets;
+          }
+          if (!doshaBResponse) {
+            const kundliB = generateKundli(b);
+            kundliBPlanets = kundliB.planets;
+          }
+        } catch {
+          // Ignore kundli generation errors, will use mock dosha without planets
+        }
+      }
+      
       doshaA = doshaAResponse 
-        ? transformDoshaResponse(doshaAResponse, matchKundliA?.planets) 
-        : (matchKundliA ? generateDoshaAnalysis(a, matchKundliA.planets) : generateDoshaAnalysis(a));
+        ? transformDoshaResponse(doshaAResponse, kundliAPlanets) 
+        : (kundliAPlanets ? generateDoshaAnalysis(a, kundliAPlanets) : generateDoshaAnalysis(a));
       doshaB = doshaBResponse 
-        ? transformDoshaResponse(doshaBResponse, matchKundliB?.planets) 
-        : (matchKundliB ? generateDoshaAnalysis(b, matchKundliB.planets) : generateDoshaAnalysis(b));
+        ? transformDoshaResponse(doshaBResponse, kundliBPlanets) 
+        : (kundliBPlanets ? generateDoshaAnalysis(b, kundliBPlanets) : generateDoshaAnalysis(b));
     } catch {
       doshaA = generateDoshaAnalysis(a);
       doshaB = generateDoshaAnalysis(b);
