@@ -13,7 +13,7 @@ const footerLinks = {
     { href: "/numerology", label: "Numerology", icon: "🔢" },
   ],
   reports: [
-    { href: "/reports/life", label: "Life Report", icon: "📄" },
+    { href: "/lifereport", label: "Life Report", icon: "📄" },
     { href: "/reports/mangal-dosha", label: "Mangal Dosha", icon: "🔥" },
     { href: "/reports/dasha-phal", label: "Dasha Phal", icon: "⏳" },
     { href: "/reports/gochar", label: "Gochar Phal", icon: "🌙" },
