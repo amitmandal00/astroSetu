@@ -74,7 +74,14 @@ export function EnhancedDashaAnalysis({ kundliData, birthDetails }: EnhancedDash
       try {
         const enhanced = await getDashaPeriods(birthDetails, "vimshottari");
         if (enhanced) {
-          setDashaData(enhanced);
+          setDashaData({
+            current: enhanced.current || null,
+            next: enhanced.upcoming?.[0] || null,
+            major: enhanced.major || [],
+            sub: enhanced.sub || [],
+            upcoming: enhanced.upcoming || [],
+            type: enhanced.type || "vimshottari",
+          });
         }
       } catch (error) {
         console.log("[EnhancedDasha] Could not fetch enhanced dasha:", error);
