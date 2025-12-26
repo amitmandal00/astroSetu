@@ -91,7 +91,7 @@ export function YogasAnalysis({ planets, chart }: YogasAnalysisProps) {
                 <div className="text-xs font-semibold text-slate-600 mb-1">Planets Involved:</div>
                 <div className="flex flex-wrap gap-1">
                   {yoga.planets.map((planet, pIdx) => (
-                    <Badge key={pIdx} tone="purple" className="text-xs">
+                    <Badge key={pIdx} tone="indigo" className="text-xs">
                       {planet}
                     </Badge>
                   ))}

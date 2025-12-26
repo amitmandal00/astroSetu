@@ -233,7 +233,7 @@ export function EnhancedDoshasAndRemedies({ dosha }: EnhancedDoshasAndRemediesPr
                 <h3 className="font-bold text-lg text-slate-900">Kaal Sarp Dosha</h3>
               </div>
               <Badge 
-                tone={dosha.kaalSarp.present ? "purple" : "green"} 
+                tone={dosha.kaalSarp.present ? "indigo" : "green"} 
                 className="mb-2"
               >
                 {dosha.kaalSarp.present 

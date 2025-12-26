@@ -67,7 +67,7 @@ export function LuckyElementsSection({ elements }: LuckyElementsSectionProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {elements.gemstones.map((stone, idx) => (
-                <Badge key={idx} tone="purple" className="text-xs">
+                <Badge key={idx} tone="indigo" className="text-xs">
                   {stone}
                 </Badge>
               ))}

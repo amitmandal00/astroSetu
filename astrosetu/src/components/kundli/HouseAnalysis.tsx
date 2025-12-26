@@ -88,7 +88,7 @@ export function HouseAnalysis({ planets, chart }: HouseAnalysisProps) {
                 {analysis.planets.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {analysis.planets.map((planet, idx) => (
-                      <Badge key={idx} tone="purple" className="text-xs">
+                      <Badge key={idx} tone="indigo" className="text-xs">
                         {planet}
                       </Badge>
                     ))}
