@@ -368,26 +368,7 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
     }
   }
   
-  if (tithi === "Unknown") {
-  // Log tithi extraction result
-  if (tithi === "Unknown") {
-    console.log("[Transform] ❌ FAILED to extract tithi after all attempts!");
-    console.log("[Transform] Debug info:", {
-      hasTithiField: !!data.tithi,
-      hasPanchang: !!data.panchang,
-      panchangTithi: data.panchang?.tithi,
-      hasMoon: !!moonDataForPlanets,
-      hasSun: !!planetMap.sun,
-      moonLongitude: moonDataForPlanets.longitude,
-      sunLongitude: planetMap.sun?.longitude
-    });
-  }
-    // Set a default fallback
-    tithi = "Pratipada";
-    console.log("[Transform] Using fallback tithi:", tithi);
-  }
-  
-  // Get moon data for planet map (defined here for scope)
+  // Get moon data for planet map (defined early for use in debug logs)
   const moonDataForPlanets = result.moon || data.moon || {};
   
   // Extract planetary positions - Prokerala returns planets in different structures
