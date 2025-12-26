@@ -657,13 +657,49 @@ function LoginPageContent() {
                 </button>
               </div>
 
-          <div className="pt-3 border-t border-slate-200">
-            <div className="flex items-start gap-2 mb-2">
+          <div className="pt-3 border-t border-slate-200 space-y-2">
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="termsConsent"
+                checked={formData.privacyConsent || false}
+                onChange={(e) => {
+                  setFormData({ ...formData, privacyConsent: e.target.checked });
+                  // Log terms acceptance when checkbox is checked
+                  if (e.target.checked) {
+                    logTermsAcceptance(getLegalVersion("terms")).catch(err => 
+                      console.error("Failed to log terms consent:", err)
+                    );
+                  }
+                }}
+                className="w-4 h-4 mt-0.5 rounded border-slate-300 text-saffron-600 focus:ring-saffron-500"
+                required
+              />
+              <label htmlFor="termsConsent" className="text-[11px] text-slate-600 cursor-pointer">
+                I agree to the{" "}
+                <Link href="/terms" className="underline text-saffron-600 hover:text-saffron-700">
+                  Terms &amp; Conditions
+                </Link>
+                {" "}and{" "}
+                <Link href="/privacy" className="underline text-saffron-600 hover:text-saffron-700">
+                  Privacy Policy
+                </Link>
+              </label>
+            </div>
+            <div className="flex items-start gap-2">
               <input
                 type="checkbox"
                 id="privacyConsent"
                 checked={formData.privacyConsent || false}
-                onChange={(e) => setFormData({ ...formData, privacyConsent: e.target.checked })}
+                onChange={(e) => {
+                  setFormData({ ...formData, privacyConsent: e.target.checked });
+                  // Log privacy acceptance when checkbox is checked
+                  if (e.target.checked) {
+                    logPrivacyAcceptance(getLegalVersion("privacy")).catch(err => 
+                      console.error("Failed to log privacy consent:", err)
+                    );
+                  }
+                }}
                 className="w-4 h-4 mt-0.5 rounded border-slate-300 text-saffron-600 focus:ring-saffron-500"
                 required
               />
