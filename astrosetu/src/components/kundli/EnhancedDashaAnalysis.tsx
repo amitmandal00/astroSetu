@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { getEnhancedDasha, type BirthDetails } from "@/lib/prokeralaEnhanced";
+import { getDashaPeriods, type BirthDetails } from "@/lib/prokeralaEnhanced";
 import type { KundliResult } from "@/types/astrology";
 
 type EnhancedDashaAnalysisProps = {
@@ -72,7 +72,7 @@ export function EnhancedDashaAnalysis({ kundliData, birthDetails }: EnhancedDash
       }
 
       try {
-        const enhanced = await getEnhancedDasha(birthDetails, "vimshottari");
+        const enhanced = await getDashaPeriods(birthDetails, "vimshottari");
         if (enhanced) {
           setDashaData(enhanced);
         }

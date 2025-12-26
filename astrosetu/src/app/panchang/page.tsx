@@ -18,6 +18,8 @@ export default function PanchangPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [data, setData] = useState<Panchang | null>(null);
+  const [latitude, setLatitude] = useState<number | undefined>(28.6139); // Default to Delhi
+  const [longitude, setLongitude] = useState<number | undefined>(77.2090); // Default to Delhi
 
   const canSubmit = useMemo(() => date.length === 10 && place.trim().length >= 2, [date, place]);
 
