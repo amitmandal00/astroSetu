@@ -194,9 +194,15 @@ export default function PrivacyPage() {
                   <li>Sensitive data is not sold to third parties</li>
                   <li>We regularly review and update our security practices</li>
                 </ul>
-                <p className="mt-3">
-                  <strong>Data Retention:</strong> We retain your personal information for as long as necessary to provide services and comply with legal obligations. Account data is retained until you request deletion or your account is inactive for 3 years.
+                <p className="mt-3 font-semibold text-slate-900">
+                  <strong>Data Retention:</strong>
                 </p>
+                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
+                  <li>We retain your personal information for as long as necessary to provide services and comply with legal obligations</li>
+                  <li>Account data is retained until you request deletion or your account is inactive for 3 years</li>
+                  <li>After deletion requests, data is removed within 30 days, except where retention is required by law (e.g., tax records)</li>
+                  <li>Anonymous usage data may be retained for analytics purposes</li>
+                </ul>
               </section>
 
               {/* Data Breach Notification */}
@@ -259,18 +265,21 @@ export default function PrivacyPage() {
               </section>
 
               {/* Your Rights */}
-              <section>
+              <section className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
                 <h2 className="text-xl font-bold text-slate-900 mb-3">8. Your Rights</h2>
-                <p>Depending on your jurisdiction, you may have the right to:</p>
-                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Access:</strong> Request a copy of your personal information</li>
-                  <li><strong>Correction:</strong> Request correction of inaccurate or incomplete information</li>
-                  <li><strong>Deletion:</strong> Request deletion of your personal information (subject to legal requirements)</li>
-                  <li><strong>Withdraw Consent:</strong> Withdraw consent for processing where applicable</li>
-                  <li><strong>Complain:</strong> Lodge a complaint with relevant privacy authorities</li>
+                <p className="text-green-900 font-semibold mb-3">Under Australian Privacy Principles (APPs) and applicable privacy laws, you have the right to:</p>
+                <ul className="list-disc list-inside space-y-2 ml-4 mt-2 text-green-800">
+                  <li><strong>Access (APP 12):</strong> Request a copy of your personal information we hold. We will respond within 30 days and may charge a reasonable fee for providing access.</li>
+                  <li><strong>Correction (APP 13):</strong> Request correction of inaccurate, incomplete, outdated, irrelevant, or misleading information. We will correct information within 30 days where reasonable.</li>
+                  <li><strong>Deletion:</strong> Request deletion of your personal information, subject to legal requirements (e.g., tax retention obligations).</li>
+                  <li><strong>Withdraw Consent:</strong> Withdraw consent for processing where applicable (e.g., marketing communications).</li>
+                  <li><strong>Complain:</strong> Lodge a complaint with the Office of the Australian Information Commissioner (OAIC) or relevant privacy authority.</li>
                 </ul>
-                <p className="mt-3">
-                  <strong>To Exercise Your Rights:</strong> Contact our Privacy Officer at <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline">privacy@astrosetu.app</a>. We aim to respond within 30 days.
+                <p className="mt-4 text-green-900 font-semibold">
+                  <strong>To Exercise Your Rights:</strong>
+                </p>
+                <p className="text-green-800">
+                  Contact our Privacy Officer at <a href="mailto:privacy@astrosetu.app" className="text-green-700 hover:underline font-medium">privacy@astrosetu.app</a> or <a href="mailto:support@astrosetu.app" className="text-green-700 hover:underline font-medium">support@astrosetu.app</a>. Include your request details and verification information. We aim to respond within 30 days.
                 </p>
               </section>
 
@@ -309,14 +318,19 @@ export default function PrivacyPage() {
               </section>
 
               {/* Contact Information */}
-              <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-3">10. Contact Information</h2>
-                <p>For privacy-related inquiries or complaints:</p>
+              <section className="bg-slate-50 border-l-4 border-slate-400 p-4 rounded-r-lg">
+                <h2 className="text-xl font-bold text-slate-900 mb-3">10. Contact Information & Privacy Officer</h2>
+                <p className="font-semibold text-slate-900 mb-2">Data Controller & Privacy Officer:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Privacy Officer:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline">privacy@astrosetu.app</a></li>
+                  <li><strong>Platform Owner:</strong> AstroSetu Services Pvt. Ltd.</li>
+                  <li><strong>Privacy Officer Email:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a></li>
                   <li><strong>General Support:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
-                  <li><strong>Australian Users:</strong> Office of the Australian Information Commissioner (OAIC): <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">www.oaic.gov.au</a></li>
+                  <li><strong>Jurisdiction:</strong> Australia (primary) / India (international operations)</li>
                 </ul>
+                <p className="mt-4 font-semibold text-slate-900 mb-2">External Privacy Authority:</p>
+                <p className="ml-4">
+                  <strong>Australian Users:</strong> Office of the Australian Information Commissioner (OAIC): <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">www.oaic.gov.au</a> or 1300 363 992
+                </p>
               </section>
 
               {/* Changes to Policy */}

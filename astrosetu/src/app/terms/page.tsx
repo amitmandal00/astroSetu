@@ -72,9 +72,14 @@ export default function TermsPage() {
                   <li>AI-generated explanations</li>
                   <li>Reports and insights based on traditional astrological systems</li>
                 </ul>
-                <p className="mt-3 font-semibold text-slate-900">
-                  All outputs are belief-based, non-deterministic, and indicative only.
-                </p>
+                <div className="mt-4 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+                  <p className="font-semibold text-amber-900 mb-2">
+                    <strong>Important:</strong> Astrology is a belief-based system, not a science.
+                  </p>
+                  <p className="text-amber-800">
+                    All outputs are belief-based, non-deterministic, and indicative only. Interpretations vary by culture, astrologer, and belief system. AstroSetu does not guarantee the accuracy, completeness, or reliability of astrological predictions or interpretations.
+                  </p>
+                </div>
               </section>
 
               {/* No Professional Advice */}
@@ -143,14 +148,19 @@ export default function TermsPage() {
               </section>
 
               {/* Limitation of Liability */}
-              <section>
+              <section className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
                 <h2 className="text-xl font-bold text-slate-900 mb-3">8. Limitation of Liability</h2>
-                <p className="font-semibold text-slate-900 mb-2">To the maximum extent permitted by law:</p>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>AstroSetu is provided &quot;as is&quot; and &quot;as available&quot;</li>
-                  <li>We make no guarantees of accuracy, completeness, or outcomes</li>
-                  <li>We are not liable for any direct, indirect, incidental, or consequential damages arising from use of the service</li>
+                <p className="font-semibold text-red-900 mb-2">To the maximum extent permitted by law:</p>
+                <ul className="list-disc list-inside space-y-2 ml-4 text-red-800">
+                  <li>AstroSetu is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind</li>
+                  <li>We make no guarantees of accuracy, completeness, reliability, or outcomes</li>
+                  <li>We are not liable for any direct, indirect, incidental, consequential, or punitive damages arising from use of the service</li>
+                  <li>We are not liable for decisions made based on astrological interpretations or guidance provided through the platform</li>
+                  <li>We are not liable for outcomes related to marriage, relationships, career, finances, health, legal matters, or any other life areas</li>
                 </ul>
+                <p className="mt-3 text-red-900 font-semibold">
+                  <strong>Note:</strong> This limitation does not exclude or limit liability where such exclusion or limitation is not permitted by law (e.g., Australian Consumer Law consumer guarantees).
+                </p>
               </section>
 
               {/* Termination */}

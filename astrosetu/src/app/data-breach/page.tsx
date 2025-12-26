@@ -85,9 +85,10 @@ export default function DataBreachPage() {
                   <strong>If we assess that a breach is likely to result in serious harm:</strong>
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
-                  <li>We will notify affected individuals <strong>as soon as practicable</strong> after becoming aware</li>
-                  <li>We will notify the OAIC <strong>within 30 days</strong> of becoming aware (if required)</li>
-                  <li>If we cannot identify all affected individuals, we will publish a public notification</li>
+                  <li>We will notify affected individuals <strong>as soon as practicable</strong> after becoming aware, typically within <strong>72 hours</strong> where feasible</li>
+                  <li>We will notify the OAIC <strong>within 30 days</strong> of becoming aware (as required by the Privacy Act 1988)</li>
+                  <li>Notification methods include: email to your registered address and/or in-app notification</li>
+                  <li>If we cannot identify all affected individuals, we will publish a public notification on our website</li>
                 </ul>
               </section>
 

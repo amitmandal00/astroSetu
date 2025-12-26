@@ -36,9 +36,21 @@ export default function DisclaimerPage() {
                 <p className="mt-4 text-amber-900 font-semibold">
                   All content is provided for guidance and reflection only.
                 </p>
-                <p className="mt-3 text-amber-900 font-semibold">
-                  AstroSetu does not guarantee outcomes related to marriage, career, health, finances, or any other life matters.
+              </section>
+
+              {/* No Guarantees Section */}
+              <section>
+                <h2 className="text-xl font-bold text-slate-900 mb-3">No Guarantees</h2>
+                <p className="font-semibold text-slate-900 mb-3">
+                  AstroSetu does not guarantee outcomes related to:
                 </p>
+                <ul className="list-disc list-inside space-y-2 ml-4">
+                  <li><strong>Marriage or Relationships:</strong> We do not guarantee compatibility, relationship success, or marriage outcomes</li>
+                  <li><strong>Career or Finances:</strong> We do not guarantee job success, promotions, financial gains, or business outcomes</li>
+                  <li><strong>Health or Wellbeing:</strong> We do not guarantee health outcomes, medical diagnoses, or treatment effectiveness</li>
+                  <li><strong>Legal Matters:</strong> We do not guarantee legal outcomes, court decisions, or legal advice</li>
+                  <li><strong>Any Other Life Matters:</strong> Astrological interpretations are belief-based and should not be relied upon for critical decisions</li>
+                </ul>
               </section>
 
               {/* Additional Information */}

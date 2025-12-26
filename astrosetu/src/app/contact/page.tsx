@@ -61,12 +61,26 @@ export default function ContactPage() {
               <div className="flex items-start gap-4">
                 <div className="text-2xl">📍</div>
                 <div>
-                  <div className="font-semibold text-slate-900 mb-1">Address</div>
+                  <div className="font-semibold text-slate-900 mb-1">Legal Entity & Address</div>
                   <div className="text-slate-700">
                     AstroSetu Services Pvt. Ltd.<br />
                     Mumbai, Maharashtra<br />
                     India
                   </div>
+                  <div className="text-sm text-slate-600 mt-2">
+                    <strong>Jurisdiction:</strong> Australia (primary) / India (international operations)
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="text-2xl">🔒</div>
+                <div>
+                  <div className="font-semibold text-slate-900 mb-1">Privacy Matters</div>
+                  <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline">
+                    privacy@astrosetu.app
+                  </a>
+                  <div className="text-sm text-slate-600 mt-1">For privacy-related inquiries or complaints</div>
                 </div>
               </div>
             </div>
