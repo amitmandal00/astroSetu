@@ -22,7 +22,7 @@ export function LuckyElementsSection({ elements }: LuckyElementsSectionProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {elements.colors.map((color, idx) => (
-                <Badge key={idx} tone="rose" className="text-xs">
+                <Badge key={idx} tone="red" className="text-xs">
                   {color}
                 </Badge>
               ))}
