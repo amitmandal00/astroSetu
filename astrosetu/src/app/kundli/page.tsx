@@ -21,6 +21,7 @@ import { KundliDashboard } from "@/components/kundli/KundliDashboard";
 import { CalculationTrustPanel } from "@/components/kundli/CalculationTrustPanel";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { CalculationInfoPanel } from "@/components/kundli/CalculationInfoPanel";
+import { ProgressiveDisclosure, TermTooltip } from "@/components/ui/ProgressiveDisclosure";
 import { PlanetaryAnalysis } from "@/components/kundli/PlanetaryAnalysis";
 import { AspectsAndRelationships } from "@/components/kundli/AspectsAndRelationships";
 import { YogasAnalysis } from "@/components/kundli/YogasAnalysis";
@@ -1025,19 +1026,27 @@ function KundliPageContent() {
               <CardContent className="card-enhanced">
                 <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="p-4 rounded-xl bg-white border-2 border-purple-100">
-                    <div className="text-xs font-semibold text-slate-600 mb-1">Ascendant</div>
+                    <div className="text-xs font-semibold text-slate-600 mb-1">
+                      <TermTooltip term="Lagna">Ascendant (Lagna)</TermTooltip>
+                    </div>
                     <div className="text-xl font-bold text-purple-700">{data.ascendant || "Processing..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-slate-100">
-                    <div className="text-xs font-semibold text-slate-600 mb-1">Rashi</div>
+                    <div className="text-xs font-semibold text-slate-600 mb-1">
+                      <TermTooltip term="Rashi">Rashi (Moon Sign)</TermTooltip>
+                    </div>
                     <div className="text-xl font-bold text-slate-900">{data.rashi || "Processing..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-slate-100">
-                    <div className="text-xs font-semibold text-slate-600 mb-1">Nakshatra</div>
+                    <div className="text-xs font-semibold text-slate-600 mb-1">
+                      <TermTooltip term="Nakshatra">Nakshatra</TermTooltip>
+                    </div>
                     <div className="text-xl font-bold text-slate-900">{data.nakshatra || "Processing..."}</div>
                   </div>
                   <div className="p-4 rounded-xl bg-white border-2 border-amber-100">
-                    <div className="text-xs font-semibold text-slate-600 mb-1">Tithi</div>
+                    <div className="text-xs font-semibold text-slate-600 mb-1">
+                      <TermTooltip term="Tithi">Tithi (Lunar Day)</TermTooltip>
+                    </div>
                     <div className="text-xl font-bold text-amber-700">{data.tithi || "Processing..."}</div>
                   </div>
                 </div>
