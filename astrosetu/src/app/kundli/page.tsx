@@ -837,7 +837,8 @@ function KundliPageContent() {
                 <div className="grid md:grid-cols-2 gap-4 sm:gap-5">
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Ayanamsa <span className="text-xs text-slate-500">(Default: Lahiri - matches AstroSage)</span>
+                      <TermTooltip term="Ayanamsa">Ayanamsa</TermTooltip>
+                      <span className="text-xs text-slate-500 ml-1">(Default: Lahiri - matches AstroSage)</span>
                     </label>
                     <select 
                       value={ayanamsa}
