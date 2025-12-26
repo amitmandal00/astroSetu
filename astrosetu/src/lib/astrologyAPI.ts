@@ -344,13 +344,20 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
           // Keep original error message
         }
         
-        // Add comprehensive debug info to error for all GET endpoints
-        // Only log if response is NOT ok (actual error)
+        // Suppress verbose debug logs for expected 404s (endpoints that may not exist in Prokerala)
         if (mustUseGet && !response.ok) {
           const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : isMuhuratEndpoint ? "MUHURAT" : isChoghadiyaEndpoint ? "CHOGHADIYA" : "UNKNOWN";
-          const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
-          errorMessage = debugInfo + " | " + errorMessage;
-          console.error(`[AstroSetu] ${endpointName} ERROR WITH DEBUG:`, debugInfo, "Error:", errorMessage);
+          
+          // For 404s on endpoints that may not exist, suppress verbose logs (silent fallback)
+          if (response.status === 404 && (isMuhuratEndpoint || isHoroscopeEndpoint)) {
+            // These endpoints are not available in Prokerala - fallback will handle it silently
+            // Don't log verbose debug info for expected 404s
+          } else {
+            // For other errors, include debug info
+            const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
+            errorMessage = debugInfo + " | " + errorMessage;
+            console.error(`[AstroSetu] ${endpointName} ERROR WITH DEBUG:`, debugInfo, "Error:", errorMessage);
+          }
         }
         
         throw new Error(errorMessage);
