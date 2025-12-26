@@ -14,6 +14,8 @@ The `vercel.json` has been updated to disable automatic production deployments f
 
 ### Method 1: Disable Production Deployments via Dashboard (Recommended)
 
+**Option A: Pause/Remove Production Deployment (Easiest)**
+
 1. **Go to Vercel Dashboard**
    - Visit: https://vercel.com/dashboard
    - Sign in to your account
@@ -21,17 +23,42 @@ The `vercel.json` has been updated to disable automatic production deployments f
 2. **Navigate to Your Project**
    - Select the `astroSetu` project
 
-3. **Go to Settings → Git**
+3. **Go to Deployments Tab**
+   - Click on **Deployments** tab at the top
+   - Find the latest deployment with the 🌿 **Production** badge
+
+4. **Pause Production Deployment**
+   - Click the **three dots** (⋯) menu on the right side of the production deployment
+   - Select **Pause** or **Cancel Deployment**
+   - This will stop the production site from being accessible
+
+**Option B: Remove Production Domain (Alternative)**
+
+1. **Go to Settings → Domains**
    - Click on **Settings** tab
-   - Navigate to **Git** section
+   - Click on **Domains** in the left sidebar (under "Build and Deployment")
 
-4. **Disable Production Branch**
-   - Under **Production Branch**, find the branch (usually `main`)
-   - Click on the **Settings** icon next to the branch
-   - **Uncheck** or **Disable** "Automatic Deployments"
-   - Or set it to a non-existent branch like `production-disabled`
+2. **Remove Production Domain**
+   - Find your production domain (usually `astrosetu-app.vercel.app`)
+   - Click the **three dots** (⋯) next to it
+   - Select **Remove**
+   - Confirm the removal
+   
+   **Result:** The production site will no longer be publicly accessible
 
-5. **Save Changes**
+**Option C: Change Production Branch (Advanced)**
+
+1. **Go to Settings → General**
+   - Click on **Settings** tab
+   - Click on **General** in the left sidebar (should be at the top)
+
+2. **Change Production Branch**
+   - Scroll down to find **Production Branch** section
+   - Click on the branch dropdown
+   - Select a non-existent branch like `production-disabled` or `disabled`
+   - Click **Save**
+   
+   **Note:** If you don't see this option, your Vercel plan might not support it. Use Option A or B instead.
 
 ---
 
