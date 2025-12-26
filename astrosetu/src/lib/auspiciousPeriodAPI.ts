@@ -152,7 +152,8 @@ function findAuspiciousPeriodsForEvent(
       score,
       reason: getPeriodReason(period, panchang, eventType),
       recommendations: getEventRecommendations(eventType, period.type),
-      avoidReasons: period.quality === "Inauspicious" ? ["Inauspicious Choghadiya period"] : undefined,
+      // Note: avoidReasons is undefined since we filter out "Inauspicious" periods earlier
+      avoidReasons: undefined,
     });
   }
   
