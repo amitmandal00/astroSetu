@@ -135,19 +135,52 @@ This document summarizes the P0 (Priority 0) UI/UX improvements implemented base
 - ✅ **Medium**: Better information hierarchy
 - ✅ **Medium**: Improved chart interactivity
 
-## 🔄 Remaining P1/P2 Items (Not in this PR)
+## ✅ P1 Enhancements Completed
 
-### P1 (Next Iteration)
-- Progressive disclosure for astrology terms
-- Skeleton loaders (instead of spinners)
-- Chart animations
-- Additional calculation details
+### Progressive Disclosure (P1 - High Value)
+**Problem**: Astrology terms appeared without explanation, intimidating non-expert users.
+
+**Solution**:
+- Created `ProgressiveDisclosure` component with expandable explanations
+- Created `TermTooltip` for inline term definitions
+- Built comprehensive astrology terms dictionary (7 common terms):
+  - Ayanamsa, Nakshatra, Rashi, Lagna, Dasha, Dosha, Tithi
+- Integrated tooltips for key terms (Ascendant, Rashi, Nakshatra, Tithi, Ayanamsa)
+- Shows simple explanation first, expands to detailed explanation
+- Includes related terms for better learning
+
+**Files Created**:
+- `src/components/ui/ProgressiveDisclosure.tsx`
+
+**Files Modified**:
+- `src/app/kundli/page.tsx` (integrated tooltips)
+
+### Skeleton Loaders (P1 - Medium Value)
+**Problem**: Spinners everywhere feel generic; no sense of what's loading.
+
+**Solution**:
+- Created `SkeletonLoader` component with variants:
+  - Text (multi-line)
+  - Circular (for avatars)
+  - Rectangular (for cards, images)
+- Pre-built skeletons: `SkeletonCard`, `SkeletonChart`
+- Smooth pulse animation (better than spinners)
+- Shows structure of content while loading
+
+**Files Created**:
+- `src/components/ui/SkeletonLoader.tsx`
+
+**Status**: Ready to integrate into pages (replacing existing spinners)
+
+## 🔄 Remaining P2 Items (Future Enhancements)
 
 ### P2 (Polish)
+- Chart animations
 - Dark/light theme toggle
 - Print/PDF optimized layouts
 - Advanced chart type toggles
-- Accessibility enhancements
+- Additional accessibility enhancements
+- More astrology term definitions
 
 ## 📝 Technical Notes
 
