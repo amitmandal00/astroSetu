@@ -340,7 +340,7 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
       
       // Log response structure for debugging kundli/panchang
       if (mustUseGet) {
-        const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : "MUHURAT";
+        const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : isMuhuratEndpoint ? "MUHURAT" : isChoghadiyaEndpoint ? "CHOGHADIYA" : "UNKNOWN";
         console.log(`[AstroSetu] ${endpointName} Response received:`, {
           hasData: !!responseData.data,
           hasResult: !!responseData.result,
