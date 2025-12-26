@@ -155,20 +155,37 @@ export default function MatchPage() {
           <Card>
             <CardHeader eyebrow="Result" title="Compatibility overview" />
             <CardContent>
-              {/* Marriage/Compatibility Image */}
-              <div className="relative h-40 rounded-xl overflow-hidden mb-6">
-                <AstroImage
-                  src={ASTRO_IMAGES.match.marriage}
-                  alt="Indian marriage ceremony and Kundli matching (Guna Milan) - Traditional wedding ceremony with compatibility analysis"
-                  width={600}
-                  height={300}
-                  className="w-full h-full"
-                  fallback={ASTRO_IMAGES.match.compatibility}
-                />
+              {/* Kundli Chart Compatibility Visualization */}
+              <div className="relative h-40 rounded-xl overflow-hidden mb-6 bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600">
+                {/* Astrological symbols background */}
+                <div className="absolute inset-0 opacity-20">
+                  <div className="absolute top-4 left-4 text-6xl text-white">☯</div>
+                  <div className="absolute top-8 right-8 text-5xl text-white">✨</div>
+                  <div className="absolute bottom-6 left-1/4 text-4xl text-white">🔮</div>
+                  <div className="absolute bottom-8 right-12 text-5xl text-white">🌟</div>
+                </div>
+                {/* Zodiac wheel visualization */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="relative w-32 h-32 border-4 border-white/30 rounded-full">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-20 h-20 border-2 border-white/40 rounded-full flex items-center justify-center">
+                        <div className="text-white text-2xl font-bold">36</div>
+                      </div>
+                    </div>
+                    {/* Decorative dots representing planets */}
+                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-yellow-300 rounded-full"></div>
+                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-white rounded-full"></div>
+                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-red-300 rounded-full"></div>
+                    <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/2 w-3 h-3 bg-blue-300 rounded-full"></div>
+                  </div>
+                </div>
                 {/* Overlay text */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-                  <div className="text-sm font-semibold text-white">Kundli Matching</div>
-                  <div className="text-xs text-white/90">Guna Milan & Compatibility</div>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                  <div className="text-sm font-semibold text-white flex items-center gap-2">
+                    <span className="text-lg">📊</span>
+                    Kundli Matching Analysis
+                  </div>
+                  <div className="text-xs text-white/90 mt-1">Guna Milan • Ashta Kuta • Dosha Analysis</div>
                 </div>
               </div>
               {/* Orange/Gold Compatibility Circle matching reference */}
