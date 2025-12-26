@@ -364,6 +364,22 @@ Current Dasha: Saturn (2020-2039)
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: January 2025
+## 📚 Reference: Prokerala Demo Repository
+
+**Official Demo**: [github.com/prokerala/astrology-api-demo](https://github.com/prokerala/astrology-api-demo)
+
+**Key Learnings:**
+- ✅ Our OAuth2 implementation matches Prokerala's pattern
+- ✅ GET method usage is correct for most endpoints
+- ✅ Error handling approach is aligned
+- ✅ Response transformation patterns are proper
+- 🎯 Focus on endpoint coverage and UI components
+
+**See also**: `PROKERALA_DEMO_ANALYSIS.md` for detailed analysis
+
+---
+
+**Document Version**: 1.1  
+**Last Updated**: January 2025  
+**Updated**: Based on Prokerala demo repository analysis
 
