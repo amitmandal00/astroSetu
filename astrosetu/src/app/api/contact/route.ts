@@ -4,12 +4,12 @@ import { checkRateLimit, handleApiError, parseJsonBody, validateRequestSize, get
 import { z } from "zod";
 
 const ContactFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(100),
+  name: z.string().optional(), // Optional for compliance requests
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
-  subject: z.string().min(3, "Subject must be at least 3 characters").max(200),
-  message: z.string().min(10, "Message must be at least 10 characters").max(5000),
-  category: z.enum(["general", "support", "feedback", "bug", "partnership", "other"]).optional(),
+  subject: z.string().optional(), // Auto-generated for compliance requests
+  message: z.string().min(10, "Message must be at least 10 characters").max(500), // Reduced to 500 for compliance
+  category: z.enum(["general", "support", "feedback", "bug", "partnership", "privacy", "other"]).optional(),
 });
 
 /**
@@ -40,8 +40,11 @@ export async function POST(req: Request) {
     const clientIP = getClientIP(req);
     const userAgent = req.headers.get("user-agent") || "";
 
+    // Auto-generate subject if not provided (for compliance requests)
+    const finalSubject = subject || `[COMPLIANCE REQUEST] ${category || "general"}`;
+
     // Auto-categorize based on subject/message content
-    const autoCategory = categorizeMessage(subject, message, category);
+    const autoCategory = categorizeMessage(finalSubject, message, category);
 
     // Store submission in database (if Supabase configured)
     let submissionId: string | null = null;
@@ -69,10 +72,10 @@ export async function POST(req: Request) {
         const { data: submission, error: dbError } = await supabase
           .from("contact_submissions")
           .insert({
-            name,
+            name: name || null,
             email,
             phone: phone || null,
-            subject,
+            subject: finalSubject,
             message,
             category: autoCategory,
             ip_address: clientIP,
@@ -81,6 +84,7 @@ export async function POST(req: Request) {
             metadata: {
               auto_categorized: category !== autoCategory,
               original_category: category,
+              compliance_request: true,
             },
           })
           .select()
@@ -116,7 +120,7 @@ export async function POST(req: Request) {
       {
         ok: true,
         data: {
-          message: "Thank you for contacting us! We'll get back to you soon.",
+          message: "Your compliance request has been received. We will process it according to applicable privacy laws.",
           submissionId,
           autoReplySent: true,
         },
@@ -184,7 +188,7 @@ function categorizeMessage(
  */
 async function sendContactNotifications(data: {
   submissionId: string | null;
-  name: string;
+  name?: string;
   email: string;
   phone?: string;
   subject: string;
@@ -217,9 +221,9 @@ async function sendContactNotifications(data: {
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: email,
-      from: `AstroSetu Support <${SUPPORT_EMAIL}>`,
-      subject: `Thank you for contacting AstroSetu - ${subject}`,
-      html: generateAutoReplyEmail(name, subject, category),
+      from: `AstroSetu Compliance <${SUPPORT_EMAIL}>`,
+      subject: `Compliance Request Received - ${subject}`,
+      html: generateAutoReplyEmail(name || "User", subject, category),
     });
 
     // Send notification to admin
@@ -280,19 +284,20 @@ async function sendEmail(data: {
 }
 
 /**
- * Generate auto-reply email HTML
+ * Generate auto-reply email HTML (Compliance-focused, no SLA promises)
  */
 function generateAutoReplyEmail(name: string, subject: string, category: string): string {
   const categoryMessages: Record<string, string> = {
-    support: "Our support team will review your request and get back to you within 24-48 hours.",
-    bug: "Thank you for reporting this issue. Our technical team will investigate and address it promptly.",
-    feedback: "Thank you for your feedback! We appreciate your input and will consider it for future improvements.",
-    partnership: "Thank you for your interest in partnership. Our business development team will review your inquiry.",
-    general: "We have received your message and will respond as soon as possible.",
-    other: "We have received your message and will review it shortly.",
+    privacy: "Your privacy request has been received and will be processed according to applicable privacy laws (Australian Privacy Act).",
+    data_deletion: "Your data deletion request has been received and will be processed according to applicable privacy laws.",
+    account_access: "Your account access request has been received. We will review it according to our security and privacy policies.",
+    legal_notice: "Your legal notice has been received and will be reviewed by our legal team.",
+    general: "Your compliance request has been received. We will process it according to applicable laws and our policies.",
+    other: "Your request has been received. We will process it according to applicable laws and our policies.",
   };
 
   const responseMessage = categoryMessages[category] || categoryMessages.general;
+  const displayName = name || "User";
 
   return `
     <!DOCTYPE html>
@@ -304,23 +309,35 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: linear-gradient(to right, #8B5CF6, #6366F1, #3B82F6); color: white; padding: 30px; border-radius: 10px 10px 0 0; }
         .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+        .notice { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }
         .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>Thank You for Contacting AstroSetu</h1>
+          <h1>Compliance Request Received</h1>
         </div>
         <div class="content">
-          <p>Dear ${name},</p>
-          <p>Thank you for reaching out to us regarding: <strong>${subject}</strong></p>
+          <p>Dear ${displayName},</p>
+          <p>Thank you for your compliance request regarding: <strong>${subject}</strong></p>
           <p>${responseMessage}</p>
-          <p>We typically respond within 24-48 hours during business hours (Monday-Friday, 9 AM - 6 PM IST).</p>
-          <p>If you have an urgent matter, please call us at +91 800 123 4567 or reach out via WhatsApp.</p>
+          
+          <div class="notice">
+            <p><strong>Important:</strong> AstroSetu is a self-service, automated platform. We do not provide live support, consultations, or personalized assistance. This email is monitored periodically for compliance requests only.</p>
+            <p><strong>No response timeline is guaranteed.</strong> We process compliance requests as required by applicable privacy laws.</p>
+          </div>
+          
+          <p>For self-help resources, please visit:</p>
+          <ul>
+            <li><a href="https://astrosetu.app/faq">Help & FAQs</a></li>
+            <li><a href="https://astrosetu.app/privacy">Privacy Policy</a></li>
+            <li><a href="https://astrosetu.app/terms">Terms & Conditions</a></li>
+          </ul>
+          
           <div class="footer">
-            <p>Best regards,<br>The AstroSetu Team</p>
-            <p>This is an automated response. Please do not reply to this email.</p>
+            <p>Best regards,<br>The AstroSetu Compliance Team</p>
+            <p><em>This is an automated response. Please do not reply to this email. For compliance matters, use the contact form on our website.</em></p>
           </div>
         </div>
       </div>

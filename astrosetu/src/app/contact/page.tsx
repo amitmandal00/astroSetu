@@ -1,99 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { Input } from "@/components/ui/Input";
-import { apiPost, apiGet } from "@/lib/http";
-import { Badge } from "@/components/ui/Badge";
+import { apiPost } from "@/lib/http";
+import Link from "next/link";
 
-type ContactCategory = "general" | "support" | "feedback" | "bug" | "partnership" | "other";
-
-interface ContactInfo {
-  emails: {
-    support: { address: string; label: string; validated: boolean };
-    privacy: { address: string; label: string; validated: boolean };
-  };
-  phone: {
-    number: string;
-    display: string;
-    telLink: string;
-    available: boolean;
-    label: string;
-  };
-  whatsapp: {
-    number: string;
-    display: string;
-    link: string;
-    available24x7: boolean;
-    label: string;
-  };
-  company: {
-    name: string;
-    address: { full: string; city: string; state: string; country: string };
-    jurisdiction: string;
-  };
-  businessHours: {
-    timezone: string;
-    weekdays: { open: string; close: string; days: string };
-    saturday: string | null;
-    sunday: string;
-  };
-  availability: {
-    isOpen: boolean;
-    status: "open" | "closed";
-    message: string;
-    currentTime: string;
-    nextOpenTime?: string;
-    timezone: string;
-  };
-  autoResponse: {
-    enabled: boolean;
-    responseTime: string;
-  };
-}
+type ComplianceCategory = "data_deletion" | "account_access" | "legal_notice" | "privacy_complaint";
 
 export default function ContactPage() {
-  const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
-  const [contactInfoLoading, setContactInfoLoading] = useState(true);
   const [formData, setFormData] = useState({
-    name: "",
     email: "",
-    phone: "",
-    subject: "",
+    category: "data_deletion" as ComplianceCategory,
     message: "",
-    category: "general" as ContactCategory,
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Fetch contact information on mount
-  useEffect(() => {
-    async function fetchContactInfo() {
-      try {
-        const res = await apiGet<{ ok: boolean; data?: ContactInfo; error?: string }>("/api/contact/info");
-        if (res.ok && res.data) {
-          setContactInfo(res.data);
-        } else {
-          console.error("Failed to fetch contact info:", res.error);
-          // Use fallback values if API fails
-        }
-      } catch (err) {
-        console.error("Error fetching contact info:", err);
-        // Use fallback values if API fails
-      } finally {
-        setContactInfoLoading(false);
-      }
-    }
-    
-    fetchContactInfo();
-    
-    // Refresh availability every minute
-    const interval = setInterval(fetchContactInfo, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,205 +28,184 @@ export default function ContactPage() {
     try {
       const res = await apiPost<{
         ok: boolean;
-        data?: { message: string; submissionId?: string; autoReplySent?: boolean };
+        data?: { message: string; submissionId?: string };
         error?: string;
       }>("/api/contact", {
-        name: formData.name.trim(),
         email: formData.email.trim(),
-        phone: formData.phone.trim() || undefined,
-        subject: formData.subject.trim(),
+        subject: `[${formData.category.toUpperCase().replace(/_/g, " ")}] Compliance Request`,
         message: formData.message.trim(),
-        category: formData.category,
+        category: formData.category === "privacy_complaint" ? "privacy" : "general",
       });
 
       if (!res.ok) {
-        throw new Error(res.error || "Failed to send message");
+        throw new Error(res.error || "Failed to submit request");
       }
 
       setSuccess(true);
       // Reset form
       setFormData({
-        name: "",
         email: "",
-        phone: "",
-        subject: "",
+        category: "data_deletion",
         message: "",
-        category: "general",
       });
 
-      // Reset success message after 5 seconds
-      setTimeout(() => setSuccess(false), 5000);
+      // Reset success message after 8 seconds
+      setTimeout(() => setSuccess(false), 8000);
     } catch (err: any) {
-      setError(err?.message || "Failed to send message. Please try again.");
+      setError(err?.message || "Failed to submit request. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-6">
       {/* Header */}
       <div className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-6 lg:p-8 mb-6 shadow-lg relative overflow-hidden">
         <HeaderPattern />
         <div className="relative z-10">
-          <h1 className="text-3xl lg:text-4xl font-bold mb-2">Contact Us</h1>
+          <h1 className="text-3xl lg:text-4xl font-bold mb-2">Contact & Legal Information</h1>
           <p className="text-white/90 text-base">
-            Get in touch with our team for support, inquiries, or feedback
+            Compliance requests and legal notices only
           </p>
         </div>
       </div>
 
+      {/* Primary Message - Critical */}
+      <Card className="border-2 border-amber-200 bg-amber-50">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">⚠️</div>
+            <div>
+              <h2 className="font-bold text-slate-900 mb-2">Self-Service Platform</h2>
+              <p className="text-slate-700 text-sm leading-relaxed">
+                <strong>AstroSetu is a self-service, automated platform.</strong> We do not provide live support, 
+                consultations, or personalised assistance. This page is for compliance requests and legal notices only.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Contact Information */}
         <Card>
-          <CardHeader eyebrow="Get In Touch" title="Contact Information" />
+          <CardHeader eyebrow="Legal & Compliance" title="Contact Information" />
           <CardContent className="space-y-6">
-            {contactInfoLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin text-2xl">⏳</div>
-                <span className="ml-2 text-slate-600">Loading contact information...</span>
+            {/* General Contact */}
+            <div className="space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="text-2xl">📧</div>
+                <div className="flex-1">
+                  <div className="font-semibold text-slate-900 mb-1">General Contact (Required by Law)</div>
+                  <a 
+                    href="mailto:support@astrosetu.app" 
+                    className="text-indigo-600 hover:underline break-all"
+                  >
+                    support@astrosetu.app
+                  </a>
+                  <div className="text-sm text-slate-600 mt-1">
+                    <strong>Purpose:</strong> Legal notices, account access issues, compliance requests only
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1 italic">
+                    This email is monitored periodically. We do not guarantee responses to general inquiries.
+                  </div>
+                </div>
               </div>
-            ) : contactInfo ? (
-              <>
-                {/* Availability Status Badge */}
-                <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge tone={contactInfo.availability.isOpen ? "green" : "neutral"}>
-                        {contactInfo.availability.isOpen ? "● Open Now" : "○ Closed"}
-                      </Badge>
-                      <span className="text-sm text-slate-600">{contactInfo.availability.message}</span>
-                    </div>
-                  </div>
-                  {contactInfo.autoResponse.enabled && (
-                    <div className="text-xs text-slate-500 mt-2">
-                      Auto-reply: Responses within {contactInfo.autoResponse.responseTime}
-                    </div>
-                  )}
-                </div>
 
-                <div className="space-y-4">
-                  {/* Support Email */}
-                  <div className="flex items-start gap-4">
-                    <div className="text-2xl">📧</div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900 mb-1">Email</div>
-                      <a 
-                        href={`mailto:${contactInfo.emails.support.address}`} 
-                        className="text-indigo-600 hover:underline break-all"
-                      >
-                        {contactInfo.emails.support.address}
-                      </a>
-                      <div className="text-sm text-slate-600 mt-1">{contactInfo.emails.support.label}</div>
-                    </div>
+              {/* Privacy Contact */}
+              <div className="flex items-start gap-4">
+                <div className="text-2xl">🔒</div>
+                <div className="flex-1">
+                  <div className="font-semibold text-slate-900 mb-1">
+                    Privacy & Data Protection (Mandatory under AU law)
                   </div>
-
-                  {/* Phone */}
-                  <div className="flex items-start gap-4">
-                    <div className="text-2xl">📞</div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
-                        Phone
-                        {contactInfo.phone.available && (
-                          <Badge tone="green" className="text-xs">Available</Badge>
-                        )}
-                      </div>
-                      <a 
-                        href={contactInfo.phone.telLink} 
-                        className="text-indigo-600 hover:underline"
-                      >
-                        {contactInfo.phone.display}
-                      </a>
-                      <div className="text-sm text-slate-600 mt-1">{contactInfo.phone.label}</div>
-                    </div>
+                  <a 
+                    href="mailto:privacy@astrosetu.app" 
+                    className="text-indigo-600 hover:underline break-all"
+                  >
+                    privacy@astrosetu.app
+                  </a>
+                  <div className="text-sm text-slate-600 mt-1">
+                    <strong>Purpose:</strong> Data access, correction, deletion, privacy complaints
                   </div>
-
-                  {/* WhatsApp */}
-                  <div className="flex items-start gap-4">
-                    <div className="text-2xl">💬</div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
-                        WhatsApp
-                        {contactInfo.whatsapp.available24x7 && (
-                          <Badge tone="green" className="text-xs">24/7</Badge>
-                        )}
-                      </div>
-                      <a 
-                        href={contactInfo.whatsapp.link} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-indigo-600 hover:underline"
-                      >
-                        {contactInfo.whatsapp.display}
-                      </a>
-                      <div className="text-sm text-slate-600 mt-1">{contactInfo.whatsapp.label}</div>
-                    </div>
-                  </div>
-
-                  {/* Company Address */}
-                  <div className="flex items-start gap-4">
-                    <div className="text-2xl">📍</div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900 mb-1">Legal Entity & Address</div>
-                      <div className="text-slate-700">
-                        {contactInfo.company.name}<br />
-                        {contactInfo.company.address.full}
-                      </div>
-                      <div className="text-sm text-slate-600 mt-2">
-                        <strong>Jurisdiction:</strong> {contactInfo.company.jurisdiction}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Privacy Email */}
-                  <div className="flex items-start gap-4">
-                    <div className="text-2xl">🔒</div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900 mb-1">Privacy Matters</div>
-                      <a 
-                        href={`mailto:${contactInfo.emails.privacy.address}`} 
-                        className="text-indigo-600 hover:underline break-all"
-                      >
-                        {contactInfo.emails.privacy.address}
-                      </a>
-                      <div className="text-sm text-slate-600 mt-1">{contactInfo.emails.privacy.label}</div>
-                    </div>
+                  <div className="text-xs text-slate-500 mt-1 italic">
+                    This satisfies Australian Privacy Act requirements without creating support load.
                   </div>
                 </div>
-
-                {/* Business Hours */}
-                <div className="pt-4 border-t border-slate-200">
-                  <div className="font-semibold text-slate-900 mb-3">Business Hours ({contactInfo.businessHours.timezone})</div>
-                  <div className="text-sm text-slate-700 space-y-1">
-                    <div>
-                      {contactInfo.businessHours.weekdays.days}: {contactInfo.businessHours.weekdays.open} - {contactInfo.businessHours.weekdays.close}
-                    </div>
-                    {contactInfo.businessHours.saturday && (
-                      <div>Saturday: {contactInfo.businessHours.saturday}</div>
-                    )}
-                    <div>Sunday: {contactInfo.businessHours.sunday}</div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 text-slate-500">
-                Failed to load contact information. Please refresh the page.
               </div>
-            )}
+
+              {/* Legal Entity */}
+              <div className="flex items-start gap-4 pt-4 border-t border-slate-200">
+                <div className="text-2xl">📍</div>
+                <div className="flex-1">
+                  <div className="font-semibold text-slate-900 mb-1">Legal Entity & Jurisdiction</div>
+                  <div className="text-slate-700 text-sm space-y-1">
+                    <div><strong>Legal Entity:</strong> AstroSetu Services Pvt. Ltd.</div>
+                    <div><strong>Operating Jurisdiction:</strong> Australia (primary)</div>
+                    <div><strong>International Operations:</strong> India</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* What We Don't Offer */}
+            <div className="pt-4 border-t border-slate-200">
+              <div className="font-semibold text-slate-900 mb-3">What We Do NOT Offer</div>
+              <div className="text-sm text-slate-700 space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="text-slate-400">•</span>
+                  <span>Phone support</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-slate-400">•</span>
+                  <span>WhatsApp or chat support</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-slate-400">•</span>
+                  <span>Personal astrology consultations</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-slate-400">•</span>
+                  <span>Interpretation assistance</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-slate-400">•</span>
+                  <span>Refund negotiation via email</span>
+                </div>
+              </div>
+              <div className="text-xs text-slate-500 mt-3 italic">
+                This platform is fully automated. Most answers can be found in our self-help resources below.
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Contact Form */}
+        {/* Compliance Request Form */}
         <Card>
-          <CardHeader eyebrow="Send Message" title="Contact Form" />
+          <CardHeader eyebrow="Compliance Requests Only" title="Compliance Request Form" />
           <CardContent>
+            {/* Important Notice */}
+            <div className="mb-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="text-sm text-slate-700">
+                <strong>This form is for compliance and account access requests only.</strong>
+                <br />
+                <span className="text-slate-600">
+                  We do not provide customer support or personalised assistance.
+                </span>
+              </div>
+            </div>
+
             {success && (
               <div className="mb-4 p-4 rounded-xl bg-green-50 border-2 border-green-200 text-green-700">
                 <div className="flex items-start gap-2">
                   <span className="text-lg">✅</span>
                   <div>
-                    <div className="font-semibold mb-1">Message Sent Successfully!</div>
-                    <div className="text-sm">Thank you for contacting us. We&apos;ve sent you a confirmation email and will get back to you soon.</div>
+                    <div className="font-semibold mb-1">Request Submitted</div>
+                    <div className="text-sm">
+                      Your compliance request has been received. We will process it according to 
+                      applicable privacy laws. No response timeline is guaranteed.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -322,20 +226,6 @@ export default function ContactPage() {
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Name <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Your name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Email <span className="text-rose-500">*</span>
                 </label>
                 <Input
@@ -347,49 +237,23 @@ export default function ContactPage() {
                   disabled={loading}
                 />
               </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Phone (Optional)</label>
-                <Input
-                  type="tel"
-                  placeholder="+91 123 456 7890"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  disabled={loading}
-                />
-              </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Category
+                  Request Category <span className="text-rose-500">*</span>
                 </label>
                 <select
                   className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as ContactCategory })}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value as ComplianceCategory })}
                   disabled={loading}
-                >
-                  <option value="general">General Inquiry</option>
-                  <option value="support">Support Request</option>
-                  <option value="feedback">Feedback</option>
-                  <option value="bug">Bug Report</option>
-                  <option value="partnership">Partnership</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Subject <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  type="text"
-                  placeholder="What is this regarding?"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                   required
-                  disabled={loading}
-                />
+                >
+                  <option value="data_deletion">Data Deletion Request</option>
+                  <option value="account_access">Account Access Issue</option>
+                  <option value="legal_notice">Legal Notice</option>
+                  <option value="privacy_complaint">Privacy Complaint</option>
+                </select>
               </div>
               
               <div>
@@ -399,14 +263,15 @@ export default function ContactPage() {
                 <textarea
                   className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 resize-none"
                   rows={5}
-                  placeholder="Your message..."
+                  placeholder="Please describe your compliance request..."
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   required
                   disabled={loading}
+                  maxLength={500}
                 />
                 <div className="text-xs text-slate-500 mt-1">
-                  {formData.message.length}/5000 characters
+                  {formData.message.length}/500 characters
                 </div>
               </div>
               
@@ -414,24 +279,94 @@ export default function ContactPage() {
                 {loading ? (
                   <>
                     <span className="animate-spin inline-block mr-2">⏳</span>
-                    Sending...
+                    Submitting...
                   </>
                 ) : (
-                  "Send Message"
+                  "Submit Compliance Request"
                 )}
               </Button>
 
               <div className="text-xs text-slate-500 text-center">
                 By submitting this form, you agree to our{" "}
-                <a href="/terms" className="text-indigo-600 hover:underline">Terms & Conditions</a>
+                <Link href="/terms" className="text-indigo-600 hover:underline">Terms & Conditions</Link>
                 {" "}and{" "}
-                <a href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</a>.
+                <Link href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</Link>.
               </div>
             </form>
           </CardContent>
         </Card>
       </div>
+
+      {/* Self-Help Section */}
+      <Card>
+        <CardHeader eyebrow="Self-Help Resources" title="Find Answers Yourself" />
+        <CardContent>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Link 
+              href="/faq" 
+              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+            >
+              <div className="text-2xl mb-2">📘</div>
+              <div className="font-semibold text-slate-900 mb-1">Help & FAQs</div>
+              <div className="text-sm text-slate-600">
+                Common questions and answers
+              </div>
+            </Link>
+
+            <Link 
+              href="/terms" 
+              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+            >
+              <div className="text-2xl mb-2">⚖️</div>
+              <div className="font-semibold text-slate-900 mb-1">Terms & Disclaimer</div>
+              <div className="text-sm text-slate-600">
+                Service terms and legal disclaimers
+              </div>
+            </Link>
+
+            <Link 
+              href="/privacy" 
+              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+            >
+              <div className="text-2xl mb-2">🔐</div>
+              <div className="font-semibold text-slate-900 mb-1">Privacy Policy</div>
+              <div className="text-sm text-slate-600">
+                How we handle your data
+              </div>
+            </Link>
+
+            <Link 
+              href="/refund" 
+              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+            >
+              <div className="text-2xl mb-2">💳</div>
+              <div className="font-semibold text-slate-900 mb-1">Refund Policy</div>
+              <div className="text-sm text-slate-600">
+                Refund terms and conditions
+              </div>
+            </Link>
+
+            <Link 
+              href="/disclaimer" 
+              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+            >
+              <div className="text-2xl mb-2">ℹ️</div>
+              <div className="font-semibold text-slate-900 mb-1">Astrology Disclaimer</div>
+              <div className="text-sm text-slate-600">
+                Important information about our services
+              </div>
+            </Link>
+
+            <div className="p-4 rounded-lg border-2 border-slate-200 bg-slate-50">
+              <div className="text-2xl mb-2">🔍</div>
+              <div className="font-semibold text-slate-900 mb-1">How Calculations Work</div>
+              <div className="text-sm text-slate-600">
+                Coming soon: Explanation of our astrology calculations
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
