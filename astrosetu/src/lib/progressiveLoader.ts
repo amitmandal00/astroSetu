@@ -30,7 +30,7 @@ export async function createProgressiveLoader<T, P extends Partial<T>>(
   // Return immediately with basic data
   const result: ProgressiveResult<T, P> = {
     basic,
-    full: basic as T, // Initial state - basic data as full
+    full: basic as unknown as T, // Initial state - basic data as full
     isComplete: false,
   };
 
