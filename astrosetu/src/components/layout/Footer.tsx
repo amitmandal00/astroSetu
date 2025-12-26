@@ -42,6 +42,7 @@ const footerLinks = {
     { href: "/disclaimer", label: "Disclaimer", icon: null },
     { href: "/refund", label: "Refund Policy", icon: null },
     { href: "/cookies", label: "Cookie Policy", icon: null },
+    { href: "/accessibility", label: "Accessibility", icon: null },
   ],
 };
 
@@ -335,8 +336,13 @@ export function Footer() {
       <div className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-            <div className="text-slate-600">
+            <div className="text-slate-600 text-xs">
               © {currentYear} <span className="font-semibold text-slate-900">AstroSetu</span>. All rights reserved.
+              <br className="hidden sm:block" />
+              <span className="hidden sm:inline">ABN: [To be provided] | </span>
+              <Link href="/accessibility" className="hover:text-saffron-600 transition-colors">
+                Accessibility
+              </Link>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">
               <Link href="/privacy" className="hover:text-saffron-600 transition-colors">
