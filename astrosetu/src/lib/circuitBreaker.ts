@@ -77,12 +77,15 @@ class CircuitBreaker {
       return result;
     } catch (error) {
       // Failure - update state (this may open the circuit)
-      const previousState: CircuitState = this.state;
+      const previousState = this.state;
       this.onFailure();
-      const currentState: CircuitState = this.state;
+      
+      // Check if circuit is now open and we have a fallback
+      // TypeScript needs us to check the state as a string to avoid narrowing issues
+      const stateAfterFailure = this.state as CircuitState;
       
       // If circuit is now open (after onFailure), use fallback if available
-      if (currentState === "open" && fallback && previousState !== "open") {
+      if (stateAfterFailure === "open" && fallback && previousState !== "open") {
         console.log("[CircuitBreaker] Circuit opened after failure, using fallback");
         try {
           return await fallback();
