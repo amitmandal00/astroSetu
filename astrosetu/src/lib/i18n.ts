@@ -2,59 +2,49 @@ type Translations = {
   [key: string]: {
     en: string;
     hi: string;
-    ta: string;
   };
 };
 
 const translations: Translations = {
   "app.name": {
     en: "AstroSetu",
-    hi: "अस्त्रोसेतु",
-    ta: "அஸ்ட்ரோசேது"
+    hi: "अस्त्रोसेतु"
   },
   "app.tagline": {
     en: "Cosmic Guidance",
-    hi: "ब्रह्मांडीय मार्गदर्शन",
-    ta: "விண்வெளி வழிகாட்டுதல்"
+    hi: "ब्रह्मांडीय मार्गदर्शन"
   },
   "nav.kundli": {
     en: "Kundli",
-    hi: "कुंडली",
-    ta: "குண்டலி"
+    hi: "कुंडली"
   },
   "nav.match": {
     en: "Match",
-    hi: "मिलान",
-    ta: "பொருத்தம்"
+    hi: "मिलान"
   },
   "nav.horoscope": {
     en: "Horoscope",
-    hi: "राशिफल",
-    ta: "இராசி"
+    hi: "राशिफल"
   },
   "nav.panchang": {
     en: "Panchang",
-    hi: "पंचांग",
-    ta: "பஞ்சாங்கம்"
+    hi: "पंचांग"
   },
   "nav.puja": {
     en: "Puja",
-    hi: "पूजा",
-    ta: "பூஜை"
+    hi: "पूजा"
   },
   "nav.community": {
     en: "Community",
-    hi: "समुदाय",
-    ta: "சமூகம்"
+    hi: "समुदाय"
   },
   "nav.learn": {
     en: "Learn",
-    hi: "सीखें",
-    ta: "கற்றுக்கொள்ளுங்கள்"
+    hi: "सीखें"
   }
 };
 
-export type Language = "en" | "hi" | "ta";
+export type Language = "en" | "hi";
 
 let currentLanguage: Language = "en";
 
@@ -68,7 +58,7 @@ export const i18n = {
   getLanguage(): Language {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("astrosetu_lang") as Language;
-      if (saved && ["en", "hi", "ta"].includes(saved)) {
+      if (saved && ["en", "hi"].includes(saved)) {
         return saved;
       }
     }

@@ -58,14 +58,8 @@ const socialLinks = [
 ];
 
 const languages = [
-  { code: "hi", name: "हिंदी", flag: "🇮🇳" },
   { code: "en", name: "English", flag: "🇬🇧" },
-  { code: "ta", name: "தமிழ்", flag: "🇮🇳" },
-  { code: "te", name: "తెలుగు", flag: "🇮🇳" },
-  { code: "kn", name: "ಕನ್ನಡ", flag: "🇮🇳" },
-  { code: "mr", name: "मराठी", flag: "🇮🇳" },
-  { code: "gu", name: "ગુજરાતી", flag: "🇮🇳" },
-  { code: "bn", name: "বাংলা", flag: "🇮🇳" },
+  { code: "hi", name: "हिंदी", flag: "🇮🇳" }
 ];
 
 export function Footer() {

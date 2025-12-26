@@ -58,8 +58,7 @@ export function LanguageSwitcher() {
 
   const languages: { code: Language; label: string; flag: string }[] = [
     { code: "en", label: "English", flag: "🇬🇧" },
-    { code: "hi", label: "हिंदी", flag: "🇮🇳" },
-    { code: "ta", label: "தமிழ்", flag: "🇮🇳" }
+    { code: "hi", label: "हिंदी", flag: "🇮🇳" }
   ];
 
   function handleLanguageChange(lang: Language) {
