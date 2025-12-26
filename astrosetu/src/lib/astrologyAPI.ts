@@ -50,7 +50,7 @@ function getAPICredentials() {
 // Cache for access token
 let accessTokenCache: { token: string; expiresAt: number } | null = null;
 
-async function prokeralaRequest(endpoint: string, params: Record<string, any>, retries: number = 2, method: "GET" | "POST" = "POST", skipCache: boolean = false): Promise<any> {
+export async function prokeralaRequest(endpoint: string, params: Record<string, any>, retries: number = 2, method: "GET" | "POST" = "POST", skipCache: boolean = false): Promise<any> {
   const credentials = getAPICredentials();
   if (!credentials) {
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");
