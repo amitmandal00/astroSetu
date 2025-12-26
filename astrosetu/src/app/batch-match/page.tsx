@@ -253,7 +253,7 @@ export default function BatchMatchPage() {
 
           <div className="mt-4 flex items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={addProfile}
               disabled={profiles.length >= 500}
             >
