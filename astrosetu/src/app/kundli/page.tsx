@@ -1058,20 +1058,20 @@ function KundliPageContent() {
                         }
                         
                         const getPositionBadge = () => {
-                          if (!strength) return <Badge tone="slate" className="text-xs">—</Badge>;
+                          if (!strength) return <Badge tone="neutral" className="text-xs">—</Badge>;
                           switch (strength.position) {
                             case "exalted":
-                              return <Badge tone="emerald" className="text-xs">Exalted</Badge>;
+                              return <Badge tone="green" className="text-xs">Exalted</Badge>;
                             case "own":
-                              return <Badge tone="blue" className="text-xs">Own Sign</Badge>;
+                              return <Badge tone="indigo" className="text-xs">Own Sign</Badge>;
                             case "friendly":
                               return <Badge tone="indigo" className="text-xs">Friendly</Badge>;
                             case "enemy":
-                              return <Badge tone="orange" className="text-xs">Enemy</Badge>;
+                              return <Badge tone="amber" className="text-xs">Enemy</Badge>;
                             case "debilitated":
                               return <Badge tone="red" className="text-xs">Debilitated</Badge>;
                             default:
-                              return <Badge tone="slate" className="text-xs">Neutral</Badge>;
+                              return <Badge tone="neutral" className="text-xs">Neutral</Badge>;
                           }
                         };
                         
