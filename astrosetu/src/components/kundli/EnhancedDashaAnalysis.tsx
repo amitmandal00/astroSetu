@@ -219,7 +219,6 @@ export function EnhancedDashaAnalysis({ kundliData, birthDetails }: EnhancedDash
               <div className="text-sm font-bold text-slate-900">All Major Dashas (महादशा)</div>
               <Button
                 variant="secondary"
-                size="sm"
                 onClick={() => setExpandedPeriod(expandedPeriod === "major" ? null : "major")}
                 className="text-xs"
               >
