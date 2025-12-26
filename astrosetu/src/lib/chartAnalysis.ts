@@ -244,7 +244,7 @@ export function detectYogas(planets: PlanetPosition[], chart: KundliChart): Yoga
   if (moon && mars && moon.house === mars.house) {
     yogas.push({
       name: "Chandra-Mangal Yoga",
-      type: "mixed",
+      type: "neutral",
       description: "Moon and Mars in same house",
       planets: ["Moon", "Mars"],
       impact: "Strong willpower but may indicate emotional volatility",
