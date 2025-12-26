@@ -1,176 +1,148 @@
-# Contact Form - Autonomous Setup Guide
+# Autonomous Contact Information System
 
-**Date:** December 26, 2024  
-**Status:** Code implementation complete
+## Overview
 
----
+The contact information system is now **fully autonomous** - all contact details are managed via environment variables with zero manual intervention required.
 
-## ✅ What's Been Implemented
+## Features
 
-### 1. Autonomous Contact Form System ✅
-
-**Features:**
-- ✅ Form validation and submission handling
-- ✅ Automatic email notifications (admin + user auto-reply)
-- ✅ Database storage (Supabase)
-- ✅ Auto-categorization of messages
-- ✅ Spam prevention (rate limiting + IP tracking)
-- ✅ Admin dashboard for viewing submissions
+✅ **Zero Manual Updates**: All contact information is managed via environment variables  
+✅ **Auto-Availability Detection**: Real-time business hours checking with timezone awareness  
+✅ **Auto-Validation**: Contact details validated during configuration  
+✅ **Dynamic Status Indicators**: Shows "Open/Closed" status in real-time  
+✅ **Auto-Refresh**: Availability status updates every minute  
+✅ **WhatsApp 24/7 Support**: Configurable 24/7 availability  
+✅ **Timezone-Aware**: Business hours respect timezone settings  
 
 ---
 
-## 📋 Setup Instructions
+## Environment Variables
 
-### Step 1: Create Database Table
+### Required (with defaults)
 
-1. **Open Supabase Dashboard** → SQL Editor
-2. **Run the SQL script:**
-   - Copy contents of `supabase-contact-submissions.sql`
-   - Paste and execute in SQL Editor
-   - Verify `contact_submissions` table exists
-
----
-
-### Step 2: Configure Email Service (Resend)
-
-**Option A: Resend (Recommended - Free Tier Available)**
-
-1. **Sign up:** https://resend.com
-2. **Get API Key:**
-   - Go to API Keys section
-   - Create new API key
-   - Copy the key
-
-3. **Verify Domain (Optional but Recommended):**
-   - Add your domain (e.g., `astrosetu.app`)
-   - Follow DNS verification steps
-   - Once verified, you can send from `support@astrosetu.app`
-
-4. **Add Environment Variables:**
-   ```bash
-   RESEND_API_KEY=re_your_api_key_here
-   SUPPORT_EMAIL=support@astrosetu.app  # or use Resend's default
-   ADMIN_EMAIL=admin@astrosetu.app      # where to send notifications
-   ```
-
-**Option B: Alternative Email Services**
-
-If not using Resend, you can modify `src/app/api/contact/route.ts` to use:
-- **SendGrid** (https://sendgrid.com)
-- **Mailgun** (https://mailgun.com)
-- **Postmark** (https://postmarkapp.com)
-- **AWS SES** (https://aws.amazon.com/ses/)
-
----
-
-### Step 3: Environment Variables
-
-**Required for Email (if using Resend):**
 ```bash
-RESEND_API_KEY=re_xxxxxxxxxxxxx
+# Email addresses
 SUPPORT_EMAIL=support@astrosetu.app
+PRIVACY_EMAIL=privacy@astrosetu.app
 ADMIN_EMAIL=admin@astrosetu.app
+
+# Phone numbers (E.164 format)
+PHONE_NUMBER=+918001234567
+WHATSAPP_NUMBER=+918001234567
+
+# Company information
+COMPANY_NAME=AstroSetu Services Pvt. Ltd.
+ADDRESS_CITY=Mumbai
+ADDRESS_STATE=Maharashtra
+ADDRESS_COUNTRY=India
+JURISDICTION=Australia (primary) / India (international operations)
+
+# Business hours
+BUSINESS_HOURS_TIMEZONE=Asia/Kolkata
+BUSINESS_HOURS_WEEKDAY_OPEN=09:00
+BUSINESS_HOURS_WEEKDAY_CLOSE=18:00
+BUSINESS_HOURS_SATURDAY_OPEN=10:00
+BUSINESS_HOURS_SATURDAY_CLOSE=16:00
+
+# Auto-response settings
+CONTACT_AUTO_REPLY_ENABLED=true
+CONTACT_RESPONSE_TIME=24-48 hours
+
+# Availability flags
+WHATSAPP_24X7=true
+PHONE_AVAILABLE=true
 ```
 
-**Optional:**
-- If not set, emails won't be sent but submissions will be logged
-- Submissions will still be stored in database
-- Manual processing required if email not configured
+### Optional
 
----
-
-## 🎯 How It Works
-
-### User Submits Form:
-```
-1. User fills contact form
-2. Form validates input
-3. Submission sent to /api/contact
-4. System checks for spam (IP rate limiting)
-5. Submission stored in database
-6. Auto-reply sent to user
-7. Notification sent to admin
-8. Success message shown to user
-```
-
-### Auto-Categorization:
-```
-System analyzes subject + message:
-- "help", "support", "issue" → Support
-- "bug", "broken", "crash" → Bug Report
-- "feedback", "suggestion" → Feedback
-- "partnership", "business" → Partnership
-- Default → General
-```
-
-### Spam Prevention:
-```
-- Max 5 submissions per IP per hour
-- Rate limiting on API endpoint
-- IP address tracking
-- User agent tracking
-```
-
----
-
-## 📧 Email Features
-
-### Auto-Reply to User:
-- ✅ Professional HTML email template
-- ✅ Category-specific response messages
-- ✅ Response time expectations
-- ✅ Alternative contact methods
-- ✅ Sent immediately upon submission
-
-### Admin Notification:
-- ✅ Formatted HTML email with all details
-- ✅ Category badge for quick identification
-- ✅ Direct reply-to functionality
-- ✅ Submission ID for tracking
-- ✅ Links to phone/email for quick contact
-
----
-
-## 🔧 Admin Features
-
-### View Submissions:
-
-**Endpoint:** `GET /api/admin/contact-submissions`
-
-**Query Parameters:**
-- `status` - Filter by status (new, read, in_progress, resolved, archived)
-- `category` - Filter by category
-- `limit` - Results per page (default: 50)
-- `offset` - Pagination offset
-
-**Example:**
 ```bash
-curl -H "Authorization: Bearer YOUR_ADMIN_KEY" \
-  "https://your-domain.vercel.app/api/admin/contact-submissions?status=new&category=support"
+# Full address (if different from city/state/country)
+ADDRESS_STREET=123 Main Street
+ADDRESS_POSTAL_CODE=400001
+
+# Business holidays (JSON array of ISO dates)
+BUSINESS_HOLIDAYS=["2024-12-25","2025-01-01"]
 ```
+
+### Public Variables (for client-side access)
+
+If you want contact info available on the client side, prefix with `NEXT_PUBLIC_`:
+
+```bash
+NEXT_PUBLIC_SUPPORT_EMAIL=support@astrosetu.app
+NEXT_PUBLIC_PHONE_NUMBER=+918001234567
+NEXT_PUBLIC_COMPANY_NAME=AstroSetu Services Pvt. Ltd.
+```
+
+---
+
+## API Endpoint
+
+### `GET /api/contact/info`
+
+Returns dynamic contact information with current availability status.
 
 **Response:**
 ```json
 {
   "ok": true,
   "data": {
-    "submissions": [...],
-    "summary": {
-      "total": 150,
-      "new": 12,
-      "inProgress": 5,
-      "resolved": 133,
-      "byCategory": {
-        "support": 80,
-        "bug": 20,
-        "feedback": 30,
-        ...
+    "emails": {
+      "support": {
+        "address": "support@astrosetu.app",
+        "label": "For general inquiries",
+        "validated": true
+      },
+      "privacy": {
+        "address": "privacy@astrosetu.app",
+        "label": "For privacy-related inquiries or complaints",
+        "validated": true
       }
     },
-    "pagination": {
-      "limit": 50,
-      "offset": 0,
-      "total": 150
+    "phone": {
+      "number": "+918001234567",
+      "display": "+91 800 123 4567",
+      "telLink": "tel:+918001234567",
+      "available": true,
+      "label": "Available now"
+    },
+    "whatsapp": {
+      "number": "+918001234567",
+      "display": "+91 800 123 4567",
+      "link": "https://wa.me/918001234567",
+      "available24x7": true,
+      "label": "24/7 support available"
+    },
+    "company": {
+      "name": "AstroSetu Services Pvt. Ltd.",
+      "address": {
+        "full": "Mumbai, Maharashtra, India",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "country": "India"
+      },
+      "jurisdiction": "Australia (primary) / India (international operations)"
+    },
+    "businessHours": {
+      "timezone": "Asia/Kolkata",
+      "weekdays": {
+        "open": "09:00",
+        "close": "18:00",
+        "days": "Monday, Tuesday, Wednesday, Thursday, Friday"
+      },
+      "saturday": "10:00 - 16:00",
+      "sunday": "Closed"
+    },
+    "availability": {
+      "isOpen": true,
+      "status": "open",
+      "message": "Open now",
+      "currentTime": "2024-12-26T14:30:00.000Z",
+      "timezone": "Asia/Kolkata"
+    },
+    "autoResponse": {
+      "enabled": true,
+      "responseTime": "24-48 hours"
     }
   }
 }
@@ -178,185 +150,93 @@ curl -H "Authorization: Bearer YOUR_ADMIN_KEY" \
 
 ---
 
-## 📊 Database Schema
+## How It Works
 
-**Table:** `contact_submissions`
+### 1. Configuration Loading
+- Contact details loaded from environment variables at startup
+- Falls back to sensible defaults if not configured
+- Validates email and phone formats
 
-**Fields:**
-- `id` - UUID (primary key)
-- `created_at` - Timestamp
-- `name`, `email`, `phone` - Contact info
-- `subject`, `message` - Message content
-- `category` - Auto-categorized type
-- `status` - new, read, in_progress, resolved, archived
-- `ip_address`, `user_agent` - Spam tracking
-- `metadata` - Additional data (JSONB)
+### 2. Availability Detection
+- Calculates current time in business timezone
+- Checks day of week (Monday-Saturday business hours, Sunday closed)
+- Checks if current time is within business hours
+- Accounts for holidays
+- Updates automatically every minute
 
-**Indexes:**
-- Email lookup
-- Status filtering
-- Category filtering
-- Created date sorting
-- Full-text search on message/subject
+### 3. Dynamic Display
+- Contact page fetches latest info from API
+- Shows real-time availability status
+- Displays formatted phone numbers
+- Generates clickable links (tel:, mailto:, WhatsApp)
 
----
-
-## 🔒 Security Features
-
-1. **Rate Limiting:**
-   - API endpoint rate limited
-   - Max 5 submissions per IP per hour
-
-2. **Spam Prevention:**
-   - IP address tracking
-   - User agent tracking
-   - Automatic spam detection
-
-3. **Input Validation:**
-   - Zod schema validation
-   - Length limits (name: 100, message: 5000)
-   - Email format validation
-   - XSS prevention (server-side)
-
-4. **Admin Protection:**
-   - Admin endpoints require `ADMIN_API_KEY`
-   - All submissions stored securely
+### 4. Auto-Validation
+- Email addresses validated via regex
+- Phone numbers validated for E.164 format
+- Invalid formats flagged in response
 
 ---
 
-## 📝 Manual Setup Checklist
+## Updating Contact Information
 
-- [ ] Run SQL script in Supabase
-- [ ] Sign up for Resend (or alternative email service)
-- [ ] Get email API key
-- [ ] Add `RESEND_API_KEY` to Vercel environment variables
-- [ ] Add `SUPPORT_EMAIL` to environment variables
-- [ ] Add `ADMIN_EMAIL` to environment variables
-- [ ] Verify domain (optional, for better deliverability)
-- [ ] Test contact form submission
-- [ ] Verify auto-reply email received
-- [ ] Verify admin notification email received
-- [ ] Check database for stored submission
+### To Update Contact Details:
 
----
+1. **Via Vercel Dashboard**:
+   - Go to Project Settings → Environment Variables
+   - Update the relevant variables
+   - Redeploy (or let auto-deploy handle it)
 
-## 🧪 Testing
+2. **Via `.env.local`** (development):
+   ```bash
+   SUPPORT_EMAIL=newemail@astrosetu.app
+   PHONE_NUMBER=+919876543210
+   ```
 
-### Test Contact Form:
-
-1. **Submit Form:**
-   - Fill out all required fields
-   - Select category
-   - Submit form
-
-2. **Verify:**
-   - Success message appears
-   - Auto-reply email received (check inbox/spam)
-   - Admin notification email received
-   - Submission stored in database
-
-### Test Spam Prevention:
-
-1. **Submit 5 forms quickly** from same IP
-2. **6th submission should fail** with rate limit error
-3. **Wait 1 hour** or use different IP
-4. **Submission should work again**
+3. **No Code Changes Required**:
+   - All updates are via environment variables
+   - No code deployment needed (unless changing business logic)
+   - Changes take effect on next deployment
 
 ---
 
-## 🚨 Troubleshooting
+## Testing
 
-### Issue: Emails not sending
+### Test Contact Info API:
+```bash
+curl https://your-deployment.vercel.app/api/contact/info
+```
 
-**Check:**
-- `RESEND_API_KEY` is set in environment variables
-- API key is valid (not expired)
-- Domain is verified (if using custom domain)
-- Check Resend dashboard for send logs
-- Check spam folder
+### Verify Business Hours:
+- Check `/contact` page during business hours (should show "Open Now")
+- Check outside business hours (should show "Closed" with next open time)
+- Test different timezones by changing `BUSINESS_HOURS_TIMEZONE`
 
-**Solution:**
-- Verify API key in Resend dashboard
-- Check Resend account limits (free tier: 100 emails/day)
-- Review Resend API logs
-
-### Issue: Submissions not saving to database
-
-**Check:**
-- Supabase is configured
-- SQL script was run successfully
-- `contact_submissions` table exists
-- RLS policies are correct
-
-**Solution:**
-- Verify Supabase connection
-- Check table exists in Supabase dashboard
-- Review RLS policies
-- Check server logs for errors
-
-### Issue: Rate limit too strict
-
-**Solution:**
-- Adjust rate limit in `/api/contact/route.ts`
-- Modify spam check (currently 5 per hour)
-- Consider CAPTCHA for additional protection
+### Verify Contact Form Integration:
+- Contact form already uses autonomous email system
+- Form submissions auto-categorized
+- Auto-replies sent automatically
 
 ---
 
-## 📈 Monitoring
+## Benefits
 
-### Track Contact Submissions:
-
-1. **Database Monitoring:**
-   - Query `contact_submissions` table
-   - Track submission volume
-   - Monitor response times
-
-2. **Email Monitoring:**
-   - Resend dashboard shows send stats
-   - Track delivery rates
-   - Monitor bounce rates
-
-3. **Admin Dashboard (Future):**
-   - Build custom admin interface
-   - View submissions by status
-   - Reply to submissions directly
+✅ **Zero Maintenance**: Update environment variables, no code changes  
+✅ **Always Accurate**: Real-time availability status  
+✅ **Timezone-Aware**: Works globally with proper timezone handling  
+✅ **Auto-Validated**: Invalid contact details flagged  
+✅ **Flexible**: Easy to add new contact methods or update existing ones  
+✅ **Scalable**: Can handle multiple timezones, holidays, etc.  
 
 ---
 
-## 🎯 Result
+## Future Enhancements (Optional)
 
-**Autonomous Contact Form System:**
-- ✅ Automatic email notifications
-- ✅ Auto-reply to users
-- ✅ Admin notifications
-- ✅ Database storage
-- ✅ Spam prevention
-- ✅ Auto-categorization
-- ✅ No manual intervention required
-
-**Owner Benefit:**
-- All submissions automatically emailed
-- Users receive instant confirmation
-- Submissions stored for tracking
-- Categorized for easy prioritization
-- Spam automatically filtered
-
----
-
-## 📚 Related Documentation
-
-- `supabase-contact-submissions.sql` - Database schema
-- `/api/contact/route.ts` - API implementation
-- `/api/admin/contact-submissions/route.ts` - Admin endpoint
-
----
-
-**Status:** ✅ Code complete, ⏳ Manual setup required (SQL + Email service)  
-**Autonomy Level:** 95% (autonomous after setup)  
-**Manual Steps:** ~30 minutes
+- [ ] Multi-language support for business hours
+- [ ] Holiday calendar integration
+- [ ] Live chat availability integration
+- [ ] Social media links from config
+- [ ] Contact method preferences (email vs phone vs WhatsApp)
 
 ---
 
 **Last Updated:** December 26, 2024
-

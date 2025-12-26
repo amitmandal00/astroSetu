@@ -1,15 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { Input } from "@/components/ui/Input";
-import { apiPost } from "@/lib/http";
+import { apiPost, apiGet } from "@/lib/http";
+import { Badge } from "@/components/ui/Badge";
 
 type ContactCategory = "general" | "support" | "feedback" | "bug" | "partnership" | "other";
 
+interface ContactInfo {
+  emails: {
+    support: { address: string; label: string; validated: boolean };
+    privacy: { address: string; label: string; validated: boolean };
+  };
+  phone: {
+    number: string;
+    display: string;
+    telLink: string;
+    available: boolean;
+    label: string;
+  };
+  whatsapp: {
+    number: string;
+    display: string;
+    link: string;
+    available24x7: boolean;
+    label: string;
+  };
+  company: {
+    name: string;
+    address: { full: string; city: string; state: string; country: string };
+    jurisdiction: string;
+  };
+  businessHours: {
+    timezone: string;
+    weekdays: { open: string; close: string; days: string };
+    saturday: string | null;
+    sunday: string;
+  };
+  availability: {
+    isOpen: boolean;
+    status: "open" | "closed";
+    message: string;
+    currentTime: string;
+    nextOpenTime?: string;
+    timezone: string;
+  };
+  autoResponse: {
+    enabled: boolean;
+    responseTime: string;
+  };
+}
+
 export default function ContactPage() {
+  const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
+  const [contactInfoLoading, setContactInfoLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -21,6 +68,32 @@ export default function ContactPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch contact information on mount
+  useEffect(() => {
+    async function fetchContactInfo() {
+      try {
+        const res = await apiGet<{ ok: boolean; data?: ContactInfo; error?: string }>("/api/contact/info");
+        if (res.ok && res.data) {
+          setContactInfo(res.data);
+        } else {
+          console.error("Failed to fetch contact info:", res.error);
+          // Use fallback values if API fails
+        }
+      } catch (err) {
+        console.error("Error fetching contact info:", err);
+        // Use fallback values if API fails
+      } finally {
+        setContactInfoLoading(false);
+      }
+    }
+    
+    fetchContactInfo();
+    
+    // Refresh availability every minute
+    const interval = setInterval(fetchContactInfo, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,75 +156,138 @@ export default function ContactPage() {
         <Card>
           <CardHeader eyebrow="Get In Touch" title="Contact Information" />
           <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="text-2xl">📧</div>
-                <div>
-                  <div className="font-semibold text-slate-900 mb-1">Email</div>
-                  <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">
-                    support@astrosetu.app
-                  </a>
-                  <div className="text-sm text-slate-600 mt-1">For general inquiries</div>
-                </div>
+            {contactInfoLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin text-2xl">⏳</div>
+                <span className="ml-2 text-slate-600">Loading contact information...</span>
               </div>
-
-              <div className="flex items-start gap-4">
-                <div className="text-2xl">📞</div>
-                <div>
-                  <div className="font-semibold text-slate-900 mb-1">Phone</div>
-                  <a href="tel:+918001234567" className="text-indigo-600 hover:underline">
-                    +91 800 123 4567
-                  </a>
-                  <div className="text-sm text-slate-600 mt-1">Mon-Sat, 9 AM - 6 PM IST</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="text-2xl">💬</div>
-                <div>
-                  <div className="font-semibold text-slate-900 mb-1">WhatsApp</div>
-                  <a href="https://wa.me/918001234567" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
-                    +91 800 123 4567
-                  </a>
-                  <div className="text-sm text-slate-600 mt-1">24/7 support available</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="text-2xl">📍</div>
-                <div>
-                  <div className="font-semibold text-slate-900 mb-1">Legal Entity & Address</div>
-                  <div className="text-slate-700">
-                    AstroSetu Services Pvt. Ltd.<br />
-                    Mumbai, Maharashtra<br />
-                    India
+            ) : contactInfo ? (
+              <>
+                {/* Availability Status Badge */}
+                <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge tone={contactInfo.availability.isOpen ? "green" : "neutral"}>
+                        {contactInfo.availability.isOpen ? "● Open Now" : "○ Closed"}
+                      </Badge>
+                      <span className="text-sm text-slate-600">{contactInfo.availability.message}</span>
+                    </div>
                   </div>
-                  <div className="text-sm text-slate-600 mt-2">
-                    <strong>Jurisdiction:</strong> Australia (primary) / India (international operations)
+                  {contactInfo.autoResponse.enabled && (
+                    <div className="text-xs text-slate-500 mt-2">
+                      Auto-reply: Responses within {contactInfo.autoResponse.responseTime}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {/* Support Email */}
+                  <div className="flex items-start gap-4">
+                    <div className="text-2xl">📧</div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900 mb-1">Email</div>
+                      <a 
+                        href={`mailto:${contactInfo.emails.support.address}`} 
+                        className="text-indigo-600 hover:underline break-all"
+                      >
+                        {contactInfo.emails.support.address}
+                      </a>
+                      <div className="text-sm text-slate-600 mt-1">{contactInfo.emails.support.label}</div>
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div className="flex items-start gap-4">
+                    <div className="text-2xl">📞</div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                        Phone
+                        {contactInfo.phone.available && (
+                          <Badge tone="green" className="text-xs">Available</Badge>
+                        )}
+                      </div>
+                      <a 
+                        href={contactInfo.phone.telLink} 
+                        className="text-indigo-600 hover:underline"
+                      >
+                        {contactInfo.phone.display}
+                      </a>
+                      <div className="text-sm text-slate-600 mt-1">{contactInfo.phone.label}</div>
+                    </div>
+                  </div>
+
+                  {/* WhatsApp */}
+                  <div className="flex items-start gap-4">
+                    <div className="text-2xl">💬</div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                        WhatsApp
+                        {contactInfo.whatsapp.available24x7 && (
+                          <Badge tone="green" className="text-xs">24/7</Badge>
+                        )}
+                      </div>
+                      <a 
+                        href={contactInfo.whatsapp.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-indigo-600 hover:underline"
+                      >
+                        {contactInfo.whatsapp.display}
+                      </a>
+                      <div className="text-sm text-slate-600 mt-1">{contactInfo.whatsapp.label}</div>
+                    </div>
+                  </div>
+
+                  {/* Company Address */}
+                  <div className="flex items-start gap-4">
+                    <div className="text-2xl">📍</div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900 mb-1">Legal Entity & Address</div>
+                      <div className="text-slate-700">
+                        {contactInfo.company.name}<br />
+                        {contactInfo.company.address.full}
+                      </div>
+                      <div className="text-sm text-slate-600 mt-2">
+                        <strong>Jurisdiction:</strong> {contactInfo.company.jurisdiction}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Privacy Email */}
+                  <div className="flex items-start gap-4">
+                    <div className="text-2xl">🔒</div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900 mb-1">Privacy Matters</div>
+                      <a 
+                        href={`mailto:${contactInfo.emails.privacy.address}`} 
+                        className="text-indigo-600 hover:underline break-all"
+                      >
+                        {contactInfo.emails.privacy.address}
+                      </a>
+                      <div className="text-sm text-slate-600 mt-1">{contactInfo.emails.privacy.label}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-4">
-                <div className="text-2xl">🔒</div>
-                <div>
-                  <div className="font-semibold text-slate-900 mb-1">Privacy Matters</div>
-                  <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline">
-                    privacy@astrosetu.app
-                  </a>
-                  <div className="text-sm text-slate-600 mt-1">For privacy-related inquiries or complaints</div>
+                {/* Business Hours */}
+                <div className="pt-4 border-t border-slate-200">
+                  <div className="font-semibold text-slate-900 mb-3">Business Hours ({contactInfo.businessHours.timezone})</div>
+                  <div className="text-sm text-slate-700 space-y-1">
+                    <div>
+                      {contactInfo.businessHours.weekdays.days}: {contactInfo.businessHours.weekdays.open} - {contactInfo.businessHours.weekdays.close}
+                    </div>
+                    {contactInfo.businessHours.saturday && (
+                      <div>Saturday: {contactInfo.businessHours.saturday}</div>
+                    )}
+                    <div>Sunday: {contactInfo.businessHours.sunday}</div>
+                  </div>
                 </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                Failed to load contact information. Please refresh the page.
               </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-200">
-              <div className="font-semibold text-slate-900 mb-3">Business Hours</div>
-              <div className="text-sm text-slate-700 space-y-1">
-                <div>Monday - Friday: 9:00 AM - 6:00 PM IST</div>
-                <div>Saturday: 10:00 AM - 4:00 PM IST</div>
-                <div>Sunday: Closed</div>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
