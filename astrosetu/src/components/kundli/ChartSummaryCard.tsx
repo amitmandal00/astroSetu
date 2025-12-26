@@ -139,10 +139,12 @@ export function ChartSummaryCard({ kundliData, dosha }: ChartSummaryCardProps) {
                   <div className="text-xs text-slate-600 mt-1">Present{dosha.kaalSarp.type ? ` (${dosha.kaalSarp.type})` : ""}</div>
                 </div>
               )}
-              {dosha.shani && dosha.shani.status === "Afflicted" && (
+              {dosha.shani && dosha.shani.effects && dosha.shani.effects.length > 0 && (
                 <div>
                   <Badge tone="amber" className="text-xs">Shani Dosha</Badge>
-                  <div className="text-xs text-slate-600 mt-1">Afflicted</div>
+                  <div className="text-xs text-slate-600 mt-1">
+                    {dosha.shani.severity || "Present"}
+                  </div>
                 </div>
               )}
             </div>
