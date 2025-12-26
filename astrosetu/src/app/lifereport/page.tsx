@@ -36,6 +36,7 @@ import {
 } from "@/lib/lifeReportAnalysis";
 import { PersonalitySection } from "@/components/lifereport/PersonalitySection";
 import { LifeAreaSection } from "@/components/lifereport/LifeAreaSection";
+import { AstrologyDisclaimer } from "@/components/legal/AstrologyDisclaimer";
 import { LuckyElementsSection } from "@/components/lifereport/LuckyElementsSection";
 
 type LifeReportData = {

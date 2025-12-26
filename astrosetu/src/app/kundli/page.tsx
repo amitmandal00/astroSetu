@@ -24,6 +24,7 @@ import { AspectsAndRelationships } from "@/components/kundli/AspectsAndRelations
 import { YogasAnalysis } from "@/components/kundli/YogasAnalysis";
 import { HouseAnalysis } from "@/components/kundli/HouseAnalysis";
 import { EnhancedDoshasAndRemedies } from "@/components/kundli/EnhancedDoshasAndRemedies";
+import { AstrologyDisclaimer } from "@/components/legal/AstrologyDisclaimer";
 import { logEvent, logError } from "@/lib/telemetry";
 import { resolvePlaceCoordinates } from "@/lib/indianCities";
 import { shareKundli, copyToClipboard, downloadAsJSON } from "@/lib/shareUtils";

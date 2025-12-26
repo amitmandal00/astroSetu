@@ -11,6 +11,7 @@ import { HeaderPattern } from "@/components/ui/HeaderPattern";
 import { AstroImage } from "@/components/ui/AstroImage";
 import { AutocompleteInput } from "@/components/ui/AutocompleteInput";
 import { ASTRO_IMAGES } from "@/lib/astroImages";
+import { AstrologyDisclaimer } from "@/components/legal/AstrologyDisclaimer";
 
 function VerdictBadge({ v }: { v: MatchResult["verdict"] }) {
   const tone = v === "Excellent" ? "green" : v === "Good" ? "indigo" : v === "Average" ? "amber" : "red";
