@@ -4,11 +4,6 @@
   "installCommand": "npm ci",
   "framework": "nextjs",
   "regions": ["bom1"],
-  "git": {
-    "deploymentEnabled": {
-      "main": false
-    }
-  },
   "env": {
     "NODE_ENV": "production"
   },

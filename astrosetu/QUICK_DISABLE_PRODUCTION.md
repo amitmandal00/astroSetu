@@ -1,10 +1,34 @@
-# 🚫 Quick Guide: Disable Production in Vercel
+# 🚫 Quick Guide: Enable Preview Deployments (Disable Auto-Production)
 
-Based on the screenshot you're seeing, here are the **actual steps** to disable production:
+## 🎯 Goal
+Configure Vercel so that pushes to `main` create **Preview** deployments instead of **Production** deployments.
 
 ---
 
-## ✅ Method 1: Pause Production Deployment (Fastest - 30 seconds)
+## ✅ Method 1: Change Production Branch (RECOMMENDED - Fixes Preview Deployments)
+
+**This is the correct way to enable preview deployments:**
+
+1. **Go to Settings → General**
+   - Click **Settings** tab (top navigation)
+   - Click **General** in the left sidebar (first option, at the top)
+
+2. **Change Production Branch**
+   - Scroll down to find **"Production Branch"** section
+   - Currently shows: `main`
+   - **Change dropdown to:** `production` (or type a branch name that doesn't exist)
+   - Click **Save**
+
+3. **Result:**
+   - ✅ Pushes to `main` will now create **Preview** deployments
+   - ✅ Production deployments only if you push to `production` branch (which doesn't exist)
+   - ✅ Preview URL format: `https://astrosetu-app-git-main-[team].vercel.app`
+
+**This is the ONLY way to enable preview deployments while disabling auto-production from main branch.**
+
+---
+
+## ✅ Method 2: Pause Production Deployment (Temporary Fix)
 
 1. **Go to Deployments Tab**
    - Click **"Deployments"** at the top (next to "Overview", "Analytics", etc.)
