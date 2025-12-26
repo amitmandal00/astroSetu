@@ -168,7 +168,7 @@ export function EnhancedDoshasAndRemedies({ dosha }: EnhancedDoshasAndRemediesPr
                               {remedy.type}
                             </Badge>
                             {remedy.priority && (
-                              <Badge tone={remedy.priority === "High" ? "red" : remedy.priority === "Medium" ? "orange" : "yellow"} className="text-xs">
+                              <Badge tone={remedy.priority === "High" ? "red" : remedy.priority === "Medium" ? "amber" : "neutral"} className="text-xs">
                                 {remedy.priority}
                               </Badge>
                             )}
@@ -291,7 +291,7 @@ export function EnhancedDoshasAndRemedies({ dosha }: EnhancedDoshasAndRemediesPr
                               {remedy.type}
                             </Badge>
                             {remedy.priority && (
-                              <Badge tone={remedy.priority === "High" ? "red" : remedy.priority === "Medium" ? "orange" : "yellow"} className="text-xs">
+                              <Badge tone={remedy.priority === "High" ? "red" : remedy.priority === "Medium" ? "amber" : "neutral"} className="text-xs">
                                 {remedy.priority}
                               </Badge>
                             )}

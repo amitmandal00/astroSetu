@@ -72,7 +72,7 @@ export function AspectsAndRelationships({ planets }: AspectsAndRelationshipsProp
                   <span className="text-slate-600">↔</span>
                   <span className="font-bold text-sm">{rel.planet2}</span>
                   <Badge 
-                    tone={rel.relationship === "friendly" ? "green" : "orange"} 
+                    tone={rel.relationship === "friendly" ? "green" : "amber"} 
                     className="text-xs ml-auto"
                   >
                     {rel.relationship}
