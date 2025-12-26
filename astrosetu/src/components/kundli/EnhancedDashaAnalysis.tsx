@@ -10,8 +10,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { getDashaPeriods, type BirthDetails } from "@/lib/prokeralaEnhanced";
-import type { KundliResult, KundliChart } from "@/types/astrology";
+import { getDashaPeriods } from "@/lib/prokeralaEnhanced";
+import type { KundliResult, KundliChart, BirthDetails } from "@/types/astrology";
 
 type EnhancedDashaAnalysisProps = {
   kundliData: KundliResult & { chart?: KundliChart };
