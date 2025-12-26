@@ -362,15 +362,9 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
         console.log("[Transform] Calculated tithi from moon-sun difference:", tithi);
       }
     } else if (input?.dob) {
-      // Fallback: Calculate tithi from date (approximation)
-      try {
-        tithi = calculateTithiFromDate(input.dob);
-        if (tithi && tithi !== "Unknown") {
-          console.log("[Transform] Calculated tithi from date:", tithi);
-        }
-      } catch (calcError) {
-        console.warn("[Transform] Failed to calculate tithi from date:", calcError);
-      }
+      // Note: Calculating tithi from date alone requires complex astronomical calculations
+      // and is not reliable without moon/sun positions. Skip this fallback.
+      console.log("[Transform] Could calculate tithi from date but skipping complex calculation");
     }
   }
   
