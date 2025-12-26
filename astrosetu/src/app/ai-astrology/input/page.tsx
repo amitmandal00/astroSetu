@@ -1,0 +1,301 @@
+/**
+ * AI Astrology Input Form Page
+ * Collects birth details for AI report generation
+ */
+
+"use client";
+
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { AutocompleteInput } from "@/components/ui/AutocompleteInput";
+import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { resolvePlaceCoordinates } from "@/lib/indianCities";
+
+type ReportType = "life-summary" | "marriage-timing" | "career-money" | "full-life" | null;
+
+function InputFormContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const reportType = (searchParams.get("report") as ReportType) || null;
+  
+  const [name, setName] = useState("");
+  const [dob, setDob] = useState("");
+  const [tob, setTob] = useState("");
+  const [place, setPlace] = useState("");
+  const [gender, setGender] = useState<"Male" | "Female" | "">("");
+  const [latitude, setLatitude] = useState<number | undefined>(undefined);
+  const [longitude, setLongitude] = useState<number | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handlePlaceChange = async (newPlace: string) => {
+    setPlace(newPlace);
+    if (newPlace.trim().length >= 2) {
+      try {
+        const coords = resolvePlaceCoordinates(newPlace);
+        if (coords) {
+          setLatitude(coords.latitude);
+          setLongitude(coords.longitude);
+        }
+      } catch (e) {
+        console.log("Could not resolve coordinates:", e);
+      }
+    }
+  };
+
+  const canSubmit = name.trim().length >= 2 && 
+                   dob.length === 10 && 
+                   tob.length >= 5 && 
+                   place.trim().length >= 2;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Resolve coordinates if not already set
+      let lat = latitude;
+      let lon = longitude;
+      
+      if (!lat || !lon) {
+        const coords = resolvePlaceCoordinates(place);
+        if (coords) {
+          lat = coords.latitude;
+          lon = coords.longitude;
+        } else {
+          throw new Error("Please provide a valid place name (city, state, country)");
+        }
+      }
+
+      const inputData = {
+        name: name.trim(),
+        dob,
+        tob: tob.length === 5 ? `${tob}:00` : tob,
+        place: place.trim(),
+        gender: gender || undefined,
+        latitude: lat,
+        longitude: lon,
+        timezone: "Asia/Kolkata",
+      };
+
+      // Store in sessionStorage for next page
+      sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
+      sessionStorage.setItem("aiAstrologyReportType", reportType || "life-summary");
+
+      // Redirect to preview page
+      router.push("/ai-astrology/preview");
+    } catch (e: any) {
+      setError(e.message || "Something went wrong. Please check your inputs.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getReportTitle = () => {
+    switch (reportType) {
+      case "marriage-timing":
+        return "Marriage Timing Report";
+      case "career-money":
+        return "Career & Money Report";
+      case "full-life":
+        return "Full Life Report";
+      default:
+        return "Free Life Summary";
+    }
+  };
+
+  const getReportDescription = () => {
+    switch (reportType) {
+      case "marriage-timing":
+        return "Get detailed insights about your ideal marriage timing, compatibility, and remedies.";
+      case "career-money":
+        return "Discover your best career direction, job change timing, and financial phases.";
+      case "full-life":
+        return "Comprehensive analysis covering all aspects of your life and future.";
+      default:
+        return "Get a free preview of your personality, strengths, and life themes. No payment required.";
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
+      <div className="container mx-auto px-4 max-w-2xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <Link href="/ai-astrology" className="text-sm text-purple-600 hover:text-purple-700 mb-4 inline-block">
+            ← Back to AI Astrology
+          </Link>
+          <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
+            {getReportTitle()}
+          </h1>
+          <p className="text-slate-600">{getReportDescription()}</p>
+        </div>
+
+        {/* Form Card */}
+        <Card className="border-2 border-purple-200 bg-white shadow-lg">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="text-3xl">🔮</div>
+              <div>
+                <h2 className="text-xl font-bold">Enter Your Birth Details</h2>
+                <p className="text-sm text-slate-600">We need accurate information for precise astrological calculations</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter your full name"
+                  required
+                  className="w-full"
+                />
+              </div>
+
+              {/* Date of Birth */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Date of Birth <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="date"
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                  required
+                  max={new Date().toISOString().split("T")[0]}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Time of Birth */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Time of Birth <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="time"
+                  value={tob}
+                  onChange={(e) => setTob(e.target.value)}
+                  required
+                  className="w-full"
+                />
+                <p className="text-xs text-slate-500 mt-1">Use 24-hour format (e.g., 14:30 for 2:30 PM)</p>
+              </div>
+
+              {/* Place of Birth */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Place of Birth <span className="text-red-500">*</span>
+                </label>
+                <AutocompleteInput
+                  value={place}
+                  onChange={handlePlaceChange}
+                  placeholder="Enter city name (e.g., Delhi, Mumbai, New York)"
+                  prioritizeIndia={true}
+                />
+                <p className="text-xs text-slate-500 mt-1">Enter city name for accurate location coordinates</p>
+              </div>
+
+              {/* Gender (Optional) */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Gender <span className="text-slate-400 text-xs">(Optional)</span>
+                </label>
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value as "Male" | "Female" | "")}
+                  className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                >
+                  <option value="">Prefer not to say</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="p-4 rounded-xl bg-red-50 border-2 border-red-200">
+                  <div className="flex items-center gap-2 text-red-700 font-semibold">
+                    <span>⚠️</span>
+                    <span>{error}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <div className="pt-4">
+                <Button
+                  type="submit"
+                  disabled={!canSubmit || loading}
+                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 py-6 text-lg"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="animate-spin">🌙</span>
+                      Processing...
+                    </span>
+                  ) : reportType ? (
+                    `Generate ${getReportTitle()}`
+                  ) : (
+                    "Get Free Life Summary"
+                  )}
+                </Button>
+              </div>
+
+              {/* Privacy Note */}
+              <div className="text-center pt-4 border-t border-slate-200">
+                <p className="text-xs text-slate-500">
+                  🔒 Your data is kept private and secure. We don't share your information with anyone.
+                </p>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Info Card */}
+        <Card className="mt-6 bg-purple-50 border-purple-200">
+          <CardContent className="p-6">
+            <h3 className="font-bold mb-3 text-purple-900">Why We Need This Information</h3>
+            <ul className="space-y-2 text-sm text-purple-800">
+              <li>• <strong>Date & Time:</strong> Essential for calculating your exact birth chart and planetary positions</li>
+              <li>• <strong>Place:</strong> Required for accurate timezone and geographic coordinates</li>
+              <li>• <strong>Name:</strong> Used to personalize your report</li>
+              <li>• <strong>Gender:</strong> Optional, but helps provide more relevant guidance</li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export default function InputPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">🌙</div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <InputFormContent />
+    </Suspense>
+  );
+}
+
