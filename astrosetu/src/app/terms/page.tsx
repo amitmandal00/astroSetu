@@ -55,7 +55,7 @@ export default function TermsPage() {
                   <strong>Important Note:</strong> Astrology services are belief-based and do not guarantee specific outcomes. The ACL guarantees relate to the quality of service delivery, not to the accuracy or outcome of astrological interpretations.
                 </p>
                 <p className="mt-3 text-indigo-800">
-                  <strong>Remedies:</strong> If we fail to meet a consumer guarantee, you may be entitled to remedies including repair, replacement, or refund. Contact us at <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline font-medium">support@astrosetu.app</a>.
+                  <strong>Remedies:</strong> If we fail to meet a consumer guarantee, you may be entitled to remedies including repair, replacement, or refund. See our <a href="/refund" className="text-indigo-600 hover:underline font-medium">Refund Policy</a> for details.
                 </p>
                 <p className="mt-3 text-indigo-800">
                   For more information about your rights, visit the Australian Competition & Consumer Commission (ACCC) website: <a href="https://www.accc.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">www.accc.gov.au</a>.
@@ -181,7 +181,7 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">10. Dispute Resolution</h2>
                 <p>
-                  If you have a complaint or dispute, please contact us first at <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a>. We aim to resolve disputes within 30 days.
+                  These Terms are provided for informational purposes. No individual assistance or clarification is provided. For compliance requests or disputes, see our <a href="/disputes" className="text-indigo-600 hover:underline">Dispute Resolution Policy</a>.
                 </p>
                 <p className="mt-3">
                   <strong>Australian Users:</strong> If we cannot resolve your complaint, you may contact:
@@ -222,8 +222,7 @@ export default function TermsPage() {
                   <strong>Contact:</strong>
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li>Email: <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
-                  <li>Legal Matters: <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a></li>
+                  <li>Legal Contact: <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a> (for legal notices and compliance requests only)</li>
                 </ul>
               </section>
             </div>

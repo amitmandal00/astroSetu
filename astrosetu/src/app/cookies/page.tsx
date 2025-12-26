@@ -146,16 +146,12 @@ export default function CookiesPage() {
                 </p>
               </section>
 
-              {/* Contact */}
+              {/* Managing Cookies */}
               <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-3">7. Contact Us</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-3">7. Managing Cookies</h2>
                 <p>
-                  If you have questions about our use of cookies, please contact us:
+                  You may manage cookies through your browser settings as described above. No additional assistance or cookie management support is provided.
                 </p>
-                <ul className="list-none space-y-1 ml-4 mt-2">
-                  <li><strong>Email:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
-                  <li><strong>Website:</strong> <a href="/contact" className="text-indigo-600 hover:underline">Contact Us Page</a></li>
-                </ul>
               </section>
             </div>
           </CardContent>

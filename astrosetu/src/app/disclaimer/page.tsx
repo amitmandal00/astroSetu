@@ -34,7 +34,7 @@ export default function DisclaimerPage() {
                   <li>Results may vary across cultures, astrologers, and systems</li>
                 </ul>
                 <p className="mt-4 text-amber-900 font-semibold">
-                  All content is provided for guidance and reflection only.
+                  All content is provided for informational purposes only. AstroSetu does not provide personalised advice, recommendations, or guidance.
                 </p>
               </section>
 
@@ -59,7 +59,7 @@ export default function DisclaimerPage() {
                   For detailed terms and conditions, please see our <a href="/terms" className="text-indigo-600 hover:underline font-medium">Terms & Conditions</a> page.
                 </p>
                 <p className="mt-3 text-slate-700">
-                  For questions or concerns, contact us at <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline font-medium">support@astrosetu.app</a>.
+                  For compliance requests only, see our <a href="/contact" className="text-indigo-600 hover:underline font-medium">Contact & Legal Information</a> page.
                 </p>
               </section>
             </div>

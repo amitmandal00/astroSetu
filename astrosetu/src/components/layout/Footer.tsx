@@ -20,13 +20,10 @@ const footerLinks = {
     { href: "/reports/varshphal", label: "Varshphal", icon: "📅" },
     { href: "/reports/lalkitab", label: "Lal Kitab", icon: "📖" },
   ],
-  support: [
-    { href: "/astrologers", label: "Consult Astrologer", icon: "👨‍🏫" },
-    { href: "/sessions", label: "Live Sessions", icon: "🎥" },
-    { href: "/community", label: "Community", icon: "💬" },
+  information: [
+    { href: "/faq", label: "FAQs", icon: "❓" },
     { href: "/learn", label: "Learn Astrology", icon: "📚" },
-    { href: "/puja", label: "Book Puja", icon: "🕉️" },
-    { href: "/remedies", label: "Remedies", icon: "💎" },
+    { href: "/about", label: "About", icon: "ℹ️" },
   ],
   company: [
     { href: "/about", label: "About Us", icon: null },
@@ -54,7 +51,6 @@ const socialLinks = [
   { href: "https://twitter.com/astrosetu", icon: "🐦", label: "Twitter", name: "Twitter" },
   { href: "https://youtube.com/@astrosetu", icon: "📺", label: "YouTube", name: "YouTube" },
   { href: "https://linkedin.com/company/astrosetu", icon: "💼", label: "LinkedIn", name: "LinkedIn" },
-  { href: "https://wa.me/918001234567", icon: "💬", label: "WhatsApp", name: "WhatsApp" },
 ];
 
 const languages = [
@@ -121,10 +117,6 @@ export function Footer() {
                 <span className="text-green-600">✓</span>
                 <span>Secure Payments</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <span className="text-green-600">✓</span>
-                <span>Expert Astrologers</span>
-              </div>
             </div>
           </div>
 
@@ -164,11 +156,11 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Support Column */}
+          {/* Information Column */}
           <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-4">Support & Help</h3>
+            <h3 className="text-sm font-bold text-slate-900 mb-4">Information</h3>
             <ul className="space-y-2.5">
-              {footerLinks.support.map((link) => (
+              {footerLinks.information.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
@@ -225,18 +217,14 @@ export function Footer() {
                 <a href="mailto:support@astrosetu.app" className="hover:text-saffron-600 transition-colors">
                   support@astrosetu.app
                 </a>
+                <span className="text-xs text-slate-500">(Legal & compliance only)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span>📞</span>
-                <a href="tel:+918001234567" className="hover:text-saffron-600 transition-colors">
-                  +91 800 123 4567
+                <span>🔒</span>
+                <a href="mailto:privacy@astrosetu.app" className="hover:text-saffron-600 transition-colors">
+                  privacy@astrosetu.app
                 </a>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>💬</span>
-                <a href="https://wa.me/918001234567" target="_blank" rel="noopener noreferrer" className="hover:text-saffron-600 transition-colors">
-                  WhatsApp Support
-                </a>
+                <span className="text-xs text-slate-500">(Privacy requests)</span>
               </div>
               <div className="flex items-start gap-2 mt-3">
                 <span>📍</span>

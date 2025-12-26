@@ -75,15 +75,13 @@ export default function AccessibilityPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Feedback & Reporting Issues</h2>
                 <p>
-                  We welcome your feedback on the accessibility of AstroSetu. If you encounter accessibility barriers, please let us know:
+                  AstroSetu aims to meet WCAG 2.1 AA standards. We do not provide individual accessibility assistance, but feedback may be submitted via email for compliance monitoring purposes.
                 </p>
-                <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
-                  <li>Email: <a href="mailto:accessibility@astrosetu.app" className="text-indigo-600 hover:underline">accessibility@astrosetu.app</a></li>
-                  <li>General Support: <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
-                  <li>Please include: Page URL, issue description, and your contact information</li>
-                </ul>
                 <p className="mt-3">
-                  We aim to respond to accessibility feedback within 5 business days.
+                  For accessibility feedback (compliance monitoring only), see our <a href="/contact" className="text-indigo-600 hover:underline">Contact & Legal Information</a> page.
+                </p>
+                <p className="mt-3 text-sm text-slate-600">
+                  <strong>Note:</strong> No response timeline is guaranteed. Accessibility improvements are implemented as part of our ongoing platform development.
                 </p>
               </section>
 

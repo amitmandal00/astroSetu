@@ -98,29 +98,27 @@ export default function RefundPage() {
 
               {/* Refund Process */}
               <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-3">Refund Request Process</h2>
-                <p>
-                  To request a refund:
+                <h2 className="text-xl font-bold text-slate-900 mb-3">Refund Processing</h2>
+                <p className="font-semibold text-slate-900 mb-3">
+                  Refunds are processed automatically in accordance with this policy. No manual refund handling or negotiation is provided.
                 </p>
-                <ol className="list-decimal list-inside space-y-1 ml-4 mt-2">
-                  <li>Email us at <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
-                  <li>Include: Order/transaction ID, reason for refund, and supporting details</li>
-                  <li>We will review your request within 5 business days</li>
-                  <li>If approved, refunds are processed within 7-14 business days to the original payment method</li>
-                </ol>
+                <p>
+                  Eligible refunds (as defined above) are processed automatically to the original payment method. Processing time depends on your payment provider (typically 7-14 business days for credit cards, faster for digital wallets).
+                </p>
+                <p className="mt-3">
+                  For compliance requests related to refunds, see our <a href="/contact" className="text-indigo-600 hover:underline">Contact & Legal Information</a> page.
+                </p>
               </section>
 
               {/* Contact */}
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Contact</h2>
                 <p>
-                  For refund requests or questions:
+                  For compliance requests related to refunds, see our <a href="/contact" className="text-indigo-600 hover:underline font-medium">Contact & Legal Information</a> page.
                 </p>
-                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Email:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline font-medium">support@astrosetu.app</a></li>
-                  <li><strong>Subject:</strong> &quot;Refund Request - [Order ID]&quot;</li>
-                  <li><strong>Response Time:</strong> We aim to respond within 5 business days</li>
-                </ul>
+                <p className="mt-3 text-sm text-slate-600">
+                  <strong>Note:</strong> Refunds are processed automatically according to this policy. No individual refund negotiation or manual processing is provided.
+                </p>
               </section>
             </div>
           </CardContent>

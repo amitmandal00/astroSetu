@@ -126,7 +126,7 @@ export default function PrivacyPage() {
                 <div className="mt-4 p-3 bg-indigo-100 rounded-lg">
                   <p className="text-sm font-semibold text-indigo-900 mb-2">Making a Privacy Complaint</p>
                   <p className="text-sm text-indigo-800 mb-2">
-                    If you have a privacy complaint, please contact our Privacy Officer at <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a>. We will investigate and respond within 30 days.
+                    For privacy-related requests only, contact our Privacy Officer at <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a>. We do not provide customer support through this channel.
                   </p>
                   <p className="text-sm text-indigo-800">
                     If you are not satisfied with our response, you may lodge a complaint with the Office of the Australian Information Commissioner (OAIC) at <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">www.oaic.gov.au</a> or by calling 1300 363 992.
@@ -160,7 +160,6 @@ export default function PrivacyPage() {
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
                   <li>Generate astrological charts and insights</li>
                   <li>Improve app accuracy and performance</li>
-                  <li>Provide customer support</li>
                   <li>Process subscriptions (if applicable)</li>
                   <li>Send service-related communications (with your consent for marketing)</li>
                   <li>Comply with legal obligations</li>
@@ -279,7 +278,7 @@ export default function PrivacyPage() {
                   <strong>To Exercise Your Rights:</strong>
                 </p>
                 <p className="text-green-800">
-                  Contact our Privacy Officer at <a href="mailto:privacy@astrosetu.app" className="text-green-700 hover:underline font-medium">privacy@astrosetu.app</a> or <a href="mailto:support@astrosetu.app" className="text-green-700 hover:underline font-medium">support@astrosetu.app</a>. Include your request details and verification information. We aim to respond within 30 days.
+                  For privacy-related requests only, contact our Privacy Officer at <a href="mailto:privacy@astrosetu.app" className="text-green-700 hover:underline font-medium">privacy@astrosetu.app</a>. Include your request details and verification information. No response timeline is guaranteed.
                 </p>
               </section>
 
@@ -299,7 +298,7 @@ export default function PrivacyPage() {
                   <li><strong>Right to Withdraw Consent:</strong> You can withdraw consent at any time</li>
                 </ul>
                 <p className="mt-3 text-blue-800">
-                  To exercise these rights, contact <a href="mailto:privacy@astrosetu.app" className="text-blue-600 hover:underline font-medium">privacy@astrosetu.app</a>. We will respond within 30 days.
+                  To exercise these rights, contact <a href="mailto:privacy@astrosetu.app" className="text-blue-600 hover:underline font-medium">privacy@astrosetu.app</a>. No response timeline is guaranteed.
                 </p>
                 <p className="mt-3 text-blue-800">
                   You also have the right to lodge a complaint with your local data protection authority.
@@ -323,8 +322,8 @@ export default function PrivacyPage() {
                 <p className="font-semibold text-slate-900 mb-2">Data Controller & Privacy Officer:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
                   <li><strong>Platform Owner:</strong> AstroSetu Services Pvt. Ltd.</li>
-                  <li><strong>Privacy Officer Email:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a></li>
-                  <li><strong>General Support:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
+                  <li><strong>Privacy Officer Email:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a> (for privacy-related requests only)</li>
+                  <li><strong>General Contact:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a> (for legal notices and compliance requests only)</li>
                   <li><strong>Jurisdiction:</strong> Australia (primary) / India (international operations)</li>
                 </ul>
                 <p className="mt-4 font-semibold text-slate-900 mb-2">External Privacy Authority:</p>
