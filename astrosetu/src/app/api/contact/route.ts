@@ -351,7 +351,7 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
  */
 function generateAdminNotificationEmail(data: {
   submissionId: string | null;
-  name: string;
+  name?: string;
   email: string;
   phone?: string;
   subject: string;
