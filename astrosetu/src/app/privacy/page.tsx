@@ -23,17 +23,6 @@ export default function PrivacyPage() {
         <Card>
           <CardContent className="prose prose-slate max-w-none">
             <div className="space-y-6 text-sm text-slate-700 leading-relaxed">
-              {/* Introduction */}
-              <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-3">1. Introduction</h2>
-                <p>
-                  AstroSetu ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website, mobile application, and services (collectively, the "Service") available at https://astrosetu-app.vercel.app.
-                </p>
-                <p className="mt-3">
-                  By using our Service, you consent to the data practices described in this Privacy Policy. If you do not agree with this policy, please do not use our Service.
-                </p>
-              </section>
-
               {/* Information We Collect */}
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">1. Information We Collect</h2>
@@ -129,7 +118,7 @@ export default function PrivacyPage() {
 
               {/* Children's Privacy */}
               <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-3">8. Children's Privacy</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-3">8. Children&apos;s Privacy</h2>
                 <p>
                   AstroSetu is not intended for children under 13. We do not knowingly collect data from children.
                 </p>

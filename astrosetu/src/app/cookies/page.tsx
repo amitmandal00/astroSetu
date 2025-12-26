@@ -142,7 +142,7 @@ export default function CookiesPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">6. Updates to This Policy</h2>
                 <p>
-                  We may update this Cookie Policy from time to time. Any changes will be posted on this page with an updated "Last Updated" date. We encourage you to review this policy periodically.
+                  We may update this Cookie Policy from time to time. Any changes will be posted on this page with an updated &quot;Last Updated&quot; date. We encourage you to review this policy periodically.
                 </p>
               </section>
 

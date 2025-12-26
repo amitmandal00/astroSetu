@@ -84,11 +84,12 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
   const isDoshaEndpoint = endpoint === "/dosha" || endpoint.includes("/dosha");
   const isHoroscopeEndpoint = endpoint.includes("/horoscope");
   const isMuhuratEndpoint = endpoint === "/muhurat" || endpoint.includes("/muhurat");
-  const mustUseGet = isPanchangEndpoint || isKundliEndpoint || isDoshaEndpoint || isHoroscopeEndpoint || isMuhuratEndpoint;
+  const isChoghadiyaEndpoint = endpoint === "/choghadiya" || endpoint.includes("/choghadiya");
+  const mustUseGet = isPanchangEndpoint || isKundliEndpoint || isDoshaEndpoint || isHoroscopeEndpoint || isMuhuratEndpoint || isChoghadiyaEndpoint;
   const actualMethod: "GET" | "POST" = mustUseGet ? "GET" : method;
   
   if (mustUseGet && method !== "GET") {
-    const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : isDoshaEndpoint ? "Dosha" : isHoroscopeEndpoint ? "Horoscope" : "Muhurat";
+    const endpointName = isPanchangEndpoint ? "Panchang" : isKundliEndpoint ? "Kundli" : isDoshaEndpoint ? "Dosha" : isHoroscopeEndpoint ? "Horoscope" : isMuhuratEndpoint ? "Muhurat" : isChoghadiyaEndpoint ? "Choghadiya" : "Unknown";
     console.error("[AstroSetu] CRITICAL: " + endpointName + " endpoint received method=" + method + ", ENFORCING GET");
   }
   

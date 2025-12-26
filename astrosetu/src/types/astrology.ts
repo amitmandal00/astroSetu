@@ -231,7 +231,7 @@ export type Choghadiya = {
   }>;
 };
 
-export type CalendarSystem = "Amanta" | "Purnimanta" | "VikramSamvat" | "Shaka" | "Gregorian";
+export type CalendarSystemType = "Amanta" | "Purnimanta" | "VikramSamvat" | "Shaka" | "Gregorian";
 
 export type Muhurat = {
   date: string;

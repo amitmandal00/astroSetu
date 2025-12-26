@@ -22,7 +22,7 @@ export default function BlogPage() {
             <div className="text-6xl mb-4">📝</div>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Coming Soon</h2>
             <p className="text-slate-600 mb-6">
-              Our blog is under development. We'll be sharing astrology insights, tips, and articles soon!
+              Our blog is under development. We&apos;ll be sharing astrology insights, tips, and articles soon!
             </p>
             <a
               href="/"

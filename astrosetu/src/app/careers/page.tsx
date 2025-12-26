@@ -20,9 +20,9 @@ export default function CareersPage() {
         <Card>
           <CardContent className="text-center py-12">
             <div className="text-6xl mb-4">💼</div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">We're Hiring!</h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">We&apos;re Hiring!</h2>
             <p className="text-slate-600 mb-6">
-              We're always looking for talented individuals to join our team. If you're passionate about astrology and technology, we'd love to hear from you.
+              We&apos;re always looking for talented individuals to join our team. If you&apos;re passionate about astrology and technology, we&apos;d love to hear from you.
             </p>
             <a
               href="/contact"

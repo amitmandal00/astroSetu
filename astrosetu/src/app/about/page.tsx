@@ -26,7 +26,7 @@ export default function AboutPage() {
               AstroSetu is a trusted platform dedicated to making authentic Vedic astrology accessible to everyone. We combine traditional astrological wisdom with modern technology to provide accurate, personalized astrological insights and guidance.
             </p>
             <p className="text-slate-700 leading-relaxed">
-              Our mission is to help people understand their cosmic blueprint, make informed decisions, and navigate life's challenges with the wisdom of the stars.
+              Our mission is to help people understand their cosmic blueprint, make informed decisions, and navigate life&apos;s challenges with the wisdom of the stars.
             </p>
           </CardContent>
         </Card>

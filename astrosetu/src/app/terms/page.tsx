@@ -27,7 +27,7 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">1. Introduction</h2>
                 <p>
-                  Welcome to AstroSetu ("we", "us", "our"). AstroSetu provides astrology-based tools, insights, and AI-generated interpretations for informational and spiritual guidance purposes only.
+                  Welcome to AstroSetu (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;). AstroSetu provides astrology-based tools, insights, and AI-generated interpretations for informational and spiritual guidance purposes only.
                 </p>
                 <p className="mt-3">
                   By accessing or using AstroSetu (website, mobile apps, or related services), you agree to be bound by these Terms & Conditions.
@@ -119,7 +119,7 @@ export default function TermsPage() {
                 <h2 className="text-xl font-bold text-slate-900 mb-3">8. Limitation of Liability</h2>
                 <p className="font-semibold text-slate-900 mb-2">To the maximum extent permitted by law:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>AstroSetu is provided "as is" and "as available"</li>
+                  <li>AstroSetu is provided &quot;as is&quot; and &quot;as available&quot;</li>
                   <li>We make no guarantees of accuracy, completeness, or outcomes</li>
                   <li>We are not liable for any direct, indirect, incidental, or consequential damages arising from use of the service</li>
                 </ul>
