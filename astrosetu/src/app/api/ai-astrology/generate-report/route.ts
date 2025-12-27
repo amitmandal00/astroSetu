@@ -31,8 +31,9 @@ export async function POST(req: Request) {
 
     // Check if AI is configured
     if (!isAIConfigured()) {
+      // Return a user-friendly error message (don't expose internal configuration details)
       return NextResponse.json(
-        { ok: false, error: "AI service not configured. Please set OPENAI_API_KEY or ANTHROPIC_API_KEY." },
+        { ok: false, error: "AI service is temporarily unavailable. Please try again later." },
         { status: 503 }
       );
     }

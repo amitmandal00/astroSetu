@@ -95,7 +95,8 @@ function PreviewContent() {
       });
 
       if (!response.ok) {
-        throw new Error(response.error || "Failed to generate report");
+        // The API already returns user-friendly error messages
+        throw new Error(response.error || "Failed to generate report. Please try again.");
       }
 
       setReportContent(response.data?.content || null);
