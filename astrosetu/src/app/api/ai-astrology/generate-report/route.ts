@@ -130,7 +130,30 @@ export async function POST(req: Request) {
       console.error("[AI Astrology] Report generation error:", error);
       // Provide user-friendly error message without exposing internal details
       const errorMessage = error.message || "Unknown error";
-      const isConfigError = errorMessage.includes("API key") || errorMessage.includes("not configured");
+      const errorString = JSON.stringify(error).toLowerCase();
+      
+      // Check for various configuration and quota errors
+      const isConfigError = 
+        errorMessage.includes("API key") || 
+        errorMessage.includes("not configured") ||
+        errorMessage.includes("model_not_found") ||
+        errorMessage.includes("insufficient_quota") ||
+        errorMessage.includes("quota") ||
+        errorMessage.includes("billing") ||
+        errorString.includes("insufficient_quota") ||
+        errorString.includes("quota") ||
+        errorString.includes("billing");
+      
+      // Build headers object
+      const headers: Record<string, string> = {
+        "X-Request-ID": requestId,
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+      };
+      
+      // Add Retry-After header for quota/config errors
+      if (isConfigError) {
+        headers["Retry-After"] = "3600"; // Suggest retry after 1 hour for quota issues
+      }
       
       return NextResponse.json(
         { 
@@ -143,10 +166,7 @@ export async function POST(req: Request) {
         },
         { 
           status: isConfigError ? 503 : 500,
-          headers: {
-            "X-Request-ID": requestId,
-            "Cache-Control": "no-cache, no-store, must-revalidate"
-          }
+          headers
         }
       );
     }

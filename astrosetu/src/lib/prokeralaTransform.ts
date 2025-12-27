@@ -160,6 +160,13 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
         ascendant = extracted;
         console.log("[Transform] Found ascendant from nakshatra_details.lagna:", ascendant);
       }
+    } else if (nakDetails.zodiac) {
+      // Zodiac in nakshatra_details often represents the ascendant sign
+      const extracted = extractSignName(nakDetails.zodiac);
+      if (extracted) {
+        ascendant = extracted;
+        console.log("[Transform] Found ascendant from nakshatra_details.zodiac:", ascendant);
+      }
     }
   }
   
@@ -431,12 +438,18 @@ export function transformKundliResponse(prokeralaData: any, input: any): KundliR
         };
       }
       
-      // Zodiac sign
-      if (nakDetails.zodiac) {
-        const zodiacSign = nakDetails.zodiac.name || nakDetails.zodiac;
-        // This might be ascendant
-        if (ascendant === "Unknown" || ascendant === rashi) {
-          ascendant = zodiacSign;
+      // Zodiac sign (often represents ascendant when houses are not available)
+      if (nakDetails.zodiac && ascendant === "Unknown") {
+        const extracted = extractSignName(nakDetails.zodiac);
+        if (extracted) {
+          ascendant = extracted;
+          console.log("[Transform] Using zodiac from nakshatra_details as ascendant (in planet extraction):", ascendant);
+        } else {
+          const zodiacSign = nakDetails.zodiac.name || nakDetails.zodiac;
+          if (typeof zodiacSign === 'string') {
+            ascendant = zodiacSign;
+            console.log("[Transform] Using zodiac string from nakshatra_details as ascendant (in planet extraction):", ascendant);
+          }
         }
       }
     }
