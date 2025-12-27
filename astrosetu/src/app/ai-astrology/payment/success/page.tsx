@@ -114,8 +114,8 @@ function PaymentSuccessContent() {
         <Card className="cosmic-card border-red-500/30">
           <CardContent className="p-8 text-center">
             <div className="text-5xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold mb-4 text-red-400">Payment Verification Failed</h2>
-            <p className="text-slate-300 mb-6">{error || "We couldn't verify your payment. Please contact support if you were charged."}</p>
+            <h2 className="text-2xl font-bold mb-4 text-red-700">Payment Verification Failed</h2>
+            <p className="text-slate-600 mb-6">{error || "We couldn't verify your payment. If you were charged, please check your Stripe dashboard or email receipt for details."}</p>
               <div className="flex gap-4 justify-center">
                 <Link href="/ai-astrology">
                   <Button>Back to AI Astrology</Button>
@@ -132,11 +132,11 @@ function PaymentSuccessContent() {
     <div className="min-h-screen cosmic-bg py-8">
       <div className="container mx-auto px-4 max-w-2xl">
         {/* Success Message */}
-        <Card className="cosmic-card border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 to-green-900/20 mb-6">
+        <Card className="cosmic-card border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 mb-6">
           <CardContent className="p-8 text-center">
             <div className="text-6xl mb-4">✅</div>
-            <h1 className="text-3xl font-bold mb-4 text-emerald-300">Payment Successful!</h1>
-            <p className="text-lg text-emerald-200 mb-2">
+            <h1 className="text-3xl font-bold mb-4 text-emerald-700">Payment Successful!</h1>
+            <p className="text-lg text-emerald-800 mb-2">
               Your payment has been confirmed.
             </p>
             <Badge tone="green" className="text-sm px-4 py-2">
@@ -153,7 +153,7 @@ function PaymentSuccessContent() {
           <CardContent className="space-y-4">
             {reportType === "subscription" ? (
               <>
-                <p className="text-slate-200">
+                <p className="text-slate-700">
                   Your premium subscription is now active! You can access daily guidance and all premium features.
                 </p>
                   <Link href="/ai-astrology/subscription">
@@ -164,7 +164,7 @@ function PaymentSuccessContent() {
               </>
             ) : (
               <>
-                <p className="text-slate-200">
+                <p className="text-slate-700">
                   Your {getReportName(reportType)} is now unlocked. Generate your report using the same birth details you used during checkout.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -185,10 +185,10 @@ function PaymentSuccessContent() {
         </Card>
 
         {/* Receipt Info */}
-        <Card className="cosmic-card border-slate-700/50">
+        <Card className="cosmic-card border-slate-200">
           <CardContent className="p-6">
-            <p className="text-sm text-slate-400 text-center">
-              A receipt has been sent to your email. If you have any questions, please contact support.
+            <p className="text-sm text-slate-500 text-center">
+              A receipt has been sent to your email. For questions about your report, please see our <Link href="/ai-astrology/faq" className="text-amber-700 hover:text-amber-800 underline">FAQ page</Link>.
             </p>
           </CardContent>
         </Card>

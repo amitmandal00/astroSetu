@@ -28,6 +28,7 @@ function PreviewContent() {
   const [error, setError] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [refundAcknowledged, setRefundAcknowledged] = useState(false);
 
   useEffect(() => {
     // Get input from sessionStorage
@@ -201,25 +202,46 @@ function PreviewContent() {
   if (needsPayment && !loading) {
     const price = REPORT_PRICES[reportType as keyof typeof REPORT_PRICES];
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
+      <div className="min-h-screen cosmic-bg py-8">
         <div className="container mx-auto px-4 max-w-2xl">
-          <Card className="bg-white shadow-lg border-2 border-purple-200">
+          <Card className="cosmic-card">
             <CardContent className="p-8 text-center">
               <div className="text-6xl mb-4">🔒</div>
-              <h2 className="text-2xl font-bold mb-4 text-white">Unlock Your {getReportName(reportType)}</h2>
-              <p className="text-slate-300 mb-6">
+              <h2 className="text-2xl font-bold mb-4 text-slate-800">Unlock Your {getReportName(reportType)}</h2>
+              <p className="text-slate-600 mb-6">
                 Get detailed, AI-powered insights for just ${(price?.amount || 0) / 100}.
               </p>
-              <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 p-6 rounded-xl mb-6 border border-purple-500/30">
-                <div className="text-3xl font-bold text-purple-400 mb-2">
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-xl mb-6 border border-amber-200">
+                <div className="text-3xl font-bold text-amber-700 mb-2">
                   ${((price?.amount || 0) / 100).toFixed(2)}
                 </div>
-                <p className="text-sm text-slate-300">{price?.description}</p>
+                <p className="text-sm text-slate-600">{price?.description}</p>
               </div>
+              {/* Refund Policy Acknowledgment */}
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={refundAcknowledged}
+                    onChange={(e) => setRefundAcknowledged(e.target.checked)}
+                    className="mt-1 w-5 h-5 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+                    required
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-slate-800">
+                      I understand this is a digital product and all sales are final (no refunds)
+                    </span>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Digital reports cannot be returned or refunded once purchased.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
               <Button
                 onClick={handlePurchase}
-                disabled={loading}
-                className="w-full cosmic-button py-6 text-lg"
+                disabled={loading || !refundAcknowledged}
+                className="w-full cosmic-button py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Processing..." : `Purchase ${getReportName(reportType)} →`}
               </Button>
@@ -244,16 +266,16 @@ function PreviewContent() {
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/ai-astrology" className="text-sm text-purple-400 hover:text-purple-300 mb-4 inline-block">
+          <Link href="/ai-astrology" className="text-sm text-amber-700 hover:text-amber-800 mb-4 inline-block">
             ← Back to AI Astrology
           </Link>
           <div className="flex items-center justify-center gap-3 mb-3">
-            <h1 className="text-3xl lg:text-4xl font-bold text-white">{reportContent.title}</h1>
+            <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">{reportContent.title}</h1>
             {!isPaidReport && (
               <Badge tone="green" className="text-sm">FREE</Badge>
             )}
           </div>
-          <p className="text-slate-300">
+          <p className="text-slate-600">
             Generated for {input.name} • {new Date().toLocaleDateString()}
           </p>
         </div>
@@ -273,11 +295,11 @@ function PreviewContent() {
             <div className="space-y-8">
               {reportContent.sections.map((section, idx) => (
                 <div key={idx} className="border-b border-slate-200 last:border-0 pb-8 last:pb-0">
-                  <h2 className="text-2xl font-bold mb-4 text-white">{section.title}</h2>
+                  <h2 className="text-2xl font-bold mb-4 text-slate-800">{section.title}</h2>
                   
                   {section.content && (
                     <div className="prose prose-slate max-w-none mb-4">
-                      <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">{section.content}</p>
+                      <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{section.content}</p>
                     </div>
                   )}
 
@@ -285,8 +307,8 @@ function PreviewContent() {
                     <ul className="space-y-2 mb-4">
                       {section.bullets.map((bullet, bulletIdx) => (
                         <li key={bulletIdx} className="flex items-start gap-3">
-                          <span className="text-purple-400 mt-1">•</span>
-                          <span className="text-slate-200">{bullet}</span>
+                          <span className="text-amber-700 mt-1">•</span>
+                          <span className="text-slate-700">{bullet}</span>
                         </li>
                       ))}
                     </ul>
@@ -322,16 +344,16 @@ function PreviewContent() {
 
         {/* Key Insights */}
         {reportContent.keyInsights && reportContent.keyInsights.length > 0 && (
-          <Card className="cosmic-card border-amber-500/30 mb-6 bg-gradient-to-r from-amber-900/20 to-orange-900/20">
+          <Card className="cosmic-card border-amber-200 mb-6 bg-gradient-to-r from-amber-50 to-orange-50">
             <CardHeader>
-              <h2 className="text-xl font-bold text-amber-300">Key Insights</h2>
+              <h2 className="text-xl font-bold text-amber-900">Key Insights</h2>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2">
                 {reportContent.keyInsights.map((insight, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <span className="text-amber-600 mt-1">✨</span>
-                    <span className="text-amber-100">{insight}</span>
+                    <span className="text-amber-900">{insight}</span>
                   </li>
                 ))}
               </ul>
@@ -370,13 +392,32 @@ function PreviewContent() {
         </div>
 
         {/* Disclaimer */}
-        <Card className="mt-8 cosmic-card border-slate-700/50">
+        <Card className="mt-8 cosmic-card border-amber-200 bg-amber-50/50">
           <CardContent className="p-6">
-            <p className="text-xs text-slate-400 text-center">
-              <strong>Disclaimer:</strong> This report is generated by AI for educational and entertainment purposes only.
-              It should not be used as a substitute for professional advice. Results are based on astrological calculations
-              and AI interpretation, and should be taken as guidance rather than absolute predictions.
-            </p>
+            <div className="space-y-3">
+              <h3 className="font-bold text-slate-800 text-center mb-3">⚠️ Important Disclaimer</h3>
+              <div className="text-sm text-slate-700 space-y-2">
+                <p>
+                  <strong>Educational Guidance Only:</strong> This report is generated by AI for educational and entertainment purposes only. 
+                  It provides astrological guidance based on traditional calculations, not absolute predictions or certainties.
+                </p>
+                <p>
+                  <strong>Not Professional Advice:</strong> This report should not be used as a substitute for professional medical, legal, 
+                  financial, or psychological advice. Always consult qualified professionals for important life decisions.
+                </p>
+                <p>
+                  <strong>No Guarantees:</strong> Results are based on astrological calculations and AI interpretation. 
+                  Astrology is not a science and cannot predict future events with certainty.
+                </p>
+                <p>
+                  <strong>Fully Automated Platform:</strong> This platform is 100% automated. No human astrologers review or modify reports. 
+                  No live support is available. For questions, please see our <Link href="/ai-astrology/faq" className="text-amber-700 hover:text-amber-800 underline font-semibold">FAQ page</Link>.
+                </p>
+                <p className="pt-2 border-t border-amber-200">
+                  <strong>No Refunds:</strong> All digital reports are final sale. Once purchased, reports cannot be refunded or returned.
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

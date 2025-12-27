@@ -116,10 +116,10 @@ function SubscriptionContent() {
           <Link href="/ai-astrology" className="text-sm text-purple-600 hover:text-purple-700 mb-4 inline-block">
             ← Back to AI Astrology
           </Link>
-          <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">
+          <h1 className="text-3xl lg:text-4xl font-bold text-slate-800 mb-2">
             Premium Subscription
           </h1>
-          <p className="text-slate-300">
+          <p className="text-slate-600">
             Get personalized daily guidance every day
           </p>
         </div>
@@ -145,10 +145,10 @@ function SubscriptionContent() {
               </div>
               {!isSubscribed && (
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-purple-400 mb-1">
+                  <div className="text-2xl font-bold text-amber-700 mb-1">
                     ${(SUBSCRIPTION_PRICE.amount / 100).toFixed(2)}
                   </div>
-                  <div className="text-sm text-slate-300">per month</div>
+                  <div className="text-sm text-slate-600">per month</div>
                 </div>
               )}
             </div>
@@ -170,7 +170,7 @@ function SubscriptionContent() {
           <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">Today's Guidance</h2>
+                <h2 className="text-xl font-bold text-slate-800">Today's Guidance</h2>
                 <Button
                   onClick={() => input && loadDailyGuidance(input)}
                   disabled={loading}
@@ -185,12 +185,12 @@ function SubscriptionContent() {
               {loading && !guidance && (
                 <div className="text-center py-8">
                   <div className="animate-spin text-4xl mb-4">🌙</div>
-                  <p className="text-slate-300">Loading today's guidance...</p>
+                  <p className="text-slate-600">Loading today's guidance...</p>
                 </div>
               )}
 
               {error && (
-                  <div className="p-4 rounded-xl bg-red-900/20 border border-red-500/30 text-red-300 mb-4">
+                  <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 mb-4">
                   {error}
                 </div>
               )}
@@ -262,33 +262,33 @@ function SubscriptionContent() {
         {/* Benefits */}
         <Card className="cosmic-card border-purple-500/30">
           <CardHeader>
-            <h2 className="text-xl font-bold text-white">Premium Benefits</h2>
+            <h2 className="text-xl font-bold text-slate-800">Premium Benefits</h2>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
-                <span className="text-purple-400 text-xl">✓</span>
-                <span className="text-slate-200">Personalized daily guidance based on your birth chart</span>
+                <span className="text-amber-700 text-xl">✓</span>
+                <span className="text-slate-700">Personalized daily guidance based on your birth chart</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-400 text-xl">✓</span>
-                <span className="text-slate-200">"Today is good for..." recommendations</span>
+                <span className="text-amber-700 text-xl">✓</span>
+                <span className="text-slate-700">"Today is good for..." recommendations</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-400 text-xl">✓</span>
-                <span className="text-slate-200">"Avoid today..." warnings</span>
+                <span className="text-amber-700 text-xl">✓</span>
+                <span className="text-slate-700">"Avoid today..." warnings</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-400 text-xl">✓</span>
-                <span className="text-slate-200">Actionable insights updated daily</span>
+                <span className="text-amber-700 text-xl">✓</span>
+                <span className="text-slate-700">Actionable insights updated daily</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-400 text-xl">✓</span>
-                <span className="text-slate-200">Planetary influence explanations</span>
+                <span className="text-amber-700 text-xl">✓</span>
+                <span className="text-slate-700">Planetary influence explanations</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-400 text-xl">✓</span>
-                <span className="text-slate-200">Cancel anytime</span>
+                <span className="text-amber-700 text-xl">✓</span>
+                <span className="text-slate-700">Cancel anytime</span>
               </li>
             </ul>
           </CardContent>
