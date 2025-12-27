@@ -154,8 +154,8 @@ function InputFormContent() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Name */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Full Name <span className="text-red-500">*</span>
+                <label className="block text-sm font-semibold text-slate-300 mb-2">
+                  Full Name <span className="text-red-400">*</span>
                 </label>
                 <Input
                   type="text"
@@ -163,13 +163,13 @@ function InputFormContent() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your full name"
                   required
-                  className="w-full"
+                  className="w-full cosmic-input"
                 />
               </div>
 
               {/* Date of Birth */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
                   Date of Birth <span className="text-red-500">*</span>
                 </label>
                 <Input
@@ -178,13 +178,13 @@ function InputFormContent() {
                   onChange={(e) => setDob(e.target.value)}
                   required
                   max={new Date().toISOString().split("T")[0]}
-                  className="w-full"
+                  className="w-full cosmic-input"
                 />
               </div>
 
               {/* Time of Birth */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
                   Time of Birth <span className="text-red-500">*</span>
                 </label>
                 <Input
@@ -199,7 +199,7 @@ function InputFormContent() {
 
               {/* Place of Birth */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
                   Place of Birth <span className="text-red-500">*</span>
                 </label>
                 <AutocompleteInput
@@ -213,7 +213,7 @@ function InputFormContent() {
 
               {/* Gender (Optional) */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
                   Gender <span className="text-slate-400 text-xs">(Optional)</span>
                 </label>
                 <select

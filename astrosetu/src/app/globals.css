@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 :root {
+  --indigo: 43 46 74;
+  --saffron: 244 196 48;
+  --gold: 245 158 11;
   --foreground-rgb: 255, 255, 255;
   --background-start-rgb: 15, 23, 42;
   --background-end-rgb: 30, 41, 59;
@@ -12,32 +15,184 @@
   --cosmic-darker: 8, 13, 23;
 }
 
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+}
+
+body {
+  /* Soft background - Orange as accent, not base */
+  background-color: #FFF9F3; /* Soft warm white */
+  color: #1F2937; /* Dark neutral text */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  line-height: 1.6; /* Improved readability */
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+.bg-orbit {
+  /* Indian spiritual background with enhanced contrast */
+  background: 
+    radial-gradient(circle at 10% 20%, rgba(255, 153, 51, 0.12), transparent 50%), /* Saffron - increased opacity */
+    radial-gradient(circle at 90% 30%, rgba(19, 136, 8, 0.10), transparent 50%), /* Green - increased opacity */
+    radial-gradient(circle at 50% 80%, rgba(255, 215, 0, 0.08), transparent 50%), /* Gold - increased opacity */
+    radial-gradient(circle at 30% 60%, rgba(220, 20, 60, 0.06), transparent 50%), /* Red - increased opacity */
+    #FFFFFF; /* Pure white base for better contrast */
+  min-height: 100vh;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.bg-orbit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 153, 51, 0.02) 2px, rgba(255, 153, 51, 0.02) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(19, 136, 8, 0.02) 2px, rgba(19, 136, 8, 0.02) 4px);
+  pointer-events: none;
+}
+
+.bg-cosmic {
+  background:
+    radial-gradient(ellipse at top, rgba(244,196,48,0.2), transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(99,102,241,0.2), transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(245,158,11,0.15), transparent 50%);
+}
+
+.chakra-ring:before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  border-radius: 9999px;
+  border: 2px solid rgba(244,196,48,0.2);
+  box-shadow: 
+    0 0 0 8px rgba(99,102,241,0.1),
+    0 0 0 16px rgba(244,196,48,0.05);
+  animation: pulse-ring 3s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.gradient-text {
+  @apply bg-gradient-to-r from-indigo-600 via-saffron-500 to-indigo-600 bg-clip-text text-transparent;
+  background-size: 200% auto;
+  animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Cross-browser compatibility */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific styles */
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Ensure proper rendering on all browsers */
 * {
   box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+/* Smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+/* Better focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid rgb(99, 102, 241);
+  outline-offset: 2px;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Section Spacing */
+.section-spacing {
+  padding: 2rem 1rem;
 }
+
+@media (min-width: 768px) {
+  .section-spacing {
+    padding: 3rem 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .section-spacing {
+    padding: 4rem 3rem;
+  }
+}
+
+/* Card Enhanced Padding */
+.card-enhanced {
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .card-enhanced {
+    padding: 2rem;
+  }
+}
+
+/* Text Relaxed */
+.text-relaxed {
+  line-height: 1.75;
+}
+
+/* Primary Accent Colors */
+.bg-primary-accent {
+  background-color: rgba(139, 92, 246, 0.1);
+}
+
+.text-primary-accent {
+  color: #c4b5fd;
+}
+
+.bg-gold-highlight {
+  background-color: rgba(234, 179, 8, 0.1);
+}
+
+/* ============================================
+   COSMIC THEME STYLES FOR AI ASTROLOGY PLATFORM
+   ============================================ */
 
 /* Cosmic Background Pattern */
 .cosmic-bg {
@@ -136,52 +291,6 @@ a {
   color: #ddd6fe;
 }
 
-/* Section Spacing */
-.section-spacing {
-  padding: 2rem 1rem;
-}
-
-@media (min-width: 768px) {
-  .section-spacing {
-    padding: 3rem 2rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .section-spacing {
-    padding: 4rem 3rem;
-  }
-}
-
-/* Card Enhanced Padding */
-.card-enhanced {
-  padding: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .card-enhanced {
-    padding: 2rem;
-  }
-}
-
-/* Text Relaxed */
-.text-relaxed {
-  line-height: 1.75;
-}
-
-/* Primary Accent Colors */
-.bg-primary-accent {
-  background-color: rgba(139, 92, 246, 0.1);
-}
-
-.text-primary-accent {
-  color: #c4b5fd;
-}
-
-.bg-gold-highlight {
-  background-color: rgba(234, 179, 8, 0.1);
-}
-
 /* Cosmic Input Styling */
 .cosmic-input {
   background: rgba(30, 41, 59, 0.6);
@@ -202,20 +311,20 @@ a {
   color: rgba(255, 255, 255, 0.4);
 }
 
-/* Scrollbar Styling */
-::-webkit-scrollbar {
+/* Cosmic Scrollbar Styling */
+.cosmic-bg::-webkit-scrollbar {
   width: 8px;
 }
 
-::-webkit-scrollbar-track {
+.cosmic-bg::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.5);
 }
 
-::-webkit-scrollbar-thumb {
+.cosmic-bg::-webkit-scrollbar-thumb {
   background: rgba(139, 92, 246, 0.5);
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+.cosmic-bg::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.7);
 }
