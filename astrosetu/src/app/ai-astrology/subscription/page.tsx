@@ -109,17 +109,17 @@ function SubscriptionContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
+    <div className="min-h-screen cosmic-bg py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/ai-astrology" className="text-sm text-purple-600 hover:text-purple-700 mb-4 inline-block">
             ← Back to AI Astrology
           </Link>
-          <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
+          <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">
             Premium Subscription
           </h1>
-          <p className="text-slate-600">
+          <p className="text-slate-300">
             Get personalized daily guidance every day
           </p>
         </div>
@@ -145,10 +145,10 @@ function SubscriptionContent() {
               </div>
               {!isSubscribed && (
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-purple-600 mb-1">
+                  <div className="text-2xl font-bold text-purple-400 mb-1">
                     ${(SUBSCRIPTION_PRICE.amount / 100).toFixed(2)}
                   </div>
-                  <div className="text-sm text-slate-600">per month</div>
+                  <div className="text-sm text-slate-300">per month</div>
                 </div>
               )}
             </div>
@@ -157,7 +157,7 @@ function SubscriptionContent() {
               <Button
                 onClick={handleSubscribe}
                 disabled={loading}
-                className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                className="w-full mt-4 cosmic-button"
               >
                 {loading ? "Processing..." : "Subscribe Now →"}
               </Button>
@@ -170,7 +170,7 @@ function SubscriptionContent() {
           <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">Today's Guidance</h2>
+                <h2 className="text-xl font-bold text-white">Today's Guidance</h2>
                 <Button
                   onClick={() => input && loadDailyGuidance(input)}
                   disabled={loading}
@@ -185,12 +185,12 @@ function SubscriptionContent() {
               {loading && !guidance && (
                 <div className="text-center py-8">
                   <div className="animate-spin text-4xl mb-4">🌙</div>
-                  <p className="text-slate-600">Loading today's guidance...</p>
+                  <p className="text-slate-300">Loading today's guidance...</p>
                 </div>
               )}
 
               {error && (
-                <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 mb-4">
+                  <div className="p-4 rounded-xl bg-red-900/20 border border-red-500/30 text-red-300 mb-4">
                   {error}
                 </div>
               )}
@@ -199,14 +199,14 @@ function SubscriptionContent() {
                 <div className="space-y-6">
                   {/* Today is Good For */}
                   <div>
-                    <h3 className="text-lg font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-emerald-300 mb-3 flex items-center gap-2">
                       <span>✨</span> Today is Good For
                     </h3>
                     <ul className="space-y-2">
                       {guidance.todayGoodFor.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                          <span className="text-emerald-600 mt-1">✓</span>
-                          <span className="text-slate-800">{item}</span>
+                        <li key={idx} className="flex items-start gap-3 p-3 bg-emerald-900/20 rounded-lg border border-emerald-500/30">
+                          <span className="text-emerald-400 mt-1">✓</span>
+                          <span className="text-slate-200">{item}</span>
                         </li>
                       ))}
                     </ul>
@@ -214,14 +214,14 @@ function SubscriptionContent() {
 
                   {/* Avoid Today */}
                   <div>
-                    <h3 className="text-lg font-bold text-amber-900 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-amber-300 mb-3 flex items-center gap-2">
                       <span>⚠️</span> Avoid Today
                     </h3>
                     <ul className="space-y-2">
                       {guidance.avoidToday.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                          <span className="text-amber-600 mt-1">✗</span>
-                          <span className="text-slate-800">{item}</span>
+                        <li key={idx} className="flex items-start gap-3 p-3 bg-amber-900/20 rounded-lg border border-amber-500/30">
+                          <span className="text-amber-400 mt-1">✗</span>
+                          <span className="text-slate-200">{item}</span>
                         </li>
                       ))}
                     </ul>
@@ -229,29 +229,29 @@ function SubscriptionContent() {
 
                   {/* Actions */}
                   <div>
-                    <h3 className="text-lg font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-indigo-300 mb-3 flex items-center gap-2">
                       <span>🎯</span> Recommended Actions
                     </h3>
                     <ul className="space-y-2">
                       {guidance.actions.map((action, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-                          <span className="text-indigo-600 mt-1">•</span>
-                          <span className="text-slate-800">{action}</span>
+                        <li key={idx} className="flex items-start gap-3 p-3 bg-indigo-900/20 rounded-lg border border-indigo-500/30">
+                          <span className="text-indigo-400 mt-1">•</span>
+                          <span className="text-slate-200">{action}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
 
                   {/* Planetary Influence */}
-                  <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
-                    <h3 className="text-lg font-bold text-purple-900 mb-2">Planetary Influence</h3>
-                    <p className="text-slate-700">{guidance.planetaryInfluence}</p>
+                  <div className="p-4 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-xl border border-purple-500/30">
+                    <h3 className="text-lg font-bold text-purple-300 mb-2">Planetary Influence</h3>
+                    <p className="text-slate-200">{guidance.planetaryInfluence}</p>
                   </div>
 
                   {/* General Guidance */}
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">Guidance</h3>
-                    <p className="text-slate-700 leading-relaxed">{guidance.guidance}</p>
+                  <div className="p-4 bg-slate-900/30 rounded-xl border border-slate-700/50">
+                    <h3 className="text-lg font-bold text-white mb-2">Guidance</h3>
+                    <p className="text-slate-200 leading-relaxed">{guidance.guidance}</p>
                   </div>
                 </div>
               )}
@@ -260,35 +260,35 @@ function SubscriptionContent() {
         )}
 
         {/* Benefits */}
-        <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200">
+        <Card className="cosmic-card border-purple-500/30">
           <CardHeader>
-            <h2 className="text-xl font-bold">Premium Benefits</h2>
+            <h2 className="text-xl font-bold text-white">Premium Benefits</h2>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
-                <span className="text-purple-600 text-xl">✓</span>
-                <span className="text-slate-700">Personalized daily guidance based on your birth chart</span>
+                <span className="text-purple-400 text-xl">✓</span>
+                <span className="text-slate-200">Personalized daily guidance based on your birth chart</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-600 text-xl">✓</span>
-                <span className="text-slate-700">"Today is good for..." recommendations</span>
+                <span className="text-purple-400 text-xl">✓</span>
+                <span className="text-slate-200">"Today is good for..." recommendations</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-600 text-xl">✓</span>
-                <span className="text-slate-700">"Avoid today..." warnings</span>
+                <span className="text-purple-400 text-xl">✓</span>
+                <span className="text-slate-200">"Avoid today..." warnings</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-600 text-xl">✓</span>
-                <span className="text-slate-700">Actionable insights updated daily</span>
+                <span className="text-purple-400 text-xl">✓</span>
+                <span className="text-slate-200">Actionable insights updated daily</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-600 text-xl">✓</span>
-                <span className="text-slate-700">Planetary influence explanations</span>
+                <span className="text-purple-400 text-xl">✓</span>
+                <span className="text-slate-200">Planetary influence explanations</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="text-purple-600 text-xl">✓</span>
-                <span className="text-slate-700">Cancel anytime</span>
+                <span className="text-purple-400 text-xl">✓</span>
+                <span className="text-slate-200">Cancel anytime</span>
               </li>
             </ul>
           </CardContent>
