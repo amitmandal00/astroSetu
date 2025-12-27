@@ -82,7 +82,10 @@ export async function POST(req: Request) {
     }
 
     // CRITICAL SECURITY: Verify payment for paid reports
-    if (isPaidReportType(reportType)) {
+    // Demo mode: Allow testing without payment (set AI_ASTROLOGY_DEMO_MODE=true in .env.local)
+    const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
+    
+    if (isPaidReportType(reportType) && !isDemoMode) {
       if (!paymentToken) {
         return NextResponse.json(
           { ok: false, error: "Payment verification required for paid reports. Please complete payment first." },
@@ -105,6 +108,11 @@ export async function POST(req: Request) {
           { status: 403 }
         );
       }
+    }
+    
+    // Log demo mode usage (only in development)
+    if (isDemoMode && isPaidReportType(reportType)) {
+      console.log(`[DEMO MODE] Bypassing payment verification for ${reportType} report`);
     }
 
     // Generate report based on type

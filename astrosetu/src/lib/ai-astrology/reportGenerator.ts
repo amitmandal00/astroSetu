@@ -228,8 +228,8 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
       },
       {
         ascendant: kundliResult.ascendant || "Unknown",
-        moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
-        sunSign: kundliResult.planets.find(p => p.name === "Sun")?.sign || "Unknown",
+        moonSign: planets.find(p => p.name === "Moon")?.sign || "Unknown",
+        sunSign: planets.find(p => p.name === "Sun")?.sign || "Unknown",
         nakshatra: kundliResult.nakshatra || "Unknown",
         planets,
       }
@@ -301,7 +301,7 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
       },
       {
         ascendant: kundliResult.ascendant || "Unknown",
-        moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
+        moonSign: planets.find(p => p.name === "Moon")?.sign || "Unknown",
         venus: {
           sign: venus?.sign || "Unknown",
           house: venus?.house || 0,

@@ -85,9 +85,9 @@ function PreviewContent() {
       }
       const isPaid = type !== "life-summary";
       
-      if (isPaid && !paymentToken) {
-        throw new Error("Payment verification required. Please complete payment first.");
-      }
+      // Note: Payment verification is handled server-side
+      // In demo mode (development), payment token is not required
+      // The API will return appropriate error if payment is required in production
 
       const response = await apiPost<{
         ok: boolean;
