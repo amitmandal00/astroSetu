@@ -39,7 +39,8 @@ export async function GET(req: Request) {
     }
 
     // Dynamically import Stripe
-    const stripe = (await import("stripe")).default(process.env.STRIPE_SECRET_KEY!);
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
     // Retrieve session
     const session = await stripe.checkout.sessions.retrieve(sessionId);

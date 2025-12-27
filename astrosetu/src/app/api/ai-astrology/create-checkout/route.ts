@@ -27,7 +27,8 @@ export async function POST(req: Request) {
     }
 
     // Dynamically import Stripe (only if configured)
-    const stripe = (await import("stripe")).default(process.env.STRIPE_SECRET_KEY!);
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
     // Parse request body
     const json = await parseJsonBody<{
