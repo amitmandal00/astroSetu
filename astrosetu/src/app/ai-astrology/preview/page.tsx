@@ -29,6 +29,7 @@ function PreviewContent() {
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [refundAcknowledged, setRefundAcknowledged] = useState(false);
+  const [emailCopySuccess, setEmailCopySuccess] = useState(false);
 
   useEffect(() => {
     // Check if sessionStorage is available
@@ -366,15 +367,47 @@ function PreviewContent() {
                   )}
                 </Button>
                 <Button
-                  onClick={() => {
-                    const mailtoLink = `mailto:?subject=${encodeURIComponent(reportContent.title)}&body=${encodeURIComponent(`Check out my ${reportContent.title} from AstroSetu AI Astrology`)}`;
-                    window.open(mailtoLink);
+                  onClick={async () => {
+                    try {
+                      // Get the current page URL to share
+                      const currentUrl = window.location.href;
+                      const shareData = {
+                        title: reportContent.title,
+                        text: `Check out my ${reportContent.title} from AstroSetu AI Astrology`,
+                        url: currentUrl,
+                      };
+
+                      // Try native share API first (works on mobile and modern browsers)
+                      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                        setEmailCopySuccess(true);
+                        setTimeout(() => setEmailCopySuccess(false), 3000);
+                      } else {
+                        // Fallback: Copy URL to clipboard
+                        await navigator.clipboard.writeText(currentUrl);
+                        setEmailCopySuccess(true);
+                        setTimeout(() => setEmailCopySuccess(false), 3000);
+                      }
+                    } catch (error) {
+                      // If share was cancelled, don't show error
+                      if ((error as Error).name !== 'AbortError') {
+                        console.error('Failed to share:', error);
+                        // Fallback: Copy URL to clipboard
+                        try {
+                          await navigator.clipboard.writeText(window.location.href);
+                          setEmailCopySuccess(true);
+                          setTimeout(() => setEmailCopySuccess(false), 3000);
+                        } catch (clipboardError) {
+                          console.error('Failed to copy to clipboard:', clipboardError);
+                        }
+                      }
+                    }
                   }}
                   className="cosmic-button-secondary px-6 py-3"
                 >
                   <span className="flex items-center gap-2">
                     <span>✉️</span>
-                    <span>Email Me a Copy</span>
+                    <span>{emailCopySuccess ? "Copied!" : "Email Me a Copy"}</span>
                   </span>
                 </Button>
               </div>
