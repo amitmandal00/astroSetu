@@ -23,16 +23,16 @@ export default function AIAstrologyLandingPage() {
             Get personalized astrology readings powered by advanced AI.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/ai-astrology/input?reportType=lifeSummary">
+            <Link href="/ai-astrology/input?reportType=life-summary">
               <Button className="cosmic-button px-8 py-4 text-lg">
                 Get Your Reading
               </Button>
             </Link>
-            <Link href="#features">
+            <a href="#features" className="inline-block">
               <Button className="cosmic-button-secondary px-8 py-4 text-lg">
                 Learn More
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </div>
@@ -53,7 +53,7 @@ export default function AIAstrologyLandingPage() {
               Discover your core personality traits, strengths, weaknesses, and major life themes. 
               Get insights tailored to your unique birth chart.
             </p>
-            <Link href="/ai-astrology/input?reportType=lifeSummary">
+            <Link href="/ai-astrology/input?reportType=life-summary">
               <span className="text-amber-700 font-semibold group-hover:text-amber-800 transition-colors inline-flex items-center">
                 Explore Horoscopes →
               </span>
@@ -73,7 +73,7 @@ export default function AIAstrologyLandingPage() {
               Uncover ideal marriage windows, compatibility indicators, and personalized remedies. 
               Your guide to a harmonious partnership.
             </p>
-            <Link href="/ai-astrology/input?report=marriage-timing">
+            <Link href="/ai-astrology/input?reportType=marriage-timing">
               <span className="text-pink-700 font-semibold group-hover:text-pink-800 transition-colors inline-flex items-center">
                 Check Compatibility →
               </span>
@@ -93,7 +93,7 @@ export default function AIAstrologyLandingPage() {
               Navigate your professional journey with clarity. Best career directions, 
               job change timings, and insights into your money growth phases.
             </p>
-            <Link href="/ai-astrology/input?report=career-money">
+            <Link href="/ai-astrology/input?reportType=career-money">
               <span className="text-blue-700 font-semibold group-hover:text-blue-800 transition-colors inline-flex items-center">
                 Explore Career Path →
               </span>
@@ -103,7 +103,7 @@ export default function AIAstrologyLandingPage() {
       </div>
 
       {/* Value Proposition */}
-      <section id="features" className="relative z-10 py-16 px-4">
+      <section id="features" className="relative z-10 py-16 px-4 scroll-mt-20">
         <div className="max-w-5xl mx-auto text-center mb-12">
           <h2 className="text-4xl lg:text-5xl font-bold text-slate-800 mb-4">Why AI-First Astrology?</h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-4">
@@ -150,9 +150,9 @@ export default function AIAstrologyLandingPage() {
                   Discover your core personality traits, strengths, weaknesses, and major life themes.
                   A perfect introduction to your astrological blueprint.
                 </p>
-                <Link href="/ai-astrology/input?reportType=lifeSummary" className="block">
-                  <Button className="cosmic-button w-full">Get Free Preview</Button>
-                </Link>
+            <Link href="/ai-astrology/input?reportType=life-summary" className="block">
+              <Button className="cosmic-button w-full">Get Free Preview</Button>
+            </Link>
               </div>
             </div>
 
@@ -169,7 +169,7 @@ export default function AIAstrologyLandingPage() {
                   and personalized remedies. Your guide to a harmonious partnership.
                 </p>
                 <div className="text-3xl font-bold text-pink-600 mb-4">$29</div>
-                <Link href="/ai-astrology/input?report=marriage-timing" className="block">
+                <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
                   <Button className="cosmic-button w-full">Order Now</Button>
                 </Link>
               </div>
@@ -188,7 +188,7 @@ export default function AIAstrologyLandingPage() {
                   job change timings, and insights into your money growth phases.
                 </p>
                 <div className="text-3xl font-bold text-blue-600 mb-4">$29</div>
-                <Link href="/ai-astrology/input?report=career-money" className="block">
+                <Link href="/ai-astrology/input?reportType=career-money" className="block">
                   <Button className="cosmic-button w-full">Order Now</Button>
                 </Link>
               </div>
@@ -252,7 +252,7 @@ export default function AIAstrologyLandingPage() {
           <p className="text-xl text-slate-600 mb-8">
             Experience the future of astrology – precise, private, and always available.
           </p>
-          <Link href="/ai-astrology/input?reportType=lifeSummary">
+          <Link href="/ai-astrology/input?reportType=life-summary">
             <Button className="cosmic-button px-12 py-4 text-lg">
               Get Started with a Free Summary →
             </Button>

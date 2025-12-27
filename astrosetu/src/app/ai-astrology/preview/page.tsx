@@ -198,7 +198,7 @@ function PreviewContent() {
               <div className="flex gap-4 justify-center">
                 <Button onClick={() => window.location.reload()}>Try Again</Button>
                 <Link href="/ai-astrology/input">
-                  <Button variant="secondary">Start Over</Button>
+                  <Button className="cosmic-button-secondary">Start Over</Button>
                 </Link>
               </div>
             </CardContent>
@@ -267,8 +267,8 @@ function PreviewContent() {
               >
                 {loading ? "Processing..." : `Purchase ${getReportName(reportType)} →`}
               </Button>
-              <Link href="/ai-astrology/input">
-                <Button variant="secondary" className="w-full mt-4">
+              <Link href="/ai-astrology/input?reportType=life-summary">
+                <Button className="cosmic-button-secondary w-full mt-4">
                   Get Free Life Summary Instead
                 </Button>
               </Link>
@@ -280,7 +280,23 @@ function PreviewContent() {
   }
 
   if (!reportContent || !input) {
-    return null;
+    // Should not happen, but handle gracefully
+    return (
+      <div className="cosmic-bg py-8">
+        <div className="container mx-auto px-4 max-w-2xl">
+          <Card className="cosmic-card">
+            <CardContent className="p-8 text-center">
+              <div className="text-5xl mb-4">⏳</div>
+              <h2 className="text-2xl font-bold mb-4 text-slate-800">Loading Report...</h2>
+              <p className="text-slate-600 mb-6">Please wait while we prepare your report.</p>
+              <Link href="/ai-astrology/input">
+                <Button className="cosmic-button-secondary">Start Over</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -440,7 +456,7 @@ function PreviewContent() {
           )}
           {isPaidReport && (
             <Link href="/ai-astrology">
-              <Button variant="secondary" className="px-8">
+              <Button className="cosmic-button-secondary px-8">
                 Get Another Report
               </Button>
             </Link>

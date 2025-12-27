@@ -193,7 +193,7 @@ export default function AIAstrologyFAQPage() {
               <p className="text-slate-600 mb-6">
                 Start with a free Life Summary, no payment required.
               </p>
-              <Link href="/ai-astrology/input?reportType=lifeSummary">
+              <Link href="/ai-astrology/input?reportType=life-summary">
                 <Button className="cosmic-button px-8 py-4 text-lg">
                   Get Your Free Life Summary →
                 </Button>

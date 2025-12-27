@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Shell } from "@/components/layout/Shell";
+import { ConditionalShell } from "@/components/layout/ConditionalShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NotificationInitializer } from "@/components/notifications/NotificationInitializer";
 
@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="h-full">
         <ErrorBoundary>
           <NotificationInitializer />
-          <Shell>{children}</Shell>
+          <ConditionalShell>{children}</ConditionalShell>
         </ErrorBoundary>
       </body>
     </html>

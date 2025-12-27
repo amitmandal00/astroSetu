@@ -33,8 +33,18 @@ export async function POST(req: Request) {
     if (!isAIConfigured()) {
       // Return a user-friendly error message (don't expose internal configuration details)
       return NextResponse.json(
-        { ok: false, error: "AI service is temporarily unavailable. Please try again later." },
-        { status: 503 }
+        { 
+          ok: false, 
+          error: "AI service is temporarily unavailable. Please try again later.",
+          code: "AI_SERVICE_UNAVAILABLE"
+        },
+        { 
+          status: 503,
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Retry-After": "60"
+          }
+        }
       );
     }
 

@@ -11,8 +11,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { AutocompleteInput } from "@/components/ui/AutocompleteInput";
-import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { AutocompleteInput, type PlaceSuggestion } from "@/components/ui/AutocompleteInput";
 import { resolvePlaceCoordinates } from "@/lib/indianCities";
 
 type ReportType = "life-summary" | "marriage-timing" | "career-money" | "full-life" | null;
@@ -21,7 +20,8 @@ function InputFormContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const reportType = (searchParams.get("report") as ReportType) || null;
+  // Support both "report" and "reportType" query parameters for compatibility
+  const reportType = (searchParams.get("reportType") || searchParams.get("report")) as ReportType || null;
   
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
@@ -33,11 +33,19 @@ function InputFormContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePlaceChange = async (newPlace: string) => {
+  const handlePlaceChange = (newPlace: string) => {
     setPlace(newPlace);
-    if (newPlace.trim().length >= 2) {
+  };
+
+  const handlePlaceSelect = (placeSuggestion: PlaceSuggestion) => {
+    // When user selects from autocomplete, use the coordinates from the suggestion
+    if (placeSuggestion.latitude && placeSuggestion.longitude) {
+      setLatitude(placeSuggestion.latitude);
+      setLongitude(placeSuggestion.longitude);
+    } else {
+      // Fallback: try to resolve coordinates from the place name
       try {
-        const coords = resolvePlaceCoordinates(newPlace);
+        const coords = resolvePlaceCoordinates(placeSuggestion.displayName || placeSuggestion.name);
         if (coords) {
           setLatitude(coords.latitude);
           setLongitude(coords.longitude);
@@ -51,7 +59,9 @@ function InputFormContent() {
   const canSubmit = name.trim().length >= 2 && 
                    dob.length === 10 && 
                    tob.length >= 5 && 
-                   place.trim().length >= 2;
+                   place.trim().length >= 2 &&
+                   latitude !== undefined && 
+                   longitude !== undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,10 +211,17 @@ function InputFormContent() {
                 <AutocompleteInput
                   value={place}
                   onChange={handlePlaceChange}
+                  onSelect={handlePlaceSelect}
                   placeholder="Enter city name (e.g., Delhi, Mumbai, New York)"
                   prioritizeIndia={true}
                 />
-                <p className="text-xs text-slate-500 mt-1">Enter city name for accurate location coordinates</p>
+                {latitude !== undefined && longitude !== undefined ? (
+                  <p className="text-xs text-emerald-600 mt-1">
+                    ✓ Coordinates resolved: {latitude.toFixed(4)}, {longitude.toFixed(4)}
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500 mt-1">Select a city from the dropdown for accurate coordinates</p>
+                )}
               </div>
 
               {/* Gender (Optional) */}

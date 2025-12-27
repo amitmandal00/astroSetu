@@ -105,7 +105,23 @@ function SubscriptionContent() {
   };
 
   if (!input) {
-    return null;
+    // Should not happen as useEffect redirects, but handle gracefully
+    return (
+      <div className="cosmic-bg py-8">
+        <div className="container mx-auto px-4 max-w-2xl">
+          <Card className="cosmic-card">
+            <CardContent className="p-8 text-center">
+              <div className="text-5xl mb-4">⏳</div>
+              <h2 className="text-2xl font-bold mb-4 text-slate-800">Loading...</h2>
+              <p className="text-slate-600 mb-6">Please wait while we load your subscription information.</p>
+              <Link href="/ai-astrology/input">
+                <Button className="cosmic-button-secondary">Start Over</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (

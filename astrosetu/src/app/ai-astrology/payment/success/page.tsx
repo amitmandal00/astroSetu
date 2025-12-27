@@ -140,7 +140,7 @@ function PaymentSuccessContent() {
             <p className="text-slate-600 mb-6">{error || "We couldn't verify your payment. If you were charged, please check your Stripe dashboard or email receipt for details."}</p>
               <div className="flex gap-4 justify-center">
                 <Link href="/ai-astrology">
-                  <Button>Back to AI Astrology</Button>
+                  <Button className="cosmic-button">Back to AI Astrology</Button>
                 </Link>
               </div>
             </CardContent>

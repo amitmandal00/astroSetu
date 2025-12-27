@@ -32,7 +32,7 @@ export default function PaymentCancelPage() {
                     Back to AI Astrology
                   </Button>
                 </Link>
-                <Link href="/ai-astrology/input">
+                <Link href="/ai-astrology/input?reportType=life-summary">
                   <Button className="cosmic-button-secondary px-8">
                     Get Free Life Summary
                   </Button>
