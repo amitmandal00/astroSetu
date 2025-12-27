@@ -61,7 +61,7 @@ export function AIFooter() {
                 <span className="text-slate-400 mr-2">→</span>
                 Disclaimer
               </Link>
-              <Link href="/refund-policy" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm">
+              <Link href="/refund" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm">
                 <span className="text-slate-400 mr-2">→</span>
                 Refund Policy
               </Link>
