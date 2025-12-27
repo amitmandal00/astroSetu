@@ -5,7 +5,7 @@
 
 import type { AIAstrologyInput, ReportType, ReportContent } from "./types";
 import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt } from "./prompts";
-import { getKundliAPI } from "../astrologyAPI";
+import { getKundli } from "../astrologyAPI";
 import type { KundliResult, DoshaAnalysis } from "@/types/astrology";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
@@ -180,7 +180,7 @@ function getReportTitle(reportType: ReportType): string {
  */
 export async function generateLifeSummaryReport(input: AIAstrologyInput): Promise<ReportContent> {
   // Get astrology data from Prokerala API
-  const kundliResult = await getKundliAPI({
+  const kundliResult = await getKundli({
     name: input.name,
     dob: input.dob,
     tob: input.tob,
