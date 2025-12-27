@@ -178,8 +178,8 @@ function PreviewContent() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
-        <div className="container mx-auto px-4 max-w-2xl">
-          <Card className="border-2 border-red-200 bg-white">
+      <div className="container mx-auto px-4 max-w-2xl">
+        <Card className="cosmic-card border-red-500/30">
             <CardContent className="p-8 text-center">
               <div className="text-5xl mb-4">⚠️</div>
               <h2 className="text-2xl font-bold mb-4 text-red-700">Error Generating Report</h2>
@@ -206,20 +206,20 @@ function PreviewContent() {
           <Card className="bg-white shadow-lg border-2 border-purple-200">
             <CardContent className="p-8 text-center">
               <div className="text-6xl mb-4">🔒</div>
-              <h2 className="text-2xl font-bold mb-4">Unlock Your {getReportName(reportType)}</h2>
-              <p className="text-slate-600 mb-6">
+              <h2 className="text-2xl font-bold mb-4 text-white">Unlock Your {getReportName(reportType)}</h2>
+              <p className="text-slate-300 mb-6">
                 Get detailed, AI-powered insights for just ${(price?.amount || 0) / 100}.
               </p>
-              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl mb-6">
-                <div className="text-3xl font-bold text-purple-600 mb-2">
+              <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 p-6 rounded-xl mb-6 border border-purple-500/30">
+                <div className="text-3xl font-bold text-purple-400 mb-2">
                   ${((price?.amount || 0) / 100).toFixed(2)}
                 </div>
-                <p className="text-sm text-slate-600">{price?.description}</p>
+                <p className="text-sm text-slate-300">{price?.description}</p>
               </div>
               <Button
                 onClick={handlePurchase}
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 py-6 text-lg"
+                className="w-full cosmic-button py-6 text-lg"
               >
                 {loading ? "Processing..." : `Purchase ${getReportName(reportType)} →`}
               </Button>
@@ -240,32 +240,32 @@ function PreviewContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
+    <div className="min-h-screen cosmic-bg py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/ai-astrology" className="text-sm text-purple-600 hover:text-purple-700 mb-4 inline-block">
+          <Link href="/ai-astrology" className="text-sm text-purple-400 hover:text-purple-300 mb-4 inline-block">
             ← Back to AI Astrology
           </Link>
           <div className="flex items-center justify-center gap-3 mb-3">
-            <h1 className="text-3xl lg:text-4xl font-bold text-slate-900">{reportContent.title}</h1>
+            <h1 className="text-3xl lg:text-4xl font-bold text-white">{reportContent.title}</h1>
             {!isPaidReport && (
               <Badge tone="green" className="text-sm">FREE</Badge>
             )}
           </div>
-          <p className="text-slate-600">
+          <p className="text-slate-300">
             Generated for {input.name} • {new Date().toLocaleDateString()}
           </p>
         </div>
 
         {/* Report Content */}
-        <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
+        <Card className="cosmic-card mb-6">
           <CardContent className="p-8">
             {/* Summary */}
             {reportContent.summary && (
               <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
                 <h2 className="text-xl font-bold mb-3 text-purple-900">Summary</h2>
-                <p className="text-slate-700 leading-relaxed">{reportContent.summary}</p>
+                      <p className="text-slate-200 leading-relaxed">{reportContent.summary}</p>
               </div>
             )}
 
@@ -273,11 +273,11 @@ function PreviewContent() {
             <div className="space-y-8">
               {reportContent.sections.map((section, idx) => (
                 <div key={idx} className="border-b border-slate-200 last:border-0 pb-8 last:pb-0">
-                  <h2 className="text-2xl font-bold mb-4 text-slate-900">{section.title}</h2>
+                  <h2 className="text-2xl font-bold mb-4 text-white">{section.title}</h2>
                   
                   {section.content && (
                     <div className="prose prose-slate max-w-none mb-4">
-                      <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{section.content}</p>
+                      <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">{section.content}</p>
                     </div>
                   )}
 
@@ -285,8 +285,8 @@ function PreviewContent() {
                     <ul className="space-y-2 mb-4">
                       {section.bullets.map((bullet, bulletIdx) => (
                         <li key={bulletIdx} className="flex items-start gap-3">
-                          <span className="text-purple-600 mt-1">•</span>
-                          <span className="text-slate-700">{bullet}</span>
+                          <span className="text-purple-400 mt-1">•</span>
+                          <span className="text-slate-200">{bullet}</span>
                         </li>
                       ))}
                     </ul>
@@ -322,16 +322,16 @@ function PreviewContent() {
 
         {/* Key Insights */}
         {reportContent.keyInsights && reportContent.keyInsights.length > 0 && (
-          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 mb-6">
+          <Card className="cosmic-card border-amber-500/30 mb-6 bg-gradient-to-r from-amber-900/20 to-orange-900/20">
             <CardHeader>
-              <h2 className="text-xl font-bold text-amber-900">Key Insights</h2>
+              <h2 className="text-xl font-bold text-amber-300">Key Insights</h2>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2">
                 {reportContent.keyInsights.map((insight, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <span className="text-amber-600 mt-1">✨</span>
-                    <span className="text-amber-900">{insight}</span>
+                    <span className="text-amber-100">{insight}</span>
                   </li>
                 ))}
               </ul>
@@ -344,17 +344,17 @@ function PreviewContent() {
           {!isPaidReport && (
             <>
               <Link href="/ai-astrology/input?report=marriage-timing">
-                <Button className="bg-purple-600 hover:bg-purple-700 px-8">
+                <Button className="cosmic-button px-8">
                   Get Marriage Timing Report ($29) →
                 </Button>
               </Link>
               <Link href="/ai-astrology/input?report=career-money">
-                <Button className="bg-indigo-600 hover:bg-indigo-700 px-8">
+                <Button className="cosmic-button px-8">
                   Get Career & Money Report ($29) →
                 </Button>
               </Link>
               <Link href="/ai-astrology/input?report=full-life">
-                <Button variant="secondary" className="px-8">
+                <Button className="cosmic-button-secondary px-8">
                   Get Full Life Report ($49) →
                 </Button>
               </Link>
@@ -370,9 +370,9 @@ function PreviewContent() {
         </div>
 
         {/* Disclaimer */}
-        <Card className="mt-8 bg-slate-50 border-slate-200">
+        <Card className="mt-8 cosmic-card border-slate-700/50">
           <CardContent className="p-6">
-            <p className="text-xs text-slate-600 text-center">
+            <p className="text-xs text-slate-400 text-center">
               <strong>Disclaimer:</strong> This report is generated by AI for educational and entertainment purposes only.
               It should not be used as a substitute for professional advice. Results are based on astrological calculations
               and AI interpretation, and should be taken as guidance rather than absolute predictions.
