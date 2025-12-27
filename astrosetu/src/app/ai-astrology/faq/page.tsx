@@ -175,9 +175,7 @@ export default function AIAstrologyFAQPage() {
         <div className="space-y-6">
           {FAQ_ITEMS.map((item, index) => (
             <Card key={index} className="cosmic-card">
-              <CardHeader>
-                <h2 className="text-xl font-bold text-slate-800">{item.question}</h2>
-              </CardHeader>
+              <CardHeader title={item.question} />
               <CardContent>
                 <div className="text-slate-700 leading-relaxed">{item.answer}</div>
               </CardContent>

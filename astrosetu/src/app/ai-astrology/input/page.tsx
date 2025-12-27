@@ -141,15 +141,11 @@ function InputFormContent() {
 
         {/* Form Card */}
         <Card className="border-2 border-purple-200 bg-white shadow-lg">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="text-3xl">🔮</div>
-              <div>
-                <h2 className="text-xl font-bold">Enter Your Birth Details</h2>
-                <p className="text-sm text-slate-600">We need accurate information for precise astrological calculations</p>
-              </div>
-            </div>
-          </CardHeader>
+          <CardHeader 
+            icon="🔮"
+            title="Enter Your Birth Details"
+            subtitle="We need accurate information for precise astrological calculations"
+          />
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Name */}

@@ -134,7 +134,7 @@ function SubscriptionContent() {
                   {isSubscribed ? (
                     <Badge tone="green">Active</Badge>
                   ) : (
-                    <Badge tone="gray">Not Subscribed</Badge>
+                    <Badge tone="neutral">Not Subscribed</Badge>
                   )}
                 </div>
                 <p className="text-slate-600">
@@ -168,7 +168,7 @@ function SubscriptionContent() {
         {/* Daily Guidance */}
         {isSubscribed && (
           <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
-            <CardHeader>
+            <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b-2 border-slate-200 bg-slate-50">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-800">Today's Guidance</h2>
                 <Button
@@ -180,7 +180,7 @@ function SubscriptionContent() {
                   {loading ? "Loading..." : "Refresh"}
                 </Button>
               </div>
-            </CardHeader>
+            </div>
             <CardContent>
               {loading && !guidance && (
                 <div className="text-center py-8">
@@ -261,9 +261,7 @@ function SubscriptionContent() {
 
         {/* Benefits */}
         <Card className="cosmic-card border-purple-500/30">
-          <CardHeader>
-            <h2 className="text-xl font-bold text-slate-800">Premium Benefits</h2>
-          </CardHeader>
+          <CardHeader title="Premium Benefits" />
           <CardContent>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">

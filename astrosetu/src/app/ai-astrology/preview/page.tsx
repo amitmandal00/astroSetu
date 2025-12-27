@@ -402,9 +402,7 @@ function PreviewContent() {
         {/* Key Insights */}
         {reportContent.keyInsights && reportContent.keyInsights.length > 0 && (
           <Card className="cosmic-card border-amber-200 mb-6 bg-gradient-to-r from-amber-50 to-orange-50">
-            <CardHeader>
-              <h2 className="text-xl font-bold text-amber-900">Key Insights</h2>
-            </CardHeader>
+            <CardHeader title="Key Insights" />
             <CardContent>
               <ul className="space-y-2">
                 {reportContent.keyInsights.map((insight, idx) => (

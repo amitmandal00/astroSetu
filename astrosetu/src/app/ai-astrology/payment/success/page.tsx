@@ -163,9 +163,7 @@ function PaymentSuccessContent() {
 
         {/* Next Steps */}
         <Card className="cosmic-card mb-6">
-          <CardHeader>
-            <h2 className="text-xl font-bold text-slate-800">What's Next?</h2>
-          </CardHeader>
+          <CardHeader title="What's Next?" />
           <CardContent className="space-y-4">
             {reportType === "subscription" ? (
               <>
