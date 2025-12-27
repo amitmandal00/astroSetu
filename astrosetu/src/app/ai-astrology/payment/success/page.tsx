@@ -22,6 +22,7 @@ function PaymentSuccessContent() {
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
   const [reportType, setReportType] = useState<ReportType | null>(null);
+  const [isSubscription, setIsSubscription] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,8 +56,16 @@ function PaymentSuccessContent() {
 
       if (response.data?.paid) {
         setVerified(true);
-        const verifiedReportType = (response.data.reportType as ReportType) || null;
-        setReportType(verifiedReportType);
+        const subscription = response.data.subscription || false;
+        setIsSubscription(subscription);
+        
+        // Only set reportType if it's a valid ReportType (not "subscription")
+        const paymentReportType = response.data.reportType;
+        if (paymentReportType && paymentReportType !== "subscription") {
+          const validReportType = paymentReportType as ReportType;
+          setReportType(validReportType);
+          sessionStorage.setItem("aiAstrologyReportType", paymentReportType);
+        }
         
         // Store payment info in sessionStorage for report generation
         sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
@@ -67,17 +76,13 @@ function PaymentSuccessContent() {
           sessionStorage.setItem("aiAstrologyPaymentToken", response.data.paymentToken);
         }
         
-        if (response.data.reportType) {
-          sessionStorage.setItem("aiAstrologyReportType", response.data.reportType);
-          
-          // If subscription, mark as active
-          if (response.data.reportType === "subscription") {
-            sessionStorage.setItem("aiAstrologySubscription", "active");
-          }
+        // If subscription, mark as active
+        if (subscription) {
+          sessionStorage.setItem("aiAstrologySubscription", "active");
         }
 
         // Auto-redirect to preview page for non-subscription reports
-        if (verifiedReportType && verifiedReportType !== "subscription") {
+        if (!subscription && paymentReportType && paymentReportType !== "subscription") {
           // Small delay to show success message, then redirect
           setTimeout(() => {
             router.push("/ai-astrology/preview");
@@ -94,7 +99,10 @@ function PaymentSuccessContent() {
     }
   };
 
-  const getReportName = (type: string | null) => {
+  const getReportName = (type: ReportType | null, isSub: boolean) => {
+    if (isSub) {
+      return "Premium Subscription";
+    }
     switch (type) {
       case "marriage-timing":
         return "Marriage Timing Report";
@@ -102,8 +110,6 @@ function PaymentSuccessContent() {
         return "Career & Money Report";
       case "full-life":
         return "Full Life Report";
-      case "subscription":
-        return "Premium Subscription";
       default:
         return "Report";
     }
@@ -155,17 +161,17 @@ function PaymentSuccessContent() {
             <p className="text-lg text-emerald-800 mb-2">
               Your payment has been confirmed.
             </p>
-            <Badge tone="green" className="text-sm px-4 py-2">
-              {getReportName(reportType)}
-            </Badge>
+                <Badge tone="green" className="text-sm px-4 py-2">
+                  {getReportName(reportType, isSubscription)}
+                </Badge>
           </CardContent>
         </Card>
 
         {/* Next Steps */}
         <Card className="cosmic-card mb-6">
           <CardHeader title="What's Next?" />
-          <CardContent className="space-y-4">
-            {reportType === "subscription" ? (
+              <CardContent className="space-y-4">
+                {isSubscription ? (
               <>
                 <p className="text-slate-700">
                   Your premium subscription is now active! You can access daily guidance and all premium features.
@@ -179,7 +185,7 @@ function PaymentSuccessContent() {
             ) : (
               <>
                 <p className="text-slate-700 mb-4">
-                  Your {getReportName(reportType)} is now unlocked! Your report is being generated automatically.
+                  Your {getReportName(reportType, isSubscription)} is now unlocked! Your report is being generated automatically.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link href="/ai-astrology/preview" className="flex-1">
