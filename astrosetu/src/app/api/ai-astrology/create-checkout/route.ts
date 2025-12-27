@@ -1,0 +1,166 @@
+import { NextResponse } from "next/server";
+import { checkRateLimit, handleApiError, parseJsonBody } from "@/lib/apiHelpers";
+import { generateRequestId } from "@/lib/requestId";
+import { REPORT_PRICES, SUBSCRIPTION_PRICE, isStripeConfigured } from "@/lib/ai-astrology/payments";
+
+/**
+ * POST /api/ai-astrology/create-checkout
+ * Create Stripe checkout session for report purchase
+ */
+export async function POST(req: Request) {
+  const requestId = generateRequestId();
+
+  try {
+    // Rate limiting
+    const rateLimitResponse = checkRateLimit(req, "/api/ai-astrology/create-checkout");
+    if (rateLimitResponse) {
+      rateLimitResponse.headers.set("X-Request-ID", requestId);
+      return rateLimitResponse;
+    }
+
+    // Check if Stripe is configured
+    if (!isStripeConfigured()) {
+      return NextResponse.json(
+        { ok: false, error: "Payment processing not configured. Please set STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY." },
+        { status: 503 }
+      );
+    }
+
+    // Dynamically import Stripe (only if configured)
+    const stripe = (await import("stripe")).default(process.env.STRIPE_SECRET_KEY!);
+
+    // Parse request body
+    const json = await parseJsonBody<{
+      reportType?: "marriage-timing" | "career-money" | "full-life";
+      subscription?: boolean;
+      input?: any; // Birth details for metadata
+      successUrl?: string;
+      cancelUrl?: string;
+    }>(req);
+
+    const { reportType, subscription = false, input, successUrl, cancelUrl } = json;
+
+    // Validate inputs
+    if (!subscription && !reportType) {
+      return NextResponse.json(
+        { ok: false, error: "Either reportType or subscription must be provided" },
+        { status: 400 }
+      );
+    }
+
+    if (subscription && reportType) {
+      return NextResponse.json(
+        { ok: false, error: "Cannot specify both reportType and subscription" },
+        { status: 400 }
+      );
+    }
+
+    // Get price info
+    let priceData;
+    let metadata: Record<string, string> = {
+      requestId,
+      type: subscription ? "subscription" : "report",
+    };
+
+    if (subscription) {
+      priceData = SUBSCRIPTION_PRICE;
+      metadata.reportType = "subscription";
+    } else {
+      const reportPrice = REPORT_PRICES[reportType!];
+      if (!reportPrice) {
+        return NextResponse.json(
+          { ok: false, error: `Invalid report type: ${reportType}` },
+          { status: 400 }
+        );
+      }
+      priceData = reportPrice;
+      metadata.reportType = reportType!;
+    }
+
+    // Add input metadata if provided
+    if (input) {
+      if (input.name) metadata.customerName = input.name;
+      if (input.dob) metadata.dob = input.dob;
+      // Don't store sensitive data in metadata
+    }
+
+    // Determine redirect URLs
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const success = successUrl || `${baseUrl}/ai-astrology/payment/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancel = cancelUrl || `${baseUrl}/ai-astrology/payment/cancel`;
+
+    // Create checkout session
+    let session;
+    
+    if (subscription) {
+      // Create subscription checkout
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: priceData.currency,
+              product_data: {
+                name: "AI Astrology Premium Subscription",
+                description: priceData.description,
+              },
+              recurring: {
+                interval: "month",
+              },
+              unit_amount: priceData.amount,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        success_url: success,
+        cancel_url: cancel,
+        metadata,
+      });
+    } else {
+      // Create one-time payment
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: priceData.currency,
+              product_data: {
+                name: priceData.description,
+                description: priceData.description,
+              },
+              unit_amount: priceData.amount,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: success,
+        cancel_url: cancel,
+        metadata,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        data: {
+          sessionId: session.id,
+          url: session.url,
+        },
+        requestId,
+      },
+      {
+        headers: {
+          "X-Request-ID": requestId,
+          "Cache-Control": "no-cache",
+        },
+      }
+    );
+  } catch (error) {
+    const errorResponse = handleApiError(error);
+    errorResponse.headers.set("X-Request-ID", requestId);
+    return errorResponse;
+  }
+}
+

@@ -11,9 +11,10 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { apiPost } from "@/lib/http";
+import { apiPost, apiGet } from "@/lib/http";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import type { ReportContent } from "@/lib/ai-astrology/types";
+import { REPORT_PRICES } from "@/lib/ai-astrology/payments";
 
 function PreviewContent() {
   const router = useRouter();
@@ -24,11 +25,13 @@ function PreviewContent() {
   const [reportContent, setReportContent] = useState<ReportContent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentVerified, setPaymentVerified] = useState(false);
 
   useEffect(() => {
     // Get input from sessionStorage
     const savedInput = sessionStorage.getItem("aiAstrologyInput");
     const savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType;
+    const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
 
     if (!savedInput) {
       router.push("/ai-astrology/input");
@@ -36,11 +39,24 @@ function PreviewContent() {
     }
 
     try {
-      setInput(JSON.parse(savedInput));
-      setReportType(savedReportType || "life-summary");
+      const inputData = JSON.parse(savedInput);
+      const reportTypeToUse = savedReportType || "life-summary";
+      
+      setInput(inputData);
+      setReportType(reportTypeToUse);
+      setPaymentVerified(paymentVerified);
+
+      // Check if payment is required
+      const isPaidReport = reportTypeToUse !== "life-summary";
+      
+      if (isPaidReport && !paymentVerified) {
+        // Don't generate report, show payment prompt instead
+        setLoading(false);
+        return;
+      }
       
       // Auto-generate report
-      generateReport(JSON.parse(savedInput), savedReportType || "life-summary");
+      generateReport(inputData, reportTypeToUse);
     } catch (e) {
       console.error("Error parsing saved input:", e);
       router.push("/ai-astrology/input");
@@ -80,6 +96,48 @@ function PreviewContent() {
   };
 
   const isPaidReport = reportType !== "life-summary";
+  const needsPayment = isPaidReport && !paymentVerified;
+
+  const getReportName = (type: ReportType | null) => {
+    switch (type) {
+      case "marriage-timing":
+        return "Marriage Timing Report";
+      case "career-money":
+        return "Career & Money Report";
+      case "full-life":
+        return "Full Life Report";
+      default:
+        return "Life Summary";
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!input || !reportType) return;
+
+    try {
+      setLoading(true);
+      const response = await apiPost<{
+        ok: boolean;
+        data?: { url: string; sessionId: string };
+        error?: string;
+      }>("/api/ai-astrology/create-checkout", {
+        reportType,
+        input,
+      });
+
+      if (!response.ok) {
+        throw new Error(response.error || "Failed to create checkout");
+      }
+
+      // Redirect to Stripe checkout
+      if (response.data?.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (e: any) {
+      setError(e.message || "Failed to initiate payment");
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
