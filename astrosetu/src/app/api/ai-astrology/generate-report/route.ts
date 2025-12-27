@@ -12,6 +12,63 @@ import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
 
 /**
+ * Check if the user is a production test user (bypasses payment)
+ * Test user details:
+ * - Name: Amit Kumar Mandal
+ * - DOB: 26 Nov 1984 (1984-11-26)
+ * - Time: 21:40 (9:40 PM)
+ * - Place: Noamundi, Jharkhand, India
+ * - Gender: Male
+ */
+function checkIfTestUser(input: AIAstrologyInput): boolean {
+  const testUserName = "Amit Kumar Mandal";
+  const testUserDOB = "1984-11-26"; // Format: YYYY-MM-DD
+  const testUserTime = "21:40"; // Format: HH:mm (24-hour)
+  const testUserPlace = "Noamundi"; // Match if place contains this
+  const testUserGender = "Male";
+
+  // Check name (case-insensitive, partial match)
+  const nameMatch = input.name?.toLowerCase().includes(testUserName.toLowerCase()) ?? false;
+  
+  // Check DOB (handle various formats)
+  let dobMatch = false;
+  if (input.dob) {
+    const inputDOB = input.dob.replace(/\//g, "-").trim();
+    // Try to match YYYY-MM-DD or DD-MM-YYYY formats
+    dobMatch = inputDOB.includes("1984-11-26") || 
+               inputDOB.includes("26-11-1984") ||
+               inputDOB.includes("1984/11/26") ||
+               inputDOB.includes("26/11/1984") ||
+               inputDOB === "1984-11-26";
+  }
+  
+  // Check time (handle various formats like "9:40 PM", "21:40", etc.)
+  let timeMatch = false;
+  if (input.tob) {
+    const inputTime = input.tob.trim().toUpperCase();
+    // Match 21:40, 9:40 PM, 09:40 PM, 21:40:00, etc.
+    timeMatch = inputTime.includes("21:40") || 
+                (inputTime.includes("9:40") || inputTime.includes("09:40")) && 
+                (inputTime.includes("PM") || inputTime.includes("P.M."));
+  }
+  
+  // Check place (case-insensitive, partial match)
+  const placeMatch = input.place?.toLowerCase().includes(testUserPlace.toLowerCase()) ?? false;
+  
+  // Check gender (case-insensitive)
+  const genderMatch = input.gender?.toLowerCase() === testUserGender.toLowerCase();
+
+  // User is test user if all fields match
+  const isTestUser = nameMatch && dobMatch && timeMatch && placeMatch && genderMatch;
+  
+  if (isTestUser) {
+    console.log("[TEST USER] Production test user detected, bypassing payment verification");
+  }
+  
+  return isTestUser;
+}
+
+/**
  * POST /api/ai-astrology/generate-report
  * Generate AI-powered astrology report
  */
@@ -85,7 +142,10 @@ export async function POST(req: Request) {
     // Demo mode: Allow testing without payment (set AI_ASTROLOGY_DEMO_MODE=true in .env.local)
     const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     
-    if (isPaidReportType(reportType) && !isDemoMode) {
+    // Check if user is a production test user (bypasses payment)
+    const isTestUser = checkIfTestUser(input);
+    
+    if (isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
       if (!paymentToken) {
         return NextResponse.json(
           { ok: false, error: "Payment verification required for paid reports. Please complete payment first." },
@@ -110,9 +170,10 @@ export async function POST(req: Request) {
       }
     }
     
-    // Log demo mode usage (only in development)
-    if (isDemoMode && isPaidReportType(reportType)) {
-      console.log(`[DEMO MODE] Bypassing payment verification for ${reportType} report`);
+    // Log demo mode or test user usage
+    if ((isDemoMode || isTestUser) && isPaidReportType(reportType)) {
+      const mode = isDemoMode ? "DEMO MODE" : "TEST USER";
+      console.log(`[${mode}] Bypassing payment verification for ${reportType} report`);
     }
 
     // Generate report based on type

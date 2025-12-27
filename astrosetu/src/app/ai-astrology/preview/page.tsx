@@ -309,75 +309,174 @@ function PreviewContent() {
     );
   }
 
+  // Calculate content gating for free reports
+  const sections = reportContent.sections || [];
+  const shouldGateContent = !isPaidReport && sections.length > 0;
+  const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.3)) : sections.length;
+  const visibleSections = shouldGateContent ? sections.slice(0, gateAfterSection) : sections;
+  const gatedSections = shouldGateContent ? sections.slice(gateAfterSection) : [];
+
   return (
     <div className="cosmic-bg py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/ai-astrology" className="text-sm text-amber-700 hover:text-amber-800 mb-4 inline-block">
-            ← Back to AI Astrology
+      <div className="container mx-auto px-4 max-w-7xl">
+        {/* Header with Breadcrumb */}
+        <div className="mb-6">
+          <Link href="/ai-astrology" className="text-sm text-amber-700 hover:text-amber-800 mb-3 inline-flex items-center gap-2">
+            <span>←</span>
+            <span>Back to AI Astrology</span>
           </Link>
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">{reportContent.title}</h1>
-            {!isPaidReport && (
-              <Badge tone="green" className="text-sm">FREE</Badge>
-            )}
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+            <span>{reportContent.title}</span>
+            <span>•</span>
+            <span>Fully automated</span>
+            <span>•</span>
+            <span>No live support</span>
           </div>
-          <p className="text-slate-600">
-            Generated for {input.name} • {new Date().toLocaleDateString()}
-          </p>
-          
-          {/* PDF Download & Email Buttons */}
-          {isPaidReport && (
-            <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
-              <Button
-                onClick={handleDownloadPDF}
-                disabled={downloadingPDF}
-                className="cosmic-button px-6 py-3"
-              >
-                {downloadingPDF ? (
-                  <span className="flex items-center gap-2">
-                    <span className="animate-spin">📄</span>
-                    <span>Generating PDF...</span>
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <span>📥</span>
-                    <span>Download PDF</span>
-                  </span>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">{reportContent.title}</h1>
+                {!isPaidReport && (
+                  <Badge tone="green" className="text-sm">FREE</Badge>
                 )}
-              </Button>
-              <Button
-                onClick={() => {
-                  // Email functionality - can be implemented later
-                  const mailtoLink = `mailto:?subject=${encodeURIComponent(reportContent.title)}&body=${encodeURIComponent(`Check out my ${reportContent.title} from AstroSetu AI Astrology`)}`;
-                  window.open(mailtoLink);
-                }}
-                className="cosmic-button-secondary px-6 py-3"
-              >
-                <span className="flex items-center gap-2">
-                  <span>✉️</span>
-                  <span>Email Me a Copy</span>
-                </span>
-              </Button>
+              </div>
+              <p className="text-slate-600">
+                Generated for {input.name} • {new Date().toLocaleDateString()}
+              </p>
             </div>
-          )}
-        </div>
-
-        {/* Report Content */}
-        <Card className="cosmic-card mb-6">
-          <CardContent className="p-8">
-            {/* Summary */}
-            {reportContent.summary && (
-              <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
-                <h2 className="text-xl font-bold mb-3 text-amber-900">Summary</h2>
-                <p className="text-slate-700 leading-relaxed">{reportContent.summary}</p>
+          
+            {/* PDF Download & Email Buttons */}
+            {isPaidReport && (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={handleDownloadPDF}
+                  disabled={downloadingPDF}
+                  className="cosmic-button px-6 py-3"
+                >
+                  {downloadingPDF ? (
+                    <span className="flex items-center gap-2">
+                      <span className="animate-spin">📄</span>
+                      <span>Generating PDF...</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span>📥</span>
+                      <span>Download PDF</span>
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => {
+                    const mailtoLink = `mailto:?subject=${encodeURIComponent(reportContent.title)}&body=${encodeURIComponent(`Check out my ${reportContent.title} from AstroSetu AI Astrology`)}`;
+                    window.open(mailtoLink);
+                  }}
+                  className="cosmic-button-secondary px-6 py-3"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>✉️</span>
+                    <span>Email Me a Copy</span>
+                  </span>
+                </Button>
               </div>
             )}
+          </div>
+        </div>
 
-            {/* Sections */}
-            <div className="space-y-8">
-              {reportContent.sections.map((section, idx) => (
+        {/* 2-Column Layout: Left (Upgrade Card) + Right (Report Content) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          {/* Left Column: Sticky Upgrade Card (30-35%) */}
+          {!isPaidReport && (
+            <div className="lg:col-span-1">
+              <div className="sticky top-24">
+                <Card className="cosmic-card border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50">
+                  <CardHeader title="Unlock Full Insights" />
+                  <CardContent className="p-6">
+                    <p className="text-slate-700 mb-6 text-sm leading-relaxed">
+                      Get detailed, personalized reports with actionable guidance for your life path.
+                    </p>
+
+                    {/* Individual Reports */}
+                    <div className="space-y-3 mb-6">
+                      <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-amber-400 hover:border-amber-500 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-1">See My Marriage Timing</div>
+                          <div className="text-sm text-amber-700 font-semibold">AU$42 (incl. GST)</div>
+                        </div>
+                      </Link>
+                      <Link href="/ai-astrology/input?reportType=career-money" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-1">See My Career & Money</div>
+                          <div className="text-sm text-slate-600 font-semibold">AU$42 (incl. GST)</div>
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Best Value - Full Life Report */}
+                    <Link href="/ai-astrology/input?reportType=full-life" className="block mb-6">
+                      <div className="p-5 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg border-2 border-purple-400 hover:border-purple-500 hover:shadow-lg transition-all relative">
+                        <div className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          BEST VALUE
+                        </div>
+                        <div className="font-bold text-slate-800 mb-1 text-lg">See My Full Life Report</div>
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-lg font-bold text-purple-700">AU$69</span>
+                          <span className="text-xs text-slate-600 line-through">AU$84</span>
+                          <span className="text-xs text-purple-600 font-semibold">Save AU$15</span>
+                        </div>
+                        <div className="text-xs text-slate-700">(incl. GST) • Most comprehensive</div>
+                      </div>
+                    </Link>
+
+                    {/* Trust Strip */}
+                    <div className="pt-6 border-t border-amber-300">
+                      <div className="space-y-2 text-xs text-slate-700">
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-600">✓</span>
+                          <span>Instant access after payment</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-600">✓</span>
+                          <span>Downloadable PDF included</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-600">✓</span>
+                          <span>Fully automated - no humans</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-600">✓</span>
+                          <span>Educational guidance only</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pricing Anchor */}
+                    <div className="mt-6 pt-6 border-t border-amber-300">
+                      <p className="text-xs text-slate-600 text-center">
+                        Individual reports: <strong>AU$42</strong> each<br />
+                        Full Life Report: <strong>AU$69</strong> (save AU$15)
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* Right Column: Report Content (65-70%) */}
+          <div className={isPaidReport ? "lg:col-span-3" : "lg:col-span-2"}>
+            <Card className="cosmic-card mb-6">
+              <CardContent className="p-8">
+                {/* Summary */}
+                {reportContent.summary && (
+                  <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                    <h2 className="text-xl font-bold mb-3 text-amber-900">Summary</h2>
+                    <p className="text-slate-700 leading-relaxed">{reportContent.summary}</p>
+                  </div>
+                )}
+
+                {/* Sections */}
+                <div className="space-y-8">
+                  {visibleSections.map((section, idx) => (
                 <div key={idx} className="border-b border-slate-200 last:border-0 pb-8 last:pb-0">
                   <h2 className="text-2xl font-bold mb-4 text-slate-800">{section.title}</h2>
                   
@@ -423,54 +522,124 @@ function PreviewContent() {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Key Insights */}
-        {reportContent.keyInsights && reportContent.keyInsights.length > 0 && (
-          <Card className="cosmic-card border-amber-200 mb-6 bg-gradient-to-r from-amber-50 to-orange-50">
-            <CardHeader title="Key Insights" />
-            <CardContent>
-              <ul className="space-y-2">
-                {reportContent.keyInsights.map((insight, idx) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <span className="text-amber-600 mt-1">✨</span>
-                    <span className="text-amber-900">{insight}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
+            {/* Visual Gating - Blur Overlay for Free Reports */}
+            {shouldGateContent && gatedSections.length > 0 && (
+                  <div className="relative mt-8">
+                    {/* Blurred Preview of Gated Content */}
+                    <div className="relative blur-sm opacity-50 pointer-events-none" style={{ maxHeight: '400px', overflow: 'hidden' }}>
+                      {gatedSections.slice(0, 1).map((section, idx) => (
+                        <div key={`gated-${idx}`} className="border-b border-slate-200 pb-8 mb-8">
+                          <h2 className="text-2xl font-bold mb-4 text-slate-800">{section.title}</h2>
+                          {section.content && (
+                            <div className="prose prose-slate max-w-none mb-4">
+                              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{section.content.substring(0, 200)}...</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          {!isPaidReport && (
-            <>
-              <Link href="/ai-astrology/input?reportType=marriage-timing">
-                <Button className="cosmic-button px-8">
-                  Get Marriage Timing Report (AU$42) →
-                </Button>
-              </Link>
-              <Link href="/ai-astrology/input?reportType=career-money">
-                <Button className="cosmic-button px-8">
-                  Get Career & Money Report (AU$42) →
-                </Button>
-              </Link>
-              <Link href="/ai-astrology/input?reportType=full-life">
-                <Button className="cosmic-button-secondary px-8">
-                  Get Full Life Report (AU$69) →
-                </Button>
-              </Link>
-            </>
-          )}
-          {isPaidReport && (
-            <Link href="/ai-astrology">
-              <Button className="cosmic-button-secondary px-8">
-                Get Another Report
-              </Button>
-            </Link>
-          )}
+                    {/* Overlay CTA Card */}
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                      <Card className="cosmic-card border-purple-400 bg-white shadow-2xl max-w-lg mx-4">
+                        <CardContent className="p-8 text-center">
+                          <div className="text-5xl mb-4">🔒</div>
+                          <h3 className="text-2xl font-bold mb-3 text-slate-800">Unlock the Full Interpretation</h3>
+                          <p className="text-slate-600 mb-6">
+                            Get complete insights including:
+                          </p>
+                          <ul className="text-left space-y-2 mb-6 text-slate-700">
+                            <li>• Marriage timing windows</li>
+                            <li>• Career & money cycles</li>
+                            <li>• Actionable guidance & remedies</li>
+                            <li>• Full life predictions & more</li>
+                          </ul>
+
+                          {/* Trust Strip */}
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
+                            <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
+                              <div className="flex items-center gap-1">
+                                <span className="text-emerald-600">✓</span>
+                                <span>Instant access</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-emerald-600">✓</span>
+                                <span>Downloadable PDF</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-emerald-600">✓</span>
+                                <span>Fully automated</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-emerald-600">✓</span>
+                                <span>No humans</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* CTA Buttons */}
+                          <div className="space-y-3">
+                            <Link href="/ai-astrology/input?reportType=full-life" className="block">
+                              <Button className="w-full cosmic-button py-4 text-lg font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border-2 border-purple-700">
+                                <span className="flex items-center justify-center gap-2">
+                                  <span>See My Full Life Report</span>
+                                  <span className="bg-white/20 px-2 py-1 rounded text-sm">AU$69</span>
+                                </span>
+                                <div className="text-sm font-normal mt-1">Best Value • Save AU$15</div>
+                              </Button>
+                            </Link>
+                            <div className="grid grid-cols-2 gap-3">
+                              <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
+                                <Button className="w-full cosmic-button py-3 bg-amber-600 hover:bg-amber-700 border-2 border-amber-700">
+                                  See My Marriage Timing
+                                  <div className="text-xs font-normal mt-1">AU$42</div>
+                                </Button>
+                              </Link>
+                              <Link href="/ai-astrology/input?reportType=career-money" className="block">
+                                <Button className="w-full cosmic-button-secondary py-3 border-2 border-slate-400 hover:border-amber-500">
+                                  See My Career & Money
+                                  <div className="text-xs font-normal mt-1">AU$42</div>
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+          {/* Key Insights */}
+            {reportContent.keyInsights && reportContent.keyInsights.length > 0 && (
+              <Card className="cosmic-card border-amber-200 mb-6 bg-gradient-to-r from-amber-50 to-orange-50">
+                <CardHeader title="Key Insights" />
+                <CardContent>
+                  <ul className="space-y-2">
+                    {reportContent.keyInsights.map((insight, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <span className="text-amber-600 mt-1">✨</span>
+                        <span className="text-amber-900">{insight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Additional CTA Section for Paid Reports */}
+            {isPaidReport && (
+              <div className="text-center">
+                <Link href="/ai-astrology">
+                  <Button className="cosmic-button-secondary px-8">
+                    Get Another Report
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Disclaimer */}
