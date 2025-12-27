@@ -204,7 +204,7 @@ export default function AIAstrologyLandingPage() {
             <div className="text-6xl mb-6">⭐</div>
             <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 mb-4">Premium Subscription</h2>
             <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto">
-              Get personalized daily guidance delivered to you every day. Know what's favorable, 
+              Get personalized daily guidance delivered to you every day. Know what&apos;s favorable, 
               what to avoid, and how to make the most of each day.
             </p>
             <div className="text-5xl font-bold text-amber-700 mb-8">

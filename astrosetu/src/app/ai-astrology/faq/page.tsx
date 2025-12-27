@@ -24,7 +24,7 @@ const FAQ_ITEMS = [
     answer: (
       <>
         Accurate birth time is important for precise astrological calculations, especially for the Ascendant (Lagna) and Moon sign positions. 
-        If you're unsure of your exact birth time, we recommend:
+        If you&apos;re unsure of your exact birth time, we recommend:
         <ul className="list-disc list-inside mt-2 space-y-1 ml-4">
           <li>Checking your birth certificate or hospital records</li>
           <li>Asking family members who were present at your birth</li>
@@ -40,7 +40,7 @@ const FAQ_ITEMS = [
     answer: (
       <>
         Vedic astrology has its origins in ancient Indian culture and is associated with Hindu traditions, but our reports are presented in a 
-        <strong> secular, educational context</strong>. You don't need to follow any particular religion or belief system to benefit from 
+        <strong> secular, educational context</strong>. You don&apos;t need to follow any particular religion or belief system to benefit from 
         astrological insights. We treat astrology as a symbolic language for understanding personality patterns and life themes, similar to 
         psychology or personality assessment tools. Our platform is designed to be inclusive and accessible to people of all backgrounds.
       </>
@@ -51,7 +51,7 @@ const FAQ_ITEMS = [
     answer: (
       <>
         <strong>No, all digital reports are final sale and non-refundable.</strong> This is standard practice for digital products and services. 
-        Once you purchase a report, you receive immediate access to the digital content. Before purchasing, you'll be asked to acknowledge 
+        Once you purchase a report, you receive immediate access to the digital content. Before purchasing, you&apos;ll be asked to acknowledge 
         that you understand this policy. We recommend reviewing the free Life Summary preview first to ensure our reports meet your expectations 
         before purchasing premium reports.
       </>
@@ -61,7 +61,7 @@ const FAQ_ITEMS = [
     question: "How does this work?",
     answer: (
       <>
-        Our platform is <strong>100% automated</strong>. Here's how it works:
+        Our platform is <strong>100% automated</strong>. Here&apos;s how it works:
         <ol className="list-decimal list-inside mt-2 space-y-2 ml-4">
           <li><strong>Enter Your Details:</strong> Provide your name, date of birth, time of birth, and place of birth</li>
           <li><strong>AI Generates Report:</strong> Our AI system calculates your birth chart and generates personalized insights</li>
@@ -112,14 +112,14 @@ const FAQ_ITEMS = [
     question: "What if I have a question about my report?",
     answer: (
       <>
-        Since this platform is fully automated with no human support, we've created this comprehensive FAQ to address common questions. 
-        Please review the FAQ items above. If your question isn't answered here, you can:
+        Since this platform is fully automated with no human support, we&apos;ve created this comprehensive FAQ to address common questions. 
+        Please review the FAQ items above. If your question isn&apos;t answered here, you can:
         <ul className="list-disc list-inside mt-2 space-y-1 ml-4">
           <li>Try generating a new report with different birth details if you believe information was incorrect</li>
           <li>Review the free Life Summary to understand our reporting style before purchasing</li>
           <li>Remember that astrology provides guidance and insights, not definitive answers</li>
         </ul>
-        We're designed as a self-service platform where you can explore multiple reports to gain deeper understanding.
+        We&apos;re designed as a self-service platform where you can explore multiple reports to gain deeper understanding.
       </>
     ),
   },
@@ -127,7 +127,7 @@ const FAQ_ITEMS = [
     question: "Is astrology a science?",
     answer: (
       <>
-        Astrology is not considered a science by the scientific community. It's better understood as a <strong>symbolic system</strong> 
+        Astrology is not considered a science by the scientific community. It&apos;s better understood as a <strong>symbolic system</strong> 
         and <strong>ancient art form</strong> that uses planetary positions as metaphors for understanding human personality and life patterns. 
         We present astrology as educational guidance and a tool for self-reflection, not as a scientific prediction method. 
         Think of it as similar to personality assessments, psychological frameworks, or cultural wisdom traditions - valuable for insights 
@@ -146,7 +146,7 @@ const FAQ_ITEMS = [
           <li>Provide insights into relationship compatibility</li>
           <li>Suggest optimal timing for important decisions</li>
         </ul>
-        However, we don't claim to predict specific events with certainty. Life is influenced by many factors including free will, 
+        However, we don&apos;t claim to predict specific events with certainty. Life is influenced by many factors including free will, 
         environment, and circumstances. Use astrological insights as one tool among many for making informed decisions, not as the sole 
         basis for life choices.
       </>

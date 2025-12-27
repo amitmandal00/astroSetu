@@ -128,9 +128,26 @@ export async function POST(req: Request) {
       }
     } catch (error: any) {
       console.error("[AI Astrology] Report generation error:", error);
+      // Provide user-friendly error message without exposing internal details
+      const errorMessage = error.message || "Unknown error";
+      const isConfigError = errorMessage.includes("API key") || errorMessage.includes("not configured");
+      
       return NextResponse.json(
-        { ok: false, error: `Failed to generate report: ${error.message || "Unknown error"}` },
-        { status: 500 }
+        { 
+          ok: false, 
+          error: isConfigError 
+            ? "AI service is temporarily unavailable. Please try again later."
+            : "Server error. Please try again later.",
+          code: isConfigError ? "AI_SERVICE_UNAVAILABLE" : "REPORT_GENERATION_FAILED",
+          requestId 
+        },
+        { 
+          status: isConfigError ? 503 : 500,
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache, no-store, must-revalidate"
+          }
+        }
       );
     }
 

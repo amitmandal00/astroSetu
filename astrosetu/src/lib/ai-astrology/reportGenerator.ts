@@ -40,7 +40,7 @@ async function generateWithOpenAI(prompt: string): Promise<string> {
       "Authorization": `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -179,72 +179,9 @@ function getReportTitle(reportType: ReportType): string {
  * Generate Life Summary Report (Free)
  */
 export async function generateLifeSummaryReport(input: AIAstrologyInput): Promise<ReportContent> {
-  // Get astrology data from Prokerala API
-  const kundliResult = await getKundli({
-    name: input.name,
-    dob: input.dob,
-    tob: input.tob,
-    place: input.place,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    timezone: input.timezone || "Asia/Kolkata",
-    ayanamsa: 1,
-  });
-
-  // Extract planetary data
-  const planets = kundliResult.planets.map(p => ({
-    name: p.name,
-    sign: p.sign,
-    house: p.house || 0,
-    degrees: p.degree || 0,
-  }));
-
-  // Generate prompt
-  const prompt = generateLifeSummaryPrompt(
-    {
-      name: input.name,
-      dob: input.dob,
-      tob: input.tob,
-      place: input.place,
-      gender: input.gender,
-    },
-    {
-      ascendant: kundliResult.ascendant || "Unknown",
-      moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
-      sunSign: kundliResult.planets.find(p => p.name === "Sun")?.sign || "Unknown",
-      nakshatra: kundliResult.nakshatra || "Unknown",
-      planets,
-    }
-  );
-
-  // Generate AI content
-  const aiResponse = await generateAIContent(prompt);
-  
-  // Parse and return
-  return parseAIResponse(aiResponse, "life-summary");
-}
-
-/**
- * Generate Marriage Timing Report (Paid)
- */
-export async function generateMarriageTimingReport(input: AIAstrologyInput): Promise<ReportContent> {
-  // Get astrology data
-  const kundliResult = await getKundli({
-    name: input.name,
-    dob: input.dob,
-    tob: input.tob,
-    place: input.place,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    timezone: input.timezone || "Asia/Kolkata",
-    ayanamsa: 1,
-  });
-
-  // Get dosha analysis
-  let doshaAnalysis: DoshaAnalysis | null = null;
   try {
-    const { getDoshaAnalysis } = await import("../astrologyAPI");
-    doshaAnalysis = await getDoshaAnalysis({
+    // Get astrology data from Prokerala API
+    const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
       tob: input.tob,
@@ -254,155 +191,238 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
-  } catch (e) {
-    console.log("Could not fetch dosha analysis:", e);
-  }
 
-  // Extract relevant planetary data
-  const venus = kundliResult.planets.find(p => p.name === "Venus");
-  const jupiter = kundliResult.planets.find(p => p.name === "Jupiter");
-  const mars = kundliResult.planets.find(p => p.name === "Mars");
+    // Extract planetary data
+    const planets = kundliResult.planets.map(p => ({
+      name: p.name,
+      sign: p.sign,
+      house: p.house || 0,
+      degrees: p.degree || 0,
+    }));
+
+    // Generate prompt
+    const prompt = generateLifeSummaryPrompt(
+      {
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        gender: input.gender,
+      },
+      {
+        ascendant: kundliResult.ascendant || "Unknown",
+        moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
+        sunSign: kundliResult.planets.find(p => p.name === "Sun")?.sign || "Unknown",
+        nakshatra: kundliResult.nakshatra || "Unknown",
+        planets,
+      }
+    );
+
+    // Generate AI content
+    const aiResponse = await generateAIContent(prompt);
   
-  // Get 7th house (marriage house) - simplified, would need chart data
-  const seventhHousePlanets = kundliResult.planets.filter(p => p.house === 7).map(p => p.name);
+    // Parse and return
+    return parseAIResponse(aiResponse, "life-summary");
+  } catch (error: any) {
+    console.error("[generateLifeSummaryReport] Error:", error);
+    throw error; // Re-throw to be handled by API route
+  }
+}
 
-  // Generate prompt
-  const prompt = generateMarriageTimingPrompt(
-    {
+/**
+ * Generate Marriage Timing Report (Paid)
+ */
+export async function generateMarriageTimingReport(input: AIAstrologyInput): Promise<ReportContent> {
+  try {
+    // Get astrology data
+    const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
       tob: input.tob,
       place: input.place,
-      gender: input.gender,
-    },
-    {
-      ascendant: kundliResult.ascendant || "Unknown",
-      moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
-      venus: {
-        sign: venus?.sign || "Unknown",
-        house: venus?.house || 0,
-        degrees: venus?.degree || 0,
-      },
-      jupiter: {
-        sign: jupiter?.sign || "Unknown",
-        house: jupiter?.house || 0,
-        degrees: jupiter?.degree || 0,
-      },
-      mars: {
-        sign: mars?.sign || "Unknown",
-        house: mars?.house || 0,
-        degrees: mars?.degree || 0,
-      },
-      seventhHouse: {
-        sign: "Unknown", // Would need chart data
-        planets: seventhHousePlanets,
-      },
-      currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
-      nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
-      manglik: doshaAnalysis?.manglik?.status === "Manglik",
-      doshas: doshaAnalysis ? [
-        ...(doshaAnalysis.manglik?.status === "Manglik" ? ["Manglik"] : []),
-        ...(doshaAnalysis.kaalSarp?.present ? ["Kaal Sarp"] : []),
-      ] : [],
-    }
-  );
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone || "Asia/Kolkata",
+      ayanamsa: 1,
+    });
 
-  // Generate AI content
-  const aiResponse = await generateAIContent(prompt);
-  
-  // Parse and return
-  return parseAIResponse(aiResponse, "marriage-timing");
+    // Get dosha analysis
+    let doshaAnalysis: DoshaAnalysis | null = null;
+    try {
+      const { getDoshaAnalysis } = await import("../astrologyAPI");
+      doshaAnalysis = await getDoshaAnalysis({
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        timezone: input.timezone || "Asia/Kolkata",
+        ayanamsa: 1,
+      });
+    } catch (e) {
+      console.log("Could not fetch dosha analysis:", e);
+    }
+
+    // Extract relevant planetary data
+    const venus = kundliResult.planets.find(p => p.name === "Venus");
+    const jupiter = kundliResult.planets.find(p => p.name === "Jupiter");
+    const mars = kundliResult.planets.find(p => p.name === "Mars");
+    
+    // Get 7th house (marriage house) - simplified, would need chart data
+    const seventhHousePlanets = kundliResult.planets.filter(p => p.house === 7).map(p => p.name);
+
+    // Generate prompt
+    const prompt = generateMarriageTimingPrompt(
+      {
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        gender: input.gender,
+      },
+      {
+        ascendant: kundliResult.ascendant || "Unknown",
+        moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
+        venus: {
+          sign: venus?.sign || "Unknown",
+          house: venus?.house || 0,
+          degrees: venus?.degree || 0,
+        },
+        jupiter: {
+          sign: jupiter?.sign || "Unknown",
+          house: jupiter?.house || 0,
+          degrees: jupiter?.degree || 0,
+        },
+        mars: {
+          sign: mars?.sign || "Unknown",
+          house: mars?.house || 0,
+          degrees: mars?.degree || 0,
+        },
+        seventhHouse: {
+          sign: "Unknown", // Would need chart data
+          planets: seventhHousePlanets,
+        },
+        currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
+        nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
+        manglik: doshaAnalysis?.manglik?.status === "Manglik",
+        doshas: doshaAnalysis ? [
+          ...(doshaAnalysis.manglik?.status === "Manglik" ? ["Manglik"] : []),
+          ...(doshaAnalysis.kaalSarp?.present ? ["Kaal Sarp"] : []),
+        ] : [],
+      }
+    );
+
+    // Generate AI content
+    const aiResponse = await generateAIContent(prompt);
+    
+    // Parse and return
+    return parseAIResponse(aiResponse, "marriage-timing");
+  } catch (error: any) {
+    console.error("[generateMarriageTimingReport] Error:", error);
+    throw error; // Re-throw to be handled by API route
+  }
 }
 
 /**
  * Generate Career & Money Report (Paid)
  */
 export async function generateCareerMoneyReport(input: AIAstrologyInput): Promise<ReportContent> {
-  // Get astrology data
-  const kundliResult = await getKundli({
-    name: input.name,
-    dob: input.dob,
-    tob: input.tob,
-    place: input.place,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    timezone: input.timezone || "Asia/Kolkata",
-    ayanamsa: 1,
-  });
-
-  // Extract relevant planetary data
-  // 10th house = career, 2nd house = money
-  const tenthHousePlanets = kundliResult.planets.filter(p => p.house === 10).map(p => p.name);
-  const secondHousePlanets = kundliResult.planets.filter(p => p.house === 2).map(p => p.name);
-  
-  // Career-related planets (Sun, Jupiter, Saturn, Mercury in 10th or strong)
-  const careerPlanets = kundliResult.planets
-    .filter(p => ["Sun", "Jupiter", "Saturn", "Mercury"].includes(p.name) || p.house === 10)
-    .map(p => ({
-      name: p.name,
-      sign: p.sign,
-      house: p.house || 0,
-    }));
-
-  // Generate prompt
-  const prompt = generateCareerMoneyPrompt(
-    {
+  try {
+    // Get astrology data
+    const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
       tob: input.tob,
       place: input.place,
-      gender: input.gender,
-    },
-    {
-      ascendant: kundliResult.ascendant || "Unknown",
-      sunSign: kundliResult.planets.find(p => p.name === "Sun")?.sign || "Unknown",
-      moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
-      tenthHouse: {
-        sign: "Unknown", // Would need chart data
-        planets: tenthHousePlanets,
-      },
-      secondHouse: {
-        sign: "Unknown", // Would need chart data
-        planets: secondHousePlanets,
-      },
-      currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
-      nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
-      careerPlanets,
-    }
-  );
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone || "Asia/Kolkata",
+      ayanamsa: 1,
+    });
 
-  // Generate AI content
-  const aiResponse = await generateAIContent(prompt);
-  
-  // Parse and return
-  return parseAIResponse(aiResponse, "career-money");
+    // Extract relevant planetary data
+    // 10th house = career, 2nd house = money
+    const tenthHousePlanets = kundliResult.planets.filter(p => p.house === 10).map(p => p.name);
+    const secondHousePlanets = kundliResult.planets.filter(p => p.house === 2).map(p => p.name);
+    
+    // Career-related planets (Sun, Jupiter, Saturn, Mercury in 10th or strong)
+    const careerPlanets = kundliResult.planets
+      .filter(p => ["Sun", "Jupiter", "Saturn", "Mercury"].includes(p.name) || p.house === 10)
+      .map(p => ({
+        name: p.name,
+        sign: p.sign,
+        house: p.house || 0,
+      }));
+
+    // Generate prompt
+    const prompt = generateCareerMoneyPrompt(
+      {
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        gender: input.gender,
+      },
+      {
+        ascendant: kundliResult.ascendant || "Unknown",
+        sunSign: kundliResult.planets.find(p => p.name === "Sun")?.sign || "Unknown",
+        moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
+        tenthHouse: {
+          sign: "Unknown", // Would need chart data
+          planets: tenthHousePlanets,
+        },
+        secondHouse: {
+          sign: "Unknown", // Would need chart data
+          planets: secondHousePlanets,
+        },
+        currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
+        nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
+        careerPlanets,
+      }
+    );
+
+    // Generate AI content
+    const aiResponse = await generateAIContent(prompt);
+    
+    // Parse and return
+    return parseAIResponse(aiResponse, "career-money");
+  } catch (error: any) {
+    console.error("[generateCareerMoneyReport] Error:", error);
+    throw error; // Re-throw to be handled by API route
+  }
 }
 
 /**
  * Generate Full Life Report (Paid - combines all reports)
  */
 export async function generateFullLifeReport(input: AIAstrologyInput): Promise<ReportContent> {
-  // Generate all reports and combine
-  const [lifeSummary, marriageTiming, careerMoney] = await Promise.all([
-    generateLifeSummaryReport(input),
-    generateMarriageTimingReport(input),
-    generateCareerMoneyReport(input),
-  ]);
+  try {
+    // Generate all reports and combine
+    const [lifeSummary, marriageTiming, careerMoney] = await Promise.all([
+      generateLifeSummaryReport(input),
+      generateMarriageTimingReport(input),
+      generateCareerMoneyReport(input),
+    ]);
 
-  // Combine all sections
-  return {
-    title: "Full Life Report",
-    sections: [
-      ...lifeSummary.sections,
-      ...marriageTiming.sections,
-      ...careerMoney.sections,
-    ],
-    summary: `${lifeSummary.summary}\n\n${marriageTiming.summary}\n\n${careerMoney.summary}`,
-    keyInsights: [
-      ...(lifeSummary.keyInsights || []),
-      ...(marriageTiming.keyInsights || []),
-      ...(careerMoney.keyInsights || []),
-    ],
-  };
+    // Combine all sections
+    return {
+      title: "Full Life Report",
+      sections: [
+        ...lifeSummary.sections,
+        ...marriageTiming.sections,
+        ...careerMoney.sections,
+      ],
+      summary: `${lifeSummary.summary}\n\n${marriageTiming.summary}\n\n${careerMoney.summary}`,
+      keyInsights: [
+        ...(lifeSummary.keyInsights || []),
+        ...(marriageTiming.keyInsights || []),
+        ...(careerMoney.keyInsights || []),
+      ],
+    };
+  } catch (error: any) {
+    console.error("[generateFullLifeReport] Error:", error);
+    throw error; // Re-throw to be handled by API route
+  }
 }
 

@@ -259,7 +259,7 @@ export function EnhancedDashaAnalysis({ kundliData, birthDetails }: EnhancedDash
         {/* Info Note */}
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
           <div className="text-xs text-slate-600 leading-relaxed">
-            <strong>About Dasha:</strong> Planetary periods (Dasha) influence different phases of life. The current Mahadasha (major period) and its Antardashas (sub-periods) determine the themes and experiences you'll encounter. Each planet brings its unique energies and lessons.
+            <strong>About Dasha:</strong> Planetary periods (Dasha) influence different phases of life. The current Mahadasha (major period) and its Antardashas (sub-periods) determine the themes and experiences you&apos;ll encounter. Each planet brings its unique energies and lessons.
           </div>
         </div>
       </CardContent>

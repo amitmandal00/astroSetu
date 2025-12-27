@@ -186,7 +186,7 @@ function SubscriptionContent() {
           <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
             <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b-2 border-slate-200 bg-slate-50">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-800">Today's Guidance</h2>
+                <h2 className="text-xl font-bold text-slate-800">Today&apos;s Guidance</h2>
                 <Button
                   onClick={() => input && loadDailyGuidance(input)}
                   disabled={loading}
@@ -201,7 +201,7 @@ function SubscriptionContent() {
               {loading && !guidance && (
                 <div className="text-center py-8">
                   <div className="animate-spin text-4xl mb-4">🌙</div>
-                  <p className="text-slate-600">Loading today's guidance...</p>
+                  <p className="text-slate-600">Loading today&apos;s guidance...</p>
                 </div>
               )}
 
@@ -286,11 +286,11 @@ function SubscriptionContent() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">"Today is good for..." recommendations</span>
+                <span className="text-slate-700">&quot;Today is good for...&quot; recommendations</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">"Avoid today..." warnings</span>
+                <span className="text-slate-700">&quot;Avoid today...&quot; warnings</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-amber-700 text-xl">✓</span>

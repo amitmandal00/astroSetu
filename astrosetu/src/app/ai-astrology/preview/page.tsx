@@ -230,7 +230,7 @@ function PreviewContent() {
                 
                 {/* What You'll Get */}
                 <div className="mt-4 pt-4 border-t border-amber-200">
-                  <p className="text-sm font-semibold text-amber-800 mb-2">What you'll get:</p>
+                  <p className="text-sm font-semibold text-amber-800 mb-2">What you&apos;ll get:</p>
                   <ul className="text-sm text-slate-700 space-y-1">
                     <li>• Detailed AI-generated analysis</li>
                     <li>• Personalized insights based on your birth chart</li>

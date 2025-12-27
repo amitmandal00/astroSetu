@@ -309,7 +309,7 @@ export function NakshatraDetails({ kundliData, birthDetails }: NakshatraDetailsP
         {/* Info Note */}
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
           <div className="text-xs text-slate-600 leading-relaxed">
-            <strong>About Nakshatra:</strong> Your birth nakshatra (lunar mansion) reveals deeper personality traits, emotional nature, and karmic patterns. The nakshatra's deity, symbol, and characteristics influence your life themes and compatibility with others.
+            <strong>About Nakshatra:</strong> Your birth nakshatra (lunar mansion) reveals deeper personality traits, emotional nature, and karmic patterns. The nakshatra&apos;s deity, symbol, and characteristics influence your life themes and compatibility with others.
           </div>
         </div>
       </CardContent>

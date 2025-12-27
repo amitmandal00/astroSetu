@@ -32,72 +32,71 @@ function PaymentSuccessContent() {
       return;
     }
 
-    // Verify payment
+    const verifyPayment = async (sid: string) => {
+      try {
+        const response = await apiGet<{
+          ok: boolean;
+          data?: {
+            paid: boolean;
+            paymentStatus: string;
+            reportType?: string;
+            subscription?: boolean;
+            paymentToken?: string; // Payment verification token
+          };
+          error?: string;
+        }>(`/api/ai-astrology/verify-payment?session_id=${sid}`);
+
+        if (!response.ok) {
+          throw new Error(response.error || "Failed to verify payment");
+        }
+
+        if (response.data?.paid) {
+          setVerified(true);
+          const subscription = response.data.subscription || false;
+          setIsSubscription(subscription);
+          
+          // Only set reportType if it's a valid ReportType (not "subscription")
+          const paymentReportType = response.data.reportType;
+          if (paymentReportType && paymentReportType !== "subscription") {
+            const validReportType = paymentReportType as ReportType;
+            setReportType(validReportType);
+            sessionStorage.setItem("aiAstrologyReportType", paymentReportType);
+          }
+          
+          // Store payment info in sessionStorage for report generation
+          sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+          sessionStorage.setItem("aiAstrologyPaymentSessionId", sid);
+          
+          // Store payment token for API verification
+          if (response.data.paymentToken) {
+            sessionStorage.setItem("aiAstrologyPaymentToken", response.data.paymentToken);
+          }
+          
+          // If subscription, mark as active
+          if (subscription) {
+            sessionStorage.setItem("aiAstrologySubscription", "active");
+          }
+
+          // Auto-redirect to preview page for non-subscription reports
+          if (!subscription && paymentReportType && paymentReportType !== "subscription") {
+            // Small delay to show success message, then redirect
+            setTimeout(() => {
+              router.push("/ai-astrology/preview");
+            }, 2000);
+          }
+        } else {
+          setError("Payment not completed");
+        }
+      } catch (e: any) {
+        console.error("Payment verification error:", e);
+        setError(e.message || "Failed to verify payment");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     verifyPayment(sessionId);
-  }, [sessionId]);
-
-  const verifyPayment = async (sid: string) => {
-    try {
-      const response = await apiGet<{
-        ok: boolean;
-        data?: {
-          paid: boolean;
-          paymentStatus: string;
-          reportType?: string;
-          subscription?: boolean;
-          paymentToken?: string; // Payment verification token
-        };
-        error?: string;
-      }>(`/api/ai-astrology/verify-payment?session_id=${sid}`);
-
-      if (!response.ok) {
-        throw new Error(response.error || "Failed to verify payment");
-      }
-
-      if (response.data?.paid) {
-        setVerified(true);
-        const subscription = response.data.subscription || false;
-        setIsSubscription(subscription);
-        
-        // Only set reportType if it's a valid ReportType (not "subscription")
-        const paymentReportType = response.data.reportType;
-        if (paymentReportType && paymentReportType !== "subscription") {
-          const validReportType = paymentReportType as ReportType;
-          setReportType(validReportType);
-          sessionStorage.setItem("aiAstrologyReportType", paymentReportType);
-        }
-        
-        // Store payment info in sessionStorage for report generation
-        sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
-        sessionStorage.setItem("aiAstrologyPaymentSessionId", sid);
-        
-        // Store payment token for API verification
-        if (response.data.paymentToken) {
-          sessionStorage.setItem("aiAstrologyPaymentToken", response.data.paymentToken);
-        }
-        
-        // If subscription, mark as active
-        if (subscription) {
-          sessionStorage.setItem("aiAstrologySubscription", "active");
-        }
-
-        // Auto-redirect to preview page for non-subscription reports
-        if (!subscription && paymentReportType && paymentReportType !== "subscription") {
-          // Small delay to show success message, then redirect
-          setTimeout(() => {
-            router.push("/ai-astrology/preview");
-          }, 2000);
-        }
-      } else {
-        setError("Payment not completed");
-      }
-    } catch (e: any) {
-      console.error("Payment verification error:", e);
-      setError(e.message || "Failed to verify payment");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [sessionId, router]);
 
   const getReportName = (type: ReportType | null, isSub: boolean) => {
     if (isSub) {

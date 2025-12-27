@@ -273,7 +273,7 @@ function InputFormContent() {
               {/* Privacy Note */}
               <div className="text-center pt-4 border-t border-slate-200">
                 <p className="text-xs text-slate-500">
-                  🔒 Your data is kept private and secure. We don't share your information with anyone.
+                  🔒 Your data is kept private and secure. We don&apos;t share your information with anyone.
                 </p>
               </div>
             </form>
