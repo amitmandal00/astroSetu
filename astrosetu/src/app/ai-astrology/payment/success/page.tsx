@@ -44,6 +44,7 @@ function PaymentSuccessContent() {
           paymentStatus: string;
           reportType?: string;
           subscription?: boolean;
+          paymentToken?: string; // Payment verification token
         };
         error?: string;
       }>(`/api/ai-astrology/verify-payment?session_id=${sid}`);
@@ -54,11 +55,18 @@ function PaymentSuccessContent() {
 
       if (response.data?.paid) {
         setVerified(true);
-        setReportType((response.data.reportType as ReportType) || null);
+        const verifiedReportType = (response.data.reportType as ReportType) || null;
+        setReportType(verifiedReportType);
         
         // Store payment info in sessionStorage for report generation
         sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
         sessionStorage.setItem("aiAstrologyPaymentSessionId", sid);
+        
+        // Store payment token for API verification
+        if (response.data.paymentToken) {
+          sessionStorage.setItem("aiAstrologyPaymentToken", response.data.paymentToken);
+        }
+        
         if (response.data.reportType) {
           sessionStorage.setItem("aiAstrologyReportType", response.data.reportType);
           
@@ -66,6 +74,14 @@ function PaymentSuccessContent() {
           if (response.data.reportType === "subscription") {
             sessionStorage.setItem("aiAstrologySubscription", "active");
           }
+        }
+
+        // Auto-redirect to preview page for non-subscription reports
+        if (verifiedReportType && verifiedReportType !== "subscription") {
+          // Small delay to show success message, then redirect
+          setTimeout(() => {
+            router.push("/ai-astrology/preview");
+          }, 2000);
         }
       } else {
         setError("Payment not completed");
@@ -148,7 +164,7 @@ function PaymentSuccessContent() {
         {/* Next Steps */}
         <Card className="cosmic-card mb-6">
           <CardHeader>
-            <h2 className="text-xl font-bold text-white">What's Next?</h2>
+            <h2 className="text-xl font-bold text-slate-800">What's Next?</h2>
           </CardHeader>
           <CardContent className="space-y-4">
             {reportType === "subscription" ? (
@@ -164,13 +180,13 @@ function PaymentSuccessContent() {
               </>
             ) : (
               <>
-                <p className="text-slate-700">
-                  Your {getReportName(reportType)} is now unlocked. Generate your report using the same birth details you used during checkout.
+                <p className="text-slate-700 mb-4">
+                  Your {getReportName(reportType)} is now unlocked! Your report is being generated automatically.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Link href="/ai-astrology/input" className="flex-1">
-                    <Button className="w-full cosmic-button">
-                      Generate {getReportName(reportType)} →
+                  <Link href="/ai-astrology/preview" className="flex-1">
+                    <Button className="w-full cosmic-button text-lg py-6">
+                      View My Report Now →
                     </Button>
                   </Link>
                   <Link href="/ai-astrology" className="flex-1">

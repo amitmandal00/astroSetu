@@ -9,6 +9,7 @@ import {
   isAIConfigured,
 } from "@/lib/ai-astrology/reportGenerator";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
+import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
 
 /**
  * POST /api/ai-astrology/generate-report
@@ -40,9 +41,10 @@ export async function POST(req: Request) {
     const json = await parseJsonBody<{
       input: AIAstrologyInput;
       reportType: ReportType;
+      paymentToken?: string; // Payment verification token for paid reports
     }>(req);
 
-    const { input, reportType } = json;
+    const { input, reportType, paymentToken } = json;
 
     // Validate input
     if (!input.name || !input.dob || !input.tob || !input.place) {
@@ -66,6 +68,32 @@ export async function POST(req: Request) {
         { ok: false, error: `Invalid report type. Must be one of: ${validReportTypes.join(", ")}` },
         { status: 400 }
       );
+    }
+
+    // CRITICAL SECURITY: Verify payment for paid reports
+    if (isPaidReportType(reportType)) {
+      if (!paymentToken) {
+        return NextResponse.json(
+          { ok: false, error: "Payment verification required for paid reports. Please complete payment first." },
+          { status: 403 }
+        );
+      }
+
+      const tokenData = verifyPaymentToken(paymentToken);
+      if (!tokenData) {
+        return NextResponse.json(
+          { ok: false, error: "Invalid or expired payment token. Please complete payment again." },
+          { status: 403 }
+        );
+      }
+
+      // Verify the token matches the requested report type
+      if (tokenData.reportType !== reportType) {
+        return NextResponse.json(
+          { ok: false, error: "Payment token does not match requested report type." },
+          { status: 403 }
+        );
+      }
     }
 
     // Generate report based on type

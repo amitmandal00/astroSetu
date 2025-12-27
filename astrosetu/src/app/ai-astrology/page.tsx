@@ -274,7 +274,7 @@ export default function AIAstrologyLandingPage() {
                   No live support is available. For questions, see our <Link href="/ai-astrology/faq" className="text-amber-700 hover:text-amber-800 underline font-semibold">FAQ page</Link>.
                 </p>
                 <p>
-                  <strong>No Refunds:</strong> All digital reports are final sale. Once purchased, reports cannot be refunded.
+                  <strong>Refund Policy:</strong> No change-of-mind refunds on digital reports. This does not limit your rights under Australian Consumer Law.
                 </p>
               </div>
             </div>

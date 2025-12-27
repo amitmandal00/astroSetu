@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { checkRateLimit, handleApiError } from "@/lib/apiHelpers";
 import { generateRequestId } from "@/lib/requestId";
 import { isStripeConfigured } from "@/lib/ai-astrology/payments";
+import { generatePaymentToken } from "@/lib/ai-astrology/paymentToken";
 
 /**
  * GET /api/ai-astrology/verify-payment?session_id=xxx
@@ -53,6 +54,13 @@ export async function GET(req: Request) {
     // Check payment status
     const isPaid = session.payment_status === "paid";
     const isSubscription = session.mode === "subscription";
+    const reportType = session.metadata?.reportType;
+
+    // Generate payment token if payment is successful and it's a paid report
+    let paymentToken: string | undefined;
+    if (isPaid && reportType && reportType !== "subscription") {
+      paymentToken = generatePaymentToken(reportType, session.id);
+    }
 
     return NextResponse.json(
       {
@@ -62,7 +70,8 @@ export async function GET(req: Request) {
           paid: isPaid,
           paymentStatus: session.payment_status,
           subscription: isSubscription,
-          reportType: session.metadata?.reportType,
+          reportType,
+          paymentToken, // Include token for client to store
           customerEmail: session.customer_email,
           amountTotal: session.amount_total,
           currency: session.currency,

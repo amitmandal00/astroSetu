@@ -199,14 +199,14 @@ function SubscriptionContent() {
                 <div className="space-y-6">
                   {/* Today is Good For */}
                   <div>
-                    <h3 className="text-lg font-bold text-emerald-300 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-emerald-800 mb-3 flex items-center gap-2">
                       <span>✨</span> Today is Good For
                     </h3>
                     <ul className="space-y-2">
                       {guidance.todayGoodFor.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-emerald-900/20 rounded-lg border border-emerald-500/30">
-                          <span className="text-emerald-400 mt-1">✓</span>
-                          <span className="text-slate-200">{item}</span>
+                        <li key={idx} className="flex items-start gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                          <span className="text-emerald-600 mt-1">✓</span>
+                          <span className="text-slate-700">{item}</span>
                         </li>
                       ))}
                     </ul>
@@ -214,14 +214,14 @@ function SubscriptionContent() {
 
                   {/* Avoid Today */}
                   <div>
-                    <h3 className="text-lg font-bold text-amber-300 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-amber-800 mb-3 flex items-center gap-2">
                       <span>⚠️</span> Avoid Today
                     </h3>
                     <ul className="space-y-2">
                       {guidance.avoidToday.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-amber-900/20 rounded-lg border border-amber-500/30">
-                          <span className="text-amber-400 mt-1">✗</span>
-                          <span className="text-slate-200">{item}</span>
+                        <li key={idx} className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <span className="text-amber-600 mt-1">✗</span>
+                          <span className="text-slate-700">{item}</span>
                         </li>
                       ))}
                     </ul>
@@ -229,29 +229,29 @@ function SubscriptionContent() {
 
                   {/* Actions */}
                   <div>
-                    <h3 className="text-lg font-bold text-indigo-300 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-indigo-800 mb-3 flex items-center gap-2">
                       <span>🎯</span> Recommended Actions
                     </h3>
                     <ul className="space-y-2">
                       {guidance.actions.map((action, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-indigo-900/20 rounded-lg border border-indigo-500/30">
-                          <span className="text-indigo-400 mt-1">•</span>
-                          <span className="text-slate-200">{action}</span>
+                        <li key={idx} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                          <span className="text-indigo-600 mt-1">•</span>
+                          <span className="text-slate-700">{action}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
 
                   {/* Planetary Influence */}
-                  <div className="p-4 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-xl border border-purple-500/30">
-                    <h3 className="text-lg font-bold text-purple-300 mb-2">Planetary Influence</h3>
-                    <p className="text-slate-200">{guidance.planetaryInfluence}</p>
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <h3 className="text-lg font-bold text-blue-800 mb-2">Planetary Influence</h3>
+                    <p className="text-slate-700">{guidance.planetaryInfluence}</p>
                   </div>
 
                   {/* General Guidance */}
-                  <div className="p-4 bg-slate-900/30 rounded-xl border border-slate-700/50">
-                    <h3 className="text-lg font-bold text-white mb-2">Guidance</h3>
-                    <p className="text-slate-200 leading-relaxed">{guidance.guidance}</p>
+                  <div className="p-4 bg-slate-100 rounded-xl border border-slate-200">
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">Guidance</h3>
+                    <p className="text-slate-700 leading-relaxed">{guidance.guidance}</p>
                   </div>
                 </div>
               )}

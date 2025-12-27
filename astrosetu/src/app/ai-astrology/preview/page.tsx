@@ -71,6 +71,14 @@ function PreviewContent() {
     setError(null);
 
     try {
+      // Get payment token for paid reports
+      const paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
+      const isPaid = type !== "life-summary";
+      
+      if (isPaid && !paymentToken) {
+        throw new Error("Payment verification required. Please complete payment first.");
+      }
+
       const response = await apiPost<{
         ok: boolean;
         data?: {
@@ -83,6 +91,7 @@ function PreviewContent() {
       }>("/api/ai-astrology/generate-report", {
         input: inputData,
         reportType: type,
+        paymentToken: isPaid ? paymentToken : undefined, // Only include for paid reports
       });
 
       if (!response.ok) {
@@ -209,13 +218,25 @@ function PreviewContent() {
               <div className="text-6xl mb-4">🔒</div>
               <h2 className="text-2xl font-bold mb-4 text-slate-800">Unlock Your {getReportName(reportType)}</h2>
               <p className="text-slate-600 mb-6">
-                Get detailed, AI-powered insights for just ${(price?.amount || 0) / 100}.
+                Get detailed, AI-powered insights for just AU${(price?.amount || 0) / 100} (includes GST).
               </p>
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-xl mb-6 border border-amber-200">
                 <div className="text-3xl font-bold text-amber-700 mb-2">
-                  ${((price?.amount || 0) / 100).toFixed(2)}
+                  AU${((price?.amount || 0) / 100).toFixed(2)}
+                  <span className="text-lg font-normal text-amber-600 ml-2">(incl. GST)</span>
                 </div>
-                <p className="text-sm text-slate-600">{price?.description}</p>
+                <p className="text-sm text-slate-600 mb-3">{price?.description}</p>
+                
+                {/* What You'll Get */}
+                <div className="mt-4 pt-4 border-t border-amber-200">
+                  <p className="text-sm font-semibold text-amber-800 mb-2">What you'll get:</p>
+                  <ul className="text-sm text-slate-700 space-y-1">
+                    <li>• Detailed AI-generated analysis</li>
+                    <li>• Personalized insights based on your birth chart</li>
+                    <li>• Downloadable PDF report</li>
+                    <li>• Instant access after payment</li>
+                  </ul>
+                </div>
               </div>
               {/* Refund Policy Acknowledgment */}
               <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
@@ -229,10 +250,10 @@ function PreviewContent() {
                   />
                   <div className="flex-1">
                     <span className="text-sm font-semibold text-slate-800">
-                      I understand this is a digital product and all sales are final (no refunds)
+                      I understand this is a digital product with no change-of-mind refunds
                     </span>
                     <p className="text-xs text-slate-600 mt-1">
-                      Digital reports cannot be returned or refunded once purchased.
+                      Digital reports are non-refundable for change of mind. This does not limit your rights under Australian Consumer Law.
                     </p>
                   </div>
                 </label>
@@ -278,6 +299,42 @@ function PreviewContent() {
           <p className="text-slate-600">
             Generated for {input.name} • {new Date().toLocaleDateString()}
           </p>
+          
+          {/* PDF Download & Email Buttons */}
+          {isPaidReport && (
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+              <Button
+                onClick={handleDownloadPDF}
+                disabled={downloadingPDF}
+                className="cosmic-button px-6 py-3"
+              >
+                {downloadingPDF ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin">📄</span>
+                    <span>Generating PDF...</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <span>📥</span>
+                    <span>Download PDF</span>
+                  </span>
+                )}
+              </Button>
+              <Button
+                onClick={() => {
+                  // Email functionality - can be implemented later
+                  const mailtoLink = `mailto:?subject=${encodeURIComponent(reportContent.title)}&body=${encodeURIComponent(`Check out my ${reportContent.title} from AstroSetu AI Astrology`)}`;
+                  window.open(mailtoLink);
+                }}
+                className="cosmic-button-secondary px-6 py-3"
+              >
+                <span className="flex items-center gap-2">
+                  <span>✉️</span>
+                  <span>Email Me a Copy</span>
+                </span>
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Report Content */}
@@ -285,9 +342,9 @@ function PreviewContent() {
           <CardContent className="p-8">
             {/* Summary */}
             {reportContent.summary && (
-              <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
-                <h2 className="text-xl font-bold mb-3 text-purple-900">Summary</h2>
-                      <p className="text-slate-200 leading-relaxed">{reportContent.summary}</p>
+              <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                <h2 className="text-xl font-bold mb-3 text-amber-900">Summary</h2>
+                <p className="text-slate-700 leading-relaxed">{reportContent.summary}</p>
               </div>
             )}
 
@@ -365,19 +422,19 @@ function PreviewContent() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           {!isPaidReport && (
             <>
-              <Link href="/ai-astrology/input?report=marriage-timing">
+              <Link href="/ai-astrology/input?reportType=marriage-timing">
                 <Button className="cosmic-button px-8">
-                  Get Marriage Timing Report ($29) →
+                  Get Marriage Timing Report (AU$42) →
                 </Button>
               </Link>
-              <Link href="/ai-astrology/input?report=career-money">
+              <Link href="/ai-astrology/input?reportType=career-money">
                 <Button className="cosmic-button px-8">
-                  Get Career & Money Report ($29) →
+                  Get Career & Money Report (AU$42) →
                 </Button>
               </Link>
-              <Link href="/ai-astrology/input?report=full-life">
+              <Link href="/ai-astrology/input?reportType=full-life">
                 <Button className="cosmic-button-secondary px-8">
-                  Get Full Life Report ($49) →
+                  Get Full Life Report (AU$69) →
                 </Button>
               </Link>
             </>

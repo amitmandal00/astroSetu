@@ -10,30 +10,45 @@ export type ReportPrice = {
   description: string;
 };
 
+// Prices in AUD (Australian Dollars) with GST included
 export const REPORT_PRICES: Record<ReportPrice["reportType"], ReportPrice> = {
   "marriage-timing": {
     reportType: "marriage-timing",
-    amount: 2900, // $29.00
-    currency: "usd",
+    amount: 4200, // AU$42.00 (includes GST)
+    currency: "aud",
     description: "Marriage Timing Report - Ideal marriage windows, compatibility, and remedies",
   },
   "career-money": {
     reportType: "career-money",
-    amount: 2900, // $29.00
-    currency: "usd",
+    amount: 4200, // AU$42.00 (includes GST)
+    currency: "aud",
     description: "Career & Money Path Report - Career direction, timing, and financial phases",
   },
   "full-life": {
     reportType: "full-life",
-    amount: 4900, // $49.00
-    currency: "usd",
+    amount: 6900, // AU$69.00 (includes GST)
+    currency: "aud",
     description: "Full Life Report - Comprehensive analysis covering all aspects of life",
   },
 };
 
+// Bundle pricing
+export const BUNDLE_PRICES = {
+  "any-2": {
+    amount: 6900, // AU$69.00 (save $15)
+    currency: "aud",
+    description: "Any 2 Reports Bundle - Choose any 2 reports and save",
+  },
+  "all-3": {
+    amount: 9900, // AU$99.00 (save $27)
+    currency: "aud",
+    description: "All 3 Reports Bundle - Get all reports and save",
+  },
+};
+
 export const SUBSCRIPTION_PRICE = {
-  amount: 999, // $9.99
-  currency: "usd",
+  amount: 1499, // AU$14.99/month (includes GST)
+  currency: "aud",
   interval: "month" as const,
   description: "Premium Subscription - Daily personalized guidance and insights",
 };
