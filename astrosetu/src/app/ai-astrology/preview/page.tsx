@@ -197,6 +197,44 @@ function PreviewContent() {
     );
   }
 
+  // Show payment prompt for paid reports
+  if (needsPayment && !loading) {
+    const price = REPORT_PRICES[reportType as keyof typeof REPORT_PRICES];
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
+        <div className="container mx-auto px-4 max-w-2xl">
+          <Card className="bg-white shadow-lg border-2 border-purple-200">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl mb-4">🔒</div>
+              <h2 className="text-2xl font-bold mb-4">Unlock Your {getReportName(reportType)}</h2>
+              <p className="text-slate-600 mb-6">
+                Get detailed, AI-powered insights for just ${(price?.amount || 0) / 100}.
+              </p>
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl mb-6">
+                <div className="text-3xl font-bold text-purple-600 mb-2">
+                  ${((price?.amount || 0) / 100).toFixed(2)}
+                </div>
+                <p className="text-sm text-slate-600">{price?.description}</p>
+              </div>
+              <Button
+                onClick={handlePurchase}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 py-6 text-lg"
+              >
+                {loading ? "Processing..." : `Purchase ${getReportName(reportType)} →`}
+              </Button>
+              <Link href="/ai-astrology/input">
+                <Button variant="secondary" className="w-full mt-4">
+                  Get Free Life Summary Instead
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   if (!reportContent || !input) {
     return null;
   }
