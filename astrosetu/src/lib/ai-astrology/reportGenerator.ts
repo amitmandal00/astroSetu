@@ -229,7 +229,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
  */
 export async function generateMarriageTimingReport(input: AIAstrologyInput): Promise<ReportContent> {
   // Get astrology data
-  const kundliResult = await getKundliAPI({
+  const kundliResult = await getKundli({
     name: input.name,
     dob: input.dob,
     tob: input.tob,
@@ -319,7 +319,7 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
  */
 export async function generateCareerMoneyReport(input: AIAstrologyInput): Promise<ReportContent> {
   // Get astrology data
-  const kundliResult = await getKundliAPI({
+  const kundliResult = await getKundli({
     name: input.name,
     dob: input.dob,
     tob: input.tob,
