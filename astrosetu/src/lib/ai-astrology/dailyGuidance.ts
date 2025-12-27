@@ -178,21 +178,24 @@ export async function generateDailyGuidance(
   const moonSign = kundliResult.planets.find((p) => p.name === "Moon")?.sign || "Unknown";
   const sunSign = kundliResult.planets.find((p) => p.name === "Sun")?.sign || "Unknown";
 
+  // Prepare data for prompt generation
+  const birthDetails = {
+    name: input.name,
+    dob: input.dob,
+    tob: input.tob,
+    place: input.place,
+  };
+
+  const planetaryData = {
+    tithi: "Current",
+    nakshatra: kundliResult.nakshatra || "Unknown",
+    planetaryDay: currentDate.toLocaleDateString("en-US", { weekday: "long" }),
+  };
+
+  const currentTransits = [`Moon in ${moonSign}`, `Sun in ${sunSign}`];
+
   // Generate prompt - using simplified format that matches the prompt template
-  const prompt = generateDailyGuidancePrompt(
-    {
-      name: input.name,
-      dob: input.dob,
-      tob: input.tob,
-      place: input.place,
-    },
-    {
-      tithi: "Current",
-      nakshatra: kundliResult.nakshatra || "Unknown",
-      currentTransits: [`Moon in ${moonSign}`, `Sun in ${sunSign}`],
-      planetaryDay: currentDate.toLocaleDateString("en-US", { weekday: "long" }),
-    }
-  );
+  const prompt = generateDailyGuidancePrompt(birthDetails, planetaryData, currentTransits);
 
   // Generate AI content
   const aiResponse = await generateAIContent(prompt);
