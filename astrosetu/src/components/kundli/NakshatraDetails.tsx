@@ -284,7 +284,7 @@ export function NakshatraDetails({ kundliData, birthDetails }: NakshatraDetailsP
             <div className="text-sm font-bold text-slate-900 mb-3">Key Characteristics</div>
             <div className="flex flex-wrap gap-2">
               {info.characteristics.map((char, idx) => (
-                <Badge key={idx} tone="purple" className="text-xs">
+                <Badge key={idx} tone="indigo" className="text-xs">
                   {char}
                 </Badge>
               ))}
