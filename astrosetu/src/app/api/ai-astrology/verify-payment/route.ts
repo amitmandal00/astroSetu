@@ -19,14 +19,6 @@ export async function GET(req: Request) {
       return rateLimitResponse;
     }
 
-    // Check if Stripe is configured
-    if (!isStripeConfigured()) {
-      return NextResponse.json(
-        { ok: false, error: "Payment processing not configured" },
-        { status: 503 }
-      );
-    }
-
     // Get session ID from query params
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id");
@@ -35,6 +27,62 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { ok: false, error: "session_id is required" },
         { status: 400 }
+      );
+    }
+
+    // Check for test session (mock payment for demo/test mode)
+    const isTestSession = sessionId.startsWith("test_session_");
+    const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
+
+    // If it's a test session, return mock verification
+    if (isTestSession && (isDemoMode || !isStripeConfigured())) {
+      console.log(`[DEMO MODE] Verifying test session: ${sessionId}`);
+      
+      // Extract reportType from session ID (format: test_session_{reportType}_{requestId})
+      const sessionParts = sessionId.split("_");
+      let extractedReportType = "marriage-timing"; // Default
+      let isSubscriptionTest = false;
+      
+      if (sessionParts.length >= 3) {
+        const typePart = sessionParts[2]; // The part after "test_session"
+        if (typePart === "subscription") {
+          isSubscriptionTest = true;
+        } else if (typePart === "marriage-timing" || typePart === "career-money" || typePart === "full-life") {
+          extractedReportType = typePart;
+        }
+      }
+      
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            sessionId,
+            paid: true,
+            paymentStatus: "paid",
+            subscription: isSubscriptionTest,
+            reportType: isSubscriptionTest ? undefined : extractedReportType,
+            paymentToken: undefined, // Test sessions don't need payment tokens (generate-report handles test users)
+            customerEmail: undefined,
+            amountTotal: 1, // Test amount in cents
+            currency: "aud",
+            metadata: { testMode: true },
+          },
+          requestId,
+        },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache",
+          },
+        }
+      );
+    }
+
+    // Check if Stripe is configured for real payments
+    if (!isStripeConfigured()) {
+      return NextResponse.json(
+        { ok: false, error: "Payment processing not configured" },
+        { status: 503 }
       );
     }
 

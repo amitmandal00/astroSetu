@@ -4,6 +4,44 @@ import { generateRequestId } from "@/lib/requestId";
 import { REPORT_PRICES, SUBSCRIPTION_PRICE, isStripeConfigured } from "@/lib/ai-astrology/payments";
 
 /**
+ * Check if the user is a production test user (bypasses payment)
+ */
+function checkIfTestUser(input?: any): boolean {
+  if (!input) return false;
+  
+  const testUserName = "Amit Kumar Mandal";
+  const testUserDOB = "1984-11-26";
+  const testUserTime = "21:40";
+  const testUserPlace = "Noamundi";
+  const testUserGender = "Male";
+
+  const nameMatch = input.name?.toLowerCase().includes(testUserName.toLowerCase()) ?? false;
+  
+  let dobMatch = false;
+  if (input.dob) {
+    const inputDOB = input.dob.replace(/\//g, "-").trim();
+    dobMatch = inputDOB.includes("1984-11-26") || 
+               inputDOB.includes("26-11-1984") ||
+               inputDOB.includes("1984/11/26") ||
+               inputDOB.includes("26/11/1984") ||
+               inputDOB === "1984-11-26";
+  }
+  
+  let timeMatch = false;
+  if (input.tob) {
+    const inputTime = input.tob.trim().toUpperCase();
+    timeMatch = inputTime.includes("21:40") || 
+                (inputTime.includes("9:40") || inputTime.includes("09:40")) && 
+                (inputTime.includes("PM") || inputTime.includes("P.M."));
+  }
+  
+  const placeMatch = input.place?.toLowerCase().includes(testUserPlace.toLowerCase()) ?? false;
+  const genderMatch = input.gender?.toLowerCase() === testUserGender.toLowerCase();
+
+  return nameMatch && dobMatch && timeMatch && placeMatch && genderMatch;
+}
+
+/**
  * POST /api/ai-astrology/create-checkout
  * Create Stripe checkout session for report purchase
  */
@@ -18,7 +56,59 @@ export async function POST(req: Request) {
       return rateLimitResponse;
     }
 
-    // Check if Stripe is configured
+    // Parse request body early to check for test user
+    const json = await parseJsonBody<{
+      reportType?: "marriage-timing" | "career-money" | "full-life";
+      subscription?: boolean;
+      input?: any;
+      successUrl?: string;
+      cancelUrl?: string;
+    }>(req);
+
+    const { reportType, subscription = false, input, successUrl, cancelUrl } = json;
+
+    // Check for demo mode or test user
+    const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
+    const isTestUser = checkIfTestUser(input);
+
+    // Validate inputs before creating mock session
+    if (!subscription && !reportType) {
+      return NextResponse.json(
+        { ok: false, error: "Either reportType or subscription must be provided" },
+        { status: 400 }
+      );
+    }
+
+    // If Stripe is not configured, but we're in demo mode or test user, return mock session
+    if (!isStripeConfigured() && (isDemoMode || isTestUser)) {
+      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode})`);
+      
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      // Include reportType in session ID for test sessions so verify-payment can extract it
+      const reportTypeStr = subscription ? "subscription" : (reportType || "marriage-timing");
+      const mockSessionId = `test_session_${reportTypeStr}_${requestId}`;
+      
+      // Return a mock session that can be used to bypass payment verification
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            sessionId: mockSessionId,
+            url: successUrl || `${baseUrl}/ai-astrology/payment/success?session_id=${mockSessionId}`,
+          },
+          requestId,
+          testMode: true, // Indicate this is a test session
+        },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache",
+          },
+        }
+      );
+    }
+
+    // If Stripe is not configured and not in demo/test mode, return error
     if (!isStripeConfigured()) {
       return NextResponse.json(
         { ok: false, error: "Payment processing not configured. Please set STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY." },
@@ -29,25 +119,6 @@ export async function POST(req: Request) {
     // Dynamically import Stripe (only if configured)
     const Stripe = (await import("stripe")).default;
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
-    // Parse request body
-    const json = await parseJsonBody<{
-      reportType?: "marriage-timing" | "career-money" | "full-life";
-      subscription?: boolean;
-      input?: any; // Birth details for metadata
-      successUrl?: string;
-      cancelUrl?: string;
-    }>(req);
-
-    const { reportType, subscription = false, input, successUrl, cancelUrl } = json;
-
-    // Validate inputs
-    if (!subscription && !reportType) {
-      return NextResponse.json(
-        { ok: false, error: "Either reportType or subscription must be provided" },
-        { status: 400 }
-      );
-    }
 
     if (subscription && reportType) {
       return NextResponse.json(

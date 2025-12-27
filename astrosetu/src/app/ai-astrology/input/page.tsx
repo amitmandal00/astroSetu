@@ -190,8 +190,8 @@ function InputFormContent() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
+    <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8 min-h-screen">
+      <div className="container mx-auto px-4 max-w-2xl overflow-visible">
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/ai-astrology" className="text-sm text-purple-600 hover:text-purple-700 mb-4 inline-block">
@@ -210,7 +210,7 @@ function InputFormContent() {
             title="Enter Your Birth Details"
             subtitle="We need accurate information for precise astrological calculations"
           />
-          <CardContent>
+          <CardContent className="overflow-visible">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Name */}
               <div>
@@ -279,14 +279,20 @@ function InputFormContent() {
               </div>
 
               {/* Gender (Optional) */}
-              <div>
+              <div className="relative z-10">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Gender <span className="text-slate-400 text-xs">(Optional)</span>
                 </label>
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value as "Male" | "Female" | "")}
-                  className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                  className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none appearance-none cursor-pointer pr-10 min-w-0"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23334155'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 0.75rem center',
+                    backgroundSize: '1.25em 1.25em',
+                  }}
                 >
                   <option value="">Prefer not to say</option>
                   <option value="Male">Male</option>
