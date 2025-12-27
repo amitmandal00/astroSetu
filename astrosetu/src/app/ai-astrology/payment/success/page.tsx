@@ -43,6 +43,9 @@ function PaymentSuccessContent() {
             reportType?: string;
             subscription?: boolean;
             paymentToken?: string; // Payment verification token
+            metadata?: {
+              testMode?: boolean;
+            };
           };
           error?: string;
         }>(`/api/ai-astrology/verify-payment?session_id=${sid}`);
