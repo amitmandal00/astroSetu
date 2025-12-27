@@ -50,7 +50,10 @@ You'll see two keys:
 
 1. Click **"Add New"** button
 2. **Key**: `STRIPE_SECRET_KEY`
-3. **Value**: Paste your Stripe secret key (e.g., `sk_test_...` for test mode)
+3. **Value**: Paste your Stripe **secret key** (e.g., `sk_test_...` for test mode)
+   - ⚠️ **IMPORTANT**: Must start with `sk_` (NOT `pk_`)
+   - The secret key is the one that says "Secret key" in Stripe dashboard
+   - Click "Reveal test key" or "Reveal live key" to see it
 4. **Environment**: Select all environments (Production, Preview, Development)
 5. Click **"Save"**
 
@@ -164,12 +167,18 @@ If you need to test without Stripe configured:
 - Redeploy the application after adding keys
 - Check that keys are not empty or have extra spaces
 
-### Issue: Payment fails with "Invalid API Key"
+### Issue: Payment fails with "Invalid API Key" or "This API call cannot be made with a publishable API key"
 
 **Solution**:
 - Verify you copied the complete key (they're long strings)
 - Check you're using test keys for test mode or live keys for production
 - Ensure there are no extra spaces or line breaks
+- **CRITICAL**: Make sure `STRIPE_SECRET_KEY` starts with `sk_` (secret key), NOT `pk_` (publishable key)
+  - If you accidentally set `STRIPE_SECRET_KEY` to a publishable key (`pk_...`), you'll get this error
+  - Go to Vercel → Settings → Environment Variables
+  - Check `STRIPE_SECRET_KEY` value starts with `sk_`
+  - If it starts with `pk_`, replace it with the correct secret key from Stripe dashboard
+  - Redeploy after fixing
 
 ### Issue: Keys not updating after deployment
 

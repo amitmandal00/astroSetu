@@ -88,7 +88,18 @@ export async function GET(req: Request) {
 
     // Dynamically import Stripe
     const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    
+    // Validate that we have a secret key (not publishable key)
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey || secretKey.startsWith("pk_")) {
+      console.error("[verify-payment] Invalid STRIPE_SECRET_KEY: Must be a secret key (sk_...) not a publishable key (pk_...)");
+      return NextResponse.json(
+        { ok: false, error: "Payment processing configuration error. Please check server configuration." },
+        { status: 500 }
+      );
+    }
+    
+    const stripe = new Stripe(secretKey);
 
     // Retrieve session
     const session = await stripe.checkout.sessions.retrieve(sessionId);

@@ -131,7 +131,7 @@ export default function AIAstrologyLandingPage() {
           <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">Our AI-Powered Reports</h2>
           <div className="grid lg:grid-cols-4 gap-6">
             {/* Free Life Summary */}
-            <div className="cosmic-card rounded-2xl overflow-hidden">
+            <div className="cosmic-card rounded-2xl">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Badge tone="green" className="text-sm">FREE</Badge>
@@ -149,11 +149,11 @@ export default function AIAstrologyLandingPage() {
             </div>
 
             {/* Marriage Timing */}
-            <div className="cosmic-card rounded-2xl overflow-hidden border-2 border-pink-200 relative">
-              <div className="absolute -top-3 -right-3 bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
+            <div className="cosmic-card rounded-2xl border-2 border-pink-200 relative pt-4 pr-4">
+              <div className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full z-20 shadow-lg">
                 MOST POPULAR
               </div>
-              <div className="p-6">
+              <div className="p-6 pt-2">
                 <div className="flex items-center justify-between mb-4">
                   <Badge className="bg-pink-600 text-white text-sm">PREMIUM</Badge>
                   <span className="text-3xl">❤️</span>
@@ -174,7 +174,7 @@ export default function AIAstrologyLandingPage() {
             </div>
 
             {/* Career & Money */}
-            <div className="cosmic-card rounded-2xl overflow-hidden border-2 border-blue-200">
+            <div className="cosmic-card rounded-2xl border-2 border-blue-200">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Badge className="bg-blue-600 text-white text-sm">PREMIUM</Badge>
@@ -196,7 +196,7 @@ export default function AIAstrologyLandingPage() {
             </div>
 
             {/* Full Life Report */}
-            <div className="cosmic-card rounded-2xl overflow-hidden border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50">
+            <div className="cosmic-card rounded-2xl border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Badge className="bg-purple-600 text-white text-sm">BEST VALUE</Badge>

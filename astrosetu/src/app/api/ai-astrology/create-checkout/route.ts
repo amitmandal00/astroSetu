@@ -67,7 +67,7 @@ export async function POST(req: Request) {
 
     const { reportType, subscription = false, input, successUrl, cancelUrl } = json;
 
-    // Check for demo mode or test user
+    // Check for demo mode or test user FIRST - always bypass Stripe for these
     const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     const isTestUser = checkIfTestUser(input);
 
@@ -79,9 +79,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // If Stripe is not configured, but we're in demo mode or test user, return mock session
-    if (!isStripeConfigured() && (isDemoMode || isTestUser)) {
-      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode})`);
+    // PRIORITY: If demo mode OR test user, ALWAYS return mock session (bypass Stripe entirely)
+    // This allows testing with $0.01 amounts without Stripe's $0.50 minimum requirement
+    if (isDemoMode || isTestUser) {
+      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}) - Bypassing Stripe`);
       
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       // Include reportType in session ID for test sessions so verify-payment can extract it
@@ -118,7 +119,18 @@ export async function POST(req: Request) {
 
     // Dynamically import Stripe (only if configured)
     const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    
+    // Validate that we have a secret key (not publishable key)
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey || secretKey.startsWith("pk_")) {
+      console.error("[create-checkout] Invalid STRIPE_SECRET_KEY: Must be a secret key (sk_...) not a publishable key (pk_...)");
+      return NextResponse.json(
+        { ok: false, error: "Payment processing configuration error. Please check server configuration." },
+        { status: 500 }
+      );
+    }
+    
+    const stripe = new Stripe(secretKey);
 
     if (subscription && reportType) {
       return NextResponse.json(

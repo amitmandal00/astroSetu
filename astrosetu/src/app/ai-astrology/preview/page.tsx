@@ -309,10 +309,10 @@ function PreviewContent() {
     );
   }
 
-  // Calculate content gating for free reports
+  // Calculate content gating for free reports (show 70% visible, 30% blurred)
   const sections = reportContent.sections || [];
   const shouldGateContent = !isPaidReport && sections.length > 0;
-  const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.3)) : sections.length;
+  const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.7)) : sections.length;
   const visibleSections = shouldGateContent ? sections.slice(0, gateAfterSection) : sections;
   const gatedSections = shouldGateContent ? sections.slice(gateAfterSection) : [];
 
@@ -399,52 +399,72 @@ function PreviewContent() {
                     <div className="space-y-3 mb-6">
                       <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-amber-400 hover:border-amber-500 hover:shadow-md transition-all">
-                          <div className="font-bold text-slate-800 mb-1">See My Marriage Timing</div>
-                          <div className="text-sm text-amber-700 font-semibold">AU$0.01 (incl. GST)</div>
+                          <div className="font-bold text-slate-800 mb-2">See My Marriage Timing (Instant)</div>
+                          <div className="text-sm text-amber-700 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-amber-100">
+                            <li>• Best marriage windows (date ranges)</li>
+                            <li>• Reasons for delay (plain English)</li>
+                            <li>• Practical guidance</li>
+                          </ul>
                         </div>
                       </Link>
                       <Link href="/ai-astrology/input?reportType=career-money" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
-                          <div className="font-bold text-slate-800 mb-1">See My Career & Money</div>
-                          <div className="text-sm text-slate-600 font-semibold">AU$0.01 (incl. GST)</div>
+                          <div className="font-bold text-slate-800 mb-2">Unlock My Career & Money Path</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
+                            <li>• Career direction</li>
+                            <li>• Job-change windows</li>
+                            <li>• Money growth phases</li>
+                          </ul>
                         </div>
                       </Link>
                     </div>
 
                     {/* Best Value - Full Life Report */}
                     <Link href="/ai-astrology/input?reportType=full-life" className="block mb-6">
-                      <div className="p-5 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg border-2 border-purple-400 hover:border-purple-500 hover:shadow-lg transition-all relative">
-                        <div className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      <div className="p-5 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg border-4 border-purple-500 hover:border-purple-600 hover:shadow-xl transition-all relative scale-105">
+                        <div className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
                           BEST VALUE
                         </div>
-                        <div className="font-bold text-slate-800 mb-1 text-lg">See My Full Life Report</div>
+                        <div className="font-bold text-slate-800 mb-2 text-xl">Get My Full Life Report</div>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-lg font-bold text-purple-700">AU$0.01</span>
+                          <span className="text-xl font-bold text-purple-700">AU$0.01</span>
                         </div>
-                        <div className="text-xs text-slate-700">(incl. GST) • Most comprehensive</div>
+                        <div className="text-xs text-slate-600 mb-3 italic">Most users choose this</div>
+                        <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-purple-200">
+                          <li>• Marriage + Career</li>
+                          <li>• 5-year life phases</li>
+                          <li>• Most comprehensive</li>
+                        </ul>
                       </div>
                     </Link>
 
                     {/* Trust Strip */}
                     <div className="pt-6 border-t border-amber-300">
-                      <div className="space-y-2 text-xs text-slate-700">
-                        <div className="flex items-center gap-2">
-                          <span className="text-emerald-600">✓</span>
-                          <span>Instant access after payment</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-emerald-600">✓</span>
-                          <span>Downloadable PDF included</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-emerald-600">✓</span>
-                          <span>Fully automated - no humans</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-emerald-600">✓</span>
-                          <span>Educational guidance only</span>
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                        <div className="space-y-2 text-xs text-slate-700">
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-600 font-bold">✓</span>
+                            <span>Instant access after payment</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-600 font-bold">✓</span>
+                            <span>Downloadable PDF</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-600 font-bold">✓</span>
+                            <span>Fully automated – no humans involved</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-600 font-bold">✓</span>
+                            <span>One-time purchase</span>
+                          </div>
                         </div>
                       </div>
+                      <p className="text-xs text-slate-500 text-center mt-4">
+                        Educational guidance only • Instant access • No subscription required
+                      </p>
                     </div>
 
                     {/* Pricing Anchor */}
@@ -523,39 +543,48 @@ function PreviewContent() {
 
             {/* Visual Gating - Blur Overlay for Free Reports */}
             {shouldGateContent && gatedSections.length > 0 && (
-                  <div className="relative mt-8">
+                  <div className="relative mt-8 min-h-[500px]">
                     {/* Blurred Preview of Gated Content */}
-                    <div className="relative blur-sm opacity-50 pointer-events-none" style={{ maxHeight: '400px', overflow: 'hidden' }}>
-                      {gatedSections.slice(0, 1).map((section, idx) => (
+                    <div className="relative blur-sm opacity-50 pointer-events-none" style={{ minHeight: '300px' }}>
+                      {gatedSections.slice(0, 2).map((section, idx) => (
                         <div key={`gated-${idx}`} className="border-b border-slate-200 pb-8 mb-8">
                           <h2 className="text-2xl font-bold mb-4 text-slate-800">{section.title}</h2>
                           {section.content && (
                             <div className="prose prose-slate max-w-none mb-4">
-                              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{section.content.substring(0, 200)}...</p>
+                              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{section.content.substring(0, 500)}...</p>
                             </div>
+                          )}
+                          {section.bullets && section.bullets.length > 0 && (
+                            <ul className="space-y-2 mb-4">
+                              {section.bullets.slice(0, 3).map((bullet, bulletIdx) => (
+                                <li key={bulletIdx} className="flex items-start gap-3">
+                                  <span className="text-amber-700 mt-1">•</span>
+                                  <span className="text-slate-700">{bullet}</span>
+                                </li>
+                              ))}
+                            </ul>
                           )}
                         </div>
                       ))}
                     </div>
 
-                    {/* Overlay CTA Card */}
-                    <div className="absolute inset-0 flex items-center justify-center z-10">
-                      <Card className="cosmic-card border-purple-400 bg-white shadow-2xl max-w-lg mx-4">
-                        <CardContent className="p-8 text-center">
-                          <div className="text-5xl mb-4">🔒</div>
-                          <h3 className="text-2xl font-bold mb-3 text-slate-800">Unlock the Full Interpretation</h3>
-                          <p className="text-slate-600 mb-6">
-                            Get complete insights including:
+                    {/* Overlay CTA Card - Positioned to ensure full visibility */}
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 w-full max-w-lg px-4">
+                      <Card className="cosmic-card border-purple-400 bg-white shadow-2xl">
+                        <CardContent className="p-6 text-center">
+                          <div className="text-5xl mb-3">🔒</div>
+                          <h3 className="text-2xl font-bold mb-2 text-slate-800">Full Interpretation Locked</h3>
+                          <p className="text-slate-600 mb-3 font-semibold">
+                            Unlock:
                           </p>
-                          <ul className="text-left space-y-2 mb-6 text-slate-700">
+                          <ul className="text-left space-y-2 mb-4 text-slate-700">
                             <li>• Marriage timing windows</li>
                             <li>• Career & money cycles</li>
-                            <li>• Actionable guidance & remedies</li>
-                            <li>• Full life predictions & more</li>
+                            <li>• Actionable guidance</li>
                           </ul>
 
                           {/* Trust Strip */}
-                          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-4">
                             <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
                               <div className="flex items-center gap-1">
                                 <span className="text-emerald-600">✓</span>
@@ -577,31 +606,35 @@ function PreviewContent() {
                           </div>
 
                           {/* CTA Buttons */}
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                             <Link href="/ai-astrology/input?reportType=full-life" className="block">
-                              <Button className="w-full cosmic-button py-4 text-lg font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border-2 border-purple-700">
+                              <Button className="w-full cosmic-button py-3 text-base font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border-2 border-purple-700">
                                 <span className="flex items-center justify-center gap-2">
-                                  <span>See My Full Life Report</span>
+                                  <span>Get My Full Life Report</span>
                                   <span className="bg-white/20 px-2 py-1 rounded text-sm">AU$0.01</span>
                                 </span>
-                                <div className="text-sm font-normal mt-1">Best Value</div>
+                                <div className="text-xs font-normal mt-1">Most users choose this</div>
                               </Button>
                             </Link>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-2">
                               <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
-                                <Button className="w-full cosmic-button py-3 bg-amber-600 hover:bg-amber-700 border-2 border-amber-700">
-                                  See My Marriage Timing
+                                <Button className="w-full cosmic-button py-2.5 text-sm bg-amber-600 hover:bg-amber-700 border-2 border-amber-700">
+                                  See My Marriage Timing (Instant)
                                   <div className="text-xs font-normal mt-1">AU$0.01</div>
                                 </Button>
                               </Link>
                               <Link href="/ai-astrology/input?reportType=career-money" className="block">
-                                <Button className="w-full cosmic-button-secondary py-3 border-2 border-slate-400 hover:border-amber-500">
-                                  See My Career & Money
+                                <Button className="w-full cosmic-button-secondary py-2.5 text-sm border-2 border-slate-400 hover:border-amber-500">
+                                  Unlock My Career & Money
                                   <div className="text-xs font-normal mt-1">AU$0.01</div>
                                 </Button>
                               </Link>
                             </div>
                           </div>
+                          {/* Short Reassurance */}
+                          <p className="text-xs text-slate-500 text-center mt-3">
+                            Educational guidance only • Instant access • No subscription required
+                          </p>
                         </CardContent>
                       </Card>
                     </div>
@@ -663,7 +696,7 @@ function PreviewContent() {
                   No live support is available. For questions, please see our <Link href="/ai-astrology/faq" className="text-amber-700 hover:text-amber-800 underline font-semibold">FAQ page</Link>.
                 </p>
                 <p className="pt-2 border-t border-amber-200">
-                  <strong>No Refunds:</strong> All digital reports are final sale. Once purchased, reports cannot be refunded or returned.
+                  <strong>Refund Policy:</strong> No change-of-mind refunds on digital reports. This does not limit your rights under Australian Consumer Law.
                 </p>
               </div>
             </div>
