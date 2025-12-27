@@ -1,0 +1,123 @@
+import { NextResponse } from "next/server";
+import { checkRateLimit, handleApiError, parseJsonBody, validateRequestSize } from "@/lib/apiHelpers";
+import { generateRequestId } from "@/lib/requestId";
+import {
+  generateLifeSummaryReport,
+  generateMarriageTimingReport,
+  generateCareerMoneyReport,
+  generateFullLifeReport,
+  isAIConfigured,
+} from "@/lib/ai-astrology/reportGenerator";
+import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
+
+/**
+ * POST /api/ai-astrology/generate-report
+ * Generate AI-powered astrology report
+ */
+export async function POST(req: Request) {
+  const requestId = generateRequestId();
+
+  try {
+    // Rate limiting
+    const rateLimitResponse = checkRateLimit(req, "/api/ai-astrology/generate-report");
+    if (rateLimitResponse) {
+      rateLimitResponse.headers.set("X-Request-ID", requestId);
+      return rateLimitResponse;
+    }
+
+    // Validate request size
+    validateRequestSize(req.headers.get("content-length"), 10 * 1024); // 10KB max
+
+    // Check if AI is configured
+    if (!isAIConfigured()) {
+      return NextResponse.json(
+        { ok: false, error: "AI service not configured. Please set OPENAI_API_KEY or ANTHROPIC_API_KEY." },
+        { status: 503 }
+      );
+    }
+
+    // Parse and validate request body
+    const json = await parseJsonBody<{
+      input: AIAstrologyInput;
+      reportType: ReportType;
+    }>(req);
+
+    const { input, reportType } = json;
+
+    // Validate input
+    if (!input.name || !input.dob || !input.tob || !input.place) {
+      return NextResponse.json(
+        { ok: false, error: "Missing required fields: name, dob, tob, place" },
+        { status: 400 }
+      );
+    }
+
+    if (!input.latitude || !input.longitude) {
+      return NextResponse.json(
+        { ok: false, error: "Latitude and longitude are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate report type
+    const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life"];
+    if (!reportType || !validReportTypes.includes(reportType)) {
+      return NextResponse.json(
+        { ok: false, error: `Invalid report type. Must be one of: ${validReportTypes.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Generate report based on type
+    let reportContent;
+    try {
+      switch (reportType) {
+        case "life-summary":
+          reportContent = await generateLifeSummaryReport(input);
+          break;
+        case "marriage-timing":
+          reportContent = await generateMarriageTimingReport(input);
+          break;
+        case "career-money":
+          reportContent = await generateCareerMoneyReport(input);
+          break;
+        case "full-life":
+          reportContent = await generateFullLifeReport(input);
+          break;
+        default:
+          throw new Error(`Unknown report type: ${reportType}`);
+      }
+    } catch (error: any) {
+      console.error("[AI Astrology] Report generation error:", error);
+      return NextResponse.json(
+        { ok: false, error: `Failed to generate report: ${error.message || "Unknown error"}` },
+        { status: 500 }
+      );
+    }
+
+    // Return report
+    return NextResponse.json(
+      {
+        ok: true,
+        data: {
+          reportType,
+          input,
+          content: reportContent,
+          generatedAt: new Date().toISOString(),
+        },
+        requestId,
+      },
+      {
+        headers: {
+          "X-Request-ID": requestId,
+          "Cache-Control": "no-cache", // Don't cache AI-generated content
+        },
+      }
+    );
+  } catch (error) {
+    const errorResponse = handleApiError(error);
+    errorResponse.headers.set("X-Request-ID", requestId);
+    return errorResponse;
+  }
+}
+
