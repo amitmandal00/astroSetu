@@ -24,6 +24,7 @@ function PaymentSuccessContent() {
   const [reportType, setReportType] = useState<ReportType | null>(null);
   const [isSubscription, setIsSubscription] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isTestSession, setIsTestSession] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
@@ -54,6 +55,10 @@ function PaymentSuccessContent() {
           setVerified(true);
           const subscription = response.data.subscription || false;
           setIsSubscription(subscription);
+          
+          // Check if this is a test session (mock payment)
+          const isTest = response.data.metadata?.testMode || sid.startsWith("test_session_");
+          setIsTestSession(isTest);
           
         // Only set reportType if it's a valid ReportType (not "subscription")
         const paymentReportType = response.data.reportType;
@@ -213,14 +218,16 @@ function PaymentSuccessContent() {
           </CardContent>
         </Card>
 
-        {/* Receipt Info */}
-        <Card className="cosmic-card border-slate-200">
-          <CardContent className="p-6">
-            <p className="text-sm text-slate-500 text-center">
-              A receipt has been sent to your email. For questions about your report, please see our <Link href="/ai-astrology/faq" className="text-amber-700 hover:text-amber-800 underline">FAQ page</Link>.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Receipt Info - Only show for real payments, not test sessions */}
+        {!isTestSession && (
+          <Card className="cosmic-card border-slate-200">
+            <CardContent className="p-6">
+              <p className="text-sm text-slate-500 text-center">
+                A receipt has been sent to your email. For questions about your report, please see our <Link href="/ai-astrology/faq" className="text-amber-700 hover:text-amber-800 underline">FAQ page</Link>.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
