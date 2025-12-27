@@ -23,7 +23,7 @@ export async function getDashaPeriods(
     const [year, month, day] = input.dob.split("-").map(Number);
     const [hours, minutes, seconds = 0] = input.tob.split(":").map(Number);
 
-    const response = await prokeralaRequest("/dasha", {
+    const response = await prokeralaRequest("/dasha-periods", {
       ayanamsa: input.ayanamsa || 1,
       coordinates: `${input.latitude},${input.longitude}`,
       datetime: {
@@ -35,15 +35,35 @@ export async function getDashaPeriods(
         second: seconds || 0,
       },
       timezone: input.timezone || "Asia/Kolkata",
-      type: dashaType,
+      dasha: dashaType,
     }, 2, "GET" as const);
 
+    // Transform Prokerala response (same format as in astrologyAPI.ts)
     const data = response.data || response;
+    const dasha = data.dasha || data.vimshottari || data;
+    const periods = dasha.periods || [];
+
+    const current = periods[0] || {};
+    const next = periods[1] || {};
+
     return {
-      current: data.current_dasha || data.currentDasha || data.current,
-      major: data.mahadasha || data.major || [],
-      sub: data.antardasha || data.sub || [],
-      upcoming: data.upcoming || [],
+      current: {
+        planet: current.planet?.name || current.planet || "Unknown",
+        period: current.period || "Unknown",
+        startDate: current.start?.datetime || current.startDate || "",
+        endDate: current.end?.datetime || current.endDate || "",
+        description: current.description || "",
+      },
+      next: {
+        planet: next.planet?.name || next.planet || "Unknown",
+        period: next.period || "Unknown",
+        startDate: next.start?.datetime || next.startDate || "",
+        endDate: next.end?.datetime || next.endDate || "",
+        description: next.description || "",
+      },
+      major: periods || [],
+      sub: current.antardashas || current.subPeriods || [],
+      upcoming: periods.slice(1) || [],
       type: dashaType,
     };
   } catch (error: any) {
