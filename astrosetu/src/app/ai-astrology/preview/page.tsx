@@ -171,7 +171,7 @@ function PreviewContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center">
+      <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
         <Card className="max-w-2xl w-full mx-4">
           <CardContent className="p-12 text-center">
             <div className="animate-spin text-6xl mb-6">🌙</div>
@@ -188,7 +188,7 @@ function PreviewContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
+      <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
       <div className="container mx-auto px-4 max-w-2xl">
         <Card className="cosmic-card border-red-500/30">
             <CardContent className="p-8 text-center">
@@ -212,7 +212,7 @@ function PreviewContent() {
   if (needsPayment && !loading) {
     const price = REPORT_PRICES[reportType as keyof typeof REPORT_PRICES];
     return (
-      <div className="min-h-screen cosmic-bg py-8">
+      <div className="cosmic-bg py-8">
         <div className="container mx-auto px-4 max-w-2xl">
           <Card className="cosmic-card">
             <CardContent className="p-8 text-center">
@@ -284,7 +284,7 @@ function PreviewContent() {
   }
 
   return (
-    <div className="min-h-screen cosmic-bg py-8">
+    <div className="cosmic-bg py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">

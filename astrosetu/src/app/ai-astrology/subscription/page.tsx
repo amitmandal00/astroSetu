@@ -109,7 +109,7 @@ function SubscriptionContent() {
   }
 
   return (
-    <div className="min-h-screen cosmic-bg py-8">
+    <div className="cosmic-bg py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">

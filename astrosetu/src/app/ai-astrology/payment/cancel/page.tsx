@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 
 export default function PaymentCancelPage() {
   return (
-    <div className="min-h-screen cosmic-bg py-8">
+    <div className="cosmic-bg py-8">
       <div className="container mx-auto px-4 max-w-2xl">
         <Card className="cosmic-card border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
           <CardContent className="p-8 text-center">

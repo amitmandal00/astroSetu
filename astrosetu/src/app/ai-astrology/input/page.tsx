@@ -126,7 +126,7 @@ function InputFormContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
+    <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
       <div className="container mx-auto px-4 max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">

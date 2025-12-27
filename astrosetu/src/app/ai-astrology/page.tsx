@@ -12,7 +12,7 @@ import { ASTRO_IMAGES } from "@/lib/astroImages";
 
 export default function AIAstrologyLandingPage() {
   return (
-    <div className="min-h-screen cosmic-bg">
+    <div className="cosmic-bg">
       {/* Hero Section */}
       <div className="relative py-16 lg:py-24 px-4 overflow-hidden">
         <div className="relative z-10 max-w-5xl mx-auto text-center">
