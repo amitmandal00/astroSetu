@@ -15,6 +15,7 @@ import { apiPost, apiGet } from "@/lib/http";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import type { ReportContent } from "@/lib/ai-astrology/types";
 import { REPORT_PRICES } from "@/lib/ai-astrology/payments";
+import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
 
 function PreviewContent() {
   const router = useRouter();
@@ -26,6 +27,7 @@ function PreviewContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   useEffect(() => {
     // Get input from sessionStorage
@@ -136,6 +138,23 @@ function PreviewContent() {
     } catch (e: any) {
       setError(e.message || "Failed to initiate payment");
       setLoading(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!reportContent || !input) return;
+
+    setDownloadingPDF(true);
+    try {
+      const success = await downloadPDF(reportContent, input, reportType || "life-summary");
+      if (!success) {
+        setError("Failed to generate PDF. Please try again.");
+      }
+    } catch (e: any) {
+      console.error("PDF download error:", e);
+      setError("Failed to download PDF. Please try again.");
+    } finally {
+      setDownloadingPDF(false);
     }
   };
 
