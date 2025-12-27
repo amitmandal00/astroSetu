@@ -9,7 +9,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { getNakshatraDetails, type BirthDetails } from "@/lib/prokeralaEnhanced";
+import { getNakshatraDetails } from "@/lib/prokeralaEnhanced";
+import type { BirthDetails } from "@/types/astrology";
 import type { KundliResult } from "@/types/astrology";
 
 type NakshatraDetailsProps = {
