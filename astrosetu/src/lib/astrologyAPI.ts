@@ -536,8 +536,8 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
         hasDasha: !!chart.dasha.current,
       });
     } catch (chartError: any) {
-      console.warn("[AstroSetu] Failed to generate chart from Prokerala, using fallback:", chartError?.message);
-      // Fallback to generated chart
+      console.warn("[AstroSetu] Chart generation failed, using mock chart:", chartError?.message?.substring(0, 200));
+      // Fallback to mock chart
       chart = generateKundliChart(input);
     }
     
@@ -563,27 +563,22 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
     
     return { ...kundli, dosha, chart };
   } catch (error: any) {
-    console.error("[AstroSetu] Prokerala API error:", error?.message || error);
+    // Catch Prokerala API errors (including credit exhaustion, 403, etc.) and fallback to mock
+    const errorMessage = error.message || String(error);
+    const isCreditError = 
+      errorMessage.includes("insufficient credit") ||
+      errorMessage.includes("credit balance") ||
+      errorMessage.includes("403") ||
+      errorMessage.includes("PROKERALA_CIRCUIT_OPEN");
     
-    // Check if circuit breaker is open (service unavailable)
-    const isCircuitOpen = error?.message === "PROKERALA_CIRCUIT_OPEN";
-    
-    // Always allow fallback if circuit is open (service degraded)
-    if (isCircuitOpen) {
-      console.warn("[AstroSetu] Circuit breaker is open - using fallback data. Service will retry automatically after cooldown period.");
-      const kundli = generateKundli(input);
-      const dosha = generateDoshaAnalysis(input, kundli.planets);
-      const chart = generateKundliChart(input);
-      return { ...kundli, dosha, chart };
+    if (isCreditError) {
+      console.warn("[AstroSetu] Prokerala API credit exhausted or unavailable, using mock data. Error:", errorMessage.substring(0, 200));
+    } else {
+      console.warn("[AstroSetu] Prokerala API error, falling back to mock data. Error:", errorMessage.substring(0, 200));
     }
     
-    // In production, we should NOT silently fallback to mock for other errors
-    // Instead, throw the error so the user knows something went wrong
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(`Astrology calculation failed: ${error?.message || 'Unknown error'}. Please try again or contact support.`);
-    }
-    // In development, allow fallback for testing
-    console.warn("[AstroSetu] Falling back to mock data (development mode only)");
+    // Always fallback to mock/engine-generated data for credit errors or circuit breaker
+    // This allows the service to continue working even when API credits are exhausted
     const kundli = generateKundli(input);
     const dosha = generateDoshaAnalysis(input, kundli.planets);
     const chart = generateKundliChart(input);

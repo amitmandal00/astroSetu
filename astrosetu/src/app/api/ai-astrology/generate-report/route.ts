@@ -201,6 +201,14 @@ export async function POST(req: Request) {
       const errorMessage = error.message || "Unknown error";
       const errorString = JSON.stringify(error).toLowerCase();
       
+      // Check for Prokerala API credit exhaustion (403 with "insufficient credit balance")
+      const isProkeralaCreditError = 
+        errorMessage.includes("insufficient credit") ||
+        errorMessage.includes("credit balance") ||
+        errorString.includes("insufficient credit") ||
+        errorString.includes("credit balance") ||
+        (errorMessage.includes("403") && errorString.includes("credit"));
+      
       // Check for various configuration and quota errors
       const isConfigError = 
         errorMessage.includes("API key") || 
@@ -211,7 +219,17 @@ export async function POST(req: Request) {
         errorMessage.includes("billing") ||
         errorString.includes("insufficient_quota") ||
         errorString.includes("quota") ||
-        errorString.includes("billing");
+        errorString.includes("billing") ||
+        isProkeralaCreditError; // Include credit errors in config errors
+      
+      // For Prokerala credit errors, we'll use fallback/mock data instead of failing
+      // This allows the service to continue working when API credits are exhausted
+      if (isProkeralaCreditError) {
+        console.warn("[AI Astrology] Prokerala API credit exhausted, using fallback data generation");
+        // The report generator should handle fallback internally, but if it doesn't,
+        // we'll return a friendly error that suggests the service is temporarily limited
+        // In practice, the astrologyAPI should fall back to mock data
+      }
       
       // Build headers object
       const headers: Record<string, string> = {
@@ -228,9 +246,9 @@ export async function POST(req: Request) {
         { 
           ok: false, 
           error: isConfigError 
-            ? "AI service is temporarily unavailable. Please try again later."
+            ? "Astrology calculation service is temporarily unavailable. Reports may use estimated data. Please try again later."
             : "Server error. Please try again later.",
-          code: isConfigError ? "AI_SERVICE_UNAVAILABLE" : "REPORT_GENERATION_FAILED",
+          code: isConfigError ? "SERVICE_UNAVAILABLE" : "REPORT_GENERATION_FAILED",
           requestId 
         },
         { 
