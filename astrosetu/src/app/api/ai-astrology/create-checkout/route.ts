@@ -84,7 +84,10 @@ export async function POST(req: Request) {
     if (isDemoMode || isTestUser) {
       console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}) - Bypassing Stripe`);
       
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      // Use request origin to support preview deployments (not hardcoded baseUrl)
+      const origin = req.headers.get('origin') || req.headers.get('host') || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const baseUrl = origin.startsWith('http') ? origin : `https://${origin}`;
+      
       // Include reportType in session ID for test sessions so verify-payment can extract it
       const reportTypeStr = subscription ? "subscription" : (reportType || "marriage-timing");
       const mockSessionId = `test_session_${reportTypeStr}_${requestId}`;
@@ -168,8 +171,9 @@ export async function POST(req: Request) {
       // Don't store sensitive data in metadata
     }
 
-    // Determine redirect URLs
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // Determine redirect URLs - use request origin to support preview deployments
+    const origin = req.headers.get('origin') || req.headers.get('host') || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const baseUrl = origin.startsWith('http') ? origin : `https://${origin}`;
     const success = successUrl || `${baseUrl}/ai-astrology/payment/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancel = cancelUrl || `${baseUrl}/ai-astrology/payment/cancel`;
 
