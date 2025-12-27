@@ -26,16 +26,19 @@ function SubscriptionContent() {
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    // Get input from sessionStorage
-    const savedInput = sessionStorage.getItem("aiAstrologyInput");
-    const subscriptionStatus = sessionStorage.getItem("aiAstrologySubscription") === "active";
-
-    if (!savedInput) {
-      router.push("/ai-astrology/input");
-      return;
-    }
-
+    // Check if sessionStorage is available
+    if (typeof window === "undefined") return;
+    
     try {
+      // Get input from sessionStorage
+      const savedInput = sessionStorage.getItem("aiAstrologyInput");
+      const subscriptionStatus = sessionStorage.getItem("aiAstrologySubscription") === "active";
+
+      if (!savedInput) {
+        router.push("/ai-astrology/input");
+        return;
+      }
+
       setInput(JSON.parse(savedInput));
       setIsSubscribed(subscriptionStatus);
 

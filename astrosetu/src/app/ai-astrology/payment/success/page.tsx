@@ -55,15 +55,20 @@ function PaymentSuccessContent() {
           const subscription = response.data.subscription || false;
           setIsSubscription(subscription);
           
-          // Only set reportType if it's a valid ReportType (not "subscription")
-          const paymentReportType = response.data.reportType;
-          if (paymentReportType && paymentReportType !== "subscription") {
-            const validReportType = paymentReportType as ReportType;
-            setReportType(validReportType);
+        // Only set reportType if it's a valid ReportType (not "subscription")
+        const paymentReportType = response.data.reportType;
+        if (paymentReportType && paymentReportType !== "subscription") {
+          const validReportType = paymentReportType as ReportType;
+          setReportType(validReportType);
+          try {
             sessionStorage.setItem("aiAstrologyReportType", paymentReportType);
+          } catch (e) {
+            console.error("Failed to save reportType to sessionStorage:", e);
           }
-          
-          // Store payment info in sessionStorage for report generation
+        }
+        
+        // Store payment info in sessionStorage for report generation (if available)
+        try {
           sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
           sessionStorage.setItem("aiAstrologyPaymentSessionId", sid);
           
@@ -76,6 +81,11 @@ function PaymentSuccessContent() {
           if (subscription) {
             sessionStorage.setItem("aiAstrologySubscription", "active");
           }
+        } catch (storageError) {
+          // Handle sessionStorage errors (e.g., private browsing mode)
+          console.error("sessionStorage not available:", storageError);
+          // Continue - user can still view success message, but will need to re-enter data
+        }
 
           // Auto-redirect to preview page for non-subscription reports
           if (!subscription && paymentReportType && paymentReportType !== "subscription") {

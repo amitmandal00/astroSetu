@@ -175,8 +175,9 @@ export async function generateDailyGuidance(
 
   // Get current transits (simplified - would use transit API in production)
   const currentDate = new Date(date);
-  const moonSign = kundliResult.planets.find((p) => p.name === "Moon")?.sign || "Unknown";
-  const sunSign = kundliResult.planets.find((p) => p.name === "Sun")?.sign || "Unknown";
+  const planets = kundliResult.planets || [];
+  const moonSign = planets.find((p) => p.name === "Moon")?.sign || "Unknown";
+  const sunSign = planets.find((p) => p.name === "Sun")?.sign || "Unknown";
 
   // Prepare data for prompt generation
   const birthDetails = {

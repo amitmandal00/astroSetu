@@ -94,6 +94,11 @@ async function generateWithAnthropic(prompt: string): Promise<string> {
   }
 
   const data = await response.json();
+  // Handle Anthropic response structure
+  if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
+    console.error("[Anthropic] Invalid response structure:", data);
+    throw new Error("Invalid response from Anthropic API");
+  }
   return data.content[0]?.text || "";
 }
 
@@ -103,6 +108,18 @@ async function generateWithAnthropic(prompt: string): Promise<string> {
 function parseAIResponse(response: string, reportType: ReportType): ReportContent {
   // For MVP, return simple structured content
   // In production, use more sophisticated parsing (regex, markdown parsing, etc.)
+  
+  // Handle empty or invalid responses
+  if (!response || typeof response !== "string" || response.trim().length === 0) {
+    return {
+      title: getReportTitle(reportType),
+      sections: [{
+        title: "Report",
+        content: "Unable to generate report content. Please try again.",
+      }],
+      summary: "Report generation encountered an issue. Please try again.",
+    };
+  }
   
   const sections: ReportContent["sections"] = [];
   const lines = response.split("\n").filter(line => line.trim());
@@ -192,8 +209,8 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
       ayanamsa: 1,
     });
 
-    // Extract planetary data
-    const planets = kundliResult.planets.map(p => ({
+    // Extract planetary data (handle missing planets array)
+    const planets = (kundliResult.planets || []).map(p => ({
       name: p.name,
       sign: p.sign,
       house: p.house || 0,
@@ -264,13 +281,14 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
       console.log("Could not fetch dosha analysis:", e);
     }
 
-    // Extract relevant planetary data
-    const venus = kundliResult.planets.find(p => p.name === "Venus");
-    const jupiter = kundliResult.planets.find(p => p.name === "Jupiter");
-    const mars = kundliResult.planets.find(p => p.name === "Mars");
+    // Extract relevant planetary data (handle missing planets array)
+    const planets = kundliResult.planets || [];
+    const venus = planets.find(p => p.name === "Venus");
+    const jupiter = planets.find(p => p.name === "Jupiter");
+    const mars = planets.find(p => p.name === "Mars");
     
     // Get 7th house (marriage house) - simplified, would need chart data
-    const seventhHousePlanets = kundliResult.planets.filter(p => p.house === 7).map(p => p.name);
+    const seventhHousePlanets = planets.filter(p => p.house === 7).map(p => p.name);
 
     // Generate prompt
     const prompt = generateMarriageTimingPrompt(
@@ -343,11 +361,12 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
 
     // Extract relevant planetary data
     // 10th house = career, 2nd house = money
-    const tenthHousePlanets = kundliResult.planets.filter(p => p.house === 10).map(p => p.name);
-    const secondHousePlanets = kundliResult.planets.filter(p => p.house === 2).map(p => p.name);
+    const planets = kundliResult.planets || [];
+    const tenthHousePlanets = planets.filter(p => p.house === 10).map(p => p.name);
+    const secondHousePlanets = planets.filter(p => p.house === 2).map(p => p.name);
     
     // Career-related planets (Sun, Jupiter, Saturn, Mercury in 10th or strong)
-    const careerPlanets = kundliResult.planets
+    const careerPlanets = planets
       .filter(p => ["Sun", "Jupiter", "Saturn", "Mercury"].includes(p.name) || p.house === 10)
       .map(p => ({
         name: p.name,
@@ -366,8 +385,8 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
       },
       {
         ascendant: kundliResult.ascendant || "Unknown",
-        sunSign: kundliResult.planets.find(p => p.name === "Sun")?.sign || "Unknown",
-        moonSign: kundliResult.planets.find(p => p.name === "Moon")?.sign || "Unknown",
+        sunSign: planets.find(p => p.name === "Sun")?.sign || "Unknown",
+        moonSign: planets.find(p => p.name === "Moon")?.sign || "Unknown",
         tenthHouse: {
           sign: "Unknown", // Would need chart data
           planets: tenthHousePlanets,

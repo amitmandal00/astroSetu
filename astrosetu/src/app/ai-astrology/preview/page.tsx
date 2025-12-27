@@ -31,17 +31,20 @@ function PreviewContent() {
   const [refundAcknowledged, setRefundAcknowledged] = useState(false);
 
   useEffect(() => {
-    // Get input from sessionStorage
-    const savedInput = sessionStorage.getItem("aiAstrologyInput");
-    const savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType;
-    const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
-
-    if (!savedInput) {
-      router.push("/ai-astrology/input");
-      return;
-    }
-
+    // Check if sessionStorage is available
+    if (typeof window === "undefined") return;
+    
     try {
+      // Get input from sessionStorage
+      const savedInput = sessionStorage.getItem("aiAstrologyInput");
+      const savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType;
+      const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
+
+      if (!savedInput) {
+        router.push("/ai-astrology/input");
+        return;
+      }
+
       const inputData = JSON.parse(savedInput);
       const reportTypeToUse = savedReportType || "life-summary";
       
@@ -64,6 +67,11 @@ function PreviewContent() {
       console.error("Error parsing saved input:", e);
       router.push("/ai-astrology/input");
     }
+  } catch (storageError) {
+    // Handle sessionStorage errors (e.g., private browsing mode)
+    console.error("sessionStorage not available:", storageError);
+    router.push("/ai-astrology/input");
+  }
   }, [router]);
 
   const generateReport = async (inputData: AIAstrologyInput, type: ReportType) => {
@@ -71,8 +79,14 @@ function PreviewContent() {
     setError(null);
 
     try {
-      // Get payment token for paid reports
-      const paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
+      // Get payment token for paid reports (handle sessionStorage errors)
+      let paymentToken: string | undefined;
+      try {
+        paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
+      } catch (storageError) {
+        console.error("Failed to read paymentToken from sessionStorage:", storageError);
+        // Continue without token - API will return appropriate error
+      }
       const isPaid = type !== "life-summary";
       
       if (isPaid && !paymentToken) {

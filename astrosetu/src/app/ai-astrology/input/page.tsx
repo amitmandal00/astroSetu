@@ -96,9 +96,15 @@ function InputFormContent() {
         timezone: "Asia/Kolkata",
       };
 
-      // Store in sessionStorage for next page
-      sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
-      sessionStorage.setItem("aiAstrologyReportType", reportType || "life-summary");
+      // Store in sessionStorage for next page (if available)
+      try {
+        sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
+        sessionStorage.setItem("aiAstrologyReportType", reportType || "life-summary");
+      } catch (storageError) {
+        // Handle sessionStorage errors (e.g., private browsing mode)
+        console.error("sessionStorage not available:", storageError);
+        // Continue anyway - preview page will handle missing data
+      }
 
       // Redirect to preview page
       router.push("/ai-astrology/preview");
