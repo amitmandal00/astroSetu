@@ -64,14 +64,10 @@ function PreviewContent() {
       // Auto-generate report
       generateReport(inputData, reportTypeToUse);
     } catch (e) {
-      console.error("Error parsing saved input:", e);
+      // Handle JSON parse errors or sessionStorage errors (e.g., private browsing mode)
+      console.error("Error accessing sessionStorage or parsing saved input:", e);
       router.push("/ai-astrology/input");
     }
-  } catch (storageError) {
-    // Handle sessionStorage errors (e.g., private browsing mode)
-    console.error("sessionStorage not available:", storageError);
-    router.push("/ai-astrology/input");
-  }
   }, [router]);
 
   const generateReport = async (inputData: AIAstrologyInput, type: ReportType) => {
