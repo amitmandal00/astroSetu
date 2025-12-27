@@ -84,19 +84,24 @@ export async function POST(req: Request) {
     if (isDemoMode || isTestUser) {
       console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}) - Bypassing Stripe`);
       
-      // Use request origin to support preview deployments (not hardcoded baseUrl)
-      // Try origin header first, then host header, then fallback to env var
-      const originHeader = req.headers.get('origin');
-      const hostHeader = req.headers.get('host');
+      // Use request URL to support preview deployments (derive from actual request)
+      // This ensures we use the correct deployment URL (preview or production)
       let baseUrl: string;
-      if (originHeader) {
-        baseUrl = originHeader;
-      } else if (hostHeader) {
-        // Check if it's localhost (use http) or production (use https)
-        const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
-        baseUrl = `${protocol}://${hostHeader}`;
-      } else {
-        baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      try {
+        const requestUrl = new URL(req.url);
+        baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+      } catch (e) {
+        // Fallback to headers or env var if URL parsing fails
+        const originHeader = req.headers.get('origin');
+        const hostHeader = req.headers.get('host');
+        if (originHeader) {
+          baseUrl = originHeader;
+        } else if (hostHeader) {
+          const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
+          baseUrl = `${protocol}://${hostHeader}`;
+        } else {
+          baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        }
       }
       
       // Include reportType in session ID for test sessions so verify-payment can extract it
