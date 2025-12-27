@@ -76,12 +76,16 @@ function InputFormContent() {
       let lon = longitude;
       
       if (!lat || !lon) {
+        // Try to resolve coordinates from place name
         const coords = resolvePlaceCoordinates(place);
         if (coords) {
           lat = coords.latitude;
           lon = coords.longitude;
+          // Update state so UI shows coordinates are resolved
+          setLatitude(lat);
+          setLongitude(lon);
         } else {
-          throw new Error("Please provide a valid place name (city, state, country)");
+          throw new Error("Please select a place from the dropdown, or enter a valid city name (e.g., 'Noamundi', 'Delhi', 'Mumbai')");
         }
       }
 

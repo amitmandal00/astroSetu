@@ -58,6 +58,8 @@ export const INDIAN_CITIES_DB: CityData[] = [
   
   // Jharkhand cities (including Noamundi)
   { name: "Noamundi", state: "Jharkhand", country: "India", latitude: 22.1500, longitude: 85.5000, displayName: "Noamundi, Jharkhand, India" },
+  // Alternative spelling for Noamundi
+  { name: "Nomundi", state: "Jharkhand", country: "India", latitude: 22.1500, longitude: 85.5000, displayName: "Noamundi, Jharkhand, India" },
   { name: "Ranchi", state: "Jharkhand", country: "India", latitude: 23.3441, longitude: 85.3096, displayName: "Ranchi, Jharkhand, India" },
   { name: "Jamshedpur", state: "Jharkhand", country: "India", latitude: 22.8046, longitude: 86.2029, displayName: "Jamshedpur, Jharkhand, India" },
   { name: "Dhanbad", state: "Jharkhand", country: "India", latitude: 23.7957, longitude: 86.4304, displayName: "Dhanbad, Jharkhand, India" },
@@ -113,19 +115,46 @@ export function searchLocalCities(query: string, limit: number = 10): CityData[]
  * First checks local database, then falls back to API if needed
  */
 export function resolvePlaceCoordinates(placeName: string): CityData | null {
-  const lowerPlace = placeName.toLowerCase().trim();
+  if (!placeName || typeof placeName !== 'string') return null;
   
-  // Try exact match first
+  const lowerPlace = placeName.toLowerCase().trim();
+  if (lowerPlace.length < 2) return null;
+  
+  // Extract city name from "City, State, Country" format
+  const cityNameOnly = lowerPlace.split(',')[0].trim();
+  
+  // Try exact match first (full string)
   const exactMatch = INDIAN_CITIES_DB.find(
     city => city.displayName.toLowerCase() === lowerPlace || 
             city.name.toLowerCase() === lowerPlace
   );
   if (exactMatch) return exactMatch;
   
-  // Try partial match
+  // Try exact city name match (first part before comma)
+  const exactCityMatch = INDIAN_CITIES_DB.find(
+    city => city.name.toLowerCase() === cityNameOnly
+  );
+  if (exactCityMatch) return exactCityMatch;
+  
+  // Try fuzzy match - check if input contains city name or vice versa
+  for (const city of INDIAN_CITIES_DB) {
+    const cityNameLower = city.name.toLowerCase();
+    
+    // If lengths are similar and one contains the other, it's likely a match
+    if (cityNameLower.includes(cityNameOnly) || cityNameOnly.includes(cityNameLower)) {
+      const lengthDiff = Math.abs(cityNameOnly.length - cityNameLower.length);
+      // Allow up to 2 character difference for common misspellings (e.g., "Nomundi" vs "Noamundi")
+      if (lengthDiff <= 2) {
+        return city;
+      }
+    }
+  }
+  
+  // Try partial match (contains)
   const partialMatch = INDIAN_CITIES_DB.find(
     city => city.displayName.toLowerCase().includes(lowerPlace) ||
-            city.name.toLowerCase().includes(lowerPlace)
+            city.name.toLowerCase().includes(lowerPlace) ||
+            lowerPlace.includes(city.name.toLowerCase())
   );
   if (partialMatch) return partialMatch;
   
