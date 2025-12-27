@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { AstroImage } from "@/components/ui/AstroImage";
 import { ASTRO_IMAGES } from "@/lib/astroImages";
+import { REPORT_PRICES, SUBSCRIPTION_PRICE } from "@/lib/ai-astrology/payments";
 
 export default function AIAstrologyLandingPage() {
   return (
@@ -17,31 +18,32 @@ export default function AIAstrologyLandingPage() {
       <div className="relative py-16 lg:py-24 px-4 overflow-hidden">
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           <h1 className="text-5xl lg:text-7xl font-bold mb-6 leading-tight text-slate-800">
-            Discover Your Cosmic Insights with AI
+            Know Your Marriage & Career Timing with AI
           </h1>
-          <p className="text-xl lg:text-2xl text-slate-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Get personalized astrology readings powered by advanced AI.
+          <p className="text-xl lg:text-2xl text-slate-600 mb-4 max-w-3xl mx-auto leading-relaxed">
+            Instant AI astrology reports for marriage timing, career direction, and life insights.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <p className="text-lg text-slate-500 mb-8 max-w-2xl mx-auto">
+            Discover your cosmic insights — personalized, instant, and fully automated.
+          </p>
+          <div className="flex justify-center items-center">
             <Link href="/ai-astrology/input?reportType=life-summary">
               <Button className="cosmic-button px-8 py-4 text-lg">
-                Get Your Reading
+                Get Free Life Summary
               </Button>
             </Link>
-            <a href="#features" className="inline-block">
-              <Button className="cosmic-button-secondary px-8 py-4 text-lg">
-                Learn More
-              </Button>
-            </a>
           </div>
         </div>
       </div>
 
       {/* Feature Cards */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 pb-16">
+        <div className="text-center mb-8">
+          <p className="text-sm font-semibold text-amber-700 mb-2">Included in your report</p>
+        </div>
         <div className="grid md:grid-cols-3 gap-8">
           {/* Personal Horoscopes */}
-          <div className="cosmic-card rounded-2xl p-8 cursor-pointer group">
+          <div className="cosmic-card rounded-2xl p-8">
             <div className="relative h-48 mb-6 rounded-xl overflow-hidden bg-gradient-to-br from-amber-50 to-orange-50">
               <div className="absolute inset-0 opacity-20">
                 <div className="absolute top-4 left-4 text-6xl">🌙</div>
@@ -49,19 +51,14 @@ export default function AIAstrologyLandingPage() {
               </div>
             </div>
             <h3 className="text-2xl font-bold text-slate-800 mb-3">Personal Horoscopes</h3>
-            <p className="text-slate-600 leading-relaxed mb-6">
+            <p className="text-slate-600 leading-relaxed">
               Discover your core personality traits, strengths, weaknesses, and major life themes. 
               Get insights tailored to your unique birth chart.
             </p>
-            <Link href="/ai-astrology/input?reportType=life-summary">
-              <span className="text-amber-700 font-semibold group-hover:text-amber-800 transition-colors inline-flex items-center">
-                Explore Horoscopes →
-              </span>
-            </Link>
           </div>
 
           {/* Love & Relationships */}
-          <div className="cosmic-card rounded-2xl p-8 cursor-pointer group">
+          <div className="cosmic-card rounded-2xl p-8">
             <div className="relative h-48 mb-6 rounded-xl overflow-hidden bg-gradient-to-br from-pink-50 to-rose-50">
               <div className="absolute inset-0 opacity-20">
                 <div className="absolute top-4 left-4 text-6xl">💕</div>
@@ -69,19 +66,14 @@ export default function AIAstrologyLandingPage() {
               </div>
             </div>
             <h3 className="text-2xl font-bold text-slate-800 mb-3">Love & Relationships</h3>
-            <p className="text-slate-600 leading-relaxed mb-6">
+            <p className="text-slate-600 leading-relaxed">
               Uncover ideal marriage windows, compatibility indicators, and personalized remedies. 
               Your guide to a harmonious partnership.
             </p>
-            <Link href="/ai-astrology/input?reportType=marriage-timing">
-              <span className="text-pink-700 font-semibold group-hover:text-pink-800 transition-colors inline-flex items-center">
-                Check Compatibility →
-              </span>
-            </Link>
           </div>
 
           {/* Career & Finance */}
-          <div className="cosmic-card rounded-2xl p-8 cursor-pointer group">
+          <div className="cosmic-card rounded-2xl p-8">
             <div className="relative h-48 mb-6 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50">
               <div className="absolute inset-0 opacity-20">
                 <div className="absolute top-4 left-4 text-6xl">💼</div>
@@ -89,16 +81,16 @@ export default function AIAstrologyLandingPage() {
               </div>
             </div>
             <h3 className="text-2xl font-bold text-slate-800 mb-3">Career & Finance</h3>
-            <p className="text-slate-600 leading-relaxed mb-6">
+            <p className="text-slate-600 leading-relaxed">
               Navigate your professional journey with clarity. Best career directions, 
               job change timings, and insights into your money growth phases.
             </p>
-            <Link href="/ai-astrology/input?reportType=career-money">
-              <span className="text-blue-700 font-semibold group-hover:text-blue-800 transition-colors inline-flex items-center">
-                Explore Career Path →
-              </span>
-            </Link>
           </div>
+        </div>
+        <div className="text-center mt-6">
+          <p className="text-sm text-slate-500 italic">
+            Hundreds of personalized reports generated instantly using AI.
+          </p>
         </div>
       </div>
 
@@ -135,40 +127,46 @@ export default function AIAstrologyLandingPage() {
 
       {/* Report Offerings */}
       <section className="relative z-10 py-16 px-4">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">Our AI-Powered Reports</h2>
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid lg:grid-cols-4 gap-6">
             {/* Free Life Summary */}
             <div className="cosmic-card rounded-2xl overflow-hidden">
-              <div className="p-8">
+              <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Badge tone="green" className="text-sm">FREE</Badge>
-                  <span className="text-4xl">🌟</span>
+                  <span className="text-3xl">🌟</span>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-3">Life Summary Report</h3>
-                <p className="text-slate-600 mb-6 leading-relaxed">
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Life Summary Report</h3>
+                <p className="text-slate-600 mb-6 leading-relaxed text-sm">
                   Discover your core personality traits, strengths, weaknesses, and major life themes.
                   A perfect introduction to your astrological blueprint.
                 </p>
-            <Link href="/ai-astrology/input?reportType=life-summary" className="block">
-              <Button className="cosmic-button w-full">Get Free Preview</Button>
-            </Link>
+                <Link href="/ai-astrology/input?reportType=life-summary" className="block">
+                  <Button className="cosmic-button w-full">Get Free Preview</Button>
+                </Link>
               </div>
             </div>
 
             {/* Marriage Timing */}
-            <div className="cosmic-card rounded-2xl overflow-hidden border-2 border-pink-200">
-              <div className="p-8">
+            <div className="cosmic-card rounded-2xl overflow-hidden border-2 border-pink-200 relative">
+              <div className="absolute -top-3 -right-3 bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
+                MOST POPULAR
+              </div>
+              <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Badge className="bg-pink-600 text-white text-sm">PREMIUM</Badge>
-                  <span className="text-4xl">❤️</span>
+                  <span className="text-3xl">❤️</span>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-3">Marriage Timing Report</h3>
-                <p className="text-slate-600 mb-6 leading-relaxed">
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Marriage Timing Report</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   Uncover ideal marriage windows, potential delays, compatibility indicators, 
-                  and personalized remedies. Your guide to a harmonious partnership.
+                  and personalized remedies.
                 </p>
-                <div className="text-3xl font-bold text-pink-600 mb-4">$29</div>
+                <div className="text-3xl font-bold text-pink-600 mb-2">
+                  AU${(REPORT_PRICES["marriage-timing"].amount / 100).toFixed(2)}
+                </div>
+                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
                   <Button className="cosmic-button w-full">Order Now</Button>
                 </Link>
@@ -177,19 +175,43 @@ export default function AIAstrologyLandingPage() {
 
             {/* Career & Money */}
             <div className="cosmic-card rounded-2xl overflow-hidden border-2 border-blue-200">
-              <div className="p-8">
+              <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Badge className="bg-blue-600 text-white text-sm">PREMIUM</Badge>
-                  <span className="text-4xl">💼</span>
+                  <span className="text-3xl">💼</span>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-3">Career & Money Path</h3>
-                <p className="text-slate-600 mb-6 leading-relaxed">
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Career & Money Path</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   Navigate your professional journey with clarity. Best career directions, 
                   job change timings, and insights into your money growth phases.
                 </p>
-                <div className="text-3xl font-bold text-blue-600 mb-4">$29</div>
+                <div className="text-3xl font-bold text-blue-600 mb-2">
+                  AU${(REPORT_PRICES["career-money"].amount / 100).toFixed(2)}
+                </div>
+                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=career-money" className="block">
                   <Button className="cosmic-button w-full">Order Now</Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Full Life Report */}
+            <div className="cosmic-card rounded-2xl overflow-hidden border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Badge className="bg-purple-600 text-white text-sm">BEST VALUE</Badge>
+                  <span className="text-3xl">⭐</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Full Life Report</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed text-sm">
+                  Includes Marriage + Career + Life Overview. Comprehensive analysis covering all aspects of life.
+                </p>
+                <div className="text-3xl font-bold text-purple-600 mb-2">
+                  AU${(REPORT_PRICES["full-life"].amount / 100).toFixed(2)}
+                </div>
+                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <Link href="/ai-astrology/input?reportType=full-life" className="block">
+                  <Button className="cosmic-button w-full bg-purple-600 hover:bg-purple-700">Order Now</Button>
                 </Link>
               </div>
             </div>
@@ -197,18 +219,20 @@ export default function AIAstrologyLandingPage() {
         </div>
       </section>
 
-      {/* Premium Subscription CTA */}
+      {/* Premium Subscription CTA - Optional Upgrade */}
       <section className="relative z-10 py-16 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="cosmic-card rounded-3xl p-12 text-center border-2 border-amber-200">
+            <div className="text-sm text-slate-500 mb-4 italic">Optional upgrade after your report</div>
             <div className="text-6xl mb-6">⭐</div>
             <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 mb-4">Premium Subscription</h2>
-            <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-slate-600 mb-4 max-w-2xl mx-auto">
               Get personalized daily guidance delivered to you every day. Know what&apos;s favorable, 
               what to avoid, and how to make the most of each day.
             </p>
+            <p className="text-sm text-slate-500 mb-8 italic">Most users start with a one-time report.</p>
             <div className="text-5xl font-bold text-amber-700 mb-8">
-              $9.99<span className="text-2xl text-slate-500">/month</span>
+              AU${(SUBSCRIPTION_PRICE.amount / 100).toFixed(2)}<span className="text-2xl text-slate-500">/month</span>
             </div>
             <Link href="/ai-astrology/subscription">
               <Button className="cosmic-button px-12 py-4 text-lg">
@@ -227,12 +251,12 @@ export default function AIAstrologyLandingPage() {
             <div className="cosmic-card rounded-xl p-8 text-center">
               <div className="text-5xl mb-4">1️⃣</div>
               <h3 className="text-xl font-semibold text-slate-800 mb-2">Enter Details</h3>
-              <p className="text-slate-600">Provide your birth information securely.</p>
+              <p className="text-slate-600">Provide your birth information securely (1–2 minutes).</p>
             </div>
             <div className="cosmic-card rounded-xl p-8 text-center">
               <div className="text-5xl mb-4">2️⃣</div>
               <h3 className="text-xl font-semibold text-slate-800 mb-2">AI Generates</h3>
-              <p className="text-slate-600">Our AI processes your data and generates your personalized report.</p>
+              <p className="text-slate-600">Our AI processes your data and generates your personalized report (seconds).</p>
             </div>
             <div className="cosmic-card rounded-xl p-8 text-center">
               <div className="text-5xl mb-4">3️⃣</div>
@@ -267,7 +291,7 @@ export default function AIAstrologyLandingPage() {
               <div className="text-sm text-slate-700 space-y-2">
                 <p>
                   <strong>Educational Guidance Only:</strong> Our reports provide astrological insights for educational and entertainment purposes. 
-                  They should not be used as a substitute for professional advice.
+                  They should not be used as a substitute for professional medical, legal, financial, or psychological advice.
                 </p>
                 <p>
                   <strong>Fully Automated Platform:</strong> This platform is 100% automated. No human astrologers review reports. 

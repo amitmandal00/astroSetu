@@ -32,6 +32,50 @@ function InputFormContent() {
   const [longitude, setLongitude] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load saved form data from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    try {
+      const savedFormData = localStorage.getItem("aiAstrologyFormData");
+      if (savedFormData) {
+        const formData = JSON.parse(savedFormData);
+        if (formData.name) setName(formData.name);
+        if (formData.dob) setDob(formData.dob);
+        if (formData.tob) setTob(formData.tob);
+        if (formData.place) setPlace(formData.place);
+        if (formData.gender) setGender(formData.gender);
+        if (formData.latitude !== undefined) setLatitude(formData.latitude);
+        if (formData.longitude !== undefined) setLongitude(formData.longitude);
+      }
+    } catch (e) {
+      console.error("Failed to load saved form data:", e);
+    } finally {
+      setIsInitialized(true);
+    }
+  }, []);
+
+  // Save form data to localStorage whenever fields change
+  useEffect(() => {
+    if (!isInitialized || typeof window === "undefined") return;
+    
+    try {
+      const formData = {
+        name,
+        dob,
+        tob,
+        place,
+        gender,
+        latitude,
+        longitude,
+      };
+      localStorage.setItem("aiAstrologyFormData", JSON.stringify(formData));
+    } catch (e) {
+      console.error("Failed to save form data:", e);
+    }
+  }, [name, dob, tob, place, gender, latitude, longitude, isInitialized]);
 
   const handlePlaceChange = (newPlace: string) => {
     setPlace(newPlace);

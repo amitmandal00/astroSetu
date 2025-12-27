@@ -400,13 +400,13 @@ function PreviewContent() {
                       <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-amber-400 hover:border-amber-500 hover:shadow-md transition-all">
                           <div className="font-bold text-slate-800 mb-1">See My Marriage Timing</div>
-                          <div className="text-sm text-amber-700 font-semibold">AU$42 (incl. GST)</div>
+                          <div className="text-sm text-amber-700 font-semibold">AU$0.01 (incl. GST)</div>
                         </div>
                       </Link>
                       <Link href="/ai-astrology/input?reportType=career-money" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
                           <div className="font-bold text-slate-800 mb-1">See My Career & Money</div>
-                          <div className="text-sm text-slate-600 font-semibold">AU$42 (incl. GST)</div>
+                          <div className="text-sm text-slate-600 font-semibold">AU$0.01 (incl. GST)</div>
                         </div>
                       </Link>
                     </div>
@@ -419,9 +419,7 @@ function PreviewContent() {
                         </div>
                         <div className="font-bold text-slate-800 mb-1 text-lg">See My Full Life Report</div>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-lg font-bold text-purple-700">AU$69</span>
-                          <span className="text-xs text-slate-600 line-through">AU$84</span>
-                          <span className="text-xs text-purple-600 font-semibold">Save AU$15</span>
+                          <span className="text-lg font-bold text-purple-700">AU$0.01</span>
                         </div>
                         <div className="text-xs text-slate-700">(incl. GST) • Most comprehensive</div>
                       </div>
@@ -452,8 +450,8 @@ function PreviewContent() {
                     {/* Pricing Anchor */}
                     <div className="mt-6 pt-6 border-t border-amber-300">
                       <p className="text-xs text-slate-600 text-center">
-                        Individual reports: <strong>AU$42</strong> each<br />
-                        Full Life Report: <strong>AU$69</strong> (save AU$15)
+                        Individual reports: <strong>AU$0.01</strong> each<br />
+                        Full Life Report: <strong>AU$0.01</strong>
                       </p>
                     </div>
                   </CardContent>
@@ -584,22 +582,22 @@ function PreviewContent() {
                               <Button className="w-full cosmic-button py-4 text-lg font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border-2 border-purple-700">
                                 <span className="flex items-center justify-center gap-2">
                                   <span>See My Full Life Report</span>
-                                  <span className="bg-white/20 px-2 py-1 rounded text-sm">AU$69</span>
+                                  <span className="bg-white/20 px-2 py-1 rounded text-sm">AU$0.01</span>
                                 </span>
-                                <div className="text-sm font-normal mt-1">Best Value • Save AU$15</div>
+                                <div className="text-sm font-normal mt-1">Best Value</div>
                               </Button>
                             </Link>
                             <div className="grid grid-cols-2 gap-3">
                               <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
                                 <Button className="w-full cosmic-button py-3 bg-amber-600 hover:bg-amber-700 border-2 border-amber-700">
                                   See My Marriage Timing
-                                  <div className="text-xs font-normal mt-1">AU$42</div>
+                                  <div className="text-xs font-normal mt-1">AU$0.01</div>
                                 </Button>
                               </Link>
                               <Link href="/ai-astrology/input?reportType=career-money" className="block">
                                 <Button className="w-full cosmic-button-secondary py-3 border-2 border-slate-400 hover:border-amber-500">
                                   See My Career & Money
-                                  <div className="text-xs font-normal mt-1">AU$42</div>
+                                  <div className="text-xs font-normal mt-1">AU$0.01</div>
                                 </Button>
                               </Link>
                             </div>
