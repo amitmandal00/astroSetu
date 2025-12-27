@@ -187,19 +187,24 @@ export async function POST(req: Request) {
       // Don't store sensitive data in metadata
     }
 
-    // Determine redirect URLs - use request origin to support preview deployments
-    // Try origin header first, then host header, then fallback to env var
-    const originHeader = req.headers.get('origin');
-    const hostHeader = req.headers.get('host');
+    // Determine redirect URLs - use request URL to support preview deployments
+    // This ensures we use the correct deployment URL (preview or production)
     let baseUrl: string;
-    if (originHeader) {
-      baseUrl = originHeader;
-    } else if (hostHeader) {
-      // Check if it's localhost (use http) or production (use https)
-      const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
-      baseUrl = `${protocol}://${hostHeader}`;
-    } else {
-      baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    try {
+      const requestUrl = new URL(req.url);
+      baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    } catch (e) {
+      // Fallback to headers or env var if URL parsing fails
+      const originHeader = req.headers.get('origin');
+      const hostHeader = req.headers.get('host');
+      if (originHeader) {
+        baseUrl = originHeader;
+      } else if (hostHeader) {
+        const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
+        baseUrl = `${protocol}://${hostHeader}`;
+      } else {
+        baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      }
     }
     const success = successUrl || `${baseUrl}/ai-astrology/payment/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancel = cancelUrl || `${baseUrl}/ai-astrology/payment/cancel`;
