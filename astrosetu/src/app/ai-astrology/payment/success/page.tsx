@@ -61,6 +61,11 @@ function PaymentSuccessContent() {
         sessionStorage.setItem("aiAstrologyPaymentSessionId", sid);
         if (response.data.reportType) {
           sessionStorage.setItem("aiAstrologyReportType", response.data.reportType);
+          
+          // If subscription, mark as active
+          if (response.data.reportType === "subscription") {
+            sessionStorage.setItem("aiAstrologySubscription", "active");
+          }
         }
       } else {
         setError("Payment not completed");
