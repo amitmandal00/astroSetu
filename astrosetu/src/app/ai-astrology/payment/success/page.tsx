@@ -5,10 +5,6 @@
 
 "use client";
 
-// Force dynamic rendering for search params (required for useSearchParams)
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
