@@ -109,14 +109,27 @@ export async function generatePDF(
     // Report metadata
     doc.setFontSize(10);
     doc.setTextColor("#64748b");
-    addText(`Generated for: ${input.name}`, 10, false, "#64748b");
+    addText(`Prepared exclusively for: ${input.name}`, 10, true, "#1e293b");
     addText(`Date of Birth: ${input.dob} | Time: ${input.tob}`, 10, false, "#64748b");
     addText(`Place: ${input.place}`, 10, false, "#64748b");
-    addText(`Generated on: ${new Date().toLocaleDateString()}`, 10, false, "#64748b");
+    addText(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 10, false, "#64748b");
+    if (reportContent.reportId) {
+      addText(`Report ID: ${reportContent.reportId}`, 10, false, "#64748b");
+    }
+    addText(`Not publicly available`, 9, false, "#94a3b8");
     yPosition += 10;
 
-    // Summary section
-    if (reportContent.summary) {
+    // Executive Summary (for Full Life Report) or Summary
+    if (reportContent.executiveSummary) {
+      doc.setDrawColor(139, 92, 246);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 5;
+
+      addText("Your Key Life Insights (Summary)", 16, true, "#1e293b");
+      addText(reportContent.executiveSummary, 11, false, "#334155");
+      yPosition += 5;
+    } else if (reportContent.summary) {
       doc.setDrawColor(139, 92, 246);
       doc.setLineWidth(0.5);
       doc.line(margin, yPosition, pageWidth - margin, yPosition);

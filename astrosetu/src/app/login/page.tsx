@@ -45,7 +45,11 @@ function LoginPageContent() {
   useEffect(() => {
     const user = session.getUser();
     if (user) {
-      const redirect = searchParams.get("redirect") || "/kundli";
+      const redirectParam = searchParams.get("redirect");
+      // Validate redirect is a relative path (starts with /) and doesn't contain protocol
+      const redirect = redirectParam && redirectParam.startsWith("/") && !redirectParam.includes("://")
+        ? redirectParam
+        : "/kundli";
       router.push(redirect);
     }
   }, [router, searchParams]);
@@ -149,8 +153,12 @@ function LoginPageContent() {
         });
       }
 
-      // Redirect to intended page or default
-      const redirect = searchParams.get("redirect") || "/kundli";
+      // Redirect to intended page or default (validate to prevent open redirects)
+      const redirectParam = searchParams.get("redirect");
+      // Validate redirect is a relative path (starts with /) and doesn't contain protocol
+      const redirect = redirectParam && redirectParam.startsWith("/") && !redirectParam.includes("://")
+        ? redirectParam
+        : "/kundli";
       router.push(redirect);
     } catch (e: any) {
       const errorMsg = e?.message || "Something went wrong";
@@ -182,7 +190,11 @@ function LoginPageContent() {
     // 2FA verified, complete login
     if (userData) {
       session.save(userData);
-      const redirect = searchParams.get("redirect") || "/kundli";
+      const redirectParam = searchParams.get("redirect");
+      // Validate redirect is a relative path (starts with /) and doesn't contain protocol
+      const redirect = redirectParam && redirectParam.startsWith("/") && !redirectParam.includes("://")
+        ? redirectParam
+        : "/kundli";
       router.push(redirect);
     }
   }

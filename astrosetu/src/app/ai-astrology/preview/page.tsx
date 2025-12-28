@@ -341,9 +341,20 @@ function PreviewContent() {
                   <Badge tone="green" className="text-sm">FREE</Badge>
                 )}
               </div>
-              <p className="text-slate-600">
-                Generated for {input.name} • {new Date().toLocaleDateString()}
+              <p className="text-slate-600 mb-1">
+                Prepared exclusively for <strong>{input.name}</strong>
               </p>
+              <div className="flex items-center gap-3 text-xs text-slate-500">
+                <span>Generated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</span>
+                {reportContent.reportId && (
+                  <>
+                    <span>•</span>
+                    <span>Report ID: {reportContent.reportId}</span>
+                  </>
+                )}
+                <span>•</span>
+                <span>Not publicly available</span>
+              </div>
             </div>
           
             {/* PDF Download & Email Buttons */}
@@ -362,7 +373,7 @@ function PreviewContent() {
                   ) : (
                     <span className="flex items-center gap-2">
                       <span>📥</span>
-                      <span>Download PDF</span>
+                      <span>Download Personal PDF (Keep Forever)</span>
                     </span>
                   )}
                 </Button>
@@ -515,10 +526,91 @@ function PreviewContent() {
 
           {/* Right Column: Report Content (65-70%) */}
           <div className={isPaidReport ? "lg:col-span-3" : "lg:col-span-2"}>
+            {/* Short Disclaimer Summary (Only for paid reports, at top) */}
+            {isPaidReport && (
+              <Card className="cosmic-card mb-6 border-blue-200 bg-blue-50/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-slate-600 text-center">
+                    <strong>Educational guidance only</strong> • Fully automated • No guarantees
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="cosmic-card mb-6">
               <CardContent className="p-8">
-                {/* Summary */}
-                {reportContent.summary && (
+                {/* Executive Summary (for Full Life Report) */}
+                {reportType === "full-life" && reportContent.executiveSummary && (
+                  <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">📋</div>
+                      <h2 className="text-2xl font-bold text-purple-900">Your Key Life Insights (Summary)</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{reportContent.executiveSummary}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Enhanced Summary for Marriage Timing Report */}
+                {reportType === "marriage-timing" && reportContent.summary && (
+                  <div className="mb-8 p-6 bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 rounded-xl border-2 border-pink-300 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">💑</div>
+                      <h2 className="text-2xl font-bold text-pink-900">Marriage Timing Summary</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{reportContent.summary}</p>
+                    </div>
+                    {/* Extract and display timing strength if mentioned in summary */}
+                    {reportContent.summary.toLowerCase().includes("timing strength") && (
+                      <div className="mt-4 pt-4 border-t border-pink-200">
+                        <p className="text-sm font-semibold text-pink-800">
+                          {reportContent.summary.match(/timing strength:.*?(\d+\/10|strong|moderate)/i)?.[0] || 
+                           reportContent.summary.match(/confidence level:.*?\d+\/10/i)?.[0] || ""}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Enhanced Summary for Career & Money Report */}
+                {reportType === "career-money" && reportContent.summary && (
+                  <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 rounded-xl border-2 border-blue-300 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">💼</div>
+                      <h2 className="text-2xl font-bold text-blue-900">Career & Money Summary</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{reportContent.summary}</p>
+                    </div>
+                    {/* Extract and display confidence indicators if mentioned in summary */}
+                    {(reportContent.summary.toLowerCase().includes("career direction clarity") || 
+                      reportContent.summary.toLowerCase().includes("money growth stability")) && (
+                      <div className="mt-4 pt-4 border-t border-blue-200">
+                        <div className="flex flex-wrap gap-4 text-sm">
+                          {reportContent.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0] && (
+                            <p className="font-semibold text-blue-800">
+                              {reportContent.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0]}
+                            </p>
+                          )}
+                          {reportContent.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0] && (
+                            <p className="font-semibold text-blue-800">
+                              {reportContent.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0]}
+                            </p>
+                          )}
+                        </div>
+                        <p className="text-xs text-blue-700 mt-2">Directional confidence indicators, not income predictions</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Summary (for other reports or if no executive summary) */}
+                {reportContent.summary && 
+                 !(reportType === "full-life" && reportContent.executiveSummary) && 
+                 reportType !== "marriage-timing" && 
+                 reportType !== "career-money" && (
                   <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
                     <h2 className="text-xl font-bold mb-3 text-amber-900">Summary</h2>
                     <p className="text-slate-700 leading-relaxed">{reportContent.summary}</p>
@@ -527,31 +619,177 @@ function PreviewContent() {
 
                 {/* Sections */}
                 <div className="space-y-8">
-                  {visibleSections.map((section, idx) => (
-                <div key={idx} className="border-b border-slate-200 last:border-0 pb-8 last:pb-0">
-                  <h2 className="text-2xl font-bold mb-4 text-slate-800">{section.title}</h2>
+                  {visibleSections.map((section, idx) => {
+                    // Check if section has key insight (title contains "- Key Insight")
+                    const hasKeyInsight = section.title.toLowerCase().includes("- key insight") || section.title.toLowerCase().includes("key insight");
+                    const sectionTitle = section.title.replace(/- Key Insight/gi, "").trim();
+                    
+                    // Enhanced section detection for Marriage Timing Report
+                    const isMarriageTimingReport = reportType === "marriage-timing";
+                    const isMarriageSummarySection = isMarriageTimingReport && section.title.toLowerCase().includes("marriage timing summary");
+                    const isDecisionGuidanceSection = (isMarriageTimingReport || reportType === "career-money") && 
+                      (section.title.toLowerCase().includes("what you should focus") || 
+                       section.title.toLowerCase().includes("decision guidance") || 
+                       section.title.toLowerCase().includes("focus on now"));
+                    const isIdealWindowsSection = isMarriageTimingReport && section.title.toLowerCase().includes("ideal marriage window");
+                    const isDelayFactorsSection = isMarriageTimingReport && (section.title.toLowerCase().includes("delay") || section.title.toLowerCase().includes("potential delay"));
+                    
+                    // Enhanced section detection for Career & Money Report
+                    const isCareerMoneyReport = reportType === "career-money";
+                    const isCareerMoneySummarySection = isCareerMoneyReport && section.title.toLowerCase().includes("career & money summary");
+                    const isCareerMomentumSection = isCareerMoneyReport && section.title.toLowerCase().includes("career momentum");
+                    const isMoneyGrowthSection = isCareerMoneyReport && (section.title.toLowerCase().includes("money growth") || section.title.toLowerCase().includes("financial growth"));
+                    const isCareerDirectionSection = isCareerMoneyReport && (section.title.toLowerCase().includes("career direction") || section.title.toLowerCase().includes("best career"));
+                    
+                    const isMajorSection = idx === 0 || 
+                      section.title.toLowerCase().includes("personality") || 
+                      section.title.toLowerCase().includes("marriage") || 
+                      section.title.toLowerCase().includes("career") || 
+                      section.title.toLowerCase().includes("money") ||
+                      isDecisionGuidanceSection ||
+                      isIdealWindowsSection ||
+                      isCareerMomentumSection ||
+                      isMoneyGrowthSection ||
+                      isCareerDirectionSection;
+                    
+                    // Skip summary sections if we already displayed them above
+                    if (isMarriageSummarySection || isCareerMoneySummarySection) {
+                      return null;
+                    }
+                    
+                    return (
+                <div key={idx} className={isMajorSection ? "relative" : ""}>
+                  {/* Visual Section Divider for Major Sections */}
+                  {isMajorSection && idx > 0 && (
+                    <div className="mb-8 pt-8 border-t-2 border-slate-300">
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white px-4">
+                        <div className="w-12 h-1 bg-gradient-to-r from-purple-400 via-indigo-400 to-purple-400 rounded-full"></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className={`${
+                    isDecisionGuidanceSection ? "bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-xl border-2 border-emerald-300 shadow-sm" :
+                    isIdealWindowsSection ? "bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-xl border-2 border-pink-300 shadow-sm" :
+                    isDelayFactorsSection ? "bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-xl border-2 border-amber-300" :
+                    isCareerMomentumSection ? "bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-300 shadow-sm" :
+                    isMoneyGrowthSection ? "bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-300 shadow-sm" :
+                    isCareerDirectionSection ? "bg-gradient-to-br from-purple-50 to-violet-50 p-6 rounded-xl border-2 border-purple-300 shadow-sm" :
+                    isMajorSection ? "bg-gradient-to-br from-slate-50 to-blue-50/30 p-6 rounded-xl border border-slate-200" : ""
+                  }`}>
+                    <div className="flex items-start gap-3 mb-4">
+                      {(isMajorSection || isDecisionGuidanceSection || isIdealWindowsSection || isDelayFactorsSection || isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection) && (
+                        <div className="text-2xl mt-1">
+                          {isDecisionGuidanceSection ? "✅" :
+                           isCareerMomentumSection ? "📈" :
+                           isMoneyGrowthSection ? "💰" :
+                           isCareerDirectionSection ? "🎯" :
+                           isIdealWindowsSection ? "🕒" :
+                           isDelayFactorsSection ? "⚠️" :
+                           section.title.toLowerCase().includes("personality") ? "👤" :
+                           section.title.toLowerCase().includes("marriage") ? "💑" :
+                           section.title.toLowerCase().includes("career") ? "💼" :
+                           section.title.toLowerCase().includes("money") ? "💰" : "📊"}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h2 className="text-2xl font-bold text-slate-800">{sectionTitle}</h2>
+                        {hasKeyInsight && section.content && (
+                          <div className="mt-3 mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+                            <p className="text-sm font-semibold text-amber-900 leading-relaxed">{section.content.split('\n')[0]}</p>
+                          </div>
+                        )}
+                        {/* Timing Strength Indicator for Marriage Timing sections */}
+                        {isMarriageTimingReport && (isIdealWindowsSection || section.title.toLowerCase().includes("timing")) && section.content && (
+                          (() => {
+                            const timingStrengthMatch = section.content.match(/timing strength:.*?(strong|moderate|weak)/i);
+                            const confidenceMatch = section.content.match(/confidence level:.*?(\d+\/10)/i);
+                            if (timingStrengthMatch || confidenceMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                                  <p className="text-sm font-semibold text-blue-900">
+                                    {timingStrengthMatch?.[0] || ""} {confidenceMatch?.[0] || ""}
+                                  </p>
+                                  <p className="text-xs text-blue-700 mt-1">Guidance strength indicator, not certainty</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        {/* Confidence Indicators for Career & Money sections */}
+                        {isCareerMoneyReport && (isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection) && section.content && (
+                          (() => {
+                            const careerClarityMatch = section.content.match(/career direction clarity:.*?(strong|moderate|weak)/i);
+                            const moneyStabilityMatch = section.content.match(/money growth stability:.*?(steady|stable|moderate|strong)/i);
+                            if (careerClarityMatch || moneyStabilityMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-indigo-50 border-l-4 border-indigo-400 rounded-r-lg">
+                                  <div className="space-y-1">
+                                    {careerClarityMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-indigo-900">{careerClarityMatch[0]}</p>
+                                    )}
+                                    {moneyStabilityMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-indigo-900">{moneyStabilityMatch[0]}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-indigo-700 mt-1">Directional confidence indicators, not income predictions</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                      </div>
+                    </div>
                   
                   {section.content && (
                     <div className="prose prose-slate max-w-none mb-4">
-                      <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{section.content}</p>
+                      <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {hasKeyInsight ? section.content.split('\n').slice(1).join('\n') : section.content}
+                      </p>
                     </div>
                   )}
 
                   {section.bullets && section.bullets.length > 0 && (
-                    <ul className="space-y-2 mb-4">
-                      {section.bullets.map((bullet, bulletIdx) => (
-                        <li key={bulletIdx} className="flex items-start gap-3">
-                          <span className="text-amber-700 mt-1">•</span>
-                          <span className="text-slate-700">{bullet}</span>
-                        </li>
-                      ))}
+                    <ul className={`space-y-2 mb-4 ${isDecisionGuidanceSection ? "list-none" : ""}`}>
+                      {section.bullets.map((bullet, bulletIdx) => {
+                        // Limit bullet display to 15 words for better readability
+                        const bulletWords = bullet.split(' ');
+                        const displayBullet = bulletWords.length > 15 ? bulletWords.slice(0, 15).join(' ') + '...' : bullet;
+                        return (
+                          <li key={bulletIdx} className={`flex items-start gap-3 ${
+                            isDecisionGuidanceSection ? "p-2 bg-white/50 rounded-lg" : 
+                            isCareerMomentumSection ? "p-2 bg-white/30 rounded" :
+                            isMoneyGrowthSection ? "p-2 bg-white/30 rounded" : ""
+                          }`}>
+                            <span className={`mt-1 ${
+                              isDecisionGuidanceSection ? "text-emerald-600" : 
+                              isCareerMomentumSection ? "text-blue-600" :
+                              isMoneyGrowthSection ? "text-green-600" :
+                              isCareerDirectionSection ? "text-purple-600" :
+                              isIdealWindowsSection ? "text-pink-600" : 
+                              "text-amber-700"
+                            }`}>
+                              {isDecisionGuidanceSection ? "✓" : 
+                               isCareerMomentumSection ? "→" :
+                               "•"}
+                            </span>
+                            <span className={`${
+                              isDecisionGuidanceSection ? "font-medium" : 
+                              isCareerMomentumSection ? "font-medium" :
+                              isMoneyGrowthSection ? "font-medium" : ""
+                            } text-slate-700`}>{displayBullet}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
 
                   {section.subsections && section.subsections.length > 0 && (
                     <div className="ml-6 mt-4 space-y-4">
                       {section.subsections.map((subsection, subIdx) => (
-                        <div key={subIdx}>
+                        <div key={subIdx} className="border-l-2 border-slate-200 pl-4">
                           <h3 className="text-lg font-semibold mb-2 text-slate-800">{subsection.title}</h3>
                           {subsection.content && (
                             <p className="text-slate-700">{subsection.content}</p>
@@ -570,8 +808,20 @@ function PreviewContent() {
                       ))}
                     </div>
                   )}
+
+                  {/* "What this means for you" section - Check if content ends with this pattern */}
+                  {section.content && section.content.toLowerCase().includes("what this means") && (
+                    <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                      <h4 className="font-semibold text-blue-900 mb-2">What This Means For You</h4>
+                      <p className="text-blue-800 text-sm leading-relaxed">
+                        {section.content.split(/what this means/i).pop()?.trim()}
+                      </p>
+                    </div>
+                  )}
+                  </div>
                 </div>
-              ))}
+                    );
+                  })}
             </div>
 
             {/* Visual Gating - Blur Overlay for Free Reports */}
@@ -706,7 +956,7 @@ function PreviewContent() {
           </div>
         </div>
 
-        {/* Disclaimer */}
+        {/* Full Disclaimer (Footer) */}
         <Card className="mt-8 cosmic-card border-amber-200 bg-amber-50/50">
           <CardContent className="p-6">
             <div className="space-y-3">

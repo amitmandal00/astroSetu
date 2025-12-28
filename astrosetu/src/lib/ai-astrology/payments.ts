@@ -50,9 +50,12 @@ export const BUNDLE_PRICES = {
 
 export const SUBSCRIPTION_PRICE = {
   amount: 1, // AU$0.01/month (includes GST) - Testing price
+  // TODO: Update to AU$9.99/month minimum when ready for production
+  // The feedback recommends AU$9.99/month minimum or AU$79/year
+  // $0.01 pricing is toxic even for testing - creates loss of perceived value
   currency: "aud",
   interval: "month" as const,
-  description: "Premium Subscription - Daily personalized guidance and insights",
+  description: "Monthly AI Astrology Outlook - Monthly personalized outlook and guidance",
 };
 
 /**

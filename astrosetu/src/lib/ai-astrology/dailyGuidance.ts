@@ -94,59 +94,42 @@ async function generateWithAnthropic(prompt: string): Promise<string> {
 }
 
 /**
- * Parse AI response into structured daily guidance
+ * Parse AI response into structured theme-based guidance
  */
 function parseDailyGuidance(response: string, date: string): DailyGuidance {
-  // Extract "Today is good for..." items
-  const goodForMatch = response.match(/(?:Today is good for|Good for today|Favorable activities):\s*(.*?)(?:\n\n|\n[^•\n]|$)/is);
-  const goodForItems = goodForMatch
-    ? goodForMatch[1]
+  // Extract theme-based guidance (main content)
+  // Look for the core guidance message - typically the first substantial paragraph
+  const guidance = response
+    .split(/\n\n+/)
+    .map((para) => para.trim())
+    .filter((para) => {
+      // Filter out headings, lists, and very short paragraphs
+      return para.length > 50 && 
+             !para.match(/^(Today|Avoid|Good|Actions|Guidance|Theme|Focus):/i) &&
+             !para.startsWith('#') &&
+             !para.startsWith('•') &&
+             !para.startsWith('-');
+    })[0] || response.substring(0, 500).trim();
+
+  // Extract optional reflective observations (not prescriptions)
+  const observationsMatch = response.match(/(?:Observations|Reflective notes|Themes):\s*(.*?)(?:\n\n|$)/is);
+  const observations = observationsMatch
+    ? observationsMatch[1]
         .split(/\n|•|-/)
         .map((item) => item.trim())
-        .filter((item) => item.length > 0 && !item.match(/^(Today|Good|Favorable)/i))
-        .slice(0, 10)
+        .filter((item) => item.length > 10 && item.length < 150)
+        .slice(0, 5)
     : [];
 
-  // Extract "Avoid today..." items
-  const avoidMatch = response.match(/(?:Avoid today|Avoid|Not recommended):\s*(.*?)(?:\n\n|\n[^•\n]|$)/is);
-  const avoidItems = avoidMatch
-    ? avoidMatch[1]
-        .split(/\n|•|-/)
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0 && !item.match(/^(Avoid|Not)/i))
-        .slice(0, 10)
-    : [];
-
-  // Extract actions
-  const actionsMatch = response.match(/(?:Actions|Recommended actions|What to do):\s*(.*?)(?:\n\n|\n[^•\n]|$)/is);
-  const actions = actionsMatch
-    ? actionsMatch[1]
-        .split(/\n|•|-/)
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0 && !item.match(/^(Actions|Recommended|What)/i))
-        .slice(0, 10)
-    : [];
-
-  // Extract planetary influence
-  const planetaryMatch = response.match(/(?:Planetary influence|Planets|Astrological influence):\s*(.*?)(?:\n\n|$)/is);
-  const planetaryInfluence = planetaryMatch
-    ? planetaryMatch[1].trim().substring(0, 300)
-    : "Current planetary positions suggest a balanced day ahead.";
-
-  // Extract general guidance
-  const guidanceMatch = response.match(/(?:Guidance|Advice|Summary):\s*(.*?)(?:\n\n|$)/is);
-  const guidance = guidanceMatch
-    ? guidanceMatch[1].trim().substring(0, 500)
-    : response.substring(0, 500);
-
+  // Use minimal defaults - guidance is the main content
   return {
     date,
     input: {} as AIAstrologyInput, // Will be filled by caller
-    todayGoodFor: goodForItems.length > 0 ? goodForItems : ["Taking action on important matters", "Making decisions", "Social interactions"],
-    avoidToday: avoidItems.length > 0 ? avoidItems : ["Rash decisions", "Impulsive actions"],
-    actions: actions.length > 0 ? actions : ["Stay focused", "Take breaks when needed"],
-    planetaryInfluence,
-    guidance,
+    todayGoodFor: [], // No longer used - kept for type compatibility
+    avoidToday: [], // No longer used - kept for type compatibility
+    actions: observations.length > 0 ? observations : [], // Used for optional reflective observations only
+    planetaryInfluence: "", // No longer shown separately
+    guidance: guidance || "This period favors thoughtful action and steady progress. Maintain balance between action and rest, and avoid rushing decisions.",
   };
 }
 

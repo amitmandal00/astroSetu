@@ -39,12 +39,13 @@ function SubscriptionContent() {
         return;
       }
 
-      setInput(JSON.parse(savedInput));
+      const inputData = JSON.parse(savedInput);
+      setInput(inputData);
       setIsSubscribed(subscriptionStatus);
 
       // Load today's guidance if subscribed
       if (subscriptionStatus) {
-        loadDailyGuidance(JSON.parse(savedInput));
+        loadDailyGuidance(inputData);
       }
     } catch (e) {
       console.error("Error parsing saved input:", e);
@@ -57,13 +58,15 @@ function SubscriptionContent() {
     setError(null);
 
     try {
+      // Note: API endpoint name remains "daily-guidance" for backward compatibility
+      // but the content should be monthly-focused based on prompt updates
       const response = await apiPost<{
         ok: boolean;
         data?: DailyGuidance;
         error?: string;
       }>("/api/ai-astrology/daily-guidance", {
         input: inputData,
-        date: new Date().toISOString().split("T")[0],
+        date: new Date().toISOString().split("T")[0], // Current date - API can adapt to monthly view
       });
 
       if (!response.ok) {
@@ -136,11 +139,16 @@ function SubscriptionContent() {
             ← Back to AI Astrology
           </Link>
           <h1 className="text-3xl lg:text-4xl font-bold text-slate-800 mb-2">
-            Premium Subscription
+            Monthly AI Astrology Outlook (Optional)
           </h1>
-          <p className="text-slate-600">
-            Get personalized daily guidance every day
+          <p className="text-slate-600 mb-3">
+            Get a personalized monthly overview of focus areas, favorable themes, and guidance
           </p>
+          <div className="inline-block p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800 font-medium">
+              💡 Most users prefer one-time reports. This subscription is optional.
+            </p>
+          </div>
         </div>
 
         {/* Subscription Status */}
@@ -149,7 +157,7 @@ function SubscriptionContent() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-xl font-bold text-slate-900">Premium Subscription</h2>
+                  <h2 className="text-xl font-bold text-slate-900">Monthly AI Astrology Outlook</h2>
                   {isSubscribed ? (
                     <Badge tone="green">Active</Badge>
                   ) : (
@@ -158,16 +166,17 @@ function SubscriptionContent() {
                 </div>
                 <p className="text-slate-600">
                   {isSubscribed
-                    ? "You have access to daily personalized guidance"
-                    : "Subscribe to receive daily personalized guidance"}
+                    ? "You have access to monthly personalized astrology outlooks"
+                    : "Subscribe to receive monthly personalized astrology outlooks"}
                 </p>
               </div>
               {!isSubscribed && (
                 <div className="text-right">
                   <div className="text-2xl font-bold text-amber-700 mb-1">
-                    ${(SUBSCRIPTION_PRICE.amount / 100).toFixed(2)}
+                    AU${(SUBSCRIPTION_PRICE.amount / 100).toFixed(2)}
                   </div>
                   <div className="text-sm text-slate-600">per month</div>
+                  <div className="text-xs text-slate-500 mt-1">Cancel anytime</div>
                 </div>
               )}
             </div>
@@ -184,27 +193,24 @@ function SubscriptionContent() {
           </CardContent>
         </Card>
 
-        {/* Daily Guidance */}
+        {/* Current Theme & Focus */}
         {isSubscribed && (
           <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
             <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b-2 border-slate-200 bg-slate-50">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-800">Today&apos;s Guidance</h2>
-                <Button
-                  onClick={() => input && loadDailyGuidance(input)}
-                  disabled={loading}
-                  variant="secondary"
-                  className="text-sm"
-                >
-                  {loading ? "Loading..." : "Refresh"}
-                </Button>
-              </div>
+              <h2 className="text-xl font-bold text-slate-800">Current Theme & Focus</h2>
             </div>
             <CardContent>
+              {/* Strong Boundary Text */}
+              <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+                <p className="text-sm font-semibold text-amber-900">
+                  ⚠️ Important: This guidance is general and reflective, not advice or prediction.
+                </p>
+              </div>
+
               {loading && !guidance && (
                 <div className="text-center py-8">
                   <div className="animate-spin text-4xl mb-4">🌙</div>
-                  <p className="text-slate-600">Loading today&apos;s guidance...</p>
+                  <p className="text-slate-600">Loading current theme...</p>
                 </div>
               )}
 
@@ -216,62 +222,34 @@ function SubscriptionContent() {
 
               {guidance && (
                 <div className="space-y-6">
-                  {/* Today is Good For */}
-                  <div>
-                    <h3 className="text-lg font-bold text-emerald-800 mb-3 flex items-center gap-2">
-                      <span>✨</span> Today is Good For
-                    </h3>
-                    <ul className="space-y-2">
-                      {guidance.todayGoodFor.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                          <span className="text-emerald-600 mt-1">✓</span>
-                          <span className="text-slate-700">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  {/* Single Calm Theme Block */}
+                  <div className="p-6 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-blue-200 shadow-sm">
+                    <div className="mb-4">
+                      <h3 className="text-xl font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <span>📋</span> Guidance Theme (Educational)
+                      </h3>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed text-base whitespace-pre-wrap font-medium">
+                        {guidance.guidance || "This period favors thoughtful action and steady progress. Avoid rushing decisions and maintain balance in daily routines."}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Avoid Today */}
-                  <div>
-                    <h3 className="text-lg font-bold text-amber-800 mb-3 flex items-center gap-2">
-                      <span>⚠️</span> Avoid Today
-                    </h3>
-                    <ul className="space-y-2">
-                      {guidance.avoidToday.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                          <span className="text-amber-600 mt-1">✗</span>
-                          <span className="text-slate-700">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Actions */}
-                  <div>
-                    <h3 className="text-lg font-bold text-indigo-800 mb-3 flex items-center gap-2">
-                      <span>🎯</span> Recommended Actions
-                    </h3>
-                    <ul className="space-y-2">
-                      {guidance.actions.map((action, idx) => (
-                        <li key={idx} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-                          <span className="text-indigo-600 mt-1">•</span>
-                          <span className="text-slate-700">{action}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Planetary Influence */}
-                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <h3 className="text-lg font-bold text-blue-800 mb-2">Planetary Influence</h3>
-                    <p className="text-slate-700">{guidance.planetaryInfluence}</p>
-                  </div>
-
-                  {/* General Guidance */}
-                  <div className="p-4 bg-slate-100 rounded-xl border border-slate-200">
-                    <h3 className="text-lg font-bold text-slate-800 mb-2">Guidance</h3>
-                    <p className="text-slate-700 leading-relaxed">{guidance.guidance}</p>
-                  </div>
+                  {/* Optional: Focus Areas (if provided, but don't make it prescriptive) */}
+                  {guidance.actions && guidance.actions.length > 0 && (
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <h3 className="text-sm font-semibold text-slate-700 mb-3">Reflective Observations</h3>
+                      <ul className="space-y-2">
+                        {guidance.actions.slice(0, 3).map((action, idx) => (
+                          <li key={idx} className="flex items-start gap-3 text-sm text-slate-600">
+                            <span className="text-slate-400 mt-1">•</span>
+                            <span>{action}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -280,24 +258,24 @@ function SubscriptionContent() {
 
         {/* Benefits */}
         <Card className="cosmic-card border-purple-500/30">
-          <CardHeader title="Premium Benefits" />
+          <CardHeader title="What You Get" />
           <CardContent>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
                 <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">Personalized daily guidance based on your birth chart</span>
+                <span className="text-slate-700">Monthly personalized astrology outlook based on your birth chart</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">&quot;Today is good for...&quot; recommendations</span>
+                <span className="text-slate-700">Key focus areas for the coming month</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">&quot;Avoid today...&quot; warnings</span>
+                <span className="text-slate-700">Favorable and challenging themes explained</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">Actionable insights updated daily</span>
+                <span className="text-slate-700">Calm, non-predictive guidance</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-amber-700 text-xl">✓</span>
@@ -308,6 +286,11 @@ function SubscriptionContent() {
                 <span className="text-slate-700">Cancel anytime</span>
               </li>
             </ul>
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> This subscription is optional. Most users prefer one-time reports (Marriage Timing, Career & Money, or Full Life Report) which provide complete insights without recurring commitments.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

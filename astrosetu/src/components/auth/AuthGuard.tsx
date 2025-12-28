@@ -35,11 +35,19 @@ export function AuthGuard({ children, requireAuth = false, redirectTo = "/login"
           session.save(res.data);
           setUser(res.data);
         } else if (requireAuth) {
-          router.push(`${redirectTo}?redirect=${encodeURIComponent(pathname)}`);
+          // Only redirect to relative paths to prevent open redirects
+          const safePathname = pathname.startsWith("/") && !pathname.includes("://") 
+            ? pathname 
+            : "/kundli";
+          router.push(`${redirectTo}?redirect=${encodeURIComponent(safePathname)}`);
         }
       } catch (e) {
         if (requireAuth) {
-          router.push(`${redirectTo}?redirect=${encodeURIComponent(pathname)}`);
+          // Only redirect to relative paths to prevent open redirects
+          const safePathname = pathname.startsWith("/") && !pathname.includes("://") 
+            ? pathname 
+            : "/kundli";
+          router.push(`${redirectTo}?redirect=${encodeURIComponent(safePathname)}`);
         }
       } finally {
         setLoading(false);

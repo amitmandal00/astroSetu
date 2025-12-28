@@ -30,9 +30,12 @@ export type ReportContent = {
   title: string;
   sections: ReportSection[];
   summary?: string;
+  executiveSummary?: string; // Executive summary for Full Life Report
   keyInsights?: string[];
   timeWindows?: TimeWindow[];
   recommendations?: Recommendation[];
+  reportId?: string; // Unique report ID
+  generatedAt?: string; // Timestamp
 };
 
 export type ReportSection = {

@@ -4,7 +4,7 @@
  */
 
 import type { AIAstrologyInput, ReportType, ReportContent } from "./types";
-import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt } from "./prompts";
+import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt, generateFullLifePrompt } from "./prompts";
 import { getKundli } from "../astrologyAPI";
 import type { KundliResult, DoshaAnalysis } from "@/types/astrology";
 
@@ -103,6 +103,13 @@ async function generateWithAnthropic(prompt: string): Promise<string> {
 }
 
 /**
+ * Generate unique report ID
+ */
+function generateReportId(): string {
+  return `RPT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+}
+
+/**
  * Parse AI response into structured report content
  */
 function parseAIResponse(response: string, reportType: ReportType): ReportContent {
@@ -118,6 +125,8 @@ function parseAIResponse(response: string, reportType: ReportType): ReportConten
         content: "Unable to generate report content. Please try again.",
       }],
       summary: "Report generation encountered an issue. Please try again.",
+      reportId: generateReportId(),
+      generatedAt: new Date().toISOString(),
     };
   }
   
@@ -125,6 +134,15 @@ function parseAIResponse(response: string, reportType: ReportType): ReportConten
   const lines = response.split("\n").filter(line => line.trim());
   
   let currentSection: { title: string; content: string; bullets?: string[] } | null = null;
+  let executiveSummary: string | undefined = undefined;
+  
+  // Check for Executive Summary section (for Full Life Report)
+  if (reportType === "full-life") {
+    const execSummaryMatch = response.match(/(?:Executive Summary|Your Key Life Insights \(Summary\))[:]\s*(.*?)(?=\n\n|\n[A-Z#]|$)/is);
+    if (execSummaryMatch && execSummaryMatch[1]) {
+      executiveSummary = execSummaryMatch[1].trim().substring(0, 500);
+    }
+  }
   
   for (const line of lines) {
     // Check if it's a section header (starts with # or number)
@@ -143,13 +161,13 @@ function parseAIResponse(response: string, reportType: ReportType): ReportConten
           currentSection.bullets = [];
         }
         const bullet = line.replace(/^[-•]\s+/, "").replace(/^\d+\)\s+/, "").trim();
-        if (bullet) {
+        if (bullet && bullet.length <= 100) { // Limit bullet length
           currentSection.bullets.push(bullet);
         }
       }
     } else if (currentSection && line.trim()) {
       // Regular content
-      currentSection.content += (currentSection.content ? " " : "") + line.trim();
+      currentSection.content += (currentSection.content ? "\n" : "") + line.trim();
     }
   }
   
@@ -170,6 +188,9 @@ function parseAIResponse(response: string, reportType: ReportType): ReportConten
     title: getReportTitle(reportType),
     sections,
     summary: extractSummary(response),
+    executiveSummary: executiveSummary || (reportType === "full-life" ? extractSummary(response) : undefined),
+    reportId: generateReportId(),
+    generatedAt: new Date().toISOString(),
   };
 }
 
@@ -413,35 +434,108 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
 }
 
 /**
- * Generate Full Life Report (Paid - combines all reports)
+ * Generate Full Life Report (Paid - comprehensive report)
  */
 export async function generateFullLifeReport(input: AIAstrologyInput): Promise<ReportContent> {
   try {
-    // Generate all reports and combine
-    const [lifeSummary, marriageTiming, careerMoney] = await Promise.all([
-      generateLifeSummaryReport(input),
-      generateMarriageTimingReport(input),
-      generateCareerMoneyReport(input),
-    ]);
+    // Get astrology data from Prokerala API
+    const kundliResult = await getKundli({
+      name: input.name,
+      dob: input.dob,
+      tob: input.tob,
+      place: input.place,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone || "Asia/Kolkata",
+      ayanamsa: 1,
+    });
 
-    // Combine all sections
-    return {
-      title: "Full Life Report",
-      sections: [
-        ...lifeSummary.sections,
-        ...marriageTiming.sections,
-        ...careerMoney.sections,
-      ],
-      summary: `${lifeSummary.summary}\n\n${marriageTiming.summary}\n\n${careerMoney.summary}`,
-      keyInsights: [
-        ...(lifeSummary.keyInsights || []),
-        ...(marriageTiming.keyInsights || []),
-        ...(careerMoney.keyInsights || []),
-      ],
+    // Get dosha analysis for comprehensive report
+    let doshaAnalysis: DoshaAnalysis | null = null;
+    try {
+      const { getDoshaAnalysis } = await import("../astrologyAPI");
+      doshaAnalysis = await getDoshaAnalysis({
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        timezone: input.timezone || "Asia/Kolkata",
+        ayanamsa: 1,
+      });
+    } catch (e) {
+      console.log("Could not fetch dosha analysis:", e);
+    }
+
+    // Extract planetary data (handle missing planets array)
+    const planets = (kundliResult.planets || []).map(p => ({
+      name: p.name,
+      sign: p.sign,
+      house: p.house || 0,
+      degrees: p.degree || 0,
+    }));
+
+    // Comprehensive planetary data for Full Life Report
+    const comprehensivePlanetaryData = {
+      ascendant: kundliResult.ascendant || "Unknown",
+      moonSign: planets.find(p => p.name === "Moon")?.sign || "Unknown",
+      sunSign: planets.find(p => p.name === "Sun")?.sign || "Unknown",
+      nakshatra: kundliResult.nakshatra || "Unknown",
+      planets,
+      currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
+      nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
+      manglik: doshaAnalysis?.manglik?.status === "Manglik",
+      doshas: doshaAnalysis ? [
+        ...(doshaAnalysis.manglik?.status === "Manglik" ? ["Manglik"] : []),
+        ...(doshaAnalysis.kaalSarp?.present ? ["Kaal Sarp"] : []),
+      ] : [],
     };
+
+    // Generate prompt using dedicated Full Life prompt
+    const prompt = generateFullLifePrompt(
+      {
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        gender: input.gender,
+      },
+      comprehensivePlanetaryData
+    );
+
+    // Generate AI content
+    const aiResponse = await generateAIContent(prompt);
+    
+    // Parse and return
+    return parseAIResponse(aiResponse, "full-life");
   } catch (error: any) {
     console.error("[generateFullLifeReport] Error:", error);
-    throw error; // Re-throw to be handled by API route
+    // Fallback: If dedicated prompt fails, combine individual reports
+    try {
+      const [lifeSummary, marriageTiming, careerMoney] = await Promise.all([
+        generateLifeSummaryReport(input),
+        generateMarriageTimingReport(input),
+        generateCareerMoneyReport(input),
+      ]);
+
+      return {
+        title: "Full Life Report",
+        sections: [
+          ...lifeSummary.sections,
+          ...marriageTiming.sections,
+          ...careerMoney.sections,
+        ],
+        summary: `${lifeSummary.summary}\n\n${marriageTiming.summary}\n\n${careerMoney.summary}`,
+        keyInsights: [
+          ...(lifeSummary.keyInsights || []),
+          ...(marriageTiming.keyInsights || []),
+          ...(careerMoney.keyInsights || []),
+        ],
+      };
+    } catch (fallbackError) {
+      throw error; // Re-throw original error
+    }
   }
 }
 
