@@ -66,22 +66,40 @@ export async function generatePDF(
       return false;
     };
 
-    // Helper function to add text with wrapping
-    const addText = (text: string, fontSize: number = 12, isBold: boolean = false, color: string = "#000000") => {
+    // Helper function to clean text and replace problematic characters
+    const cleanText = (text: string): string => {
+      // Replace star symbols with text equivalents for better font compatibility
+      return text
+        .replace(/★/g, "*")
+        .replace(/☆/g, "o")
+        .replace(/⭐/g, "*")
+        .replace(/✨/g, "*")
+        .replace(/─/g, "-")
+        .replace(/━/g, "=")
+        .replace(/═/g, "=")
+        .replace(/&/g, "and") // Replace & with "and" for better readability
+        .replace(/&amp;/g, "and")
+        .trim();
+    };
+
+    // Helper function to add text with wrapping and better typography
+    const addText = (text: string, fontSize: number = 12, isBold: boolean = false, color: string = "#000000", lineHeight: number = 1.4) => {
+      const cleanedText = cleanText(text);
       doc.setFontSize(fontSize);
       doc.setFont("helvetica", isBold ? "bold" : "normal");
       doc.setTextColor(color);
 
-      const lines = doc.splitTextToSize(text, contentWidth);
-      checkPageBreak(lines.length * (fontSize * 0.35) + 5);
+      const lines = doc.splitTextToSize(cleanedText, contentWidth);
+      const lineSpacing = fontSize * lineHeight * 0.35;
+      checkPageBreak(lines.length * lineSpacing + 5);
 
       lines.forEach((line: string) => {
-        if (yPosition + (fontSize * 0.35) > pageHeight - margin) {
+        if (yPosition + lineSpacing > pageHeight - margin) {
           doc.addPage();
           yPosition = margin;
         }
         doc.text(line, margin, yPosition);
-        yPosition += fontSize * 0.35;
+        yPosition += lineSpacing;
       });
 
       yPosition += 5; // Add spacing after text
@@ -109,7 +127,8 @@ export async function generatePDF(
     doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
     doc.setTextColor("#1e293b");
-    const titleLines = doc.splitTextToSize(reportContent.title, contentWidth);
+    const cleanedTitle = cleanText(reportContent.title);
+    const titleLines = doc.splitTextToSize(cleanedTitle, contentWidth);
     titleLines.forEach((line: string) => {
       checkPageBreak(12);
       doc.text(line, pageWidth / 2, yPosition, { align: "center" });
@@ -121,19 +140,22 @@ export async function generatePDF(
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.setTextColor("#475569");
-    addText(`Generated for: ${input.name}`, 12, false, "#475569");
+    addText(`Generated for: ${input.name}`, 12, false, "#475569", 1.5);
     yPosition += 5;
 
     // Generated on
     const generatedDate = new Date(reportContent.generatedAt || new Date().toISOString());
-    addText(`Generated on: ${generatedDate.toLocaleDateString()} at ${generatedDate.toLocaleTimeString()}`, 11, false, "#64748b");
+    const dateStr = generatedDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const timeStr = generatedDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    addText(`Generated on: ${dateStr} at ${timeStr}`, 11, false, "#64748b", 1.5);
     yPosition += 5;
 
     // Subtitle
     doc.setFontSize(10);
     doc.setFont("helvetica", "italic");
     doc.setTextColor("#64748b");
-    doc.text("AI-Generated Astrological Guidance (Educational Only)", pageWidth / 2, yPosition, { align: "center" });
+    const subtitleText = cleanText("AI-Generated Astrological Guidance (Educational Only)");
+    doc.text(subtitleText, pageWidth / 2, yPosition, { align: "center" });
     yPosition += 15;
 
     // Report ID if present
@@ -180,7 +202,7 @@ export async function generatePDF(
     yPosition += 8;
 
     // ============================================
-    // 3. DATA & METHOD USED (Trust Builder)
+    // 3. DATA AND METHOD USED (Trust Builder)
     // ============================================
     checkPageBreak(40);
     doc.setDrawColor(139, 92, 246);
@@ -191,7 +213,7 @@ export async function generatePDF(
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor("#1e293b");
-    addText("Data & Method Used", 14, true, "#1e293b");
+    addText("Data and Method Used", 14, true, "#1e293b");
     yPosition += 2;
 
     doc.setFontSize(10);
@@ -199,15 +221,15 @@ export async function generatePDF(
     doc.setTextColor("#334155");
 
     // Birth data
-    addText("Birth Data Used:", 10, true, "#475569");
-    addText(`• Name: ${input.name}`, 10, false, "#64748b");
-    addText(`• Date of Birth: ${input.dob}`, 10, false, "#64748b");
-    addText(`• Time of Birth: ${input.tob}`, 10, false, "#64748b");
-    addText(`• Place: ${input.place}`, 10, false, "#64748b");
+    addText("Birth Data Used:", 10, true, "#475569", 1.3);
+    addText(`• Name: ${input.name}`, 10, false, "#64748b", 1.3);
+    addText(`• Date of Birth: ${input.dob}`, 10, false, "#64748b", 1.3);
+    addText(`• Time of Birth: ${input.tob}`, 10, false, "#64748b", 1.3);
+    addText(`• Place: ${input.place}`, 10, false, "#64748b", 1.3);
     yPosition += 3;
 
     // System used
-    addText("Astrological System Used:", 10, true, "#475569");
+    addText("Astrological System Used:", 10, true, "#475569", 1.3);
     const dataSourceMatch = reportContent.summary?.match(/Based on:.*?(?:\n|$)/i) || 
                            reportContent.executiveSummary?.match(/Based on:.*?(?:\n|$)/i) ||
                            reportContent.sections[0]?.content?.match(/Based on:.*?(?:\n|$)/i);
@@ -215,14 +237,14 @@ export async function generatePDF(
       const sourceText = dataSourceMatch[0].replace(/Based on:/i, "").trim();
       const sourceLines = sourceText.split(',').map(s => `• ${s.trim()}`);
       sourceLines.forEach((line: string) => {
-        addText(line, 10, false, "#64748b");
+        addText(line, 10, false, "#64748b", 1.3);
       });
     } else {
       // Default if not found
-      addText("• Ascendant analysis", 10, false, "#64748b");
-      addText("• Planetary transits", 10, false, "#64748b");
-      addText("• Dasha phase analysis", 10, false, "#64748b");
-      addText("• AI interpretation layer", 10, false, "#64748b");
+      addText("• Ascendant analysis", 10, false, "#64748b", 1.3);
+      addText("• Planetary transits", 10, false, "#64748b", 1.3);
+      addText("• Dasha phase analysis", 10, false, "#64748b", 1.3);
+      addText("• AI interpretation layer", 10, false, "#64748b", 1.3);
     }
     yPosition += 3;
 
@@ -230,7 +252,7 @@ export async function generatePDF(
     doc.setFontSize(9);
     doc.setFont("helvetica", "italic");
     doc.setTextColor("#64748b");
-    addText("Note: No human astrologer edits or reviews this report. This is 100% AI-generated.", 9, false, "#64748b");
+    addText("Note: No human astrologer edits or reviews this report. This is 100% AI-generated.", 9, false, "#64748b", 1.3);
     yPosition += 8;
 
     // ============================================
@@ -250,28 +272,31 @@ export async function generatePDF(
     yPosition += 8;
 
     // Extract confidence from content
-    const overallConfidenceMatch = reportContent.summary?.match(/Confidence.*?(\d+\/10|★+)/i) || 
-                                   reportContent.executiveSummary?.match(/Confidence.*?(\d+\/10|★+)/i) ||
-                                   reportContent.sections[0]?.content?.match(/Confidence.*?(\d+\/10|★+)/i);
+    const overallConfidenceMatch = reportContent.summary?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i) || 
+                                   reportContent.executiveSummary?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i) ||
+                                   reportContent.sections[0]?.content?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i);
     
     if (overallConfidenceMatch) {
+      const confidenceText = cleanText(overallConfidenceMatch[0]);
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor("#1e40af");
-      doc.text(overallConfidenceMatch[0], margin + 3, yPosition);
+      doc.text(confidenceText, margin + 3, yPosition);
       yPosition += 6;
     } else {
-      // Default confidence based on report type
-      let defaultConfidence = "★★★☆☆ (5-6/10)";
+      // Default confidence based on report type (using text instead of stars for better compatibility)
+      let defaultConfidence = "Medium (5-6/10)";
       if (reportType === "marriage-timing" || reportType === "career-money") {
-        defaultConfidence = "★★★★☆ (6-7/10)";
+        defaultConfidence = "Medium-High (6-7/10)";
       } else if (reportType === "full-life") {
-        defaultConfidence = "★★★☆☆ (5-6/10)";
+        defaultConfidence = "Medium (5-6/10)";
+      } else if (reportType === "year-analysis") {
+        defaultConfidence = "Medium-High (6-8/10)";
       }
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor("#1e40af");
-      doc.text(`Confidence Score: ${defaultConfidence}`, margin + 3, yPosition);
+      doc.text(`Confidence Level: ${defaultConfidence}`, margin + 3, yPosition);
       yPosition += 6;
     }
 
@@ -282,7 +307,7 @@ export async function generatePDF(
     yPosition += 10;
 
     // ============================================
-    // 5. EXECUTIVE SUMMARY (1 page max - TL;DR)
+    // 5. EXECUTIVE SUMMARY (1 page max - Summary)
     // ============================================
     checkPageBreak(40);
     doc.setDrawColor(139, 92, 246);
@@ -299,7 +324,7 @@ export async function generatePDF(
     doc.setFontSize(10);
     doc.setFont("helvetica", "italic");
     doc.setTextColor("#64748b");
-    addText("TL;DR for busy users", 10, false, "#64748b");
+    addText("Summary for busy users", 10, false, "#64748b", 1.3);
     yPosition += 5;
 
     // Display executive summary or regular summary
@@ -316,7 +341,7 @@ export async function generatePDF(
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
       doc.setTextColor("#334155");
-      addText(summaryText, 11, false, "#334155");
+      addText(summaryText, 11, false, "#334155", 1.6); // Better line height for summary readability
       yPosition += 5;
     }
 
@@ -355,8 +380,11 @@ export async function generatePDF(
         yPosition += 10;
       }
 
-      // Section title
-      addText(section.title, 16, true, "#1e293b");
+      // Section title (clean and format)
+      const cleanedTitle = cleanText(section.title);
+      // Remove "- Key Insight" suffix if present for cleaner titles
+      const formattedTitle = cleanedTitle.replace(/\s*-\s*Key\s+Insight\s*$/i, "").trim();
+      addText(formattedTitle, 16, true, "#1e293b", 1.3);
       yPosition += 2;
 
       // Extract and display confidence indicator if present
@@ -366,7 +394,8 @@ export async function generatePDF(
         doc.setTextColor("#3b82f6"); // Blue
         doc.setFont("helvetica", "bold");
         checkPageBreak(8);
-        doc.text(confidenceMatch[0], margin, yPosition);
+        const confidenceText = cleanText(confidenceMatch[0]);
+        doc.text(confidenceText, margin, yPosition);
         yPosition += 6;
       }
 
@@ -377,7 +406,8 @@ export async function generatePDF(
         doc.setTextColor("#7c3aed"); // Purple
         doc.setFont("helvetica", "normal");
         checkPageBreak(8);
-        doc.text(timelineMatch[0], margin, yPosition);
+        const timelineText = cleanText(timelineMatch[0]);
+        doc.text(timelineText, margin, yPosition);
         yPosition += 6;
       }
 
@@ -393,7 +423,7 @@ export async function generatePDF(
           )
           .join('\n');
         if (cleanContent.trim()) {
-          addText(cleanContent, 11, false, "#334155");
+          addText(cleanContent, 11, false, "#334155", 1.5); // Better line height for readability
         }
       }
 
@@ -409,10 +439,11 @@ export async function generatePDF(
         doc.setFontSize(9);
         doc.setTextColor("#1e40af");
         doc.setFont("helvetica", "bold");
-        doc.text("Why this timing may differ from other reports:", margin + 2, yPosition + 3);
+        const headerText = cleanText("Why this timing may differ from other reports:");
+        doc.text(headerText, margin + 2, yPosition + 3);
         yPosition += 6;
         doc.setFont("helvetica", "normal");
-        const explanationText = timingDiffMatch[0].replace(/Why this timing may differ.*?:/i, '').trim();
+        const explanationText = cleanText(timingDiffMatch[0].replace(/Why this timing may differ.*?:/i, '').trim());
         const explanationLines = doc.splitTextToSize(explanationText, contentWidth - 4);
         explanationLines.forEach((line: string, idx: number) => {
           checkPageBreak(5);
@@ -428,7 +459,8 @@ export async function generatePDF(
           checkPageBreak(10);
           doc.setFontSize(11);
           doc.setTextColor("#334155");
-          const bulletLines = doc.splitTextToSize(`• ${bullet}`, contentWidth - 10);
+          const cleanedBullet = cleanText(bullet);
+          const bulletLines = doc.splitTextToSize(`• ${cleanedBullet}`, contentWidth - 10);
           bulletLines.forEach((line: string, idx: number) => {
             if (yPosition + 4 > pageHeight - margin) {
               doc.addPage();
@@ -447,13 +479,14 @@ export async function generatePDF(
           checkPageBreak(20);
           yPosition += 5;
 
-          // Subsection title
-          addText(subsection.title, 14, true, "#475569");
+          // Subsection title (clean and format)
+          const cleanedSubtitle = cleanText(subsection.title);
+          addText(cleanedSubtitle, 14, true, "#475569", 1.3);
           yPosition += 2;
 
           // Subsection content
           if (subsection.content) {
-            addText(subsection.content, 11, false, "#334155");
+            addText(subsection.content, 11, false, "#334155", 1.5); // Better line height
           }
 
           // Subsection bullets
@@ -462,7 +495,8 @@ export async function generatePDF(
               checkPageBreak(10);
               doc.setFontSize(11);
               doc.setTextColor("#334155");
-              const bulletLines = doc.splitTextToSize(`  • ${bullet}`, contentWidth - 10);
+              const cleanedBullet = cleanText(bullet);
+              const bulletLines = doc.splitTextToSize(`  • ${cleanedBullet}`, contentWidth - 10);
               bulletLines.forEach((line: string, idx: number) => {
                 if (yPosition + 4 > pageHeight - margin) {
                   doc.addPage();
@@ -499,7 +533,8 @@ export async function generatePDF(
         checkPageBreak(10);
         doc.setFontSize(11);
         doc.setTextColor("#78350f");
-        const insightLines = doc.splitTextToSize(`✨ ${insight}`, contentWidth - 10);
+        const cleanedInsight = cleanText(insight);
+        const insightLines = doc.splitTextToSize(`* ${cleanedInsight}`, contentWidth - 10);
         insightLines.forEach((line: string, idx: number) => {
           if (yPosition + 4 > pageHeight - margin) {
             doc.addPage();
@@ -544,7 +579,7 @@ export async function generatePDF(
     doc.setFont("helvetica", "italic");
     const compressedDisclaimer = "Disclaimer: AI-generated for educational purposes only. Not a substitute for professional advice. " +
                                  "Guidance based on astrological calculations, not guarantees. " +
-                                 "No change-of-mind refunds on digital reports (does not limit rights under Australian Consumer Law).";
+                                 "No change-of-mind refunds on digital reports (this does not limit rights under Australian Consumer Law).";
     const disclaimerLines = doc.splitTextToSize(compressedDisclaimer, contentWidth);
     disclaimerLines.forEach((line: string) => {
       checkPageBreak(5);

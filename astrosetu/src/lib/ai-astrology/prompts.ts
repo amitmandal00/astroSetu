@@ -445,6 +445,236 @@ export const AI_PROMPT_TEMPLATES = {
          These are themes and tendencies, not predictions. Use this guidance to plan thoughtfully, 
          not as definitive outcomes. Your actions and circumstances always play a role in outcomes."
       `,
+
+    majorLifePhase: (birthDetails: any, planetaryData: any) => `
+      ${AI_PROMPT_SYSTEM_MESSAGE}
+
+      INPUT:
+      Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
+      Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
+
+      OUTPUT:
+      Generate a "Major Life Phase Report" that provides a 3-5 year outlook with major transitions and opportunities.
+      
+      CRITICAL REQUIREMENTS:
+      1. THIS IS STRATEGIC GUIDANCE FOR 3-5 YEARS:
+         - Focus on major life themes, transitions, and opportunities
+         - NO specific dates or event predictions
+         - NO guarantees or certainties
+         - Use language: "tends to favor", "periods of", "likely phases", "opportunities may arise"
+         - NEVER say: "will happen", "must do", "will fail"
+      
+      2. PERSONALIZE EVERYTHING:
+         - Reference ${birthDetails.name}, birth date ${birthDetails.dob}
+         - Use specific planetary positions and Dasha periods from the data
+         - Make every section feel personal and relevant
+      
+      3. MANDATORY STRUCTURE (follow exactly):
+         
+         a) PHASE THEME (first section):
+            Title: "3-5 Year Life Phase Theme"
+            Content: One clear sentence describing the overall theme of the next 3-5 years
+            Example: "The next 3-5 years represent a phase of transformation and career advancement for you."
+            Include the timeframe: "2024-2028" (or current year + 3 to current year + 5)
+         
+         b) EXECUTIVE SUMMARY (MANDATORY):
+            Title: "Phase-at-a-Glance Summary"
+            Include:
+            • Overall phase theme (1 line)
+            • Major transitions expected (2-3 transitions)
+            • Key opportunity areas (2-3 areas)
+            • Areas requiring attention (1-2 areas)
+            • Strategic approach (1 line)
+            Format as clear bullet points, max 20 words each.
+         
+         c) YEAR-BY-YEAR BREAKDOWN (MANDATORY):
+            Title: "Year-by-Year Breakdown"
+            For EACH year (Year 1, Year 2, Year 3, Year 4, Year 5):
+            - Year label: "Year 1 (2024)", "Year 2 (2025)", etc.
+            - Theme: One line describing the year's theme
+            - Focus areas: 2-3 key areas to focus on
+            - Major influences: Planetary influences and their impact
+            Format as clear subsections for each year.
+         
+         d) MAJOR TRANSITIONS (MANDATORY):
+            Title: "Major Transitions Ahead"
+            Identify 3-5 major transitions in:
+            - Career (job changes, promotions, career shifts)
+            - Relationships (marriage, partnerships, family changes)
+            - Finances (income changes, investments, financial milestones)
+            - Health (wellness phases, lifestyle changes)
+            - Education (learning phases, skill development)
+            - Other significant life changes
+            For each transition:
+            - Type of transition
+            - Approximate timeframe (e.g., "2025-2026", "late 2026")
+            - Description of what the transition may involve
+            - Preparation steps (2-3 actionable items)
+            Frame as "phases when" not "will happen".
+         
+         e) LONG-TERM OPPORTUNITIES (MANDATORY):
+            Title: "Long-Term Opportunities"
+            Identify 4-6 major opportunities across:
+            - Career growth
+            - Financial accumulation
+            - Relationship development
+            - Personal growth
+            - Health and wellness
+            - Education and skills
+            For each opportunity:
+            - Category
+            - Timeframe (which years this opportunity is most relevant)
+            - Description of the opportunity
+            - Action items (2-3 specific steps to maximize this opportunity)
+            Frame as "windows when" and "periods that favor".
+         
+         f) STRATEGIC GUIDANCE (MANDATORY):
+            Title: "How to Navigate This Phase"
+            Provide:
+            • Overall strategy (2-3 lines)
+            • When to take action vs. when to wait (guidance)
+            • Key principles to follow (3-4 principles)
+            • What to prioritize (2-3 priorities)
+            • What to avoid over-emphasizing (2-3 warnings)
+            Use "tends to favor" and "may be best for" language.
+         
+         g) CONFIDENCE LEVEL (mandatory):
+            Include: "Confidence Level: [X]/10"
+            Where X is between 6-8 (for 3-5 year outlook, slightly lower than annual).
+            Add note: "This reflects guidance strength for longer-term patterns, not certainty."
+      
+      4. LANGUAGE RULES:
+         - Keep bullets to 15-20 words max
+         - Use calm, strategic language
+         - NO fear-based language
+         - NO absolute statements
+         - Focus on themes, patterns, and tendencies
+         - After technical terms, explain what they mean in daily life
+      
+      5. DATA SOURCE LABEL (add at very beginning):
+         "Based on: Ascendant + Moon Sign + Dasha Analysis + Long-term Transit Patterns (3-5 year strategic guidance)"
+      
+      6. DISCLAIMER (include at end):
+         "This report provides strategic guidance for the next 3-5 years based on astrological patterns. 
+         These are long-term themes and tendencies, not specific predictions. Life circumstances and personal choices 
+         significantly influence outcomes. Use this guidance to plan strategically and prepare for opportunities, 
+         not as definitive outcomes."
+      `,
+
+    decisionSupport: (birthDetails: any, planetaryData: any, decisionContext?: string) => `
+      ${AI_PROMPT_SYSTEM_MESSAGE}
+
+      INPUT:
+      Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
+      Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
+      ${decisionContext ? `Decision Context: ${decisionContext}` : "General decision support requested"}
+
+      OUTPUT:
+      Generate a "Decision Support Report" that provides astrological guidance for making major life decisions.
+      
+      CRITICAL REQUIREMENTS:
+      1. THIS IS DECISION GUIDANCE, NOT PREDICTIONS:
+         - Focus on timing, alignment, and considerations
+         - NO guarantees about outcomes
+         - NO absolute "yes" or "no" answers
+         - Use language: "favors", "may be favorable", "aligns better with", "tends to support"
+         - NEVER say: "you must do this", "this will fail", "don't do that"
+      
+      2. PERSONALIZE EVERYTHING:
+         - Reference ${birthDetails.name}, birth date ${birthDetails.dob}
+         - Use specific planetary positions and current Dasha from the data
+         - Address the decision context if provided
+      
+      3. MANDATORY STRUCTURE (follow exactly):
+         
+         a) DECISION CONTEXT (first section):
+            Title: "Decision Context"
+            Content: If decision context provided, summarize it. Otherwise, provide general guidance framework.
+            Example: "This report provides astrological guidance to support your decision-making process."
+         
+         b) CURRENT ASTROLOGICAL CLIMATE (MANDATORY):
+            Title: "Current Astrological Climate for Decision-Making"
+            Include:
+            • Current Dasha period and its influence on decision-making
+            • Current planetary influences affecting major decisions
+            • Overall energy and momentum level
+            • Whether this is a time for action, planning, or waiting
+            Format as clear subsections.
+         
+         c) DECISION OPTIONS ANALYSIS (if context provided) OR GENERAL GUIDANCE (if no context):
+            Title: ${decisionContext ? "Analysis of Your Options" : "General Decision-Making Guidance"}
+            ${decisionContext 
+              ? `For each option mentioned in the decision context:
+                 - Option name
+                 - Astrological alignment: "High", "Medium", or "Low"
+                 - Timeframe when this option may be most favorable
+                 - Key considerations (2-3 points)
+                 - Planetary factors supporting or challenging this option
+                 Frame as guidance, not directives.`
+              : `Provide guidance on:
+                 - Career decisions (job changes, promotions, career shifts)
+                 - Financial decisions (investments, major purchases)
+                 - Relationship decisions (marriage, partnerships)
+                 - Education decisions (courses, certifications)
+                 - Location decisions (moving, relocating)
+                 - Health decisions (treatment options, lifestyle changes)
+                 For each category, provide:
+                 - Current alignment level (High/Medium/Low)
+                 - Best timing windows
+                 - Key considerations`
+            }
+         
+         d) TIMING GUIDANCE (MANDATORY):
+            Title: "Recommended Timing"
+            Include:
+            • Best periods to make decisions (approximate months/years)
+            • Periods to avoid major decisions (with reasons)
+            • When to take action vs. when to gather more information
+            • How current planetary influences affect decision timing
+            Frame as "tends to favor" not "must do now".
+         
+         e) FACTORS TO CONSIDER (MANDATORY):
+            Title: "Key Factors to Consider"
+            List 5-7 important factors based on the astrological chart:
+            • Planetary influences relevant to the decision
+            • Dasha period implications
+            • House influences (if relevant)
+            • Long-term vs. short-term considerations
+            • Personal strengths and challenges to consider
+            Format as clear bullets.
+         
+         f) STRATEGIC APPROACH (MANDATORY):
+            Title: "Recommended Approach"
+            Provide:
+            • Overall strategy for decision-making (2-3 lines)
+            • Steps to take before deciding (3-4 steps)
+            • How to maximize favorable timing
+            • How to mitigate challenges
+            • When to seek additional guidance
+            Use "may be beneficial" and "consider" language.
+         
+         g) CONFIDENCE LEVEL (mandatory):
+            Include: "Confidence Level: [X]/10"
+            Where X is between 6-8 (decision support requires multiple factors).
+            Add note: "This reflects the strength of astrological guidance. Always combine with practical considerations."
+      
+      4. LANGUAGE RULES:
+         - Keep bullets to 15-20 words max
+         - Use supportive, non-directive language
+         - NO fear-based language
+         - NO absolute statements
+         - Focus on considerations and timing
+         - Empower the user to make informed decisions
+      
+      5. DATA SOURCE LABEL (add at very beginning):
+         "Based on: Ascendant + Moon Sign + Dasha Analysis + Current Planetary Influences (decision support guidance)"
+      
+      6. DISCLAIMER (include at end):
+         "This report provides astrological guidance to support your decision-making process. It offers insights into timing, 
+         alignment, and considerations based on your birth chart. However, decisions should always combine astrological 
+         guidance with practical considerations, personal values, and professional advice when appropriate. This report is 
+         not a substitute for professional consultation in specific areas (legal, financial, medical)."
+      `,
   },
 };
 
@@ -497,4 +727,22 @@ export function generateYearAnalysisPrompt(
 ): string {
   const year = targetYear || new Date().getFullYear() + 1; // Default to next year
   return AI_PROMPT_TEMPLATES["v1.0"].yearAnalysis(birthDetails, planetaryData, year);
+}
+
+/**
+ * Generate prompt for Major Life Phase report (3-5 year outlook)
+ */
+export function generateMajorLifePhasePrompt(birthDetails: any, planetaryData: any): string {
+  return AI_PROMPT_TEMPLATES["v1.0"].majorLifePhase(birthDetails, planetaryData);
+}
+
+/**
+ * Generate prompt for Decision Support report
+ */
+export function generateDecisionSupportPrompt(
+  birthDetails: any,
+  planetaryData: any,
+  decisionContext?: string
+): string {
+  return AI_PROMPT_TEMPLATES["v1.0"].decisionSupport(birthDetails, planetaryData, decisionContext);
 }

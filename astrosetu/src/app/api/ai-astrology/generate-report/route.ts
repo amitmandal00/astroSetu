@@ -7,6 +7,8 @@ import {
   generateCareerMoneyReport,
   generateFullLifeReport,
   generateYearAnalysisReport,
+  generateMajorLifePhaseReport,
+  generateDecisionSupportReport,
   isAIConfigured,
 } from "@/lib/ai-astrology/reportGenerator";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
@@ -111,9 +113,10 @@ export async function POST(req: Request) {
       input: AIAstrologyInput;
       reportType: ReportType;
       paymentToken?: string; // Payment verification token for paid reports
+      decisionContext?: string; // Optional context for decision support reports
     }>(req);
 
-    const { input, reportType, paymentToken } = json;
+    const { input, reportType, paymentToken, decisionContext } = json;
 
     // Validate input
     if (!input.name || !input.dob || !input.tob || !input.place) {
@@ -131,7 +134,7 @@ export async function POST(req: Request) {
     }
 
     // Validate report type
-    const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis"];
+    const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
     if (!reportType || !validReportTypes.includes(reportType)) {
       return NextResponse.json(
         { ok: false, error: `Invalid report type. Must be one of: ${validReportTypes.join(", ")}` },
@@ -196,6 +199,12 @@ export async function POST(req: Request) {
         case "year-analysis":
           const targetYear = new Date().getFullYear() + 1; // Default to next year
           reportContent = await generateYearAnalysisReport(input, targetYear);
+          break;
+        case "major-life-phase":
+          reportContent = await generateMajorLifePhaseReport(input);
+          break;
+        case "decision-support":
+          reportContent = await generateDecisionSupportReport(input, decisionContext);
           break;
         default:
           throw new Error(`Unknown report type: ${reportType}`);

@@ -13,7 +13,7 @@ export type AIAstrologyInput = {
   timezone?: string;
 };
 
-export type ReportType = "life-summary" | "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "daily-guidance";
+export type ReportType = "life-summary" | "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "major-life-phase" | "decision-support" | "daily-guidance";
 
 export type AIReport = {
   id: string;
@@ -44,6 +44,17 @@ export type ReportContent = {
   focusAreasByMonth?: MonthlyFocus[];
   yearScorecard?: Scorecard;
   confidenceLevel?: number; // 1-10
+  // Major Life Phase specific fields
+  phaseTheme?: string;
+  phaseYears?: string; // e.g., "2024-2028"
+  phaseBreakdown?: PhaseBreakdown[];
+  majorTransitions?: Transition[];
+  longTermOpportunities?: Opportunity[];
+  // Decision Support specific fields
+  decisionContext?: string;
+  decisionOptions?: DecisionOption[];
+  recommendedTiming?: string;
+  factorsToConsider?: string[];
 };
 
 export type QuarterlyBreakdown = {
@@ -69,6 +80,34 @@ export type Scorecard = {
   career: number; // 1-5 stars
   relationships: number;
   money: number;
+};
+
+export type PhaseBreakdown = {
+  year: string; // e.g., "Year 1 (2024)", "Year 2 (2025)"
+  theme: string;
+  focusAreas: string[];
+  majorInfluences: string;
+};
+
+export type Transition = {
+  type: "career" | "relationships" | "finances" | "health" | "education" | "other";
+  timeframe: string; // e.g., "2025-2026"
+  description: string;
+  preparation?: string[];
+};
+
+export type Opportunity = {
+  category: string;
+  timeframe: string;
+  description: string;
+  actionItems?: string[];
+};
+
+export type DecisionOption = {
+  option: string;
+  astrologicalAlignment: "high" | "medium" | "low";
+  timeframe?: string;
+  considerations?: string[];
 };
 
 export type ReportSection = {

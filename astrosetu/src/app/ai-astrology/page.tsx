@@ -160,7 +160,7 @@ export default function AIAstrologyLandingPage() {
               <p className="text-xs text-slate-600 text-center">Best for: Timing & preparation</p>
             </div>
 
-            {/* Level 3 - Year Analysis (Future) */}
+            {/* Level 3 - Year Analysis */}
             <div className="cosmic-card rounded-2xl p-6 border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-indigo-50">
               <div className="text-center mb-4">
                 <div className="text-3xl mb-2">📅</div>
@@ -170,24 +170,18 @@ export default function AIAstrologyLandingPage() {
               <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">Year Analysis</h3>
               <p className="text-sm text-slate-600 mb-3 text-center">High Precision</p>
               <p className="text-xs text-slate-600 text-center">Best for: Planning the next 12 months</p>
-              <div className="mt-3 flex justify-center">
-                <Badge className="bg-purple-600 text-white text-xs">Coming Soon</Badge>
-              </div>
             </div>
 
-            {/* Level 4 - Decision Reports (Future) */}
+            {/* Level 4 - Decision Reports & Major Life Phase */}
             <div className="cosmic-card rounded-2xl p-6 border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-green-50">
               <div className="text-center mb-4">
                 <div className="text-3xl mb-2">🎯</div>
                 <div className="text-2xl mb-2">★★★★★+</div>
                 <div className="text-xs text-slate-500 mb-3">Level 4</div>
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">Decision Support</h3>
+              <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">Decision Support & Major Life Phase</h3>
               <p className="text-sm text-slate-600 mb-3 text-center">Highest</p>
-              <p className="text-xs text-slate-600 text-center">Best for: Specific questions (Should I change jobs now?)</p>
-              <div className="mt-3 flex justify-center">
-                <Badge className="bg-emerald-600 text-white text-xs">Coming Soon</Badge>
-              </div>
+              <p className="text-xs text-slate-600 text-center">Best for: Specific questions & 3-5 year outlook</p>
             </div>
           </div>
 
@@ -204,7 +198,7 @@ export default function AIAstrologyLandingPage() {
       <section className="relative z-10 py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">Our AI-Powered Reports</h2>
-          <div className="grid lg:grid-cols-4 gap-6">
+          <div className="grid lg:grid-cols-3 gap-6">
             {/* Free Life Summary */}
             <div className="cosmic-card rounded-2xl">
               <div className="p-6">
@@ -324,6 +318,105 @@ export default function AIAstrologyLandingPage() {
                 <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=full-life" className="block">
                   <Button className="cosmic-button w-full bg-purple-600 hover:bg-purple-700">Order Now</Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Reports Row */}
+          <div className="grid lg:grid-cols-3 gap-6 mt-8">
+            {/* Year Analysis Report */}
+            <div className="cosmic-card rounded-2xl border-2 border-purple-200">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Badge className="bg-purple-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-purple-700 shadow-md">PREMIUM</Badge>
+                  <span className="text-3xl">📅</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Year Analysis Report</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed text-sm">
+                  12-month strategic guidance with quarterly breakdown, best periods, and year scorecard.
+                </p>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-semibold text-purple-900 mb-2">What&apos;s Included:</p>
+                  <ul className="text-xs text-purple-800 space-y-1">
+                    <li>• Year theme and at-a-glance summary</li>
+                    <li>• Quarter-by-quarter breakdown</li>
+                    <li>• Best periods for action, relationships, finances</li>
+                    <li>• Caution periods to be aware of</li>
+                    <li>• Year scorecard (career, relationships, money)</li>
+                    <li>• Strategic guidance for the year</li>
+                  </ul>
+                </div>
+                <div className="text-3xl font-bold text-purple-600 mb-2">
+                  AU${(REPORT_PRICES["year-analysis"].amount / 100).toFixed(2)}
+                </div>
+                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <Link href="/ai-astrology/input?reportType=year-analysis" className="block">
+                  <Button className="cosmic-button w-full">Order Now</Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Major Life Phase Report */}
+            <div className="cosmic-card rounded-2xl border-2 border-indigo-200">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Badge className="bg-indigo-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-indigo-700 shadow-md">PREMIUM</Badge>
+                  <span className="text-3xl">🌟</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Major Life Phase Report</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed text-sm">
+                  3-5 year outlook with major transitions, long-term opportunities, and strategic navigation.
+                </p>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-semibold text-indigo-900 mb-2">What&apos;s Included:</p>
+                  <ul className="text-xs text-indigo-800 space-y-1">
+                    <li>• 3-5 year phase theme</li>
+                    <li>• Year-by-year breakdown</li>
+                    <li>• Major transitions (career, relationships, finances)</li>
+                    <li>• Long-term opportunities</li>
+                    <li>• Strategic navigation guidance</li>
+                    <li>• Preparation steps for transitions</li>
+                  </ul>
+                </div>
+                <div className="text-3xl font-bold text-indigo-600 mb-2">
+                  AU${(REPORT_PRICES["major-life-phase"].amount / 100).toFixed(2)}
+                </div>
+                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <Link href="/ai-astrology/input?reportType=major-life-phase" className="block">
+                  <Button className="cosmic-button w-full">Order Now</Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Decision Support Report */}
+            <div className="cosmic-card rounded-2xl border-2 border-emerald-200">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Badge className="bg-emerald-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-emerald-700 shadow-md">PREMIUM</Badge>
+                  <span className="text-3xl">🎯</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Decision Support Report</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed text-sm">
+                  Astrological guidance for major life decisions with timing and alignment analysis.
+                </p>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-semibold text-emerald-900 mb-2">What&apos;s Included:</p>
+                  <ul className="text-xs text-emerald-800 space-y-1">
+                    <li>• Current astrological climate for decisions</li>
+                    <li>• Analysis of decision options</li>
+                    <li>• Recommended timing (best/avoid periods)</li>
+                    <li>• Key factors to consider</li>
+                    <li>• Strategic approach recommendations</li>
+                    <li>• Alignment indicators for options</li>
+                  </ul>
+                </div>
+                <div className="text-3xl font-bold text-emerald-600 mb-2">
+                  AU${(REPORT_PRICES["decision-support"].amount / 100).toFixed(2)}
+                </div>
+                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <Link href="/ai-astrology/input?reportType=decision-support" className="block">
+                  <Button className="cosmic-button w-full">Order Now</Button>
                 </Link>
               </div>
             </div>

@@ -203,10 +203,10 @@ export default function AIAstrologyFAQPage() {
         </div>
 
         {/* Disclaimer */}
-        <Card className="mt-8 cosmic-card border-amber-200 bg-amber-50/50">
+        <Card className="mt-8 cosmic-card border-amber-200 bg-amber-50/50 max-w-4xl mx-auto">
           <CardContent className="p-6">
-            <div className="space-y-2">
-              <h3 className="font-bold text-slate-800 mb-3">⚠️ Important Disclaimer</h3>
+            <div className="space-y-3">
+              <h3 className="font-bold text-slate-800 text-center mb-3">⚠️ Important Disclaimer</h3>
               <div className="text-sm text-slate-700 space-y-2">
                 <p>
                   <strong>Educational Guidance Only:</strong> All reports are for educational and entertainment purposes only. 

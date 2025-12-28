@@ -4,7 +4,7 @@
  */
 
 export type ReportPrice = {
-  reportType: "marriage-timing" | "career-money" | "full-life" | "year-analysis";
+  reportType: "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "major-life-phase" | "decision-support";
   amount: number; // in cents
   currency: string;
   description: string;
@@ -36,6 +36,18 @@ export const REPORT_PRICES: Record<ReportPrice["reportType"], ReportPrice> = {
     amount: 1, // AU$0.01 (includes GST) - Testing price (production: 1900-2900 = AU$19-29)
     currency: "aud",
     description: "Year Analysis Report - 12-month strategic guidance with quarterly breakdown",
+  },
+  "major-life-phase": {
+    reportType: "major-life-phase",
+    amount: 1, // AU$0.01 (includes GST) - Testing price (production: 2900-3900 = AU$29-39)
+    currency: "aud",
+    description: "Major Life Phase Report - 3-5 year outlook with major transitions and opportunities",
+  },
+  "decision-support": {
+    reportType: "decision-support",
+    amount: 1, // AU$0.01 (includes GST) - Testing price (production: 1900-2900 = AU$19-29)
+    currency: "aud",
+    description: "Decision Support Report - Astrological guidance for major life decisions",
   },
 };
 

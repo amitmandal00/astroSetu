@@ -132,6 +132,10 @@ function PreviewContent() {
         return "Full Life Report";
       case "year-analysis":
         return "Year Analysis Report";
+      case "major-life-phase":
+        return "Major Life Phase Report";
+      case "decision-support":
+        return "Decision Support Report";
       default:
         return "Life Summary";
     }
@@ -1030,7 +1034,7 @@ function PreviewContent() {
         </div>
 
         {/* Full Disclaimer (Footer) */}
-        <Card className="mt-8 cosmic-card border-amber-200 bg-amber-50/50">
+        <Card className="mt-8 cosmic-card border-amber-200 bg-amber-50/50 max-w-4xl mx-auto">
           <CardContent className="p-6">
             <div className="space-y-3">
               <h3 className="font-bold text-slate-800 text-center mb-3">⚠️ Important Disclaimer</h3>

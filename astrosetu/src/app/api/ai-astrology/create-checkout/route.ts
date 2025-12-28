@@ -58,11 +58,12 @@ export async function POST(req: Request) {
 
     // Parse request body early to check for test user
     const json = await parseJsonBody<{
-      reportType?: "marriage-timing" | "career-money" | "full-life" | "year-analysis";
+      reportType?: "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "major-life-phase" | "decision-support";
       subscription?: boolean;
       input?: any;
       successUrl?: string;
       cancelUrl?: string;
+      decisionContext?: string; // Optional context for decision support reports
     }>(req);
 
     const { reportType, subscription = false, input, successUrl, cancelUrl } = json;

@@ -4,7 +4,7 @@
  */
 
 import type { AIAstrologyInput, ReportType, ReportContent } from "./types";
-import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt, generateFullLifePrompt, generateYearAnalysisPrompt } from "./prompts";
+import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt, generateFullLifePrompt, generateYearAnalysisPrompt, generateMajorLifePhasePrompt, generateDecisionSupportPrompt } from "./prompts";
 import { getKundli } from "../astrologyAPI";
 import type { KundliResult, DoshaAnalysis } from "@/types/astrology";
 
@@ -210,6 +210,10 @@ function getReportTitle(reportType: ReportType): string {
       return "Full Life Report";
     case "year-analysis":
       return "Year Analysis Report";
+    case "major-life-phase":
+      return "Major Life Phase Report";
+    case "decision-support":
+      return "Decision Support Report";
     default:
       return "Life Summary Report";
   }
@@ -598,6 +602,126 @@ export async function generateYearAnalysisReport(input: AIAstrologyInput, target
   } catch (error: any) {
     console.error("[generateYearAnalysisReport] Error:", error);
     throw error; // Re-throw to be handled by API route
+  }
+}
+
+/**
+ * Generate Major Life Phase Report (Paid - 3-5 year outlook)
+ */
+export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Promise<ReportContent> {
+  try {
+    // Get astrology data from Prokerala API
+    const kundliResult = await getKundli({
+      name: input.name,
+      dob: input.dob,
+      tob: input.tob,
+      place: input.place,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone || "Asia/Kolkata",
+      ayanamsa: 1,
+    });
+
+    // Extract planetary data
+    const planets = (kundliResult.planets || []).map(p => ({
+      name: p.name,
+      sign: p.sign,
+      house: p.house || 0,
+      degrees: p.degree || 0,
+    }));
+
+    const planetaryData = {
+      ascendant: kundliResult.ascendant || "Unknown",
+      moonSign: planets.find(p => p.name === "Moon")?.sign || "Unknown",
+      sunSign: planets.find(p => p.name === "Sun")?.sign || "Unknown",
+      nakshatra: kundliResult.nakshatra || "Unknown",
+      planets,
+      currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
+      nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
+    };
+
+    // Generate prompt
+    const prompt = generateMajorLifePhasePrompt(
+      {
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        gender: input.gender,
+      },
+      planetaryData
+    );
+
+    // Generate AI content
+    const aiResponse = await generateAIContent(prompt);
+    
+    // Parse and return
+    return parseAIResponse(aiResponse, "major-life-phase");
+  } catch (error: any) {
+    console.error("[generateMajorLifePhaseReport] Error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Generate Decision Support Report (Paid - decision guidance)
+ */
+export async function generateDecisionSupportReport(
+  input: AIAstrologyInput,
+  decisionContext?: string
+): Promise<ReportContent> {
+  try {
+    // Get astrology data from Prokerala API
+    const kundliResult = await getKundli({
+      name: input.name,
+      dob: input.dob,
+      tob: input.tob,
+      place: input.place,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone || "Asia/Kolkata",
+      ayanamsa: 1,
+    });
+
+    // Extract planetary data
+    const planets = (kundliResult.planets || []).map(p => ({
+      name: p.name,
+      sign: p.sign,
+      house: p.house || 0,
+      degrees: p.degree || 0,
+    }));
+
+    const planetaryData = {
+      ascendant: kundliResult.ascendant || "Unknown",
+      moonSign: planets.find(p => p.name === "Moon")?.sign || "Unknown",
+      sunSign: planets.find(p => p.name === "Sun")?.sign || "Unknown",
+      nakshatra: kundliResult.nakshatra || "Unknown",
+      planets,
+      currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
+      nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
+    };
+
+    // Generate prompt
+    const prompt = generateDecisionSupportPrompt(
+      {
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        gender: input.gender,
+      },
+      planetaryData,
+      decisionContext
+    );
+
+    // Generate AI content
+    const aiResponse = await generateAIContent(prompt);
+    
+    // Parse and return
+    return parseAIResponse(aiResponse, "decision-support");
+  } catch (error: any) {
+    console.error("[generateDecisionSupportReport] Error:", error);
+    throw error;
   }
 }
 
