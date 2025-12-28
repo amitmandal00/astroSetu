@@ -1,27 +1,27 @@
 "use client";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { Card, CardContent } from "@/components/ui/Card";
+import { AIHeader } from "@/components/ai-astrology/AIHeader";
+import { AIFooter } from "@/components/ai-astrology/AIFooter";
 
 export default function TermsPage() {
   const effectiveDate = "December 26, 2024";
 
   return (
-    <div className="grid gap-5">
-      {/* Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-6 lg:p-8 mb-6 shadow-lg relative overflow-hidden">
-        <HeaderPattern />
-        <div className="relative z-10">
-          <h1 className="text-3xl lg:text-4xl font-bold mb-2">Terms & Conditions</h1>
-          <p className="text-white/90 text-base">
-            Effective Date: {effectiveDate}
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <AIHeader />
+      <main className="flex-1 cosmic-bg">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Terms & Conditions</h1>
+            <p className="text-slate-600 text-base">
+              Effective Date: {effectiveDate}
+            </p>
+          </div>
 
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="prose prose-slate max-w-none">
+          <Card className="cosmic-card">
+            <CardContent className="prose prose-slate max-w-none">
             <div className="space-y-6 text-sm text-slate-700 leading-relaxed">
               {/* Introduction */}
               <section>
@@ -80,6 +80,9 @@ export default function TermsPage() {
                     All outputs are belief-based, non-deterministic, and indicative only. Interpretations vary by culture, astrologer, and belief system. AstroSetu does not guarantee the accuracy, completeness, or reliability of astrological predictions or interpretations.
                   </p>
                 </div>
+                <p className="mt-3 text-slate-700">
+                  <strong>Note:</strong> Reports may evolve over time as AI models and interpretive frameworks improve.
+                </p>
               </section>
 
               {/* No Professional Advice */}
@@ -226,9 +229,11 @@ export default function TermsPage() {
                 </ul>
               </section>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+      <AIFooter />
     </div>
   );
 }

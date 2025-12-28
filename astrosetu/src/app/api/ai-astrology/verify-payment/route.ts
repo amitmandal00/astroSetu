@@ -8,6 +8,8 @@ import { generatePaymentToken } from "@/lib/ai-astrology/paymentToken";
  * GET /api/ai-astrology/verify-payment?session_id=xxx
  * Verify Stripe payment session
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   const requestId = generateRequestId();
 
@@ -39,16 +41,35 @@ export async function GET(req: Request) {
       console.log(`[TEST SESSION] Verifying test session: ${sessionId} (bypassing Stripe)`);
       
       // Extract reportType from session ID (format: test_session_{reportType}_{requestId})
-      const sessionParts = sessionId.split("_");
+      // Note: reportType may contain hyphens, so we need to extract it carefully
       let extractedReportType = "marriage-timing"; // Default
       let isSubscriptionTest = false;
       
-      if (sessionParts.length >= 3) {
-        const typePart = sessionParts[2]; // The part after "test_session"
-        if (typePart === "subscription") {
-          isSubscriptionTest = true;
-        } else if (typePart === "marriage-timing" || typePart === "career-money" || typePart === "full-life") {
-          extractedReportType = typePart;
+      const sessionPrefix = "test_session_";
+      if (sessionId.startsWith(sessionPrefix)) {
+        const afterPrefix = sessionId.substring(sessionPrefix.length);
+        // Find the last underscore to separate reportType from requestId
+        // The requestId format is "req-{timestamp}-{random}-{counter}" (uses hyphens, not underscores)
+        // So there should be exactly one underscore - the one between reportType and requestId
+        const lastUnderscoreIndex = afterPrefix.lastIndexOf("_");
+        
+        if (lastUnderscoreIndex > 0) {
+          const typePart = afterPrefix.substring(0, lastUnderscoreIndex);
+          if (typePart === "subscription") {
+            isSubscriptionTest = true;
+          } else {
+            // Check all valid report types (including those with hyphens like "decision-support", "major-life-phase", "year-analysis")
+            const validReportTypes = ["marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
+            if (validReportTypes.includes(typePart)) {
+              extractedReportType = typePart;
+            } else {
+              // Log warning if reportType couldn't be extracted (for debugging)
+              console.warn(`[verify-payment] Could not extract valid reportType from session ID. Extracted: "${typePart}", Session ID: ${sessionId}`);
+            }
+          }
+        } else {
+          // Log warning if underscore not found (for debugging)
+          console.warn(`[verify-payment] Could not find underscore separator in session ID: ${sessionId}`);
         }
       }
       

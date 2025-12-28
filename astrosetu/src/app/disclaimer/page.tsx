@@ -1,27 +1,27 @@
 "use client";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { Card, CardContent } from "@/components/ui/Card";
+import { AIHeader } from "@/components/ai-astrology/AIHeader";
+import { AIFooter } from "@/components/ai-astrology/AIFooter";
 
 export default function DisclaimerPage() {
   const effectiveDate = "December 26, 2024";
 
   return (
-    <div className="grid gap-5">
-      {/* Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-6 lg:p-8 mb-6 shadow-lg relative overflow-hidden">
-        <HeaderPattern />
-        <div className="relative z-10">
-          <h1 className="text-3xl lg:text-4xl font-bold mb-2">Astrology Disclaimer</h1>
-          <p className="text-white/90 text-base">
-            Effective Date: {effectiveDate}
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <AIHeader />
+      <main className="flex-1 cosmic-bg">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Astrology Disclaimer</h1>
+            <p className="text-slate-600 text-base">
+              Effective Date: {effectiveDate}
+            </p>
+          </div>
 
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="prose prose-slate max-w-none">
+          <Card className="cosmic-card">
+            <CardContent className="prose prose-slate max-w-none">
             <div className="space-y-6 text-sm text-slate-700 leading-relaxed">
               {/* Main Disclaimer */}
               <section className="bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg">
@@ -34,7 +34,7 @@ export default function DisclaimerPage() {
                   <li>Results may vary across cultures, astrologers, and systems</li>
                 </ul>
                 <p className="mt-4 text-amber-900 font-semibold">
-                  All content is provided for informational purposes only. AstroSetu does not provide personalised advice, recommendations, or guidance.
+                  All content is provided for informational purposes only. AstroSetu does not provide professional, medical, legal, or financial advice. Personalised insights are provided for informational and self-reflection purposes only.
                 </p>
               </section>
 
@@ -63,9 +63,11 @@ export default function DisclaimerPage() {
                 </p>
               </section>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+      <AIFooter />
     </div>
   );
 }

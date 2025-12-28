@@ -224,7 +224,7 @@ export default function AIAstrologyLandingPage() {
               </div>
               <div className="p-6 pt-2">
                 <div className="flex items-center justify-between mb-4">
-                  <Badge className="bg-pink-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-pink-700 shadow-md">PREMIUM</Badge>
+                  <Badge className="bg-pink-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-pink-800 shadow-lg uppercase tracking-wide">PREMIUM</Badge>
                   <span className="text-3xl">❤️</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Marriage Timing Report</h3>
@@ -258,7 +258,7 @@ export default function AIAstrologyLandingPage() {
             <div className="cosmic-card rounded-2xl border-2 border-blue-200">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <Badge className="bg-blue-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-blue-700 shadow-md">PREMIUM</Badge>
+                  <Badge className="bg-blue-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-blue-800 shadow-lg uppercase tracking-wide">PREMIUM</Badge>
                   <span className="text-3xl">💼</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Career & Money Path</h3>
@@ -329,7 +329,7 @@ export default function AIAstrologyLandingPage() {
             <div className="cosmic-card rounded-2xl border-2 border-purple-200">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <Badge className="bg-purple-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-purple-700 shadow-md">PREMIUM</Badge>
+                  <Badge className="bg-purple-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-purple-800 shadow-lg uppercase tracking-wide">PREMIUM</Badge>
                   <span className="text-3xl">📅</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Year Analysis Report</h3>
@@ -361,10 +361,10 @@ export default function AIAstrologyLandingPage() {
             <div className="cosmic-card rounded-2xl border-2 border-indigo-200">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <Badge className="bg-indigo-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-indigo-700 shadow-md">PREMIUM</Badge>
+                  <Badge className="bg-indigo-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-indigo-800 shadow-lg uppercase tracking-wide">PREMIUM</Badge>
                   <span className="text-3xl">🌟</span>
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-3">Major Life Phase Report</h3>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">3-5 Year Strategic Life Phase Report</h3>
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   3-5 year outlook with major transitions, long-term opportunities, and strategic navigation.
                 </p>
@@ -393,7 +393,7 @@ export default function AIAstrologyLandingPage() {
             <div className="cosmic-card rounded-2xl border-2 border-emerald-200">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <Badge className="bg-emerald-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-emerald-700 shadow-md">PREMIUM</Badge>
+                  <Badge className="bg-emerald-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-emerald-800 shadow-lg uppercase tracking-wide">PREMIUM</Badge>
                   <span className="text-3xl">🎯</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Decision Support Report</h3>
@@ -588,8 +588,7 @@ export default function AIAstrologyLandingPage() {
                   It provides astrological guidance based on traditional calculations, not absolute predictions or certainties.
                 </p>
                 <p>
-                  <strong>Not Professional Advice:</strong> This report should not be used as a substitute for professional medical, legal, 
-                  financial, or psychological advice. Always consult qualified professionals for important life decisions.
+                  <strong>Not Professional Advice:</strong> Personalised astrological insights for educational and self-reflection purposes only. Not professional advice. Always consult qualified professionals for important life decisions.
                 </p>
                 <p>
                   <strong>No Guarantees:</strong> Results are based on astrological calculations and AI interpretation. 

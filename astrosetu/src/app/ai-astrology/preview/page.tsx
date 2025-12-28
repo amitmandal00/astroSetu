@@ -133,7 +133,7 @@ function PreviewContent() {
       case "year-analysis":
         return "Year Analysis Report";
       case "major-life-phase":
-        return "Major Life Phase Report";
+        return "3-5 Year Strategic Life Phase Report";
       case "decision-support":
         return "Decision Support Report";
       default:

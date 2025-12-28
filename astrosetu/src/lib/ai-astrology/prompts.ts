@@ -10,13 +10,22 @@ Avoid fear language.
 Focus on guidance and timing.
 Provide clear, actionable insights.
 
+CRITICAL REPETITION RULES:
+- Reduce repetition across sections - keep content unique and non-redundant
+- Allow repetition ONLY in:
+  * Executive Summary section
+  * Final "What This Means For You" summary
+- All other sections must provide NEW information, not repeat what was already covered
+- Avoid repeating similar ideas across Summary, Breakdown, and Conclusion sections
+
 REPORT STRUCTURE RULES:
 - Begin every major section with a 1-2 line summary (key takeaway)
 - Use short bullet points (max 20 words per bullet)
 - Avoid repeating similar traits
-- End each section with "What this means for you" in plain English
+- End each section with "What this means for you" in plain English (ONLY in main sections, not subsections)
 - Prioritize clarity over completeness
 - After technical terms (like Ascendant, Nakshatra), always explain what they mean in daily life
+- Compress text by ~20% - be concise and impactful
 `;
 
 export const AI_PROMPT_TEMPLATES = {
@@ -51,72 +60,90 @@ export const AI_PROMPT_TEMPLATES = {
       Generate a "Marriage Timing Report" that provides clear timing guidance with date ranges.
       
       CRITICAL REQUIREMENTS:
-      1. YOU MUST PROVIDE DATE RANGES - Never say "cannot determine timing" or "when data becomes available"
+      1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
+         Create a prominent box titled "Decision Anchor (Read This First)" with:
+         "Based on this report, the most productive focus for you right now is: [Single clear statement about what to prioritize for marriage readiness/timing]"
+         This does NOT make predictions - it gives users closure and direction.
+         Example: "Based on this report, the most productive focus for you right now is: Building emotional clarity and readiness, as your strongest marriage windows open in late 2026-2027."
+      
+      2. YOU MUST PROVIDE DATE RANGES - Never say "cannot determine timing" or "when data becomes available"
          - Provide primary window (e.g., "Late 2026 – Early 2027")
          - Provide secondary window (e.g., "Mid 2028 – Early 2029")
          - Always add: "These are favorable periods, not guarantees"
       
-      2. PERSONALIZE EVERYTHING - Use the user's birth details throughout:
+      3. PERSONALIZE EVERYTHING - Use the user's birth details throughout:
          - Instead of "As a Sagittarius ascendant, you may..."
          - Use "For you, as a ${planetaryData.ascendant || 'your ascendant'} ascendant born on ${birthDetails.dob || 'your birth date'}..."
          - Always reference their name (${birthDetails.name}), birth date (${birthDetails.dob}), and specific planetary positions
          - Make every section feel personal, not generic
       
-      3. STRUCTURE REQUIREMENTS:
-         a) Start with "Marriage Timing Summary" section with real insights:
+      4. CONFIDENCE LEVEL (add early, after Decision Anchor):
+         Include: "Confidence Level: [X]/10 (Strong for strategic planning, weaker for exact dates)"
+         Where X is 6-8. Always add the strategic context in parentheses.
+         This prevents disputes before they happen.
+      
+      5. STRUCTURE REQUIREMENTS:
+         a) DATA SOURCE LABEL (at the very beginning):
+            "Based on: Ascendant + Moon Sign + Transit Sequencing + Dasha Analysis (refined timing analysis)"
+         
+         b) DECISION ANCHOR BOX (immediately after data source - see requirement #1)
+         
+         c) CONFIDENCE LEVEL (after Decision Anchor - see requirement #4)
+         
+         d) "Marriage Timing Summary" section with real insights:
             • Marriage is more favorable after [specific period/condition]
             • Stronger windows open [date range]
             • Delays are more about [explanation] than denial
             • Preparation and clarity now improve outcomes later
          
-         b) "Marriage Timing - Key Insight" section: 1-2 line summary (e.g., "Your strongest marriage window opens after a period of emotional stabilization, with favorable alignment in late 2026–2027.")
+         e) "Marriage Timing - Key Insight" section: 1-2 line summary (e.g., "Your strongest marriage window opens after a period of emotional stabilization, with favorable alignment in late 2026–2027.")
          
-         c) "Ideal Marriage Windows" section:
+         f) "Ideal Marriage Windows" section:
             - Primary window: [date range]
             - Secondary window: [date range]
+            - TIMELINE VISUALIZATION (mandatory): Include ASCII-style visual timeline:
+              "Timeline: 2024 ──── 2025 ──── 2026 ⭐ ──── 2027 ⭐ ──── 2028"
+              (Where ⭐ marks the primary/secondary windows)
             - Explanation of why these periods are favorable
          
-         d) "Potential Delay Factors" section:
+         g) "If You're Already in a Relationship" section (NEW - MANDATORY):
+            Add a note explaining how this report applies if the user is already in a relationship:
+            - If in relationship: These windows indicate favorable periods for commitment, engagement, or marriage
+            - If single: These windows indicate favorable periods for meeting potential partners
+            - This prevents confusion and expands audience
+         
+         h) "Potential Delay Factors" section:
             - Plain English explanations
             - Not about denial, but timing alignment
          
-         e) "What You Should Focus on Now" section (Decision Guidance):
+         i) "Compatibility Indicators" section
+         
+         j) "Non-Religious Remedies" section (SHORTENED):
+            - MAXIMUM 3 actionable remedies/actions
+            - Keep it non-religious and practical
+            - Focus only on the most impactful actions
+         
+         k) "What You Should Focus on Now" section (Decision Guidance):
             - Prioritize [action]
             - Strengthen [aspect]
             - Avoid [behavior]
             - Practical, actionable guidance
          
-         f) "Compatibility Indicators" section
+         l) TIMING HIERARCHY EXPLANATION (add after Ideal Marriage Windows section):
+            Include a box/note:
+            "Why this timing may differ from other reports:
+             Earlier life summaries provide broad possibilities based on major planetary periods. This report uses refined 
+             transit sequencing and readiness indicators, resulting in more precise but potentially later windows. 
+             Both perspectives are valid—this report focuses on optimal alignment timing."
          
-         g) "Non-Religious Remedies" section
-         
-         h) End with "What This Means For You" summary
+         m) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
       
-      4. LANGUAGE RULES:
+      6. LANGUAGE RULES:
          - Keep bullets to 12-15 words max
          - Reduce astrology theory, increase actionable conclusions
          - Use calm, non-absolute language
          - After technical terms, add "What this means in daily life"
-      
-      5. DATA SOURCE LABEL (add at the very beginning):
-         "Based on: Ascendant + Moon Sign + Transit Sequencing + Dasha Analysis (refined timing analysis)"
-      
-      6. TIMING HIERARCHY EXPLANATION (add after Ideal Marriage Windows section):
-         Include a box/note:
-         "Why this timing may differ from other reports:
-          Earlier life summaries provide broad possibilities based on major planetary periods. This report uses refined 
-          transit sequencing and readiness indicators, resulting in more precise but potentially later windows. 
-          Both perspectives are valid—this report focuses on optimal alignment timing."
-      
-      7. TIMELINE VISUALIZATION (add in Ideal Marriage Windows section):
-         Include a simple text timeline after date ranges:
-         "Timeline: 2024 ──── 2025 ──── 2026 ⭐ ──── 2027 ⭐ ──── 2028"
-         (Where ⭐ marks the primary/secondary windows)
-      
-      8. TIMING STRENGTH INDICATOR:
-         Include a line like: "Timing Strength: [Moderate to Strong/Strong/Moderate] (Confidence Level: [X]/10)"
-         Phrase as guidance strength, not certainty.
-         Add per-section confidence: "Confidence: ★★★★★ (High - 7-8/10)" or similar
+         - Compress text - avoid repetition except in Executive Summary and final "What This Means For You"
       `,
 
     careerMoney: (birthDetails: any, planetaryData: any) => `
@@ -130,7 +157,13 @@ export const AI_PROMPT_TEMPLATES = {
       Generate a "Career & Money Path Report" that provides clear timing guidance and actionable direction.
       
       CRITICAL REQUIREMENTS:
-      1. AVOID PERSONALITY STEREOTYPES - Focus on career phases and timing, not personality traits
+      1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
+         Create a prominent box titled "Decision Anchor (Read This First)" with:
+         "Based on this report, the most productive focus for you right now is: [Single clear statement about career/money focus]"
+         This does NOT make predictions - it gives users closure and direction.
+         Example: "Based on this report, the most productive focus for you right now is: Building skills in [specific area] over the next 12-18 months, as major career momentum windows open in 2026-2027."
+      
+      2. AVOID PERSONALITY STEREOTYPES - Focus on career phases and timing, not personality traits
          - Instead of "Sagittarius people are adventurous..."
          - Use "During your mid-career phase, roles that allow autonomy and learning tend to be more financially rewarding for you"
          - Shift from identity → timing and application
@@ -194,19 +227,17 @@ export const AI_PROMPT_TEMPLATES = {
             • Not ideal for [specific action] - concrete guidance
             - Practical, actionable guidance
          
-         h) End with "What This Means For You" summary
+         i) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
       
-      6. LANGUAGE RULES:
+      8. LANGUAGE RULES:
          - Keep bullets to 12-15 words max
          - Reduce astrology theory, increase actionable conclusions
          - Focus on phases, timing, and patterns - not personality traits
          - Use calm, non-absolute language
          - After technical terms, add "What this means in daily life"
+         - Compress text - avoid repetition except in Executive Summary and final "What This Means For You"
       
-      7. DATA SOURCE LABEL (add at the very beginning):
-         "Based on: Ascendant + Career Houses + Dasha + Transit Analysis (medium precision timing)"
-      
-      8. CONFIDENCE INDICATORS (add per section):
+      9. CONFIDENCE INDICATORS (add per section):
          Include indicators like:
          "Career Direction Clarity: Moderate to Strong (Confidence: ★★★★☆ - 6-7/10)"
          "Money Growth Stability: Steady (Confidence: ★★★☆☆ - 5-6/10)"
@@ -270,10 +301,22 @@ export const AI_PROMPT_TEMPLATES = {
       Generate a comprehensive "Full Life Report" that combines personality, marriage timing, career, and finances.
       
       CRITICAL STRUCTURE REQUIREMENTS:
-      1. DATA SOURCE LABEL (add at the very beginning):
+      1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
+         Create a prominent box titled "Decision Anchor (Read This First)" with:
+         "Based on this report, the most productive focus for you right now is: [Single clear statement about overall life focus]"
+         This does NOT make predictions - it gives users closure and direction.
+         Example: "Based on this report, the most productive focus for you right now is: Strengthening career foundations while preparing for relationship opportunities in the 2025-2027 timeframe."
+      
+      2. DATA SOURCE LABEL (add at the very beginning):
          "Based on: Ascendant + Moon Sign + Dasha overview (high-level analysis)"
       
-      2. TIMING HIERARCHY DISCLAIMER (add after Executive Summary):
+      3. DECISION ANCHOR BOX (immediately after data source - see requirement #1)
+      
+      4. CONFIDENCE LEVEL (add early, after Decision Anchor):
+         Include: "Confidence Level: [X]/10 (Strong for strategic planning, weaker for exact dates)"
+         Where X is 5-6 (high-level overview). Always add the strategic context in parentheses.
+      
+      5. TIMING HIERARCHY DISCLAIMER (add after Executive Summary):
          "Note: This report provides a high-level overview. Timing-specific insights are refined in dedicated reports. 
           For precise marriage timing windows, see the Marriage Timing Report. For detailed career phases, see the Career & Money Report."
       
@@ -332,27 +375,51 @@ export const AI_PROMPT_TEMPLATES = {
       Generate a "Year Analysis Report" for ${targetYear} that provides strategic 12-month guidance with quarterly breakdowns.
       
       CRITICAL REQUIREMENTS:
-      1. THIS IS STRATEGIC GUIDANCE, NOT PREDICTIONS:
+      1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
+         Create a prominent box titled "Decision Anchor (Read This First)" with:
+         "Based on this report, the most productive focus for you right now is: [Single clear statement about strategic focus for ${targetYear}]"
+         This does NOT make predictions - it gives users closure and direction.
+         Example: "Based on this report, the most productive focus for you right now is: Building career momentum in Q2-Q3 while strengthening relationships in Q4."
+      
+      2. THIS IS STRATEGIC GUIDANCE, NOT PREDICTIONS:
          - Focus on themes, tendencies, and strategic guidance
          - NO specific dates or event predictions
          - NO guarantees or certainties
          - Use language: "favors", "best used for", "tends to", "more favorable for"
          - NEVER say: "will happen", "don't do", "must avoid", "will fail"
       
-      2. PERSONALIZE EVERYTHING:
+      3. PERSONALIZE EVERYTHING:
          - Reference ${birthDetails.name}, birth date ${birthDetails.dob}
          - Use specific planetary positions from the data
          - Make every section feel personal, not generic
       
-      3. MANDATORY STRUCTURE (follow exactly):
+      4. MANDATORY STRUCTURE (follow exactly):
          
-         a) YEAR THEME (first section):
+         a) DATA SOURCE LABEL (at the very beginning):
+            "Based on: Ascendant + Moon Sign + Dasha + Transit Analysis for ${targetYear} (strategic year guidance)"
+         
+         b) DECISION ANCHOR BOX (immediately after data source - see requirement #1)
+         
+         c) YEAR STRATEGY BLOCK (NEW - add immediately after Decision Anchor, before detailed breakdown):
+            Title: "Year Strategy"
+            Include EXACTLY 3 bullets only:
+            • What to push: [Specific area/action to focus energy on]
+            • What to avoid: [Specific area/action to minimize]
+            • What to prepare for: [Specific area/opportunity coming later in year]
+            Keep each bullet to 12-15 words max. This sets strategic direction early.
+         
+         d) CONFIDENCE LEVEL (add right after Year Strategy, BEFORE detailed breakdown):
+            Include: "Confidence Level: [X]/10 (Strong for strategic planning, weaker for exact dates)"
+            Where X is between 6-9 (never 10, never below 6 for strategic guidance).
+            Always add the strategic context in parentheses. Move this HIGHER than before.
+         
+         e) YEAR THEME:
             Title: "Year Theme"
             Content: One clear sentence describing the overall theme of ${targetYear}
             Example: "${targetYear} is a year of consolidation and relationship alignment for you."
             This should be the main strategic theme, not detailed predictions.
          
-         b) YEAR-AT-A-GLANCE SUMMARY (MANDATORY - one screen only):
+         f) YEAR-AT-A-GLANCE SUMMARY (MANDATORY - one screen only):
             Title: "Year-at-a-Glance Summary"
             Include:
             • Overall theme of the year (1 line)
@@ -362,7 +429,7 @@ export const AI_PROMPT_TEMPLATES = {
             • Where to invest energy (1 line)
             Format as clear bullet points, max 15 words each.
          
-         c) QUARTER-BY-QUARTER BREAKDOWN (MANDATORY - users LOVE quarters):
+         g) QUARTER-BY-QUARTER BREAKDOWN (MANDATORY - users LOVE quarters):
             Title: "Quarter-by-Quarter Breakdown"
             For EACH quarter (Q1, Q2, Q3, Q4), include:
             - Quarter name: "Q1: [Jan-Mar]", "Q2: [Apr-Jun]", "Q3: [Jul-Sep]", "Q4: [Oct-Dec]"
@@ -372,7 +439,7 @@ export const AI_PROMPT_TEMPLATES = {
             - Energy level: "low", "moderate", or "high"
             Format as clear subsections for each quarter.
          
-         d) BEST PERIODS (MANDATORY):
+         h) BEST PERIODS (MANDATORY):
             Title: "Best Periods"
             Include three subsections:
             - Best months for action: List months (e.g., "March, July, November")
@@ -381,25 +448,26 @@ export const AI_PROMPT_TEMPLATES = {
             For each, provide brief description (1 line) of why these periods are favorable.
             Use strategic language, not predictions.
          
-         e) CAUTION PERIODS (MANDATORY - increases trust):
-            Title: "Caution Periods"
+         i) LOW-RETURN PERIODS (RENAMED - was "Caution Periods"):
+            Title: "Low-Return Periods" (NOT "Caution Periods" - sounds less negative, more strategic)
             Include:
             - Emotional volatility periods: Months and brief description
             - Financial risk periods: Months and brief description  
             - Decision fatigue periods: Months and brief description
-            Frame as "more challenging for" not "avoid" or "will fail".
+            Frame as "more challenging for" and "lower return on investment" - NOT "avoid" or "will fail".
+            Use strategic, less fear-based language.
          
-         f) FOCUS AREAS BY MONTH (optional but valuable):
+         j) FOCUS AREAS BY MONTH (optional but valuable):
             Title: "Focus Areas by Month"
             Create a simple table/list format:
             Month | Focus
             Jan   | Planning
             Mar   | Action
-            Jul   | Avoid risks
+            Jul   | Lower activity
             Nov   | Consolidate
             Keep to 2-4 words per month focus.
          
-         g) YEAR SCORECARD (visual indicator):
+         k) YEAR SCORECARD (visual indicator):
             Title: "Year Scorecard"
             Rate on 1-5 star scale (use ★ symbols):
             • Career: ★★★★☆ (4/5) - Brief explanation
@@ -407,7 +475,7 @@ export const AI_PROMPT_TEMPLATES = {
             • Money: ★★★★☆ (4/5) - Brief explanation
             Frame as "favorability" not "guaranteed success".
          
-         h) WHAT TO DO THIS YEAR (actionable guidance):
+         l) WHAT TO DO THIS YEAR (actionable guidance):
             Title: "What to Do This Year"
             Clear bullet actions:
             • Strengthen [specific area]
@@ -417,28 +485,23 @@ export const AI_PROMPT_TEMPLATES = {
             • Avoid over-emphasizing [specific areas]
             Use "favors" and "best used for" language, NOT "must do" or "don't do".
          
-         i) CONFIDENCE LEVEL (mandatory):
-            Include: "Confidence Level: [X]/10"
-            Where X is between 6-9 (never 10, never below 6 for strategic guidance).
-            Add note: "This is guidance strength, not certainty."
-         
-         j) YEAR-END OUTLOOK (closing section):
+         m) YEAR-END OUTLOOK (closing section):
             Title: "Year-End Outlook"
             Include:
             • What improves by year-end (1-2 lines)
             • What carries forward into next year (1-2 lines)
             Frame as themes and tendencies, not predictions.
+         
+         n) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
       
-      4. LANGUAGE RULES:
+      5. LANGUAGE RULES:
          - Keep bullets to 12-15 words max
          - Use calm, strategic language
          - NO fear-based language
          - NO absolute statements
          - Focus on guidance and themes
          - After technical terms, explain what they mean in daily life
-      
-      5. DATA SOURCE LABEL (add at very beginning):
-         "Based on: Ascendant + Moon Sign + Dasha + Transit Analysis for ${targetYear} (strategic year guidance)"
+         - Compress text - avoid repetition except in Executive Summary and final "What This Means For You"
       
       6. DISCLAIMER (include at end):
          "This report provides strategic guidance for ${targetYear} based on astrological patterns. 
@@ -454,30 +517,57 @@ export const AI_PROMPT_TEMPLATES = {
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
 
       OUTPUT:
-      Generate a "Major Life Phase Report" that provides a 3-5 year outlook with major transitions and opportunities.
+      Generate a "3-5 Year Strategic Life Phase Report" (RENAMED - sounds higher value, less mystical, more executive) that provides a 3-5 year outlook with major transitions and opportunities.
       
       CRITICAL REQUIREMENTS:
-      1. THIS IS STRATEGIC GUIDANCE FOR 3-5 YEARS:
+      1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
+         Create a prominent box titled "Decision Anchor (Read This First)" with:
+         "Based on this report, the most productive focus for you right now is: [Single clear statement about strategic focus for the next 3-5 years]"
+         This does NOT make predictions - it gives users closure and direction.
+         Example: "Based on this report, the most productive focus for you right now is: Building career foundation in Years 1-2, then leveraging relationship opportunities in Years 3-4."
+      
+      2. THIS IS STRATEGIC GUIDANCE FOR 3-5 YEARS:
          - Focus on major life themes, transitions, and opportunities
          - NO specific dates or event predictions
          - NO guarantees or certainties
          - Use language: "tends to favor", "periods of", "likely phases", "opportunities may arise"
          - NEVER say: "will happen", "must do", "will fail"
       
-      2. PERSONALIZE EVERYTHING:
+      3. PERSONALIZE EVERYTHING:
          - Reference ${birthDetails.name}, birth date ${birthDetails.dob}
          - Use specific planetary positions and Dasha periods from the data
          - Make every section feel personal and relevant
       
-      3. MANDATORY STRUCTURE (follow exactly):
+      4. CONFIDENCE LEVEL (add early, after Decision Anchor):
+         Include: "Confidence Level: [X]/10 (Strong for strategic planning, weaker for exact dates)"
+         Where X is 6-8 (for 3-5 year outlook). Always add the strategic context in parentheses.
+         Add note: "This reflects guidance strength for longer-term patterns, not certainty."
+      
+      5. MANDATORY STRUCTURE (follow exactly):
          
-         a) PHASE THEME (first section):
-            Title: "3-5 Year Life Phase Theme"
+         a) DATA SOURCE LABEL (at the very beginning):
+            "Based on: Ascendant + Moon Sign + Dasha Analysis + Long-term Transit Patterns (3-5 year strategic guidance)"
+         
+         b) DECISION ANCHOR BOX (immediately after data source - see requirement #1)
+         
+         c) CONFIDENCE LEVEL (after Decision Anchor - see requirement #4)
+         
+         d) WHO THIS REPORT IS BEST FOR (NEW - MANDATORY):
+            Title: "Who This Report Is Best For"
+            Include 1 paragraph explaining:
+            - Who would benefit most from this report
+            - When this report is most useful (life situations, planning needs)
+            - What users can expect to gain
+            This filters wrong buyers and increases satisfaction.
+            Example: "This report is ideal for those making major life decisions, planning career transitions, or seeking clarity on long-term opportunities. It's most valuable when you're ready to think strategically about the next 3-5 years rather than immediate actions. If you're looking for day-to-day guidance or precise timing, other reports may be more suitable."
+         
+         e) PHASE THEME:
+            Title: "3-5 Year Strategic Life Phase Theme"
             Content: One clear sentence describing the overall theme of the next 3-5 years
             Example: "The next 3-5 years represent a phase of transformation and career advancement for you."
             Include the timeframe: "2024-2028" (or current year + 3 to current year + 5)
          
-         b) EXECUTIVE SUMMARY (MANDATORY):
+         f) EXECUTIVE SUMMARY (MANDATORY):
             Title: "Phase-at-a-Glance Summary"
             Include:
             • Overall phase theme (1 line)
@@ -487,16 +577,15 @@ export const AI_PROMPT_TEMPLATES = {
             • Strategic approach (1 line)
             Format as clear bullet points, max 20 words each.
          
-         c) YEAR-BY-YEAR BREAKDOWN (MANDATORY):
+         g) YEAR-BY-YEAR BREAKDOWN (MANDATORY - REDUCED TEXT):
             Title: "Year-by-Year Breakdown"
             For EACH year (Year 1, Year 2, Year 3, Year 4, Year 5):
             - Year label: "Year 1 (2024)", "Year 2 (2025)", etc.
             - Theme: One line describing the year's theme
-            - Focus areas: 2-3 key areas to focus on
-            - Major influences: Planetary influences and their impact
-            Format as clear subsections for each year.
+            - Focus areas: MAXIMUM 3 bullets per year (not paragraphs) - avoid fatigue
+            Format as clear, concise subsections. Keep each year to essentials only.
          
-         d) MAJOR TRANSITIONS (MANDATORY):
+         h) MAJOR TRANSITIONS (MANDATORY):
             Title: "Major Transitions Ahead"
             Identify 3-5 major transitions in:
             - Career (job changes, promotions, career shifts)
@@ -512,7 +601,7 @@ export const AI_PROMPT_TEMPLATES = {
             - Preparation steps (2-3 actionable items)
             Frame as "phases when" not "will happen".
          
-         e) LONG-TERM OPPORTUNITIES (MANDATORY):
+         i) LONG-TERM OPPORTUNITIES (MANDATORY):
             Title: "Long-Term Opportunities"
             Identify 4-6 major opportunities across:
             - Career growth
@@ -528,7 +617,7 @@ export const AI_PROMPT_TEMPLATES = {
             - Action items (2-3 specific steps to maximize this opportunity)
             Frame as "windows when" and "periods that favor".
          
-         f) STRATEGIC GUIDANCE (MANDATORY):
+         j) STRATEGIC GUIDANCE (MANDATORY):
             Title: "How to Navigate This Phase"
             Provide:
             • Overall strategy (2-3 lines)
@@ -538,23 +627,19 @@ export const AI_PROMPT_TEMPLATES = {
             • What to avoid over-emphasizing (2-3 warnings)
             Use "tends to favor" and "may be best for" language.
          
-         g) CONFIDENCE LEVEL (mandatory):
-            Include: "Confidence Level: [X]/10"
-            Where X is between 6-8 (for 3-5 year outlook, slightly lower than annual).
-            Add note: "This reflects guidance strength for longer-term patterns, not certainty."
+         k) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
       
-      4. LANGUAGE RULES:
+      6. LANGUAGE RULES:
          - Keep bullets to 15-20 words max
          - Use calm, strategic language
          - NO fear-based language
          - NO absolute statements
          - Focus on themes, patterns, and tendencies
          - After technical terms, explain what they mean in daily life
+         - Compress text - avoid repetition except in Executive Summary and final "What This Means For You"
+         - Reduce year-by-year text - max 3 bullets per year to avoid fatigue
       
-      5. DATA SOURCE LABEL (add at very beginning):
-         "Based on: Ascendant + Moon Sign + Dasha Analysis + Long-term Transit Patterns (3-5 year strategic guidance)"
-      
-      6. DISCLAIMER (include at end):
+      7. DISCLAIMER (include at end):
          "This report provides strategic guidance for the next 3-5 years based on astrological patterns. 
          These are long-term themes and tendencies, not specific predictions. Life circumstances and personal choices 
          significantly influence outcomes. Use this guidance to plan strategically and prepare for opportunities, 
@@ -573,7 +658,13 @@ export const AI_PROMPT_TEMPLATES = {
       Generate a "Decision Support Report" that provides astrological guidance for making major life decisions.
       
       CRITICAL REQUIREMENTS:
-      1. THIS IS DECISION GUIDANCE, NOT PREDICTIONS:
+      1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
+         Create a prominent box titled "Decision Anchor (Read This First)" with:
+         "Based on this report, the most productive focus for you right now is: [Single clear statement about decision-making focus]"
+         This does NOT make predictions - it gives users closure and direction.
+         Example: "Based on this report, the most productive focus for you right now is: Gathering information and preparing for decisions in [specific area], with best timing for action in [timeframe]."
+      
+      2. THIS IS DECISION GUIDANCE, NOT PREDICTIONS:
          - Focus on timing, alignment, and considerations
          - NO guarantees about outcomes
          - NO absolute "yes" or "no" answers
@@ -658,18 +749,16 @@ export const AI_PROMPT_TEMPLATES = {
             Where X is between 6-8 (decision support requires multiple factors).
             Add note: "This reflects the strength of astrological guidance. Always combine with practical considerations."
       
-      4. LANGUAGE RULES:
+      6. LANGUAGE RULES:
          - Keep bullets to 15-20 words max
          - Use supportive, non-directive language
          - NO fear-based language
          - NO absolute statements
          - Focus on considerations and timing
          - Empower the user to make informed decisions
+         - Compress text - avoid repetition except in Executive Summary and final "What This Means For You"
       
-      5. DATA SOURCE LABEL (add at very beginning):
-         "Based on: Ascendant + Moon Sign + Dasha Analysis + Current Planetary Influences (decision support guidance)"
-      
-      6. DISCLAIMER (include at end):
+      7. DISCLAIMER (include at end):
          "This report provides astrological guidance to support your decision-making process. It offers insights into timing, 
          alignment, and considerations based on your birth chart. However, decisions should always combine astrological 
          guidance with practical considerations, personal values, and professional advice when appropriate. This report is 

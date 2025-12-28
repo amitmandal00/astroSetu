@@ -1,28 +1,35 @@
 "use client";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { Card, CardContent } from "@/components/ui/Card";
+import { AIHeader } from "@/components/ai-astrology/AIHeader";
+import { AIFooter } from "@/components/ai-astrology/AIFooter";
 
 export default function RefundPage() {
   const effectiveDate = "December 26, 2024";
 
   return (
-    <div className="grid gap-5">
-      {/* Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-6 lg:p-8 mb-6 shadow-lg relative overflow-hidden">
-        <HeaderPattern />
-        <div className="relative z-10">
-          <h1 className="text-3xl lg:text-4xl font-bold mb-2">Refund & Cancellation Policy</h1>
-          <p className="text-white/90 text-base">
-            Effective Date: {effectiveDate}
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <AIHeader />
+      <main className="flex-1 cosmic-bg">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Refund & Cancellation Policy</h1>
+            <p className="text-slate-600 text-base">
+              Effective Date: {effectiveDate}
+            </p>
+          </div>
 
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="prose prose-slate max-w-none">
+          <Card className="cosmic-card">
+            <CardContent className="prose prose-slate max-w-none">
             <div className="space-y-6 text-sm text-slate-700 leading-relaxed">
+              {/* Digital Goods Notice */}
+              <section className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mb-6">
+                <p className="text-amber-900 font-semibold">
+                  Because reports are generated instantly and are digital goods, refunds are limited once delivery occurs, except where required under Australian Consumer Law.
+                </p>
+              </section>
+
               {/* Australian Consumer Law */}
               <section className="bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-r-lg">
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Australian Consumer Law Rights</h2>
@@ -121,9 +128,11 @@ export default function RefundPage() {
                 </p>
               </section>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+      <AIFooter />
     </div>
   );
 }

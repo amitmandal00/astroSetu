@@ -135,6 +135,12 @@ function PaymentSuccessContent() {
         return "Career & Money Report";
       case "full-life":
         return "Full Life Report";
+      case "year-analysis":
+        return "Year Analysis Report";
+      case "major-life-phase":
+        return "3-5 Year Strategic Life Phase Report";
+      case "decision-support":
+        return "Decision Support Report";
       default:
         return "Report";
     }

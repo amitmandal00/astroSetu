@@ -152,6 +152,38 @@ const FAQ_ITEMS = [
       </>
     ),
   },
+  {
+    question: "How should I use this report best?",
+    answer: (
+      <>
+        Use your report as a <strong>reflection and planning tool</strong> — not as absolute truth. Here&apos;s how to get the most value:
+        <ul className="list-disc list-inside mt-2 space-y-1 ml-4">
+          <li><strong>For Self-Reflection:</strong> Use insights to understand your personality patterns and tendencies</li>
+          <li><strong>For Planning:</strong> Consider favorable periods when making important decisions, but don&apos;t rely solely on astrology</li>
+          <li><strong>For Growth:</strong> Use guidance to identify areas for personal development and improvement</li>
+          <li><strong>For Perspective:</strong> View astrological insights as one lens among many (alongside logic, intuition, and professional advice)</li>
+        </ul>
+        Remember: Astrology provides guidance and insights for educational and self-reflection purposes only. Not professional advice.
+      </>
+    ),
+  },
+  {
+    question: "Why are prices so low?",
+    answer: (
+      <>
+        Our prices are low because the platform is <strong>fully automated</strong>, and we pass the cost savings to users. 
+        Traditional astrology consultations can cost hundreds of dollars because they require human astrologers to spend hours analyzing charts. 
+        Our AI system can generate detailed, personalized reports instantly, which means:
+        <ul className="list-disc list-inside mt-2 space-y-1 ml-4">
+          <li><strong>No Human Labor Costs:</strong> AI handles all calculations and interpretations</li>
+          <li><strong>Instant Delivery:</strong> Reports are generated in seconds, not days</li>
+          <li><strong>Scalable Technology:</strong> We can serve many users simultaneously without additional costs</li>
+          <li><strong>Efficiency:</strong> Automation allows us to offer quality reports at affordable prices</li>
+        </ul>
+        Lower prices don&apos;t mean lower quality — they reflect efficiency and automation. We believe quality astrological insights should be accessible to everyone.
+      </>
+    ),
+  },
 ];
 
 export default function AIAstrologyFAQPage() {
@@ -209,7 +241,7 @@ export default function AIAstrologyFAQPage() {
               <h3 className="font-bold text-slate-800 text-center mb-3">⚠️ Important Disclaimer</h3>
               <div className="text-sm text-slate-700 space-y-2">
                 <p>
-                  <strong>Educational Guidance Only:</strong> All reports are for educational and entertainment purposes only. 
+                  <strong>Educational Guidance Only:</strong> Personalised astrological insights for educational and self-reflection purposes only. Not professional advice. 
                   They should not be used as a substitute for professional medical, legal, financial, or psychological advice.
                 </p>
                 <p>

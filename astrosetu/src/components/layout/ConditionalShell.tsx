@@ -12,11 +12,12 @@ import { Shell } from "./Shell";
 export function ConditionalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   
-  // Check if current route is in AI astrology section
+  // Check if current route is in AI astrology section or uses AI section header/footer
   const isAIAstrologyRoute = pathname?.startsWith("/ai-astrology");
+  const isAISectionPage = pathname === "/privacy" || pathname === "/terms" || pathname === "/disclaimer" || pathname === "/refund";
   
-  // Don't wrap AI astrology routes with Shell (they have their own layout)
-  if (isAIAstrologyRoute) {
+  // Don't wrap AI astrology routes or AI section pages with Shell (they have their own header/footer)
+  if (isAIAstrologyRoute || isAISectionPage) {
     return <>{children}</>;
   }
   

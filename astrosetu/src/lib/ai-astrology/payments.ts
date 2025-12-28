@@ -41,7 +41,7 @@ export const REPORT_PRICES: Record<ReportPrice["reportType"], ReportPrice> = {
     reportType: "major-life-phase",
     amount: 1, // AU$0.01 (includes GST) - Testing price (production: 2900-3900 = AU$29-39)
     currency: "aud",
-    description: "Major Life Phase Report - 3-5 year outlook with major transitions and opportunities",
+    description: "3-5 Year Strategic Life Phase Report - Strategic outlook with major transitions and opportunities",
   },
   "decision-support": {
     reportType: "decision-support",
