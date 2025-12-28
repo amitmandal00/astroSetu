@@ -337,17 +337,15 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
 
       if (!response.ok) {
         const errorText = await response.text();
-        let errorMessage = `Prokerala API error: ${errorText}`;
         let errorJson: any = null;
         
         try {
           errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorJson.error || errorMessage;
         } catch {
-          // Keep original error message
+          // Keep errorJson as null
         }
         
-        // Check for credit balance errors (403)
+        // Check for credit balance errors (403) FIRST - before constructing error message
         const isCreditError = response.status === 403 && (
           errorText.includes("insufficient credit") ||
           errorText.includes("credit balance") ||
@@ -359,8 +357,22 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
           ))
         );
         
+        // For credit errors, handle silently without verbose logging
+        if (isCreditError) {
+          const endpointName = isKundliEndpoint ? "KUNDLI" : isPanchangEndpoint ? "PANCHANG" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : isMuhuratEndpoint ? "MUHURAT" : isChoghadiyaEndpoint ? "CHOGHADIYA" : "PROKERALA";
+          // Log a simple, clean warning without any debug info
+          console.warn(`[AstroSetu] ${endpointName} API credit exhausted - will use fallback data`);
+          // Throw a clean error message without debug info
+          throw new Error("PROKERALA_CREDIT_EXHAUSTED");
+        }
+        
+        // For non-credit errors, construct error message
+        let errorMessage = `Prokerala API error: ${errorText}`;
+        if (errorJson) {
+          errorMessage = errorJson.message || errorJson.error || errorMessage;
+        }
+        
         // Suppress verbose debug logs for expected 404s (endpoints that may not exist in Prokerala)
-        // Also suppress verbose logs for credit errors (they're expected and handled gracefully)
         if (mustUseGet && !response.ok) {
           const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : isMuhuratEndpoint ? "MUHURAT" : isChoghadiyaEndpoint ? "CHOGHADIYA" : "UNKNOWN";
           
@@ -368,21 +380,12 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
           if (response.status === 404 && (isMuhuratEndpoint || isHoroscopeEndpoint)) {
             // These endpoints are not available in Prokerala - fallback will handle it silently
             // Don't log verbose debug info for expected 404s
-          } else if (isCreditError) {
-            // For credit errors, log a simple warning without verbose debug info
-            console.warn(`[AstroSetu] ${endpointName} API credit exhausted - will use fallback data`);
-            // Create a clean error message for credit errors
-            errorMessage = "PROKERALA_CREDIT_EXHAUSTED";
           } else {
             // For other errors, include debug info
             const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
             errorMessage = debugInfo + " | " + errorMessage;
             console.error(`[AstroSetu] ${endpointName} ERROR WITH DEBUG:`, debugInfo, "Error:", errorMessage);
           }
-        } else if (isCreditError) {
-          // Handle credit errors for non-GET requests too
-          console.warn(`[AstroSetu] Prokerala API credit exhausted - will use fallback data`);
-          errorMessage = "PROKERALA_CREDIT_EXHAUSTED";
         }
         
         throw new Error(errorMessage);
@@ -408,12 +411,13 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
     } catch (error: any) {
       lastError = error;
       
-      // Don't retry on authentication errors or client errors (4xx)
+      // Don't retry on authentication errors, client errors (4xx), or credit errors
       if (error.message?.includes('authentication') || 
           error.message?.includes('401') || 
           error.message?.includes('403') ||
           error.message?.includes('400') ||
-          error.message?.includes('405')) {
+          error.message?.includes('405') ||
+          error.message?.includes('PROKERALA_CREDIT_EXHAUSTED')) {
         throw error;
       }
       
