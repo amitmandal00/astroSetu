@@ -1,223 +1,115 @@
-/**
- * Service Worker for AstroSetu
- * Handles push notifications and offline functionality
- */
+// Service Worker for AI Astrology PWA
+// Version 1.0.0
 
-const CACHE_NAME = 'astrosetu-v1';
-const STATIC_CACHE_URLS = [
+const CACHE_NAME = 'astrosetu-ai-astrology-v1';
+const OFFLINE_URL = '/offline.html';
+
+// Assets to cache on install
+const STATIC_ASSETS = [
   '/',
-  '/kundli',
-  '/match',
-  '/horoscope',
+  '/ai-astrology',
+  '/ai-astrology/input',
+  '/manifest.json',
+  '/offline.html',
+  // Add other critical pages
 ];
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
+  console.log('[Service Worker] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Caching static assets');
-        return cache.addAll(STATIC_CACHE_URLS);
+        console.log('[Service Worker] Caching static assets');
+        return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
+        console.log('[Service Worker] Installation complete');
         return self.skipWaiting(); // Activate immediately
       })
       .catch((error) => {
-        console.error('[SW] Cache installation failed:', error);
+        console.error('[Service Worker] Installation failed:', error);
       })
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
+  console.log('[Service Worker] Activating...');
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((cacheName) => cacheName !== CACHE_NAME)
-            .map((cacheName) => {
-              console.log('[SW] Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            })
-        );
-      })
-      .then(() => {
-        return self.clients.claim(); // Take control of all pages
-      })
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((cacheName) => cacheName !== CACHE_NAME)
+          .map((cacheName) => {
+            console.log('[Service Worker] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          })
+      );
+    })
+    .then(() => {
+      console.log('[Service Worker] Activation complete');
+      return self.clients.claim(); // Take control of all pages
+    })
   );
 });
 
-// Fetch event - serve from cache when offline
+// Fetch event - network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
-  if (event.request.method !== 'GET') {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Skip cross-origin requests
+  if (url.origin !== location.origin) {
+    return;
+  }
+
+  // Skip API requests (they should always go to network)
+  if (url.pathname.startsWith('/api/')) {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        // Return cached version if available
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+    fetch(request)
+      .then((response) => {
+        // Clone the response
+        const responseToCache = response.clone();
 
-        // Fetch from network
-        return fetch(event.request)
-          .then((response) => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone the response
-            const responseToCache = response.clone();
-
-            // Cache the fetched resource
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // Return offline page if available
-            return caches.match('/offline');
+        // Cache successful responses
+        if (response.status === 200) {
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
           });
+        }
+
+        return response;
       })
-  );
-});
-
-// Push event - handle push notifications
-self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received:', event);
-
-  let notificationData = {
-    title: 'AstroSetu',
-    body: 'You have a new notification',
-    icon: '/icon-192x192.png',
-    badge: '/icon-96x96.png',
-    tag: 'astrosetu-notification',
-    requireInteraction: false,
-    data: {},
-  };
-
-  // Parse push data if available
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      notificationData = {
-        ...notificationData,
-        ...data,
-        data: data.data || {},
-      };
-    } catch (error) {
-      // If JSON parsing fails, try text
-      try {
-        notificationData.body = event.data.text();
-      } catch (textError) {
-        console.error('[SW] Failed to parse push data:', textError);
-      }
-    }
-  }
-
-  const promiseChain = self.registration.showNotification(
-    notificationData.title,
-    {
-      body: notificationData.body,
-      icon: notificationData.icon || '/icon-192x192.png',
-      badge: notificationData.badge || '/icon-96x96.png',
-      tag: notificationData.tag,
-      requireInteraction: notificationData.requireInteraction,
-      data: notificationData.data,
-      vibrate: [200, 100, 200],
-      actions: [
-        {
-          action: 'view',
-          title: 'View',
-        },
-        {
-          action: 'dismiss',
-          title: 'Dismiss',
-        },
-      ],
-    }
-  );
-
-  event.waitUntil(promiseChain);
-});
-
-// Notification click event - handle user interaction
-self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event);
-
-  event.notification.close();
-
-  const action = event.action;
-  const data = event.notification.data || {};
-
-  if (action === 'dismiss') {
-    // Just close the notification
-    return;
-  }
-
-  // Default action or 'view' - navigate to appropriate page
-  let urlToOpen = '/';
-
-  if (data.url) {
-    urlToOpen = data.url;
-  } else if (data.type === 'horoscope') {
-    urlToOpen = '/horoscope';
-  } else if (data.type === 'kundli') {
-    urlToOpen = '/kundli';
-  } else if (data.type === 'match') {
-    urlToOpen = '/match';
-  }
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        // Check if window is already open
-        for (let i = 0; i < clientList.length; i++) {
-          const client = clientList[i];
-          if (client.url === urlToOpen && 'focus' in client) {
-            return client.focus();
+      .catch(() => {
+        // Network failed, try cache
+        return caches.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
           }
-        }
 
-        // Open new window if none exists
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
-        }
+          // If it's a navigation request and we have no cache, show offline page
+          if (request.mode === 'navigate') {
+            return caches.match(OFFLINE_URL);
+          }
+
+          // Return a basic response for other requests
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: new Headers({
+              'Content-Type': 'text/plain',
+            }),
+          });
+        });
       })
   );
 });
-
-// Notification close event
-self.addEventListener('notificationclose', (event) => {
-  console.log('[SW] Notification closed:', event);
-});
-
-// Message event - handle messages from the app
-self.addEventListener('message', (event) => {
-  console.log('[SW] Message received:', event.data);
-
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-
-  if (event.data && event.data.type === 'CACHE_URLS') {
-    event.waitUntil(
-      caches.open(CACHE_NAME)
-        .then((cache) => {
-          return cache.addAll(event.data.urls);
-        })
-    );
-  }
-});
-
-console.log('[SW] Service worker script loaded');

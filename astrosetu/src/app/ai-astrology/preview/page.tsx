@@ -739,9 +739,9 @@ function PreviewContent() {
                     isCareerDirectionSection ? "bg-gradient-to-br from-purple-50 to-violet-50 p-6 rounded-xl border-2 border-purple-300 shadow-sm" :
                     isMajorSection ? "bg-gradient-to-br from-slate-50 to-blue-50/30 p-6 rounded-xl border border-slate-200" : ""
                   }`}>
-                    <div className="flex items-start gap-3 mb-4">
-                      {(isMajorSection || isDecisionGuidanceSection || isIdealWindowsSection || isDelayFactorsSection || isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection) && (
-                        <div className="text-2xl mt-1">
+                      <div className="flex items-start gap-3 mb-4">
+                        {(isMajorSection || isDecisionGuidanceSection || isIdealWindowsSection || isDelayFactorsSection || isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection) && (
+                          <div className="text-xl sm:text-2xl mt-1">
                           {isDecisionGuidanceSection ? "✅" :
                            isCareerMomentumSection ? "📈" :
                            isMoneyGrowthSection ? "💰" :
@@ -755,7 +755,7 @@ function PreviewContent() {
                         </div>
                       )}
                       <div className="flex-1">
-                        <h2 className="text-2xl font-bold text-slate-800">{sectionTitle}</h2>
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-800">{sectionTitle}</h2>
                         {hasKeyInsight && section.content && (
                           <div className="mt-3 mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
                             <p className="text-sm font-semibold text-amber-900 leading-relaxed">{section.content.split('\n')[0]}</p>
@@ -1000,16 +1000,16 @@ function PreviewContent() {
               )}
               
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800">
                   {bundleType && bundleReports.length > 0 
                     ? `${getReportName(bundleReports[0])} (Part 1 of ${bundleReports.length})`
                     : (reportContent?.title || "AI Astrology Report")}
                 </h1>
               </div>
-              <p className="text-slate-600 mb-1">
+              <p className="text-sm sm:text-base text-slate-600 mb-1">
                 Prepared exclusively for <strong>{input.name}</strong>
               </p>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500">
                 <span>Generated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</span>
                 {reportContent.reportId && (
                   <>
@@ -1028,7 +1028,7 @@ function PreviewContent() {
                 <Button
                   onClick={handleDownloadPDF}
                   disabled={downloadingPDF}
-                  className="cosmic-button px-6 py-3"
+                  className="cosmic-button px-4 sm:px-6 py-3 text-sm sm:text-base min-h-[44px]"
                 >
                   {downloadingPDF ? (
                     <span className="flex items-center gap-2">
@@ -1084,7 +1084,7 @@ function PreviewContent() {
                       }
                     }
                   }}
-                  className="cosmic-button-secondary px-6 py-3"
+                  className="cosmic-button-secondary px-4 sm:px-6 py-3 text-sm sm:text-base min-h-[44px]"
                 >
                   <span className="flex items-center gap-2">
                     <span>✉️</span>
@@ -1098,10 +1098,10 @@ function PreviewContent() {
 
         {/* 2-Column Layout: Left (Upgrade Card) + Right (Report Content) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Left Column: Sticky Upgrade Card (30-35%) */}
+          {/* Left Column: Sticky Upgrade Card (30-35%) - Shows at bottom on mobile */}
           {!isPaidReport && (
-            <div className="lg:col-span-1">
-              <div className="sticky top-24">
+            <div className="lg:col-span-1 order-2 lg:order-1">
+              <div className="lg:sticky lg:top-24">
                 <Card className="cosmic-card border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50">
                   <CardHeader title="Unlock Full Insights" />
                   <CardContent className="p-6">
@@ -1227,8 +1227,8 @@ function PreviewContent() {
             </div>
           )}
 
-          {/* Right Column: Report Content (65-70%) */}
-          <div className={isPaidReport ? "lg:col-span-3" : "lg:col-span-2"}>
+          {/* Right Column: Report Content (65-70%) - Shows first on mobile */}
+          <div className={isPaidReport ? "lg:col-span-3" : "lg:col-span-2 order-1 lg:order-2"}>
             {/* Short Disclaimer Summary (Only for paid reports, at top) */}
             {isPaidReport && (
               <Card className="cosmic-card mb-6 border-blue-200 bg-blue-50/50">
@@ -1271,24 +1271,24 @@ function PreviewContent() {
                         <CardContent className="p-8">
                           {/* Report Header */}
                           <div className="mb-8 pb-6 border-b-2 border-purple-200">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="text-4xl">
-                                {reportTypeInBundle === "marriage-timing" ? "💑" :
-                                 reportTypeInBundle === "career-money" ? "💼" :
-                                 reportTypeInBundle === "full-life" ? "🌟" :
-                                 reportTypeInBundle === "year-analysis" ? "📅" :
-                                 reportTypeInBundle === "major-life-phase" ? "🗺️" :
-                                 reportTypeInBundle === "decision-support" ? "🎯" : "📊"}
-                              </div>
-                              <div>
-                                <h2 className="text-3xl font-bold text-purple-900 mb-1">
-                                  {getReportName(reportTypeInBundle)}
-                                </h2>
-                                <p className="text-purple-600 text-sm">
-                                  Part {bundleIdx + 1} of {bundleReports.length} in your bundle
-                                </p>
-                              </div>
-                            </div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="text-3xl sm:text-4xl">
+                          {reportTypeInBundle === "marriage-timing" ? "💑" :
+                           reportTypeInBundle === "career-money" ? "💼" :
+                           reportTypeInBundle === "full-life" ? "🌟" :
+                           reportTypeInBundle === "year-analysis" ? "📅" :
+                           reportTypeInBundle === "major-life-phase" ? "🗺️" :
+                           reportTypeInBundle === "decision-support" ? "🎯" : "📊"}
+                        </div>
+                        <div>
+                          <h2 className="text-2xl sm:text-3xl font-bold text-purple-900 mb-1">
+                            {getReportName(reportTypeInBundle)}
+                          </h2>
+                          <p className="text-purple-600 text-xs sm:text-sm">
+                            Part {bundleIdx + 1} of {bundleReports.length} in your bundle
+                          </p>
+                        </div>
+                      </div>
                           </div>
 
                           {/* Render this report's content - reuse existing rendering logic */}

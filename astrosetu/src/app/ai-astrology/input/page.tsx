@@ -246,17 +246,17 @@ function InputFormContent() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8 min-h-screen">
-      <div className="container mx-auto px-4 max-w-2xl overflow-visible">
+    <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-6 sm:py-8 min-h-screen">
+      <div className="container mx-auto px-4 sm:px-6 max-w-2xl overflow-visible">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <Link href="/ai-astrology" className="text-sm text-purple-600 hover:text-purple-700 mb-4 inline-block">
             ← Back to AI Astrology
           </Link>
-          <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
             {getReportTitle()}
           </h1>
-          <p className="text-slate-600">{getReportDescription()}</p>
+          <p className="text-sm sm:text-base text-slate-600">{getReportDescription()}</p>
         </div>
 
         {/* Form Card */}
@@ -267,7 +267,7 @@ function InputFormContent() {
             subtitle="We need accurate information for precise astrological calculations"
           />
           <CardContent className="overflow-visible">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Name */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -279,7 +279,9 @@ function InputFormContent() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your full name"
                   required
-                  className="w-full cosmic-input"
+                  autoComplete="name"
+                  inputMode="text"
+                  className="w-full cosmic-input min-h-[44px]"
                 />
               </div>
 
@@ -294,7 +296,7 @@ function InputFormContent() {
                   onChange={(e) => setDob(e.target.value)}
                   required
                   max={new Date().toISOString().split("T")[0]}
-                  className="w-full cosmic-input"
+                  className="w-full cosmic-input min-h-[44px]"
                 />
               </div>
 
@@ -308,7 +310,7 @@ function InputFormContent() {
                   value={tob}
                   onChange={(e) => setTob(e.target.value)}
                   required
-                  className="w-full"
+                  className="w-full min-h-[44px]"
                 />
                 <p className="text-xs text-slate-500 mt-1">Use 24-hour format (e.g., 14:30 for 2:30 PM)</p>
               </div>
@@ -342,7 +344,7 @@ function InputFormContent() {
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value as "Male" | "Female" | "")}
-                  className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none appearance-none cursor-pointer pr-10 min-w-0"
+                  className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none appearance-none cursor-pointer pr-10 min-w-0 min-h-[44px]"
                   style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23334155'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                     backgroundRepeat: 'no-repeat',
@@ -358,9 +360,9 @@ function InputFormContent() {
 
               {/* Error Message */}
               {error && (
-                <div className="p-4 rounded-xl bg-red-50 border-2 border-red-200">
-                  <div className="flex items-center gap-2 text-red-700 font-semibold">
-                    <span>⚠️</span>
+                <div className="p-3 sm:p-4 rounded-xl bg-red-50 border-2 border-red-200">
+                  <div className="flex items-start gap-2 text-red-700 font-semibold text-sm sm:text-base">
+                    <span className="text-lg">⚠️</span>
                     <span>{error}</span>
                   </div>
                 </div>
@@ -371,7 +373,7 @@ function InputFormContent() {
                 <Button
                   type="submit"
                   disabled={!canSubmit || loading}
-                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 py-6 text-lg"
+                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 py-4 sm:py-6 text-base sm:text-lg min-h-[44px]"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
@@ -397,8 +399,8 @@ function InputFormContent() {
         </Card>
 
         {/* Info Card */}
-        <Card className="mt-6 bg-amber-50 border-amber-200">
-          <CardContent className="p-6">
+        <Card className="mt-4 sm:mt-6 bg-amber-50 border-amber-200">
+          <CardContent className="p-4 sm:p-6">
             <h3 className="font-bold mb-3 text-amber-900">Why We Need This Information</h3>
             <ul className="space-y-2 text-sm text-amber-800">
               <li>• <strong>Date & Time:</strong> Essential for calculating your exact birth chart and planetary positions</li>
@@ -410,8 +412,8 @@ function InputFormContent() {
         </Card>
 
         {/* Disclaimer */}
-        <Card className="mt-6 cosmic-card border-amber-200 bg-amber-50/50 max-w-4xl mx-auto">
-          <CardContent className="p-6">
+        <Card className="mt-4 sm:mt-6 cosmic-card border-amber-200 bg-amber-50/50 max-w-4xl mx-auto">
+          <CardContent className="p-4 sm:p-6">
             <div className="space-y-3">
               <h3 className="font-bold text-slate-800 text-center mb-3">⚠️ Important Disclaimer</h3>
               <div className="text-sm text-slate-700 space-y-2">

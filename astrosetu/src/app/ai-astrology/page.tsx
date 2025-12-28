@@ -17,13 +17,13 @@ export default function AIAstrologyLandingPage() {
       {/* Hero Section */}
       <div className="relative py-16 lg:py-24 px-4 overflow-hidden">
         <div className="relative z-10 max-w-5xl mx-auto text-center">
-          <h1 className="text-5xl lg:text-7xl font-bold mb-6 leading-tight text-slate-800">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-6 leading-tight text-slate-800">
             Know Your Marriage & Career Timing with AI
           </h1>
-          <p className="text-xl lg:text-2xl text-slate-600 mb-4 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-4 max-w-3xl mx-auto leading-relaxed">
             Instant AI astrology reports for marriage timing, career direction, and life insights.
           </p>
-          <p className="text-lg text-slate-500 mb-8 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-slate-500 mb-8 max-w-2xl mx-auto">
             Discover your cosmic insights — personalized, instant, and fully automated.
           </p>
           <div className="flex justify-center items-center">
@@ -59,7 +59,7 @@ export default function AIAstrologyLandingPage() {
         <div className="text-center mb-8">
           <p className="text-sm font-semibold text-amber-700 mb-2">Included in your report</p>
         </div>
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Personal Horoscopes */}
           <div className="cosmic-card rounded-2xl p-8">
             <div className="relative h-48 mb-6 rounded-xl overflow-hidden bg-gradient-to-br from-amber-50 to-orange-50">
@@ -68,8 +68,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="absolute bottom-4 right-4 text-5xl">⭐</div>
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-slate-800 mb-3">Personal Horoscopes</h3>
-            <p className="text-slate-600 leading-relaxed">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3">Personal Horoscopes</h3>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               Discover your core personality traits, strengths, weaknesses, and major life themes. 
               Get insights tailored to your unique birth chart.
             </p>
@@ -83,8 +83,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="absolute bottom-4 right-4 text-5xl">❤️</div>
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-slate-800 mb-3">Love & Relationships</h3>
-            <p className="text-slate-600 leading-relaxed">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3">Love & Relationships</h3>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               Uncover ideal marriage windows, compatibility indicators, and personalized remedies. 
               Your guide to a harmonious partnership.
             </p>
@@ -98,8 +98,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="absolute bottom-4 right-4 text-5xl">📈</div>
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-slate-800 mb-3">Career & Finance</h3>
-            <p className="text-slate-600 leading-relaxed">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3">Career & Finance</h3>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               Navigate your professional journey with clarity. Best career directions, 
               job change timings, and insights into your money growth phases.
             </p>
@@ -115,8 +115,8 @@ export default function AIAstrologyLandingPage() {
       {/* Value Proposition */}
       <section id="features" className="relative z-10 py-16 px-4 scroll-mt-20">
         <div className="max-w-5xl mx-auto text-center mb-12">
-          <h2 className="text-4xl lg:text-5xl font-bold text-slate-800 mb-4">Why AI-First Astrology?</h2>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800 mb-4">Why AI-First Astrology?</h2>
+          <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto mb-4">
             Leveraging advanced AI and authentic Vedic principles, we provide unbiased, instant, 
             and deeply personalized astrological reports.
           </p>
@@ -146,14 +146,14 @@ export default function AIAstrologyLandingPage() {
       {/* Report Accuracy Ladder */}
       <section className="relative z-10 py-16 px-4 bg-gradient-to-br from-slate-50 to-blue-50/30">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">
             How Accurate Are These Reports?
           </h2>
-          <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
+          <p className="text-center text-base sm:text-lg text-slate-600 mb-12 max-w-2xl mx-auto">
             The more specific your question, the higher the precision. Our reports follow a clear accuracy hierarchy.
           </p>
           
-          <div className="grid md:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12">
             {/* Level 1 - Life Summary */}
             <div className="cosmic-card rounded-2xl p-6 border-2 border-slate-200">
               <div className="text-center mb-4">
@@ -215,7 +215,7 @@ export default function AIAstrologyLandingPage() {
       {/* Report Offerings */}
       <section className="relative z-10 py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">Our AI-Powered Reports</h2>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">Our AI-Powered Reports</h2>
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Free Life Summary */}
             <div className="cosmic-card rounded-2xl">
@@ -445,11 +445,11 @@ export default function AIAstrologyLandingPage() {
       {/* Bundle Pricing Section */}
       <section className="relative z-10 py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">Save with Bundles</h2>
-          <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">Save with Bundles</h2>
+          <p className="text-center text-base sm:text-lg text-slate-600 mb-12 max-w-2xl mx-auto">
             Get multiple reports and save. All reports are one-time purchases with instant PDF delivery.
           </p>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {/* Any 2 Reports Bundle */}
             <div className="cosmic-card rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50">
               <div className="p-8">
@@ -542,8 +542,8 @@ export default function AIAstrologyLandingPage() {
       {/* How It Works */}
       <section className="relative z-10 py-16 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">How It Works</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             <div className="cosmic-card rounded-xl p-8 text-center">
               <div className="text-5xl mb-4">1️⃣</div>
               <h3 className="text-xl font-semibold text-slate-800 mb-2">Enter Details</h3>
@@ -566,10 +566,10 @@ export default function AIAstrologyLandingPage() {
       {/* Final CTA */}
       <section className="relative z-10 py-16 px-4">
         <div className="max-w-4xl mx-auto text-center cosmic-card rounded-3xl p-12">
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 mb-4">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-4">
             Ready for Your Personalized AI Astrology Report?
           </h2>
-          <p className="text-xl text-slate-600 mb-8">
+          <p className="text-lg sm:text-xl text-slate-600 mb-8">
             Experience the future of astrology – precise, private, and always available.
           </p>
           <Link href="/ai-astrology/input?reportType=life-summary">
