@@ -87,58 +87,261 @@ export async function generatePDF(
       yPosition += 5; // Add spacing after text
     };
 
+    // ============================================
+    // 1. COVER PAGE
+    // ============================================
     // Header with logo/icon
     doc.setFillColor(139, 92, 246); // Purple
-    doc.rect(0, 0, pageWidth, 30, "F");
+    doc.rect(0, 0, pageWidth, 40, "F");
     
     doc.setTextColor("#FFFFFF");
+    doc.setFontSize(28);
+    doc.setFont("helvetica", "bold");
+    doc.text("AstroSetu", margin, 25);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("AI-Powered Astrology Reports", margin, 33);
+    
+    yPosition = 55;
+
+    // Report Title (Large, centered)
     doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
-    doc.text("AstroSetu", margin, 20);
-    
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.text("AI-Powered Astrology Reports", margin + 60, 20);
-    
-    yPosition = 40;
-
-    // Title
-    addText(reportContent.title, 20, true, "#1e293b");
-    yPosition += 5;
-
-    // Report metadata
-    doc.setFontSize(10);
-    doc.setTextColor("#64748b");
-    addText(`Prepared exclusively for: ${input.name}`, 10, true, "#1e293b");
-    addText(`Date of Birth: ${input.dob} | Time: ${input.tob}`, 10, false, "#64748b");
-    addText(`Place: ${input.place}`, 10, false, "#64748b");
-    addText(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 10, false, "#64748b");
-    if (reportContent.reportId) {
-      addText(`Report ID: ${reportContent.reportId}`, 10, false, "#64748b");
-    }
-    addText(`Not publicly available`, 9, false, "#94a3b8");
+    doc.setTextColor("#1e293b");
+    const titleLines = doc.splitTextToSize(reportContent.title, contentWidth);
+    titleLines.forEach((line: string) => {
+      checkPageBreak(12);
+      doc.text(line, pageWidth / 2, yPosition, { align: "center" });
+      yPosition += 10;
+    });
     yPosition += 10;
 
-    // Executive Summary (for Full Life Report) or Summary
-    if (reportContent.executiveSummary) {
-      doc.setDrawColor(139, 92, 246);
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 5;
+    // Generated for
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#475569");
+    addText(`Generated for: ${input.name}`, 12, false, "#475569");
+    yPosition += 5;
 
-      addText("Your Key Life Insights (Summary)", 16, true, "#1e293b");
-      addText(reportContent.executiveSummary, 11, false, "#334155");
-      yPosition += 5;
-    } else if (reportContent.summary) {
-      doc.setDrawColor(139, 92, 246);
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 5;
+    // Generated on
+    const generatedDate = new Date(reportContent.generatedAt || new Date().toISOString());
+    addText(`Generated on: ${generatedDate.toLocaleDateString()} at ${generatedDate.toLocaleTimeString()}`, 11, false, "#64748b");
+    yPosition += 5;
 
-      addText("Summary", 16, true, "#1e293b");
-      addText(reportContent.summary, 11, false, "#334155");
+    // Subtitle
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor("#64748b");
+    doc.text("AI-Generated Astrological Guidance (Educational Only)", pageWidth / 2, yPosition, { align: "center" });
+    yPosition += 15;
+
+    // Report ID if present
+    if (reportContent.reportId) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor("#94a3b8");
+      doc.text(`Report ID: ${reportContent.reportId}`, pageWidth / 2, yPosition, { align: "center" });
       yPosition += 5;
     }
+
+    // New page for content
+    doc.addPage();
+    yPosition = margin;
+
+    // ============================================
+    // 2. HOW TO READ THIS REPORT (NEW - CRITICAL)
+    // ============================================
+    checkPageBreak(35);
+    doc.setFillColor(254, 243, 199); // Amber-100
+    doc.rect(margin, yPosition - 3, contentWidth, 30, "F");
+    doc.setDrawColor(245, 158, 11); // Amber-500
+    doc.setLineWidth(1);
+    doc.rect(margin, yPosition - 3, contentWidth, 30, "S");
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#78350f");
+    doc.text("How to Read This Report", margin + 3, yPosition + 6);
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#92400e");
+    const howToReadLines = [
+      "• This report provides guidance, not guarantees.",
+      "• Astrology highlights favorable and challenging periods, not fixed outcomes.",
+      "• Use this report for planning and awareness, not absolute prediction.",
+    ];
+    howToReadLines.forEach((line: string) => {
+      doc.text(line, margin + 5, yPosition);
+      yPosition += 5;
+    });
+    yPosition += 8;
+
+    // ============================================
+    // 3. DATA & METHOD USED (Trust Builder)
+    // ============================================
+    checkPageBreak(40);
+    doc.setDrawColor(139, 92, 246);
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#1e293b");
+    addText("Data & Method Used", 14, true, "#1e293b");
+    yPosition += 2;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#334155");
+
+    // Birth data
+    addText("Birth Data Used:", 10, true, "#475569");
+    addText(`• Name: ${input.name}`, 10, false, "#64748b");
+    addText(`• Date of Birth: ${input.dob}`, 10, false, "#64748b");
+    addText(`• Time of Birth: ${input.tob}`, 10, false, "#64748b");
+    addText(`• Place: ${input.place}`, 10, false, "#64748b");
+    yPosition += 3;
+
+    // System used
+    addText("Astrological System Used:", 10, true, "#475569");
+    const dataSourceMatch = reportContent.summary?.match(/Based on:.*?(?:\n|$)/i) || 
+                           reportContent.executiveSummary?.match(/Based on:.*?(?:\n|$)/i) ||
+                           reportContent.sections[0]?.content?.match(/Based on:.*?(?:\n|$)/i);
+    if (dataSourceMatch) {
+      const sourceText = dataSourceMatch[0].replace(/Based on:/i, "").trim();
+      const sourceLines = sourceText.split(',').map(s => `• ${s.trim()}`);
+      sourceLines.forEach((line: string) => {
+        addText(line, 10, false, "#64748b");
+      });
+    } else {
+      // Default if not found
+      addText("• Ascendant analysis", 10, false, "#64748b");
+      addText("• Planetary transits", 10, false, "#64748b");
+      addText("• Dasha phase analysis", 10, false, "#64748b");
+      addText("• AI interpretation layer", 10, false, "#64748b");
+    }
+    yPosition += 3;
+
+    // AI note
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor("#64748b");
+    addText("Note: No human astrologer edits or reviews this report. This is 100% AI-generated.", 9, false, "#64748b");
+    yPosition += 8;
+
+    // ============================================
+    // 4. CONFIDENCE LEVEL (MANDATORY - Prominent)
+    // ============================================
+    checkPageBreak(25);
+    doc.setFillColor(219, 234, 254); // Blue-100
+    doc.rect(margin, yPosition - 3, contentWidth, 20, "F");
+    doc.setDrawColor(59, 130, 246); // Blue-500
+    doc.setLineWidth(1);
+    doc.rect(margin, yPosition - 3, contentWidth, 20, "S");
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#1e40af");
+    doc.text("Confidence Level", margin + 3, yPosition + 6);
+    yPosition += 8;
+
+    // Extract confidence from content
+    const overallConfidenceMatch = reportContent.summary?.match(/Confidence.*?(\d+\/10|★+)/i) || 
+                                   reportContent.executiveSummary?.match(/Confidence.*?(\d+\/10|★+)/i) ||
+                                   reportContent.sections[0]?.content?.match(/Confidence.*?(\d+\/10|★+)/i);
+    
+    if (overallConfidenceMatch) {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#1e40af");
+      doc.text(overallConfidenceMatch[0], margin + 3, yPosition);
+      yPosition += 6;
+    } else {
+      // Default confidence based on report type
+      let defaultConfidence = "★★★☆☆ (5-6/10)";
+      if (reportType === "marriage-timing" || reportType === "career-money") {
+        defaultConfidence = "★★★★☆ (6-7/10)";
+      } else if (reportType === "full-life") {
+        defaultConfidence = "★★★☆☆ (5-6/10)";
+      }
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#1e40af");
+      doc.text(`Confidence Score: ${defaultConfidence}`, margin + 3, yPosition);
+      yPosition += 6;
+    }
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#1e40af");
+    doc.text("This score reflects data completeness and astrological clarity.", margin + 3, yPosition);
+    yPosition += 10;
+
+    // ============================================
+    // 5. EXECUTIVE SUMMARY (1 page max - TL;DR)
+    // ============================================
+    checkPageBreak(40);
+    doc.setDrawColor(139, 92, 246);
+    doc.setLineWidth(1);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#1e293b");
+    addText("Executive Summary", 16, true, "#1e293b");
+    yPosition += 2;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor("#64748b");
+    addText("TL;DR for busy users", 10, false, "#64748b");
+    yPosition += 5;
+
+    // Display executive summary or regular summary
+    const summaryText = (reportContent.executiveSummary || reportContent.summary || "")
+      .split(/\n/)
+      .filter(line => 
+        !line.match(/^Based on:/i) && 
+        !line.match(/^Confidence:/i) &&
+        !line.match(/^Data Source:/i)
+      )
+      .join('\n');
+    
+    if (summaryText.trim()) {
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor("#334155");
+      addText(summaryText, 11, false, "#334155");
+      yPosition += 5;
+    }
+
+    // Add timing hierarchy disclaimer for Full Life Report
+    if (reportType === "full-life") {
+      doc.setFillColor(254, 243, 199); // Amber-100
+      doc.rect(margin, yPosition - 3, contentWidth, 12, "F");
+      doc.setDrawColor(245, 158, 11); // Amber-500
+      doc.setLineWidth(0.5);
+      doc.rect(margin, yPosition - 3, contentWidth, 12, "S");
+      doc.setFontSize(9);
+      doc.setTextColor("#78350f");
+      doc.setFont("helvetica", "italic");
+      const disclaimerText = "Note: This report provides a high-level overview. Timing-specific insights are refined in dedicated reports. " +
+                             "For precise marriage timing windows, see the Marriage Timing Report. " +
+                             "For detailed career phases, see the Career & Money Report.";
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth - 4);
+      disclaimerLines.forEach((line: string) => {
+        checkPageBreak(5);
+        doc.text(line, margin + 2, yPosition);
+        yPosition += 4;
+      });
+      yPosition += 3;
+    }
+    yPosition += 5;
 
     // Main sections
     reportContent.sections.forEach((section, sectionIdx) => {
@@ -156,9 +359,67 @@ export async function generatePDF(
       addText(section.title, 16, true, "#1e293b");
       yPosition += 2;
 
-      // Section content
+      // Extract and display confidence indicator if present
+      const confidenceMatch = section.content?.match(/Confidence:.*?(?:High|Medium|Low|\d+\/10|★+)/i);
+      if (confidenceMatch) {
+        doc.setFontSize(10);
+        doc.setTextColor("#3b82f6"); // Blue
+        doc.setFont("helvetica", "bold");
+        checkPageBreak(8);
+        doc.text(confidenceMatch[0], margin, yPosition);
+        yPosition += 6;
+      }
+
+      // Extract and display timeline visualization if present
+      const timelineMatch = section.content?.match(/Timeline:.*?[─━═─⭐★]/);
+      if (timelineMatch) {
+        doc.setFontSize(10);
+        doc.setTextColor("#7c3aed"); // Purple
+        doc.setFont("helvetica", "normal");
+        checkPageBreak(8);
+        doc.text(timelineMatch[0], margin, yPosition);
+        yPosition += 6;
+      }
+
+      // Section content (without confidence/timeline lines, already extracted)
       if (section.content) {
-        addText(section.content, 11, false, "#334155");
+        const cleanContent = section.content
+          .split(/\n/)
+          .filter(line => 
+            !line.match(/^Confidence:/i) && 
+            !line.match(/^Timeline:/) &&
+            !line.match(/^Based on:/i) &&
+            !line.match(/^Why this timing may differ/i)
+          )
+          .join('\n');
+        if (cleanContent.trim()) {
+          addText(cleanContent, 11, false, "#334155");
+        }
+      }
+
+      // Extract and display "Why timing differs" explanation box if present
+      const timingDiffMatch = section.content?.match(/Why this timing may differ.*?(?:\n\n|\n[A-Z]|$)/is);
+      if (timingDiffMatch) {
+        checkPageBreak(25);
+        doc.setFillColor(219, 234, 254); // Blue-100
+        doc.rect(margin, yPosition - 3, contentWidth, 18, "F");
+        doc.setDrawColor(59, 130, 246); // Blue-500
+        doc.setLineWidth(0.5);
+        doc.rect(margin, yPosition - 3, contentWidth, 18, "S");
+        doc.setFontSize(9);
+        doc.setTextColor("#1e40af");
+        doc.setFont("helvetica", "bold");
+        doc.text("Why this timing may differ from other reports:", margin + 2, yPosition + 3);
+        yPosition += 6;
+        doc.setFont("helvetica", "normal");
+        const explanationText = timingDiffMatch[0].replace(/Why this timing may differ.*?:/i, '').trim();
+        const explanationLines = doc.splitTextToSize(explanationText, contentWidth - 4);
+        explanationLines.forEach((line: string, idx: number) => {
+          checkPageBreak(5);
+          doc.text(line, margin + 2, yPosition);
+          yPosition += 4;
+        });
+        yPosition += 3;
       }
 
       // Bullets
@@ -271,23 +532,25 @@ export async function generatePDF(
       );
     }
 
-    // Disclaimer
-    checkPageBreak(40);
+    // Compressed Disclaimer (only on last page, shortened)
+    checkPageBreak(25);
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.5);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += 10;
+    yPosition += 8;
 
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor("#64748b");
-    addText(
-      "Disclaimer: This report is generated by AI for educational and entertainment purposes only. " +
-      "It should not be used as a substitute for professional advice. Results are based on astrological " +
-      "calculations and AI interpretation, and should be taken as guidance rather than absolute predictions.",
-      9,
-      false,
-      "#64748b"
-    );
+    doc.setFont("helvetica", "italic");
+    const compressedDisclaimer = "Disclaimer: AI-generated for educational purposes only. Not a substitute for professional advice. " +
+                                 "Guidance based on astrological calculations, not guarantees. " +
+                                 "No change-of-mind refunds on digital reports (does not limit rights under Australian Consumer Law).";
+    const disclaimerLines = doc.splitTextToSize(compressedDisclaimer, contentWidth);
+    disclaimerLines.forEach((line: string) => {
+      checkPageBreak(5);
+      doc.text(line, margin, yPosition);
+      yPosition += 3.5;
+    });
 
     // Generate blob
     const pdfBlob = doc.output("blob");

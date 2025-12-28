@@ -153,9 +153,17 @@ function PreviewContent() {
         throw new Error(response.error || "Failed to create checkout");
       }
 
-      // Redirect to Stripe checkout
+      // Redirect to Stripe checkout (validate URL to prevent open redirects)
       if (response.data?.url) {
-        window.location.href = response.data.url;
+        const checkoutUrl = response.data.url;
+        // Validate URL is from Stripe or is a relative path
+        if (checkoutUrl.startsWith("https://checkout.stripe.com") || 
+            checkoutUrl.startsWith("http://localhost") ||
+            checkoutUrl.startsWith("/")) {
+          window.location.href = checkoutUrl;
+        } else {
+          throw new Error("Invalid checkout URL");
+        }
       }
     } catch (e: any) {
       setError(e.message || "Failed to initiate payment");
@@ -311,11 +319,15 @@ function PreviewContent() {
   }
 
   // Calculate content gating for free reports (show 70% visible, 30% blurred)
-  const sections = reportContent.sections || [];
+  const sections = reportContent?.sections || [];
   const shouldGateContent = !isPaidReport && sections.length > 0;
   const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.7)) : sections.length;
-  const visibleSections = shouldGateContent ? sections.slice(0, gateAfterSection) : sections;
-  const gatedSections = shouldGateContent ? sections.slice(gateAfterSection) : [];
+  const visibleSections = shouldGateContent 
+    ? sections.slice(0, gateAfterSection).filter(s => s && s.title) 
+    : sections.filter(s => s && s.title);
+  const gatedSections = shouldGateContent 
+    ? sections.slice(gateAfterSection).filter(s => s && s.title) 
+    : [];
 
   return (
     <div className="cosmic-bg py-8">
@@ -327,7 +339,7 @@ function PreviewContent() {
             <span>Back to AI Astrology</span>
           </Link>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-            <span>{reportContent.title}</span>
+            <span>{reportContent?.title || "AI Astrology Report"}</span>
             <span>•</span>
             <span>Fully automated</span>
             <span>•</span>
@@ -336,7 +348,7 @@ function PreviewContent() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">{reportContent.title}</h1>
+                <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">{reportContent?.title || "AI Astrology Report"}</h1>
                 {!isPaidReport && (
                   <Badge tone="green" className="text-sm">FREE</Badge>
                 )}
@@ -380,6 +392,11 @@ function PreviewContent() {
                 <Button
                   onClick={async () => {
                     try {
+                      // Validate reportContent before sharing
+                      if (!reportContent || !reportContent.title) {
+                        setError("Cannot share: Report content is missing");
+                        return;
+                      }
                       // Get the current page URL to share
                       const currentUrl = window.location.href;
                       const shareData = {
@@ -540,20 +557,20 @@ function PreviewContent() {
             <Card className="cosmic-card mb-6">
               <CardContent className="p-8">
                 {/* Executive Summary (for Full Life Report) */}
-                {reportType === "full-life" && reportContent.executiveSummary && (
+                {reportType === "full-life" && reportContent?.executiveSummary && (
                   <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">📋</div>
                       <h2 className="text-2xl font-bold text-purple-900">Your Key Life Insights (Summary)</h2>
                     </div>
                     <div className="prose prose-slate max-w-none">
-                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{reportContent.executiveSummary}</p>
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{reportContent?.executiveSummary}</p>
                     </div>
                   </div>
                 )}
 
                 {/* Enhanced Summary for Marriage Timing Report */}
-                {reportType === "marriage-timing" && reportContent.summary && (
+                {reportType === "marriage-timing" && reportContent?.summary && (
                   <div className="mb-8 p-6 bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 rounded-xl border-2 border-pink-300 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">💑</div>
@@ -563,11 +580,11 @@ function PreviewContent() {
                       <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{reportContent.summary}</p>
                     </div>
                     {/* Extract and display timing strength if mentioned in summary */}
-                    {reportContent.summary.toLowerCase().includes("timing strength") && (
+                    {reportContent?.summary && reportContent.summary.toLowerCase().includes("timing strength") && (
                       <div className="mt-4 pt-4 border-t border-pink-200">
                         <p className="text-sm font-semibold text-pink-800">
-                          {reportContent.summary.match(/timing strength:.*?(\d+\/10|strong|moderate)/i)?.[0] || 
-                           reportContent.summary.match(/confidence level:.*?\d+\/10/i)?.[0] || ""}
+                          {reportContent?.summary && (reportContent.summary.match(/timing strength:.*?(\d+\/10|strong|moderate)/i)?.[0] || 
+                           reportContent.summary.match(/confidence level:.*?\d+\/10/i)?.[0] || "")}
                         </p>
                       </div>
                     )}
@@ -575,7 +592,7 @@ function PreviewContent() {
                 )}
 
                 {/* Enhanced Summary for Career & Money Report */}
-                {reportType === "career-money" && reportContent.summary && (
+                {reportType === "career-money" && reportContent?.summary && (
                   <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 rounded-xl border-2 border-blue-300 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">💼</div>
@@ -585,16 +602,16 @@ function PreviewContent() {
                       <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{reportContent.summary}</p>
                     </div>
                     {/* Extract and display confidence indicators if mentioned in summary */}
-                    {(reportContent.summary.toLowerCase().includes("career direction clarity") || 
-                      reportContent.summary.toLowerCase().includes("money growth stability")) && (
+                    {(reportContent?.summary && (reportContent.summary.toLowerCase().includes("career direction clarity") || 
+                      reportContent.summary.toLowerCase().includes("money growth stability"))) && (
                       <div className="mt-4 pt-4 border-t border-blue-200">
                         <div className="flex flex-wrap gap-4 text-sm">
-                          {reportContent.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0] && (
+                          {reportContent?.summary && reportContent.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0] && (
                             <p className="font-semibold text-blue-800">
                               {reportContent.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0]}
                             </p>
                           )}
-                          {reportContent.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0] && (
+                          {reportContent?.summary && reportContent.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0] && (
                             <p className="font-semibold text-blue-800">
                               {reportContent.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0]}
                             </p>
@@ -607,8 +624,8 @@ function PreviewContent() {
                 )}
 
                 {/* Summary (for other reports or if no executive summary) */}
-                {reportContent.summary && 
-                 !(reportType === "full-life" && reportContent.executiveSummary) && 
+                {reportContent?.summary && 
+                 !(reportType === "full-life" && reportContent?.executiveSummary) && 
                  reportType !== "marriage-timing" && 
                  reportType !== "career-money" && (
                   <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
@@ -753,7 +770,7 @@ function PreviewContent() {
 
                   {section.bullets && section.bullets.length > 0 && (
                     <ul className={`space-y-2 mb-4 ${isDecisionGuidanceSection ? "list-none" : ""}`}>
-                      {section.bullets.map((bullet, bulletIdx) => {
+                      {section.bullets && section.bullets.length > 0 && section.bullets.map((bullet, bulletIdx) => {
                         // Limit bullet display to 15 words for better readability
                         const bulletWords = bullet.split(' ');
                         const displayBullet = bulletWords.length > 15 ? bulletWords.slice(0, 15).join(' ') + '...' : bullet;
@@ -788,7 +805,7 @@ function PreviewContent() {
 
                   {section.subsections && section.subsections.length > 0 && (
                     <div className="ml-6 mt-4 space-y-4">
-                      {section.subsections.map((subsection, subIdx) => (
+                      {section.subsections && section.subsections.length > 0 && section.subsections.map((subsection, subIdx) => (
                         <div key={subIdx} className="border-l-2 border-slate-200 pl-4">
                           <h3 className="text-lg font-semibold mb-2 text-slate-800">{subsection.title}</h3>
                           {subsection.content && (
@@ -796,7 +813,7 @@ function PreviewContent() {
                           )}
                           {subsection.bullets && (
                             <ul className="space-y-1 mt-2">
-                              {subsection.bullets.map((bullet, bulletIdx) => (
+                              {subsection.bullets && subsection.bullets.length > 0 && subsection.bullets.map((bullet, bulletIdx) => (
                                 <li key={bulletIdx} className="flex items-start gap-2">
                                   <span className="text-purple-600">•</span>
                                   <span className="text-slate-700">{bullet}</span>
@@ -932,7 +949,7 @@ function PreviewContent() {
                 <CardHeader title="Key Insights" />
                 <CardContent>
                   <ul className="space-y-2">
-                    {reportContent.keyInsights.map((insight, idx) => (
+                    {reportContent?.keyInsights && reportContent.keyInsights.length > 0 && reportContent.keyInsights.map((insight, idx) => (
                       <li key={idx} className="flex items-start gap-3">
                         <span className="text-amber-600 mt-1">✨</span>
                         <span className="text-amber-900">{insight}</span>

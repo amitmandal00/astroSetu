@@ -21,7 +21,11 @@ function InputFormContent() {
   const router = useRouter();
   
   // Support both "report" and "reportType" query parameters for compatibility
-  const reportType = (searchParams.get("reportType") || searchParams.get("report")) as ReportType || null;
+  const reportTypeParam = searchParams.get("reportType") || searchParams.get("report");
+  const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life"];
+  const reportType = (reportTypeParam && validReportTypes.includes(reportTypeParam as ReportType)) 
+    ? (reportTypeParam as ReportType) 
+    : null;
   
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");

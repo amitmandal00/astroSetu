@@ -27,8 +27,16 @@ function PaymentSuccessContent() {
   const [isTestSession, setIsTestSession] = useState(false);
 
   useEffect(() => {
+    // Validate session_id parameter
     if (!sessionId) {
       setError("No session ID provided");
+      setLoading(false);
+      return;
+    }
+    
+    // Validate session_id format (basic sanitization)
+    if (sessionId.length > 200 || /[<>"']/.test(sessionId)) {
+      setError("Invalid session ID format");
       setLoading(false);
       return;
     }

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { AstroImage } from "@/components/ui/AstroImage";
 import { ASTRO_IMAGES } from "@/lib/astroImages";
-import { REPORT_PRICES, SUBSCRIPTION_PRICE } from "@/lib/ai-astrology/payments";
+import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 
 export default function AIAstrologyLandingPage() {
   return (
@@ -125,6 +125,81 @@ export default function AIAstrologyLandingPage() {
         </div>
       </section>
 
+      {/* Report Accuracy Ladder */}
+      <section className="relative z-10 py-16 px-4 bg-gradient-to-br from-slate-50 to-blue-50/30">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">
+            How Accurate Are These Reports?
+          </h2>
+          <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
+            The more specific your question, the higher the precision. Our reports follow a clear accuracy hierarchy.
+          </p>
+          
+          <div className="grid md:grid-cols-4 gap-6 mb-12">
+            {/* Level 1 - Life Summary */}
+            <div className="cosmic-card rounded-2xl p-6 border-2 border-slate-200">
+              <div className="text-center mb-4">
+                <div className="text-3xl mb-2">🌟</div>
+                <div className="text-2xl mb-2">★★★☆☆</div>
+                <div className="text-xs text-slate-500 mb-3">Level 1</div>
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">Life Summary</h3>
+              <p className="text-sm text-slate-600 mb-3 text-center">General</p>
+              <p className="text-xs text-slate-600 text-center">Best for: Understanding personality & direction</p>
+            </div>
+
+            {/* Level 2 - Career / Marriage Reports */}
+            <div className="cosmic-card rounded-2xl p-6 border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50">
+              <div className="text-center mb-4">
+                <div className="text-3xl mb-2">💼❤️</div>
+                <div className="text-2xl mb-2">★★★★☆</div>
+                <div className="text-xs text-slate-500 mb-3">Level 2</div>
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">Career / Marriage</h3>
+              <p className="text-sm text-slate-600 mb-3 text-center">Focused</p>
+              <p className="text-xs text-slate-600 text-center">Best for: Timing & preparation</p>
+            </div>
+
+            {/* Level 3 - Year Analysis (Future) */}
+            <div className="cosmic-card rounded-2xl p-6 border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-indigo-50">
+              <div className="text-center mb-4">
+                <div className="text-3xl mb-2">📅</div>
+                <div className="text-2xl mb-2">★★★★★</div>
+                <div className="text-xs text-slate-500 mb-3">Level 3</div>
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">Year Analysis</h3>
+              <p className="text-sm text-slate-600 mb-3 text-center">High Precision</p>
+              <p className="text-xs text-slate-600 text-center">Best for: Planning the next 12 months</p>
+              <div className="mt-3 flex justify-center">
+                <Badge className="bg-purple-600 text-white text-xs">Coming Soon</Badge>
+              </div>
+            </div>
+
+            {/* Level 4 - Decision Reports (Future) */}
+            <div className="cosmic-card rounded-2xl p-6 border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-green-50">
+              <div className="text-center mb-4">
+                <div className="text-3xl mb-2">🎯</div>
+                <div className="text-2xl mb-2">★★★★★+</div>
+                <div className="text-xs text-slate-500 mb-3">Level 4</div>
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">Decision Support</h3>
+              <p className="text-sm text-slate-600 mb-3 text-center">Highest</p>
+              <p className="text-xs text-slate-600 text-center">Best for: Specific questions (Should I change jobs now?)</p>
+              <div className="mt-3 flex justify-center">
+                <Badge className="bg-emerald-600 text-white text-xs">Coming Soon</Badge>
+              </div>
+            </div>
+          </div>
+
+          <div className="cosmic-card rounded-xl p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 max-w-3xl mx-auto">
+            <p className="text-sm text-slate-700 text-center italic">
+              <strong>The more specific the question, the higher the precision.</strong> General reports provide overviews, 
+              while focused reports offer detailed timing and actionable guidance.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Report Offerings */}
       <section className="relative z-10 py-16 px-4">
         <div className="max-w-6xl mx-auto">
@@ -163,6 +238,18 @@ export default function AIAstrologyLandingPage() {
                   Uncover ideal marriage windows, potential delays, compatibility indicators, 
                   and personalized remedies.
                 </p>
+                {/* Report Scope Box */}
+                <div className="bg-pink-50 border border-pink-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-semibold text-pink-900 mb-2">What&apos;s Included:</p>
+                  <ul className="text-xs text-pink-800 space-y-1">
+                    <li>• Ideal marriage timing windows (date ranges)</li>
+                    <li>• Compatibility indicators</li>
+                    <li>• Potential delay factors explained</li>
+                    <li>• Decision guidance (what to focus on now)</li>
+                    <li>• Non-religious remedies</li>
+                    <li>• Timing strength indicators</li>
+                  </ul>
+                </div>
                 <div className="text-3xl font-bold text-pink-600 mb-2">
                   AU${(REPORT_PRICES["marriage-timing"].amount / 100).toFixed(2)}
                 </div>
@@ -185,6 +272,18 @@ export default function AIAstrologyLandingPage() {
                   Navigate your professional journey with clarity. Best career directions, 
                   job change timings, and insights into your money growth phases.
                 </p>
+                {/* Report Scope Box */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-semibold text-blue-900 mb-2">What&apos;s Included:</p>
+                  <ul className="text-xs text-blue-800 space-y-1">
+                    <li>• Career momentum windows (timing guidance)</li>
+                    <li>• Money growth phases & patterns</li>
+                    <li>• Best career directions for you</li>
+                    <li>• Decision guidance (what to focus on now)</li>
+                    <li>• Career direction clarity indicators</li>
+                    <li>• Money growth stability indicators</li>
+                  </ul>
+                </div>
                 <div className="text-3xl font-bold text-blue-600 mb-2">
                   AU${(REPORT_PRICES["career-money"].amount / 100).toFixed(2)}
                 </div>
@@ -206,6 +305,19 @@ export default function AIAstrologyLandingPage() {
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   Includes Marriage + Career + Life Overview. Comprehensive analysis covering all aspects of life.
                 </p>
+                {/* Report Scope Box */}
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-semibold text-purple-900 mb-2">What&apos;s Included:</p>
+                  <ul className="text-xs text-purple-800 space-y-1">
+                    <li>• Executive summary with key insights</li>
+                    <li>• Complete personality analysis</li>
+                    <li>• Marriage timing & compatibility</li>
+                    <li>• Career & money path guidance</li>
+                    <li>• Life phases & timing windows</li>
+                    <li>• Decision guidance for each area</li>
+                    <li>• Personalized remedies & recommendations</li>
+                  </ul>
+                </div>
                 <div className="text-3xl font-bold text-purple-600 mb-2">
                   AU${(REPORT_PRICES["full-life"].amount / 100).toFixed(2)}
                 </div>
@@ -219,26 +331,99 @@ export default function AIAstrologyLandingPage() {
         </div>
       </section>
 
-      {/* Premium Subscription CTA - Optional Upgrade */}
+      {/* Bundle Pricing Section */}
       <section className="relative z-10 py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="cosmic-card rounded-3xl p-12 text-center border-2 border-amber-200">
-            <div className="text-sm text-slate-500 mb-4 italic">Optional upgrade after your report</div>
-            <div className="text-6xl mb-6">⭐</div>
-            <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 mb-4">Premium Subscription</h2>
-            <p className="text-xl text-slate-600 mb-4 max-w-2xl mx-auto">
-              Get personalized daily guidance delivered to you every day. Know what&apos;s favorable, 
-              what to avoid, and how to make the most of each day.
-            </p>
-            <p className="text-sm text-slate-500 mb-8 italic">Most users start with a one-time report.</p>
-            <div className="text-5xl font-bold text-amber-700 mb-8">
-              AU${(SUBSCRIPTION_PRICE.amount / 100).toFixed(2)}<span className="text-2xl text-slate-500">/month</span>
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">Save with Bundles</h2>
+          <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
+            Get multiple reports and save. All reports are one-time purchases with instant PDF delivery.
+          </p>
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* Any 2 Reports Bundle */}
+            <div className="cosmic-card rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50">
+              <div className="p-8">
+                <Badge className="bg-emerald-600 text-white text-sm font-bold px-4 py-1.5 mb-4">SAVE 15%</Badge>
+                <h3 className="text-2xl font-bold text-slate-800 mb-3">Any 2 Reports Bundle</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed">
+                  Choose any 2 premium reports and save 15%. Perfect for focusing on marriage timing and career together.
+                </p>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-4xl font-bold text-emerald-700">
+                    AU${(BUNDLE_PRICES["any-2"].amount / 100).toFixed(2)}
+                  </span>
+                  <span className="text-lg text-slate-500 line-through">
+                    AU${(BUNDLE_PRICES["any-2"].individualTotal / 100).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-sm text-emerald-700 font-semibold mb-6">
+                  Save AU${(BUNDLE_PRICES["any-2"].savings / 100).toFixed(2)} when buying together
+                </p>
+                <div className="space-y-2 mb-6 text-sm text-slate-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-600">✓</span>
+                    <span>Marriage Timing Report</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-600">✓</span>
+                    <span>Career & Money Report</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-600">✓</span>
+                    <span>Instant PDF delivery</span>
+                  </div>
+                </div>
+                <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
+                  <Button className="cosmic-button w-full bg-emerald-600 hover:bg-emerald-700">
+                    Get 2 Reports Bundle →
+                  </Button>
+                </Link>
+              </div>
             </div>
-            <Link href="/ai-astrology/subscription">
-              <Button className="cosmic-button px-12 py-4 text-lg">
-                Subscribe to Premium →
-              </Button>
-            </Link>
+
+            {/* All 3 Reports Bundle */}
+            <div className="cosmic-card rounded-2xl border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50">
+              <div className="p-8">
+                <Badge className="bg-purple-600 text-white text-sm font-bold px-4 py-1.5 mb-4">BEST VALUE - SAVE 25%</Badge>
+                <h3 className="text-2xl font-bold text-slate-800 mb-3">All 3 Reports Bundle</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed">
+                  Get all premium reports in one comprehensive package. Maximum savings for complete life insights.
+                </p>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-4xl font-bold text-purple-700">
+                    AU${(BUNDLE_PRICES["all-3"].amount / 100).toFixed(2)}
+                  </span>
+                  <span className="text-lg text-slate-500 line-through">
+                    AU${(BUNDLE_PRICES["all-3"].individualTotal / 100).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-sm text-purple-700 font-semibold mb-6">
+                  Save AU${(BUNDLE_PRICES["all-3"].savings / 100).toFixed(2)} when buying all together
+                </p>
+                <div className="space-y-2 mb-6 text-sm text-slate-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-600">✓</span>
+                    <span>Marriage Timing Report</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-600">✓</span>
+                    <span>Career & Money Report</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-600">✓</span>
+                    <span>Full Life Report</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-600">✓</span>
+                    <span>Instant PDF delivery</span>
+                  </div>
+                </div>
+                <Link href="/ai-astrology/input?reportType=full-life" className="block">
+                  <Button className="cosmic-button w-full bg-purple-600 hover:bg-purple-700">
+                    Get All 3 Reports →
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -281,6 +466,22 @@ export default function AIAstrologyLandingPage() {
               Get Started with a Free Summary →
             </Button>
           </Link>
+        </div>
+
+        {/* Optional Subscription - Very De-emphasized */}
+        <div className="max-w-3xl mx-auto mt-12 pt-12 border-t border-slate-200">
+          <div className="text-center">
+            <p className="text-xs text-slate-400 mb-3 italic">Optional • Most users prefer one-time reports</p>
+            <p className="text-sm text-slate-600 mb-2">
+              <Link href="/ai-astrology/subscription" className="text-amber-600 hover:text-amber-700 underline">
+                Monthly Astrology Outlook
+              </Link>
+              {" "}– Get monthly theme-based guidance (not daily predictions)
+            </p>
+            <p className="text-xs text-slate-500 italic">
+              This is an optional subscription. Most users find one-time reports sufficient.
+            </p>
+          </div>
         </div>
 
         {/* Disclaimer Footer */}

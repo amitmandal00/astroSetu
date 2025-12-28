@@ -100,9 +100,17 @@ function SubscriptionContent() {
         throw new Error(response.error || "Failed to create subscription");
       }
 
-      // Redirect to Stripe checkout
+      // Redirect to Stripe checkout (validate URL to prevent open redirects)
       if (response.data?.url) {
-        window.location.href = response.data.url;
+        const checkoutUrl = response.data.url;
+        // Validate URL is from Stripe or is a relative path
+        if (checkoutUrl.startsWith("https://checkout.stripe.com") || 
+            checkoutUrl.startsWith("http://localhost") ||
+            checkoutUrl.startsWith("/")) {
+          window.location.href = checkoutUrl;
+        } else {
+          throw new Error("Invalid checkout URL");
+        }
       }
     } catch (e: any) {
       setError(e.message || "Failed to initiate subscription");
@@ -241,7 +249,7 @@ function SubscriptionContent() {
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                       <h3 className="text-sm font-semibold text-slate-700 mb-3">Reflective Observations</h3>
                       <ul className="space-y-2">
-                        {guidance.actions.slice(0, 3).map((action, idx) => (
+                        {guidance.actions && guidance.actions.length > 0 && guidance.actions.slice(0, 3).map((action, idx) => (
                           <li key={idx} className="flex items-start gap-3 text-sm text-slate-600">
                             <span className="text-slate-400 mt-1">•</span>
                             <span>{action}</span>

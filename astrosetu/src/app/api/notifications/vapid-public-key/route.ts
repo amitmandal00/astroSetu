@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit, successResponse, errorResponse } from "@/lib/apiHelpers";
 
+// Force dynamic rendering since we use request headers for rate limiting
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/notifications/vapid-public-key
  * Returns the VAPID public key for web push notifications

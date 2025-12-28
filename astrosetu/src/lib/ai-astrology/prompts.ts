@@ -98,9 +98,25 @@ export const AI_PROMPT_TEMPLATES = {
          - Use calm, non-absolute language
          - After technical terms, add "What this means in daily life"
       
-      5. TIMING STRENGTH INDICATOR:
+      5. DATA SOURCE LABEL (add at the very beginning):
+         "Based on: Ascendant + Moon Sign + Transit Sequencing + Dasha Analysis (refined timing analysis)"
+      
+      6. TIMING HIERARCHY EXPLANATION (add after Ideal Marriage Windows section):
+         Include a box/note:
+         "Why this timing may differ from other reports:
+          Earlier life summaries provide broad possibilities based on major planetary periods. This report uses refined 
+          transit sequencing and readiness indicators, resulting in more precise but potentially later windows. 
+          Both perspectives are valid—this report focuses on optimal alignment timing."
+      
+      7. TIMELINE VISUALIZATION (add in Ideal Marriage Windows section):
+         Include a simple text timeline after date ranges:
+         "Timeline: 2024 ──── 2025 ──── 2026 ⭐ ──── 2027 ⭐ ──── 2028"
+         (Where ⭐ marks the primary/secondary windows)
+      
+      8. TIMING STRENGTH INDICATOR:
          Include a line like: "Timing Strength: [Moderate to Strong/Strong/Moderate] (Confidence Level: [X]/10)"
          Phrase as guidance strength, not certainty.
+         Add per-section confidence: "Confidence: ★★★★★ (High - 7-8/10)" or similar
       `,
 
     careerMoney: (birthDetails: any, planetaryData: any) => `
@@ -152,23 +168,33 @@ export const AI_PROMPT_TEMPLATES = {
             - Emphasize timing and application
          
          d) "Career Momentum Windows" section (MANDATORY):
-            - Next 12–18 months: [specific focus and timing]
-            - Following 2–3 years: [specific focus and timing]
-            - Long-term: [specific focus]
+            - Growth phase: [date range, e.g., "2025-2027"] - [specific focus: skill building, positioning, etc.]
+            - Consolidation phase: [date range, e.g., "2028"] - [specific focus: stability, mastery, etc.]
+            - Transition phase: [date range if applicable] - [specific focus]
             - Explanation of why these periods are favorable
+            - Add simple timeline: "Timeline: 2024 ──── 2025 ⭐ ──── 2026 ⭐ ──── 2027 ⭐ ──── 2028"
          
-         e) "Money Growth Phases" section:
-            - Tie to behavior patterns and role alignment
-            - Not generic saving/investing advice
-            - Pattern-based financial guidance
+         e) "Money Growth Phases" section (MANDATORY):
+            - Growth periods: [date range] - [description: when income growth is favorable]
+            - Consolidation periods: [date range] - [description: when to stabilize, not expand]
+            - Risk periods: [date range] - "Avoid speculative investments during this phase"
+            - Pattern-based financial guidance tied to career phases
+            - NOT generic saving/investing advice - must be pattern-based
          
-         f) "What You Should Focus on Now" section (MANDATORY - Decision Guidance):
+         f) "Financial Cycle Clarity" (new mandatory section):
+            - Income peaks: [when money flow is strongest]
+            - Consolidation phases: [when to build reserves, not spend]
+            - Caution periods: [when to avoid major financial decisions]
+         
+         g) "What You Should Focus on Now" section (MANDATORY - Decision Guidance):
             • Strengthen [specific skill] over the next 6–12 months
             • Avoid [specific behavior] without preparation
             • Prioritize [specific role type] that align with learning and long-term growth
+            • Best for [specific action] - NOT generic "good for anyone"
+            • Not ideal for [specific action] - concrete guidance
             - Practical, actionable guidance
          
-         g) End with "What This Means For You" summary
+         h) End with "What This Means For You" summary
       
       6. LANGUAGE RULES:
          - Keep bullets to 12-15 words max
@@ -177,11 +203,19 @@ export const AI_PROMPT_TEMPLATES = {
          - Use calm, non-absolute language
          - After technical terms, add "What this means in daily life"
       
-      7. CONFIDENCE INDICATORS:
+      7. DATA SOURCE LABEL (add at the very beginning):
+         "Based on: Ascendant + Career Houses + Dasha + Transit Analysis (medium precision timing)"
+      
+      8. CONFIDENCE INDICATORS (add per section):
          Include indicators like:
-         "Career Direction Clarity: Moderate to Strong"
-         "Money Growth Stability: Steady"
+         "Career Direction Clarity: Moderate to Strong (Confidence: ★★★★☆ - 6-7/10)"
+         "Money Growth Stability: Steady (Confidence: ★★★☆☆ - 5-6/10)"
          Avoid numbers tied to income - just directional confidence
+         
+         Add confidence to:
+         - Career Momentum Windows: "Confidence: ★★★★☆ (Medium-High)"
+         - Money Growth Phases: "Confidence: ★★★☆☆ (Medium)"
+         - Financial Cycles: "Confidence: ★★★☆☆ (Medium)"
       `,
 
     dailyGuidance: (birthDetails: any, planetaryData: any, currentTransits: any) => `
@@ -236,30 +270,53 @@ export const AI_PROMPT_TEMPLATES = {
       Generate a comprehensive "Full Life Report" that combines personality, marriage timing, career, and finances.
       
       CRITICAL STRUCTURE REQUIREMENTS:
-      1. EXECUTIVE SUMMARY (must be first section):
+      1. DATA SOURCE LABEL (add at the very beginning):
+         "Based on: Ascendant + Moon Sign + Dasha overview (high-level analysis)"
+      
+      2. TIMING HIERARCHY DISCLAIMER (add after Executive Summary):
+         "Note: This report provides a high-level overview. Timing-specific insights are refined in dedicated reports. 
+          For precise marriage timing windows, see the Marriage Timing Report. For detailed career phases, see the Career & Money Report."
+      
+      3. EXECUTIVE SUMMARY (must be first section):
          Create a section titled "Your Key Life Insights (Summary)" with:
-         - Marriage: Best window between [specific date range]
+         - Marriage: Best window between [specific date range - use BROAD range like "2024-2027"]
          - Career: Major growth phase [description]
          - Money: [Description] over next 3-5 years
          - Focus: [Key action items]
          Keep this concise and actionable.
+         IMPORTANT: Use broader ranges here (high-level), not precise windows.
       
-      2. For EVERY major section (Personality, Marriage Timing, Career, Money):
+      4. For EVERY major section (Personality, Marriage Timing, Career, Money):
          - Start with section name followed by "- Key Insight"
+         - Add confidence indicator: "Confidence: ★★★★☆ (High)" or "Confidence: ★★★☆☆ (Medium)"
          - Provide 1-2 line summary at the top
          - Then detailed content below
+         - Use PERSONAL ANCHORS: Reference ${birthDetails.name}, birth date ${birthDetails.dob}, specific planetary positions
          - End with "What this means for you" in plain English
       
-      3. Language guidelines:
+      5. Marriage Timing Section (use broader ranges, explain it's high-level):
+         - Start with: "High-level marriage timing overview (for precise windows, see dedicated Marriage Timing Report)"
+         - Provide BROAD window (e.g., "2024-2027 timeframe")
+         - Explain: "This overview considers major planetary periods. For refined timing based on transit sequencing, 
+                    the dedicated Marriage Timing Report provides more precise windows."
+         - Add confidence: "Confidence: ★★★☆☆ (Medium - high-level overview)"
+      
+      6. Career Section (use phases, not precise dates):
+         - Start with: "Career growth phases (for detailed momentum windows, see Career & Money Report)"
+         - Focus on phases and patterns, not exact timing
+         - Add confidence: "Confidence: ★★★☆☆ (Medium - phase-based guidance)"
+      
+      7. Language guidelines:
          - After every technical term (Ascendant, Nakshatra, etc.), add "What this means in daily life" explanation
          - Use short bullet points (max 20 words each)
          - Avoid repeating similar traits
          - Use ranges, tendencies, and probabilities (not guarantees)
+         - AVOID generic phrases like "focus on personal development" - use specific dates/phases/anchors
       
-      4. Section organization:
-         - Personality & Core Traits (with key insight)
-         - Marriage Timing (with key insight and date ranges)
-         - Career & Money (with key insight and time periods)
+      8. Section organization:
+         - Personality & Core Traits (with key insight and confidence)
+         - Marriage Timing (with key insight, broad date ranges, disclaimer about dedicated reports)
+         - Career & Money (with key insight, phase-based guidance, disclaimer)
          - Remedies & Guidance (non-religious, practical)
       `,
   },
