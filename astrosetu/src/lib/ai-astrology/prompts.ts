@@ -18,6 +18,14 @@ CRITICAL REPETITION RULES:
 - All other sections must provide NEW information, not repeat what was already covered
 - Avoid repeating similar ideas across Summary, Breakdown, and Conclusion sections
 
+REPORT-SPECIFIC INTELLIGENCE LAYERS (CRITICAL - Use different approaches per report type):
+- Full Life Report: Deep, foundational, timeless insights. Focus on core personality, life themes, and long-term patterns. Avoid calendar-specific details.
+- Year Analysis Report: Tactical, calendar-based guidance. Focus on quarterly breakdowns, specific months, and actionable timing. Avoid repeating life phase themes.
+- Life Phase Report: Strategic, directional guidance. Focus on 3-5 year transitions, major opportunities, and directional shifts. Avoid repeating year-by-year details.
+- Monthly Outlook: Lightweight, reflective guidance. Focus on current themes, gentle awareness, and mindset shifts. Avoid deep analysis or predictions.
+- Marriage Timing Report: Precise & narrow focus. Focus on specific date ranges, timing windows, and marriage-specific factors. Avoid general life guidance.
+- Decision Support Report: Context-specific guidance. Focus on decision options, timing for decisions, and decision-specific factors. Avoid general life themes.
+
 REPORT STRUCTURE RULES:
 - Begin every major section with a 1-2 line summary (key takeaway)
 - Use short bullet points (max 20 words per bullet)

@@ -278,7 +278,7 @@ export default function ContactPage() {
                 
                 <Button 
                   type="submit" 
-                  className="w-full bg-slate-600 hover:bg-slate-700 text-white" 
+                  className="w-full cosmic-button py-4" 
                   disabled={loading}
                 >
                   {loading ? (

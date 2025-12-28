@@ -228,10 +228,10 @@ function SubscriptionContent() {
             <CardContent className="p-6">
               <h3 className="font-semibold text-slate-900 mb-2">Why This Exists</h3>
               <p className="text-sm text-slate-700 leading-relaxed">
-                This monthly outlook is designed for users who enjoy gentle, recurring reflection.
-                If you prefer deep, complete insights, one-time reports like{" "}
+                Monthly outlooks are ideal if you prefer ongoing reflection and gentle guidance throughout the year.
+                One-time reports like{" "}
                 <Link href="/ai-astrology" className="text-purple-600 hover:underline">Year Analysis</Link> or{" "}
-                <Link href="/ai-astrology" className="text-purple-600 hover:underline">Life Phase Reports</Link> may suit you better.
+                <Link href="/ai-astrology" className="text-purple-600 hover:underline">Life Phase Reports</Link> are better for deep life questions and strategic planning.
               </p>
             </CardContent>
           </Card>

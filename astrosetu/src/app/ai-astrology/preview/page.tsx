@@ -486,7 +486,8 @@ function PreviewContent() {
     const sections = content.sections || [];
     const isPaid = type !== "life-summary";
     const shouldGateContent = !isPaid && sections.length > 0;
-    const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.7)) : sections.length;
+    // Reduce preview to 30-40% to avoid preview fatigue
+    const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.35)) : sections.length;
     const visibleSections = shouldGateContent 
       ? sections.slice(0, gateAfterSection).filter(s => s && s.title) 
       : sections.filter(s => s && s.title);
@@ -779,6 +780,42 @@ function PreviewContent() {
                 </div>
                     );
                   })}
+
+                {/* Gated Content Message for Life Summary */}
+                {shouldGateContent && gatedSections.length > 0 && (
+                  <div className="mt-12 mb-8 p-8 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border-4 border-amber-400 shadow-lg">
+                    <div className="text-center">
+                      <div className="text-5xl mb-4">🔒</div>
+                      <h3 className="text-2xl font-bold text-amber-900 mb-3">
+                        Unlock the Full Life Summary Report
+                      </h3>
+                      <p className="text-slate-700 mb-6 leading-relaxed">
+                        You&apos;ve viewed {Math.round((visibleSections.length / sections.length) * 100)}% of your report. 
+                        Purchase a detailed report to see the remaining {gatedSections.length} section{gatedSections.length > 1 ? 's' : ''} with complete insights.
+                      </p>
+                      <div className="flex flex-wrap justify-center gap-3">
+                        <Link href="/ai-astrology/input?reportType=marriage-timing">
+                          <Button className="cosmic-button px-6 py-3">
+                            See Marriage Timing →
+                          </Button>
+                        </Link>
+                        <Link href="/ai-astrology/input?reportType=career-money">
+                          <Button className="cosmic-button px-6 py-3">
+                            See Career & Money →
+                          </Button>
+                        </Link>
+                        <Link href="/ai-astrology/input?reportType=full-life">
+                          <Button className="cosmic-button px-6 py-3">
+                            Get Full Life Report →
+                          </Button>
+                        </Link>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-4">
+                        All reports: AU$0.01 each • Instant access • Downloadable PDF
+                      </p>
+                    </div>
+                  </div>
+                )}
             </div>
       </>
     );
@@ -833,9 +870,6 @@ function PreviewContent() {
                     ? `${getReportName(bundleReports[0])} (Part 1 of ${bundleReports.length})`
                     : (reportContent?.title || "AI Astrology Report")}
                 </h1>
-                {!isPaidReport && (
-                  <Badge tone="green" className="text-sm">FREE</Badge>
-                )}
               </div>
               <p className="text-slate-600 mb-1">
                 Prepared exclusively for <strong>{input.name}</strong>
@@ -961,6 +995,39 @@ function PreviewContent() {
                             <li>• Career direction</li>
                             <li>• Job-change windows</li>
                             <li>• Money growth phases</li>
+                          </ul>
+                        </div>
+                      </Link>
+                      <Link href="/ai-astrology/input?reportType=year-analysis" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-2">Year Analysis Report</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
+                            <li>• Quarterly breakdown</li>
+                            <li>• Year strategy & focus areas</li>
+                            <li>• Low-return periods</li>
+                          </ul>
+                        </div>
+                      </Link>
+                      <Link href="/ai-astrology/input?reportType=major-life-phase" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-2">3-5 Year Strategic Life Phase Report</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
+                            <li>• Long-term life phases</li>
+                            <li>• Major transitions & opportunities</li>
+                            <li>• Strategic planning guidance</li>
+                          </ul>
+                        </div>
+                      </Link>
+                      <Link href="/ai-astrology/input?reportType=decision-support" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-2">Decision Support Report</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
+                            <li>• Decision options analysis</li>
+                            <li>• Timing recommendations</li>
+                            <li>• Decision anchor guidance</li>
                           </ul>
                         </div>
                       </Link>
