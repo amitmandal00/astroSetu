@@ -193,13 +193,19 @@ export default function ContactPage() {
 
                 <div className="pt-3 border-t border-slate-200">
                   <div className="font-medium text-slate-900 mb-1">Legal Entity</div>
-                  <div className="text-slate-700 text-sm">AstroSetu Services Pvt. Ltd.</div>
+                  <div className="text-slate-700 text-sm">AstroSetu Services Pty Ltd</div>
+                  <div className="text-xs text-slate-500 mt-1">ABN: [To be provided]</div>
                 </div>
 
                 <div>
                   <div className="font-medium text-slate-900 mb-1">Jurisdiction</div>
                   <div className="text-slate-700 text-sm">Australia (Primary)</div>
                   <div className="text-slate-700 text-sm">India (Operations)</div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200">
+                  <div className="font-medium text-slate-900 mb-1">Registered Office</div>
+                  <div className="text-slate-700 text-sm">[To be provided]</div>
                 </div>
 
                 <div className="pt-3 border-t border-slate-200">

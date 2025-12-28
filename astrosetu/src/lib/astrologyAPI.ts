@@ -338,14 +338,29 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
       if (!response.ok) {
         const errorText = await response.text();
         let errorMessage = `Prokerala API error: ${errorText}`;
+        let errorJson: any = null;
+        
         try {
-          const errorJson = JSON.parse(errorText);
+          errorJson = JSON.parse(errorText);
           errorMessage = errorJson.message || errorJson.error || errorMessage;
         } catch {
           // Keep original error message
         }
         
+        // Check for credit balance errors (403)
+        const isCreditError = response.status === 403 && (
+          errorText.includes("insufficient credit") ||
+          errorText.includes("credit balance") ||
+          errorText.includes("sufficient credit") ||
+          (errorJson && (
+            errorJson.errors?.some((e: any) => 
+              e.detail?.includes("credit") || e.title?.includes("credit")
+            )
+          ))
+        );
+        
         // Suppress verbose debug logs for expected 404s (endpoints that may not exist in Prokerala)
+        // Also suppress verbose logs for credit errors (they're expected and handled gracefully)
         if (mustUseGet && !response.ok) {
           const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : isMuhuratEndpoint ? "MUHURAT" : isChoghadiyaEndpoint ? "CHOGHADIYA" : "UNKNOWN";
           
@@ -353,12 +368,21 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
           if (response.status === 404 && (isMuhuratEndpoint || isHoroscopeEndpoint)) {
             // These endpoints are not available in Prokerala - fallback will handle it silently
             // Don't log verbose debug info for expected 404s
+          } else if (isCreditError) {
+            // For credit errors, log a simple warning without verbose debug info
+            console.warn(`[AstroSetu] ${endpointName} API credit exhausted - will use fallback data`);
+            // Create a clean error message for credit errors
+            errorMessage = "PROKERALA_CREDIT_EXHAUSTED";
           } else {
             // For other errors, include debug info
             const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
             errorMessage = debugInfo + " | " + errorMessage;
             console.error(`[AstroSetu] ${endpointName} ERROR WITH DEBUG:`, debugInfo, "Error:", errorMessage);
           }
+        } else if (isCreditError) {
+          // Handle credit errors for non-GET requests too
+          console.warn(`[AstroSetu] Prokerala API credit exhausted - will use fallback data`);
+          errorMessage = "PROKERALA_CREDIT_EXHAUSTED";
         }
         
         throw new Error(errorMessage);
@@ -566,13 +590,16 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
     // Catch Prokerala API errors (including credit exhaustion, 403, etc.) and fallback to mock
     const errorMessage = error.message || String(error);
     const isCreditError = 
+      errorMessage.includes("PROKERALA_CREDIT_EXHAUSTED") ||
       errorMessage.includes("insufficient credit") ||
       errorMessage.includes("credit balance") ||
-      errorMessage.includes("403") ||
+      errorMessage.includes("sufficient credit") ||
+      (errorMessage.includes("403") && errorMessage.includes("credit")) ||
       errorMessage.includes("PROKERALA_CIRCUIT_OPEN");
     
     if (isCreditError) {
-      console.warn("[AstroSetu] Prokerala API credit exhausted or unavailable, using mock data. Error:", errorMessage.substring(0, 200));
+      // Suppress verbose error logging for credit errors - they're expected and handled gracefully
+      console.warn("[AstroSetu] Prokerala API credit exhausted, using fallback data");
     } else {
       console.warn("[AstroSetu] Prokerala API error, falling back to mock data. Error:", errorMessage.substring(0, 200));
     }

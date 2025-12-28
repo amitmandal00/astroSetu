@@ -590,8 +590,8 @@ function PreviewContent() {
     const sections = content.sections || [];
     const isPaid = type !== "life-summary";
     const shouldGateContent = !isPaid && sections.length > 0;
-    // Reduce preview to 30-40% to avoid preview fatigue
-    const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.35)) : sections.length;
+    // Show 65% of content, then blur the rest
+    const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.65)) : sections.length;
     const visibleSections = shouldGateContent 
       ? sections.slice(0, gateAfterSection).filter(s => s && s.title) 
       : sections.filter(s => s && s.title);
@@ -885,38 +885,69 @@ function PreviewContent() {
                     );
                   })}
 
-                {/* Gated Content Message for Life Summary */}
+                {/* Blurred Gated Content for Life Summary */}
                 {shouldGateContent && gatedSections.length > 0 && (
-                  <div className="mt-12 mb-8 p-8 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border-4 border-amber-400 shadow-lg">
-                    <div className="text-center">
-                      <div className="text-5xl mb-4">🔒</div>
-                      <h3 className="text-2xl font-bold text-amber-900 mb-3">
-                        Unlock the Full Life Summary Report
-                      </h3>
-                      <p className="text-slate-700 mb-6 leading-relaxed">
-                        You&apos;ve viewed {Math.round((visibleSections.length / sections.length) * 100)}% of your report. 
-                        Purchase a detailed report to see the remaining {gatedSections.length} section{gatedSections.length > 1 ? 's' : ''} with complete insights.
-                      </p>
-                      <div className="flex flex-wrap justify-center gap-3">
-                        <Link href="/ai-astrology/input?reportType=marriage-timing">
-                          <Button className="cosmic-button px-6 py-3">
-                            See Marriage Timing →
-                          </Button>
-                        </Link>
-                        <Link href="/ai-astrology/input?reportType=career-money">
-                          <Button className="cosmic-button px-6 py-3">
-                            See Career & Money →
-                          </Button>
-                        </Link>
-                        <Link href="/ai-astrology/input?reportType=full-life">
-                          <Button className="cosmic-button px-6 py-3">
-                            Get Full Life Report →
-                          </Button>
-                        </Link>
+                  <div className="relative mt-12">
+                    {/* Blurred sections in background */}
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      {gatedSections.map((section, idx) => {
+                        const hasKeyInsight = section.title.toLowerCase().includes("- key insight") || section.title.toLowerCase().includes("key insight");
+                        const sectionTitle = section.title.replace(/- Key Insight/gi, "").trim();
+                        
+                        return (
+                          <div key={`gated-${idx}`} className="mb-8">
+                            <div className="bg-white rounded-xl p-6 border border-slate-200">
+                              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                                {hasKeyInsight && <span className="text-amber-600 mr-2">✨</span>}
+                                {sectionTitle}
+                              </h3>
+                              {section.content && (
+                                <div className="prose prose-slate max-w-none">
+                                  <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                    {section.content.substring(0, 300)}...
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Gradient overlay with unlock message */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/80 to-white rounded-xl">
+                      <div className="flex items-center justify-center min-h-[400px] p-8">
+                        <div className="text-center max-w-2xl">
+                          <div className="text-5xl mb-4">🔒</div>
+                          <h3 className="text-2xl font-bold text-amber-900 mb-3">
+                            Unlock the Full Life Summary Report
+                          </h3>
+                          <p className="text-slate-700 mb-6 leading-relaxed">
+                            You&apos;ve viewed {Math.round((visibleSections.length / sections.length) * 100)}% of your report. 
+                            Purchase a detailed report to see the remaining {gatedSections.length} section{gatedSections.length > 1 ? 's' : ''} with complete insights.
+                          </p>
+                          <div className="flex flex-wrap justify-center gap-3">
+                            <Link href="/ai-astrology/input?reportType=marriage-timing">
+                              <Button className="cosmic-button px-6 py-3">
+                                See Marriage Timing →
+                              </Button>
+                            </Link>
+                            <Link href="/ai-astrology/input?reportType=career-money">
+                              <Button className="cosmic-button px-6 py-3">
+                                See Career & Money →
+                              </Button>
+                            </Link>
+                            <Link href="/ai-astrology/input?reportType=full-life">
+                              <Button className="cosmic-button px-6 py-3">
+                                Get Full Life Report →
+                              </Button>
+                            </Link>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-4">
+                            All reports: AU$0.01 each • Instant access • Downloadable PDF
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-slate-600 mt-4">
-                        All reports: AU$0.01 each • Instant access • Downloadable PDF
-                      </p>
                     </div>
                   </div>
                 )}

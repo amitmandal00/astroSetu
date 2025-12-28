@@ -66,7 +66,7 @@ export function getContactConfig(): ContactConfig {
     phoneNumber: process.env.PHONE_NUMBER || process.env.NEXT_PUBLIC_PHONE_NUMBER || "+918001234567",
     whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+918001234567",
     
-    companyName: process.env.COMPANY_NAME || process.env.NEXT_PUBLIC_COMPANY_NAME || "AstroSetu Services Pvt. Ltd.",
+    companyName: process.env.COMPANY_NAME || process.env.NEXT_PUBLIC_COMPANY_NAME || "AstroSetu Services Pty Ltd",
     address: {
       street: process.env.ADDRESS_STREET || undefined,
       city: process.env.ADDRESS_CITY || process.env.NEXT_PUBLIC_ADDRESS_CITY || "Mumbai",

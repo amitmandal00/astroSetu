@@ -216,13 +216,16 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">12. Company Information</h2>
                 <p>
-                  <strong>Business Name:</strong> AstroSetu Services Pty Ltd (or your registered business name)
+                  <strong>Business Name:</strong> AstroSetu Services Pty Ltd
                 </p>
                 <p className="mt-2">
                   <strong>ABN:</strong> [To be provided]
                 </p>
                 <p className="mt-2">
                   <strong>Registered Office:</strong> [To be provided]
+                </p>
+                <p className="mt-2">
+                  <strong>Jurisdiction:</strong> Australia (Primary), India (Operations)
                 </p>
                 <p className="mt-2">
                   <strong>Contact:</strong>

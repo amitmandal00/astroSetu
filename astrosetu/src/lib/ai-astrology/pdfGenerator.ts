@@ -453,7 +453,8 @@ export async function generatePDF(
 
     // Add timing hierarchy disclaimer for Full Life Report
     if (reportType === "full-life") {
-      const disclaimerBoxPadding = 2;
+      yPosition += 4; // Add spacing before the box
+      const disclaimerBoxPadding = 5; // Increased padding for better spacing
       const disclaimerBoxStartY = yPosition;
       
       doc.setFontSize(9);
@@ -462,8 +463,8 @@ export async function generatePDF(
                              "For precise marriage timing windows, see the Marriage Timing Report. " +
                              "For detailed career phases, see the Career & Money Report.";
       const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth - (disclaimerBoxPadding * 2));
-      const disclaimerSpacing = 9 * 1.4 * 0.3528;
-      const disclaimerBoxHeight = (disclaimerLines.length * disclaimerSpacing) + (disclaimerBoxPadding * 2);
+      const disclaimerSpacing = 9 * 1.5 * 0.3528; // Increased line spacing from 1.4 to 1.5
+      const disclaimerBoxHeight = (disclaimerLines.length * disclaimerSpacing) + (disclaimerBoxPadding * 2) + 2; // Added extra 2mm for better spacing
       
       checkPageBreak(disclaimerBoxHeight + 10);
       
@@ -477,12 +478,14 @@ export async function generatePDF(
       doc.setFontSize(9);
       doc.setTextColor("#78350f");
       doc.setFont("helvetica", "italic");
-      yPosition = disclaimerBoxStartY + disclaimerBoxPadding;
-      disclaimerLines.forEach((line: string) => {
-        doc.text(line, margin + disclaimerBoxPadding, yPosition);
-        yPosition += disclaimerSpacing;
+      yPosition = disclaimerBoxStartY + disclaimerBoxPadding + 2; // Added 2mm top padding
+      disclaimerLines.forEach((line: string, lineIdx: number) => {
+        if (line.trim()) {
+          doc.text(line, margin + disclaimerBoxPadding, yPosition + (9 * 0.3528)); // Proper text positioning
+          yPosition += disclaimerSpacing;
+        }
       });
-      yPosition = disclaimerBoxStartY + disclaimerBoxHeight + 4;
+      yPosition = disclaimerBoxStartY + disclaimerBoxHeight + 6; // Increased spacing after box
     }
     yPosition += 5;
 

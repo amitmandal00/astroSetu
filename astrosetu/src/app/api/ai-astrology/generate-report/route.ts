@@ -217,11 +217,14 @@ export async function POST(req: Request) {
       
       // Check for Prokerala API credit exhaustion (403 with "insufficient credit balance")
       const isProkeralaCreditError = 
+        errorMessage.includes("PROKERALA_CREDIT_EXHAUSTED") ||
         errorMessage.includes("insufficient credit") ||
         errorMessage.includes("credit balance") ||
+        errorMessage.includes("sufficient credit") ||
         errorString.includes("insufficient credit") ||
         errorString.includes("credit balance") ||
-        (errorMessage.includes("403") && errorString.includes("credit"));
+        errorString.includes("sufficient credit") ||
+        (errorMessage.includes("403") && (errorString.includes("credit") || errorString.includes("balance")));
       
       // Check for various configuration and quota errors
       const isConfigError = 
@@ -239,6 +242,7 @@ export async function POST(req: Request) {
       // For Prokerala credit errors, we'll use fallback/mock data instead of failing
       // This allows the service to continue working when API credits are exhausted
       if (isProkeralaCreditError) {
+        // Suppress verbose error logging - credit errors are expected and handled gracefully
         console.warn("[AI Astrology] Prokerala API credit exhausted, using fallback data generation");
         // The report generator should handle fallback internally, but if it doesn't,
         // we'll return a friendly error that suggests the service is temporarily limited

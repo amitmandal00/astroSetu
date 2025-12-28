@@ -335,7 +335,7 @@ export default function PrivacyPage() {
                 <h2 className="text-xl font-bold text-slate-900 mb-3">10. Contact Information & Privacy Officer</h2>
                 <p className="font-semibold text-slate-900 mb-2">Data Controller & Privacy Officer:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Platform Owner:</strong> AstroSetu Services Pvt. Ltd.</li>
+                  <li><strong>Platform Owner:</strong> AstroSetu Services Pty Ltd</li>
                   <li><strong>Privacy Requests:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a> (Privacy Act requests, data access, correction, deletion)</li>
                   <li><strong>Consumer Law:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline font-medium">support@astrosetu.app</a> (Australian Consumer Law compliance)</li>
                   <li><strong>Legal Notices:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline font-medium">legal@astrosetu.app</a> (Legal notices, formal correspondence)</li>

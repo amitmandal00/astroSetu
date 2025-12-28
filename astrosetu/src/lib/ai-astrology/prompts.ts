@@ -19,7 +19,7 @@ CRITICAL REPETITION RULES:
 - Avoid repeating similar ideas across Summary, Breakdown, and Conclusion sections
 
 REPORT-SPECIFIC INTELLIGENCE LAYERS (CRITICAL - Use different approaches per report type):
-- Full Life Report: Deep, foundational, timeless insights. Focus on core personality, life themes, and long-term patterns. Avoid calendar-specific details.
+- Full Life Report: Deep, foundational, timeless insights. Focus on core personality, life themes, and long-term patterns. Avoid calendar-specific details. This is a COMPREHENSIVE report - be detailed, thorough, and cover all major life areas extensively (2500-3500 words total).
 - Year Analysis Report: Tactical, calendar-based guidance. Focus on quarterly breakdowns, specific months, and actionable timing. Avoid repeating life phase themes.
 - Life Phase Report: Strategic, directional guidance. Focus on 3-5 year transitions, major opportunities, and directional shifts. Avoid repeating year-by-year details.
 - Monthly Outlook: Lightweight, reflective guidance. Focus on current themes, gentle awareness, and mindset shifts. Avoid deep analysis or predictions.
@@ -307,6 +307,7 @@ export const AI_PROMPT_TEMPLATES = {
 
       OUTPUT:
       Generate a comprehensive "Full Life Report" that combines personality, marriage timing, career, and finances.
+      This is a COMPREHENSIVE report - it should be detailed, thorough, and cover all major life areas extensively.
       
       CRITICAL STRUCTURE REQUIREMENTS:
       1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
@@ -328,47 +329,125 @@ export const AI_PROMPT_TEMPLATES = {
          "Note: This report provides a high-level overview. Timing-specific insights are refined in dedicated reports. 
           For precise marriage timing windows, see the Marriage Timing Report. For detailed career phases, see the Career & Money Report."
       
-      3. EXECUTIVE SUMMARY (must be first section):
+      6. EXECUTIVE SUMMARY (must be first section - make this DETAILED):
          Create a section titled "Your Key Life Insights (Summary)" with:
-         - Marriage: Best window between [specific date range - use BROAD range like "2024-2027"]
-         - Career: Major growth phase [description]
-         - Money: [Description] over next 3-5 years
-         - Focus: [Key action items]
-         Keep this concise and actionable.
+         - Marriage: Best window between [specific date range - use BROAD range like "2024-2027"] with 2-3 sentences of context
+         - Career: Major growth phase [description] with 2-3 sentences explaining the phase
+         - Money: [Description] over next 3-5 years with 2-3 sentences on financial patterns
+         - Health: [Overview] with 1-2 sentences on health themes
+         - Family & Relationships: [Overview] with 1-2 sentences
+         - Focus: [Key action items] - provide 3-4 specific action items
+         This should be comprehensive (200-300 words), not just brief bullets.
          IMPORTANT: Use broader ranges here (high-level), not precise windows.
       
-      4. For EVERY major section (Personality, Marriage Timing, Career, Money):
+      7. COMPREHENSIVE SECTION REQUIREMENTS (each section should be DETAILED):
+         For EVERY major section (Personality, Marriage Timing, Career, Money, Health, Family, Education, Spiritual Growth):
          - Start with section name followed by "- Key Insight"
          - Add confidence indicator: "Confidence: ★★★★☆ (High)" or "Confidence: ★★★☆☆ (Medium)"
-         - Provide 1-2 line summary at the top
-         - Then detailed content below
-         - Use PERSONAL ANCHORS: Reference ${birthDetails.name}, birth date ${birthDetails.dob}, specific planetary positions
-         - End with "What this means for you" in plain English
+         - Provide 2-3 line summary at the top (not just 1-2 lines)
+         - Then provide DETAILED content with:
+           * Multiple subsections (3-5 subsections per major section)
+           * Each subsection should have 4-6 bullet points
+           * Each bullet point can be up to 25 words (not just 20)
+           * Include specific examples and practical applications
+         - Use PERSONAL ANCHORS: Reference ${birthDetails.name}, birth date ${birthDetails.dob}, specific planetary positions throughout
+         - End with "What this means for you" in plain English (2-3 sentences, not just 1)
       
-      5. Marriage Timing Section (use broader ranges, explain it's high-level):
+      8. Marriage Timing Section (make this COMPREHENSIVE):
          - Start with: "High-level marriage timing overview (for precise windows, see dedicated Marriage Timing Report)"
-         - Provide BROAD window (e.g., "2024-2027 timeframe")
+         - Provide BROAD window (e.g., "2024-2027 timeframe") with detailed explanation
+         - Include subsections:
+           * Favorable periods (2-3 periods with explanations)
+           * Factors influencing timing (3-4 factors)
+           * Readiness indicators (3-4 indicators)
+           * What to focus on now (3-4 action items)
          - Explain: "This overview considers major planetary periods. For refined timing based on transit sequencing, 
                     the dedicated Marriage Timing Report provides more precise windows."
          - Add confidence: "Confidence: ★★★☆☆ (Medium - high-level overview)"
+         - Total length: 300-400 words minimum
       
-      6. Career Section (use phases, not precise dates):
+      9. Career Section (make this COMPREHENSIVE):
          - Start with: "Career growth phases (for detailed momentum windows, see Career & Money Report)"
+         - Include subsections:
+           * Career strengths and natural talents (4-5 points)
+           * Career phases over next 5 years (3-4 phases with descriptions)
+           * Best career directions (3-4 directions with explanations)
+           * Challenges and how to navigate them (3-4 challenges)
+           * Action items for career growth (4-5 specific actions)
          - Focus on phases and patterns, not exact timing
          - Add confidence: "Confidence: ★★★☆☆ (Medium - phase-based guidance)"
+         - Total length: 400-500 words minimum
       
-      7. Language guidelines:
-         - After every technical term (Ascendant, Nakshatra, etc.), add "What this means in daily life" explanation
-         - Use short bullet points (max 20 words each)
-         - Avoid repeating similar traits
-         - Use ranges, tendencies, and probabilities (not guarantees)
-         - AVOID generic phrases like "focus on personal development" - use specific dates/phases/anchors
+      10. Money & Finance Section (make this COMPREHENSIVE):
+          - Include subsections:
+            * Financial patterns and tendencies (4-5 points)
+            * Money growth phases (3-4 phases)
+            * Investment guidance (3-4 recommendations)
+            * Financial challenges and remedies (3-4 challenges)
+            * Action items for financial growth (4-5 specific actions)
+          - Total length: 300-400 words minimum
       
-      8. Section organization:
-         - Personality & Core Traits (with key insight and confidence)
-         - Marriage Timing (with key insight, broad date ranges, disclaimer about dedicated reports)
-         - Career & Money (with key insight, phase-based guidance, disclaimer)
-         - Remedies & Guidance (non-religious, practical)
+      11. Personality & Core Traits Section (make this COMPREHENSIVE):
+          - Include subsections:
+            * Core personality traits (5-6 traits with explanations)
+            * Strengths and natural abilities (4-5 strengths)
+            * Areas for growth (3-4 areas)
+            * How you relate to others (3-4 points)
+            * Life themes and patterns (3-4 themes)
+          - Total length: 400-500 words minimum
+      
+      12. Health Section (add this - make it COMPREHENSIVE):
+          - Include subsections:
+            * Health patterns and tendencies (3-4 points)
+            * Areas to focus on (3-4 areas)
+            * Preventive care guidance (3-4 recommendations)
+          - Total length: 200-300 words minimum
+      
+      13. Family & Relationships Section (add this - make it COMPREHENSIVE):
+          - Include subsections:
+            * Family dynamics (3-4 points)
+            * Relationship patterns (3-4 patterns)
+            * How to strengthen relationships (3-4 actions)
+          - Total length: 200-300 words minimum
+      
+      14. Education & Learning Section (add this if relevant):
+          - Include learning styles, educational opportunities, knowledge areas to focus on
+          - Total length: 150-200 words
+      
+      15. Spiritual Growth & Life Purpose Section (add this):
+          - Include life purpose themes, spiritual growth opportunities, inner development
+          - Total length: 200-300 words
+      
+      16. Remedies & Guidance Section (make this COMPREHENSIVE):
+          - Include 5-7 practical, non-religious remedies
+          - Each remedy should have 2-3 sentences of explanation
+          - Total length: 300-400 words minimum
+      
+      17. Language guidelines:
+          - After every technical term (Ascendant, Nakshatra, etc.), add "What this means in daily life" explanation
+          - Use bullet points (15-25 words each - allow more length for comprehensive content)
+          - Avoid repeating similar traits
+          - Use ranges, tendencies, and probabilities (not guarantees)
+          - AVOID generic phrases like "focus on personal development" - use specific dates/phases/anchors
+          - Be DETAILED and THOROUGH - this is a comprehensive report, not a summary
+      
+      18. Section organization (COMPREHENSIVE structure):
+          - Executive Summary (200-300 words)
+          - Personality & Core Traits (400-500 words with 4-5 subsections)
+          - Marriage Timing (300-400 words with 4-5 subsections)
+          - Career & Professional Life (400-500 words with 5-6 subsections)
+          - Money & Finance (300-400 words with 4-5 subsections)
+          - Health & Wellbeing (200-300 words with 3-4 subsections)
+          - Family & Relationships (200-300 words with 3-4 subsections)
+          - Education & Learning (150-200 words, if relevant)
+          - Spiritual Growth & Life Purpose (200-300 words)
+          - Remedies & Practical Guidance (300-400 words with 5-7 remedies)
+          - Final Summary: "What This Means For You" (100-150 words)
+      
+      19. TOTAL REPORT LENGTH:
+          This report should be COMPREHENSIVE - aim for 2500-3500 words total.
+          Each major section should be substantial and detailed, not brief.
+          This is a "Full Life Report" - it should feel complete and thorough.
       `,
 
     yearAnalysis: (birthDetails: any, planetaryData: any, targetYear: number) => `
