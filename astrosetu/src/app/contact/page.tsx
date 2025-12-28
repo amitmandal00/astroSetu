@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { AIHeader } from "@/components/ai-astrology/AIHeader";
+import { AIFooter } from "@/components/ai-astrology/AIFooter";
 import { Input } from "@/components/ui/Input";
 import { apiPost } from "@/lib/http";
 import Link from "next/link";
@@ -59,20 +60,23 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="grid gap-6">
-      {/* Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-6 lg:p-8 mb-6 shadow-lg relative overflow-hidden">
-        <HeaderPattern />
-        <div className="relative z-10">
-          <h1 className="text-3xl lg:text-4xl font-bold mb-2">Contact & Legal Information</h1>
-          <p className="text-white/90 text-base">
-            Compliance requests and legal notices only
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <AIHeader />
+      <main className="flex-1 cosmic-bg">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Contact & Legal Information</h1>
+            <p className="text-slate-600 text-base mb-4">
+              Compliance requests and legal notices only
+            </p>
+            <p className="text-sm text-slate-500 italic max-w-2xl mx-auto">
+              This page exists to meet legal and regulatory requirements. For product information, please see <Link href="/ai-astrology/faq" className="text-purple-600 hover:underline">FAQs</Link>.
+            </p>
+          </div>
 
-      {/* Primary Message - Critical */}
-      <Card className="border-2 border-amber-200 bg-amber-50">
+          {/* Primary Message - Critical */}
+          <Card className="cosmic-card border-2 border-amber-200 bg-amber-50">
         <CardContent className="pt-6">
           <div className="flex items-start gap-3">
             <div className="text-2xl">⚠️</div>
@@ -87,9 +91,9 @@ export default function ContactPage() {
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Contact Information */}
-        <Card>
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Contact Information */}
+            <Card className="cosmic-card">
           <CardHeader eyebrow="Legal & Compliance" title="Contact Information" />
           <CardContent className="space-y-6">
             {/* General Contact */}
@@ -181,8 +185,8 @@ export default function ContactPage() {
           </CardContent>
         </Card>
 
-        {/* Compliance Request Form */}
-        <Card>
+            {/* Compliance Request Form */}
+            <Card className="cosmic-card">
           <CardHeader eyebrow="Compliance Requests Only" title="Compliance Request Form" />
           <CardContent>
             {/* Important Notice */}
@@ -297,8 +301,8 @@ export default function ContactPage() {
         </Card>
       </div>
 
-      {/* Self-Help Section */}
-      <Card>
+          {/* Self-Help Section */}
+          <Card className="cosmic-card">
         <CardHeader eyebrow="Self-Help Resources" title="Find Answers Yourself" />
         <CardContent>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -365,8 +369,11 @@ export default function ContactPage() {
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+      <AIFooter />
     </div>
   );
 }

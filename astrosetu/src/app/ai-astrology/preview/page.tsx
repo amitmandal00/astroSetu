@@ -339,6 +339,11 @@ function PreviewContent() {
                 </label>
               </div>
 
+              <div className="mb-4 text-center">
+                <Link href="/ai-astrology/faq" className="text-sm text-purple-600 hover:text-purple-700 underline">
+                  Read FAQs before buying
+                </Link>
+              </div>
               <Button
                 onClick={handlePurchase}
                 disabled={loading || !refundAcknowledged}
@@ -545,7 +550,7 @@ function PreviewContent() {
                     {/* Best Value - Full Life Report */}
                     <Link href="/ai-astrology/input?reportType=full-life" className="block mb-6">
                       <div className="p-5 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg border-4 border-purple-500 hover:border-purple-600 hover:shadow-xl transition-all relative scale-105">
-                        <div className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                        <div className="absolute -top-2 -right-2 bg-purple-700 text-white text-xs font-extrabold px-3 py-1.5 rounded-full shadow-lg border-2 border-purple-800 uppercase tracking-wide">
                           BEST VALUE
                         </div>
                         <div className="font-bold text-slate-800 mb-2 text-xl">Get My Full Life Report</div>
@@ -1044,8 +1049,7 @@ function PreviewContent() {
                   It provides astrological guidance based on traditional calculations, not absolute predictions or certainties.
                 </p>
                 <p>
-                  <strong>Not Professional Advice:</strong> This report should not be used as a substitute for professional medical, legal, 
-                  financial, or psychological advice. Always consult qualified professionals for important life decisions.
+                  <strong>Not Professional Advice:</strong> Personalised astrological insights for educational and self-reflection purposes only. Not professional advice. Always consult qualified professionals for important life decisions.
                 </p>
                 <p>
                   <strong>No Guarantees:</strong> Results are based on astrological calculations and AI interpretation. 

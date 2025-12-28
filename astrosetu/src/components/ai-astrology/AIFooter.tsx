@@ -65,7 +65,25 @@ export function AIFooter() {
                 <span className="text-slate-400 mr-2">→</span>
                 Refund Policy
               </Link>
+              <Link href="/cookies" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm">
+                <span className="text-slate-400 mr-2">→</span>
+                Cookie Policy
+              </Link>
             </nav>
+            <div className="pt-2 border-t border-slate-200">
+              <p className="text-xs text-slate-500 mb-2">Additional Information:</p>
+              <nav className="space-y-1">
+                <Link href="/contact" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs">
+                  Contact & Legal Info
+                </Link>
+                <Link href="/data-breach" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs">
+                  Data Breach Policy
+                </Link>
+                <Link href="/disputes" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs">
+                  Dispute Resolution
+                </Link>
+              </nav>
+            </div>
             <p className="text-xs text-slate-500">© 2024 AstroSetu</p>
             <p className="text-xs text-slate-600 font-medium">
               No change-of-mind refunds on digital reports.

@@ -196,38 +196,50 @@ export async function generatePDF(
     // ============================================
     // 2. HOW TO READ THIS REPORT (NEW - CRITICAL)
     // ============================================
-    checkPageBreak(35);
-    // Warning box - Matching UI amber-50 theme
-    doc.setFillColor(255, 251, 235); // amber-50 (#fffbeb) - lighter, matches UI
-    doc.rect(margin, yPosition - 3, contentWidth, 30, "F");
-    doc.setDrawColor(245, 158, 11); // amber-500 (#f59e0b) - matches UI
-    doc.setLineWidth(1);
-    doc.rect(margin, yPosition - 3, contentWidth, 30, "S");
+    const boxPadding = 3;
+    const boxStartY = yPosition;
     
+    // Calculate text height first
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor("#78350f");
-    doc.text("How to Read This Report", margin + 3, yPosition + 6);
-    yPosition += 10;
-
+    const headerHeight = 14 * 1.4 * 0.3528;
+    
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor("#92400e");
+    const lineSpacing = 10 * 1.4 * 0.3528;
     const howToReadLines = [
       "• This report provides guidance, not guarantees.",
       "• Astrology highlights favorable and challenging periods, not fixed outcomes.",
       "• Use this report for planning and awareness, not absolute prediction.",
     ];
-    const lineSpacing = 10 * 1.4 * 0.3528; // Consistent line spacing
+    const totalTextHeight = headerHeight + (howToReadLines.length * lineSpacing) + 8;
+    const boxHeight = totalTextHeight + (boxPadding * 2);
+    
+    checkPageBreak(boxHeight + 10);
+    
+    // Draw box with calculated height - Matching UI amber-50 theme
+    doc.setFillColor(255, 251, 235); // amber-50 (#fffbeb) - lighter, matches UI
+    doc.rect(margin, boxStartY, contentWidth, boxHeight, "F");
+    doc.setDrawColor(245, 158, 11); // amber-500 (#f59e0b) - matches UI
+    doc.setLineWidth(1);
+    doc.rect(margin, boxStartY, contentWidth, boxHeight, "S");
+    
+    yPosition = boxStartY + boxPadding;
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#78350f");
+    doc.text("How to Read This Report", margin + boxPadding, yPosition + (14 * 0.3528));
+    yPosition += headerHeight + 4;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#92400e");
     howToReadLines.forEach((line: string) => {
-      if (yPosition + lineSpacing > pageHeight - margin) {
-        doc.addPage();
-        yPosition = margin;
-      }
-      doc.text(line, margin + 5, yPosition);
+      doc.text(line, margin + boxPadding + 2, yPosition);
       yPosition += lineSpacing;
     });
-    yPosition += 8;
+    yPosition = boxStartY + boxHeight + 8;
 
     // ============================================
     // 3. DATA AND METHOD USED (Trust Builder)
@@ -281,33 +293,22 @@ export async function generatePDF(
     // ============================================
     // 4. CONFIDENCE LEVEL (MANDATORY - Prominent)
     // ============================================
-    checkPageBreak(25);
-    // Confidence box - Matching UI blue-50/blue-100 theme
-    doc.setFillColor(239, 246, 255); // blue-50 (#eff6ff) - lighter, matches UI
-    doc.rect(margin, yPosition - 3, contentWidth, 20, "F");
-    doc.setDrawColor(59, 130, 246); // blue-500 (#3b82f6)
-    doc.setLineWidth(1);
-    doc.rect(margin, yPosition - 3, contentWidth, 20, "S");
+    const confidenceBoxPadding = 3;
+    const confidenceBoxStartY = yPosition;
     
+    // Calculate text height first
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor("#1e40af");
-    doc.text("Confidence Level", margin + 3, yPosition + 6);
-    yPosition += 8;
-
+    const confidenceHeaderHeight = 14 * 1.4 * 0.3528;
+    
     // Extract confidence from content
     const overallConfidenceMatch = reportContent.summary?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i) || 
                                    reportContent.executiveSummary?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i) ||
                                    reportContent.sections[0]?.content?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i);
     
+    let confidenceText = "";
     if (overallConfidenceMatch) {
-      const confidenceText = cleanText(overallConfidenceMatch[0]);
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor("#1e40af");
-      checkPageBreak(8);
-      doc.text(confidenceText, margin + 3, yPosition);
-      yPosition += (12 * 1.4 * 0.3528) + 2;
+      confidenceText = cleanText(overallConfidenceMatch[0]);
     } else {
       // Default confidence based on report type (using text instead of stars for better compatibility)
       let defaultConfidence = "Medium (5-6/10)";
@@ -318,20 +319,54 @@ export async function generatePDF(
       } else if (reportType === "year-analysis") {
         defaultConfidence = "Medium-High (6-8/10)";
       }
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor("#1e40af");
-      checkPageBreak(8);
-      doc.text(`Confidence Level: ${defaultConfidence}`, margin + 3, yPosition);
-      yPosition += (12 * 1.4 * 0.3528) + 2;
+      confidenceText = `Confidence Level: ${defaultConfidence}`;
     }
-
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    const confidenceTextHeight = 12 * 1.4 * 0.3528;
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const noteText = "This score reflects data completeness and astrological clarity.";
+    const noteLines = doc.splitTextToSize(noteText, contentWidth - (confidenceBoxPadding * 2));
+    const noteSpacing = 9 * 1.4 * 0.3528;
+    const noteHeight = noteLines.length * noteSpacing;
+    
+    const confidenceBoxHeight = confidenceHeaderHeight + confidenceTextHeight + noteHeight + (confidenceBoxPadding * 3) + 6;
+    
+    checkPageBreak(confidenceBoxHeight + 10);
+    
+    // Draw box with calculated height - Matching UI blue-50/blue-100 theme
+    doc.setFillColor(239, 246, 255); // blue-50 (#eff6ff) - lighter, matches UI
+    doc.rect(margin, confidenceBoxStartY, contentWidth, confidenceBoxHeight, "F");
+    doc.setDrawColor(59, 130, 246); // blue-500 (#3b82f6)
+    doc.setLineWidth(1);
+    doc.rect(margin, confidenceBoxStartY, contentWidth, confidenceBoxHeight, "S");
+    
+    yPosition = confidenceBoxStartY + confidenceBoxPadding;
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#1e40af");
+    doc.text("Confidence Level", margin + confidenceBoxPadding, yPosition + (14 * 0.3528));
+    yPosition += confidenceHeaderHeight + 2;
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#1e40af");
+    doc.text(confidenceText, margin + confidenceBoxPadding, yPosition);
+    yPosition += confidenceTextHeight + 2;
+    
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor("#1e40af");
-    checkPageBreak(6);
-    doc.text("This score reflects data completeness and astrological clarity.", margin + 3, yPosition);
-    yPosition += (9 * 1.4 * 0.3528) + 6;
+    noteLines.forEach((line: string) => {
+      doc.text(line, margin + confidenceBoxPadding, yPosition);
+      yPosition += noteSpacing;
+    });
+    
+    yPosition = confidenceBoxStartY + confidenceBoxHeight + 6;
 
     // ============================================
     // 5. EXECUTIVE SUMMARY (1 page max - Summary)
@@ -362,29 +397,36 @@ export async function generatePDF(
 
     // Add timing hierarchy disclaimer for Full Life Report
     if (reportType === "full-life") {
-      // Disclaimer box - Matching UI amber-50 theme
-      doc.setFillColor(255, 251, 235); // amber-50 (#fffbeb) - lighter, matches UI
-      doc.rect(margin, yPosition - 3, contentWidth, 12, "F");
-      doc.setDrawColor(245, 158, 11); // amber-500 (#f59e0b) - matches UI
-      doc.setLineWidth(0.5);
-      doc.rect(margin, yPosition - 3, contentWidth, 12, "S");
+      const disclaimerBoxPadding = 2;
+      const disclaimerBoxStartY = yPosition;
+      
       doc.setFontSize(9);
-      doc.setTextColor("#78350f");
       doc.setFont("helvetica", "italic");
       const disclaimerText = "Note: This report provides a high-level overview. Timing-specific insights are refined in dedicated reports. " +
                              "For precise marriage timing windows, see the Marriage Timing Report. " +
                              "For detailed career phases, see the Career & Money Report.";
-      const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth - 4);
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth - (disclaimerBoxPadding * 2));
       const disclaimerSpacing = 9 * 1.4 * 0.3528;
+      const disclaimerBoxHeight = (disclaimerLines.length * disclaimerSpacing) + (disclaimerBoxPadding * 2);
+      
+      checkPageBreak(disclaimerBoxHeight + 10);
+      
+      // Draw box with calculated height - Matching UI amber-50 theme
+      doc.setFillColor(255, 251, 235); // amber-50 (#fffbeb) - lighter, matches UI
+      doc.rect(margin, disclaimerBoxStartY, contentWidth, disclaimerBoxHeight, "F");
+      doc.setDrawColor(245, 158, 11); // amber-500 (#f59e0b) - matches UI
+      doc.setLineWidth(0.5);
+      doc.rect(margin, disclaimerBoxStartY, contentWidth, disclaimerBoxHeight, "S");
+      
+      doc.setFontSize(9);
+      doc.setTextColor("#78350f");
+      doc.setFont("helvetica", "italic");
+      yPosition = disclaimerBoxStartY + disclaimerBoxPadding;
       disclaimerLines.forEach((line: string) => {
-        if (yPosition + disclaimerSpacing > pageHeight - margin) {
-          doc.addPage();
-          yPosition = margin;
-        }
-        doc.text(line, margin + 2, yPosition);
+        doc.text(line, margin + disclaimerBoxPadding, yPosition);
         yPosition += disclaimerSpacing;
       });
-      yPosition += 4;
+      yPosition = disclaimerBoxStartY + disclaimerBoxHeight + 4;
     }
     yPosition += 5;
 
@@ -404,7 +446,66 @@ export async function generatePDF(
       const cleanedTitle = cleanText(section.title);
       // Remove "- Key Insight" suffix if present for cleaner titles
       const formattedTitle = cleanedTitle.replace(/\s*-\s*Key\s+Insight\s*$/i, "").trim();
-      addText(formattedTitle, 16, true, "#1e293b", 1.4, 4);
+      
+      // Special handling for Decision Anchor boxes in year analysis reports
+      const isDecisionAnchor = !!formattedTitle.match(/Decision Anchor/i);
+      if (isDecisionAnchor && reportType === "year-analysis") {
+        const anchorBoxPadding = 4;
+        const anchorBoxStartY = yPosition;
+        
+        // Calculate text height first
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        const anchorHeaderHeight = 14 * 1.4 * 0.3528;
+        
+        // Extract decision anchor content (the main message after the title)
+        const anchorContentMatch = section.content?.match(/Based on this report.*?\./i);
+        let anchorContent = "";
+        if (anchorContentMatch) {
+          anchorContent = cleanText(anchorContentMatch[0]);
+        } else {
+          // Fallback: use first paragraph of content
+          const firstPara = section.content?.split(/\n\n/)[0] || section.content || "";
+          anchorContent = cleanText(firstPara.trim());
+        }
+        
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        const anchorContentLines = doc.splitTextToSize(anchorContent, contentWidth - (anchorBoxPadding * 2));
+        const anchorContentSpacing = 11 * 1.5 * 0.3528;
+        const anchorContentHeight = anchorContentLines.length * anchorContentSpacing;
+        
+        const anchorBoxHeight = anchorHeaderHeight + anchorContentHeight + (anchorBoxPadding * 3) + 6;
+        
+        checkPageBreak(anchorBoxHeight + 10);
+        
+        // Draw prominent box - Matching UI purple-600 theme
+        doc.setFillColor(245, 243, 255); // purple-50 (#f5f3ff) - lighter background
+        doc.rect(margin, anchorBoxStartY, contentWidth, anchorBoxHeight, "F");
+        doc.setDrawColor(147, 51, 234); // purple-600 (#9333ea)
+        doc.setLineWidth(1.5);
+        doc.rect(margin, anchorBoxStartY, contentWidth, anchorBoxHeight, "S");
+        
+        yPosition = anchorBoxStartY + anchorBoxPadding;
+        
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#6b21a8"); // purple-800
+        doc.text(formattedTitle, margin + anchorBoxPadding, yPosition + (14 * 0.3528));
+        yPosition += anchorHeaderHeight + 4;
+        
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#581c87"); // purple-900
+        anchorContentLines.forEach((line: string) => {
+          doc.text(line, margin + anchorBoxPadding, yPosition);
+          yPosition += anchorContentSpacing;
+        });
+        
+        yPosition = anchorBoxStartY + anchorBoxHeight + 8;
+      } else {
+        addText(formattedTitle, 16, true, "#1e293b", 1.4, 4);
+      }
 
       // Extract and display confidence indicator if present
       const confidenceMatch = section.content?.match(/Confidence:.*?(?:High|Medium|Low|\d+\/10|★+)/i);
@@ -439,61 +540,87 @@ export async function generatePDF(
       }
 
       // Section content (without confidence/timeline lines, already extracted)
-      if (section.content) {
+      // Skip content if it was already displayed in Decision Anchor box
+      if (section.content && !(isDecisionAnchor && reportType === "year-analysis")) {
         const cleanContent = section.content
           .split(/\n/)
           .filter(line => 
             !line.match(/^Confidence:/i) && 
             !line.match(/^Timeline:/) &&
             !line.match(/^Based on:/i) &&
-            !line.match(/^Why this timing may differ/i)
+            !line.match(/^Why this timing may differ/i) &&
+            !line.match(/Based on this report.*?\./i) // Skip Decision Anchor content if already displayed
           )
           .join('\n');
         if (cleanContent.trim()) {
-          addText(cleanContent, 11, false, "#334155", 1.6, 6); // Better line height for readability
+          // Special formatting for Year Strategy sections
+          const isYearStrategy = formattedTitle.match(/Year Strategy/i);
+          if (isYearStrategy && reportType === "year-analysis") {
+            // Better spacing for Year Strategy content
+            addText(cleanContent, 11, false, "#334155", 1.7, 8); // Increased line height and spacing
+          } else {
+            addText(cleanContent, 11, false, "#334155", 1.6, 6); // Better line height for readability
+          }
         }
       }
 
       // Extract and display "Why timing differs" explanation box if present
       const timingDiffMatch = section.content?.match(/Why this timing may differ.*?(?:\n\n|\n[A-Z]|$)/is);
       if (timingDiffMatch) {
-        checkPageBreak(25);
-        // Info box - Matching UI blue-50 theme
+        const timingBoxPadding = 2;
+        const timingBoxStartY = yPosition;
+        
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        const headerText = cleanText("Why this timing may differ from other reports:");
+        const headerHeight = 9 * 1.4 * 0.3528;
+        
+        doc.setFont("helvetica", "normal");
+        const explanationText = cleanText(timingDiffMatch[0].replace(/Why this timing may differ.*?:/i, '').trim());
+        const explanationLines = doc.splitTextToSize(explanationText, contentWidth - (timingBoxPadding * 2));
+        const explanationSpacing = 9 * 1.4 * 0.3528;
+        const explanationHeight = explanationLines.length * explanationSpacing;
+        
+        const timingBoxHeight = headerHeight + explanationHeight + (timingBoxPadding * 3) + 4;
+        
+        checkPageBreak(timingBoxHeight + 10);
+        
+        // Draw box with calculated height - Matching UI blue-50 theme
         doc.setFillColor(239, 246, 255); // blue-50 (#eff6ff) - matches UI
-        doc.rect(margin, yPosition - 3, contentWidth, 18, "F");
+        doc.rect(margin, timingBoxStartY, contentWidth, timingBoxHeight, "F");
         doc.setDrawColor(59, 130, 246); // blue-500 (#3b82f6)
         doc.setLineWidth(0.5);
-        doc.rect(margin, yPosition - 3, contentWidth, 18, "S");
+        doc.rect(margin, timingBoxStartY, contentWidth, timingBoxHeight, "S");
+        
         doc.setFontSize(9);
         doc.setTextColor("#1e40af");
         doc.setFont("helvetica", "bold");
-        const headerText = cleanText("Why this timing may differ from other reports:");
-        doc.text(headerText, margin + 2, yPosition + 3);
-        yPosition += 6;
+        yPosition = timingBoxStartY + timingBoxPadding;
+        doc.text(headerText, margin + timingBoxPadding, yPosition + (9 * 0.3528));
+        yPosition += headerHeight + 2;
+        
         doc.setFont("helvetica", "normal");
-        const explanationText = cleanText(timingDiffMatch[0].replace(/Why this timing may differ.*?:/i, '').trim());
-        const explanationLines = doc.splitTextToSize(explanationText, contentWidth - 4);
-        const explanationSpacing = 9 * 1.4 * 0.3528;
-        explanationLines.forEach((line: string, idx: number) => {
-          if (yPosition + explanationSpacing > pageHeight - margin) {
-            doc.addPage();
-            yPosition = margin;
-          }
-          doc.text(line, margin + 2, yPosition);
+        explanationLines.forEach((line: string) => {
+          doc.text(line, margin + timingBoxPadding, yPosition);
           yPosition += explanationSpacing;
         });
-        yPosition += 4;
+        yPosition = timingBoxStartY + timingBoxHeight + 4;
       }
 
       // Bullets
       if (section.bullets && section.bullets.length > 0) {
+        // Special formatting for Year Strategy bullets
+        const isYearStrategy = formattedTitle.match(/Year Strategy/i);
+        const bulletSpacingMultiplier = (isYearStrategy && reportType === "year-analysis") ? 1.8 : 1.5;
+        const bulletBottomSpacing = (isYearStrategy && reportType === "year-analysis") ? 5 : 3;
+        
         section.bullets.forEach((bullet) => {
           doc.setFontSize(11);
           doc.setTextColor("#334155");
           doc.setFont("helvetica", "normal");
           const cleanedBullet = cleanText(bullet);
           const bulletLines = doc.splitTextToSize(`• ${cleanedBullet}`, contentWidth - 10);
-          const bulletSpacing = 11 * 1.5 * 0.3528;
+          const bulletSpacing = 11 * bulletSpacingMultiplier * 0.3528;
           
           bulletLines.forEach((line: string, idx: number) => {
             if (yPosition + bulletSpacing > pageHeight - margin) {
@@ -503,7 +630,7 @@ export async function generatePDF(
             doc.text(line, margin + (idx === 0 ? 0 : 10), yPosition);
             yPosition += bulletSpacing;
           });
-          yPosition += 3; // Space between bullets
+          yPosition += bulletBottomSpacing; // Space between bullets
         });
       }
 
@@ -519,18 +646,24 @@ export async function generatePDF(
 
           // Subsection content
           if (subsection.content) {
-            addText(subsection.content, 11, false, "#334155", 1.6, 5); // Better line height
+            // Better line height for year analysis reports
+            const lineHeightMultiplier = (reportType === "year-analysis") ? 1.7 : 1.6;
+            const bottomSpacing = (reportType === "year-analysis") ? 7 : 5;
+            addText(subsection.content, 11, false, "#334155", lineHeightMultiplier, bottomSpacing);
           }
 
           // Subsection bullets
           if (subsection.bullets && subsection.bullets.length > 0) {
+            const bulletSpacingMultiplier = (reportType === "year-analysis") ? 1.8 : 1.5;
+            const bulletBottomSpacing = (reportType === "year-analysis") ? 5 : 3;
+            
             subsection.bullets.forEach((bullet) => {
               doc.setFontSize(11);
               doc.setTextColor("#334155");
               doc.setFont("helvetica", "normal");
               const cleanedBullet = cleanText(bullet);
               const bulletLines = doc.splitTextToSize(`  • ${cleanedBullet}`, contentWidth - 10);
-              const bulletSpacing = 11 * 1.5 * 0.3528;
+              const bulletSpacing = 11 * bulletSpacingMultiplier * 0.3528;
               
               bulletLines.forEach((line: string, idx: number) => {
                 if (yPosition + bulletSpacing > pageHeight - margin) {
@@ -540,7 +673,7 @@ export async function generatePDF(
                 doc.text(line, margin + (idx === 0 ? 0 : 10), yPosition);
                 yPosition += bulletSpacing;
               });
-              yPosition += 3; // Space between bullets
+              yPosition += bulletBottomSpacing; // Space between bullets
             });
           }
         });
@@ -559,12 +692,24 @@ export async function generatePDF(
       doc.line(margin, yPosition, pageWidth - margin, yPosition);
       yPosition += 10;
 
-      // Amber background box - Matching UI amber-50 theme
+      // Calculate header box height
+      const insightsHeaderBoxPadding = 3;
+      const insightsHeaderBoxStartY = yPosition;
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      const insightsHeaderHeight = 16 * 1.4 * 0.3528;
+      const insightsHeaderBoxHeight = insightsHeaderHeight + (insightsHeaderBoxPadding * 2);
+      
+      // Amber background box for header - Matching UI amber-50 theme
       doc.setFillColor(255, 251, 235); // amber-50 (#fffbeb) - lighter, matches UI
-      doc.rect(margin, yPosition - 5, contentWidth, 10, "F");
+      doc.rect(margin, insightsHeaderBoxStartY, contentWidth, insightsHeaderBoxHeight, "F");
 
-      addText("Key Insights", 16, true, "#92400e"); // amber-800 - matches UI
-      yPosition += 5;
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#92400e"); // amber-800 - matches UI
+      yPosition = insightsHeaderBoxStartY + insightsHeaderBoxPadding;
+      doc.text("Key Insights", margin + insightsHeaderBoxPadding, yPosition + (16 * 0.3528));
+      yPosition = insightsHeaderBoxStartY + insightsHeaderBoxHeight + 5;
 
       reportContent.keyInsights.forEach((insight) => {
         doc.setFontSize(11);

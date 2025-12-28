@@ -1,26 +1,26 @@
 "use client";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { AIHeader } from "@/components/ai-astrology/AIHeader";
+import { AIFooter } from "@/components/ai-astrology/AIFooter";
 
 export default function DisputesPage() {
   const effectiveDate = "December 26, 2024";
 
   return (
-    <div className="grid gap-5">
-      {/* Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-6 lg:p-8 mb-6 shadow-lg relative overflow-hidden">
-        <HeaderPattern />
-        <div className="relative z-10">
-          <h1 className="text-3xl lg:text-4xl font-bold mb-2">Dispute Resolution Policy</h1>
-          <p className="text-white/90 text-base">
-            Effective Date: {effectiveDate}
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <AIHeader />
+      <main className="flex-1 cosmic-bg">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Dispute Resolution Policy</h1>
+            <p className="text-slate-600 text-base">
+              Effective Date: {effectiveDate}
+            </p>
+          </div>
 
-      <div className="max-w-4xl mx-auto">
-        <Card>
+          <Card className="cosmic-card">
           <CardContent className="prose prose-slate max-w-none">
             <div className="space-y-6 text-sm text-slate-700 leading-relaxed">
               {/* Overview */}
@@ -189,7 +189,9 @@ export default function DisputesPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </main>
+      <AIFooter />
     </div>
   );
 }

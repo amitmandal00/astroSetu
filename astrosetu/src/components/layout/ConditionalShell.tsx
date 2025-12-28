@@ -14,7 +14,7 @@ export function ConditionalShell({ children }: { children: ReactNode }) {
   
   // Check if current route is in AI astrology section or uses AI section header/footer
   const isAIAstrologyRoute = pathname?.startsWith("/ai-astrology");
-  const isAISectionPage = pathname === "/privacy" || pathname === "/terms" || pathname === "/disclaimer" || pathname === "/refund";
+  const isAISectionPage = pathname === "/privacy" || pathname === "/terms" || pathname === "/disclaimer" || pathname === "/refund" || pathname === "/contact" || pathname === "/disputes" || pathname === "/cookies" || pathname === "/data-breach";
   
   // Don't wrap AI astrology routes or AI section pages with Shell (they have their own header/footer)
   if (isAIAstrologyRoute || isAISectionPage) {

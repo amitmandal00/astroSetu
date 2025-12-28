@@ -12,13 +12,13 @@ export function Badge({
 }) {
   const styles =
     tone === "green"
-      ? "bg-emerald-100 text-emerald-800 border-2 border-emerald-300 shadow-sm"
+      ? "bg-emerald-600 text-white border-2 border-emerald-700 shadow-md"
       : tone === "red"
-        ? "bg-rose-100 text-rose-800 border-2 border-rose-300 shadow-sm"
+        ? "bg-rose-600 text-white border-2 border-rose-700 shadow-md"
         : tone === "amber"
-          ? "bg-amber-100 text-amber-900 border-2 border-amber-300 shadow-sm"
+          ? "bg-amber-600 text-white border-2 border-amber-700 shadow-md"
           : tone === "indigo"
-            ? "bg-indigo-100 text-indigo-800 border-2 border-indigo-300 shadow-sm"
-            : "bg-slate-100 text-slate-800 border-2 border-slate-300 shadow-sm";
-  return <span className={clsx("inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold", styles, className)}>{children}</span>;
+            ? "bg-indigo-600 text-white border-2 border-indigo-700 shadow-md"
+            : "bg-slate-600 text-white border-2 border-slate-700 shadow-md";
+  return <span className={clsx("inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-extrabold", styles, className)}>{children}</span>;
 }

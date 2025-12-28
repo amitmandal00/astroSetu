@@ -33,6 +33,24 @@ export default function AIAstrologyLandingPage() {
               </Button>
             </Link>
           </div>
+          
+          {/* Trust Strip */}
+          <div className="mt-8 pt-8 border-t border-slate-200">
+            <div className="flex flex-wrap justify-center items-center gap-6 text-sm text-slate-600">
+              <div className="flex items-center gap-2">
+                <span className="text-green-600">✔</span>
+                <span>Australian Consumer Law compliant</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-green-600">✔</span>
+                <span>Fully automated – no human bias</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-green-600">✔</span>
+                <span>Transparent policies</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -219,7 +237,7 @@ export default function AIAstrologyLandingPage() {
 
             {/* Marriage Timing */}
             <div className="cosmic-card rounded-2xl border-2 border-pink-200 relative pt-4 pr-4">
-              <div className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full z-20 shadow-lg">
+              <div className="absolute -top-2 -right-2 bg-pink-700 text-white text-xs font-extrabold px-3 py-1.5 rounded-full z-20 shadow-lg border-2 border-pink-800 uppercase tracking-wide">
                 MOST POPULAR
               </div>
               <div className="p-6 pt-2">
@@ -292,7 +310,7 @@ export default function AIAstrologyLandingPage() {
             <div className="cosmic-card rounded-2xl border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <Badge className="bg-purple-600 text-white text-sm font-bold px-4 py-1.5 border-2 border-purple-700 shadow-md">BEST VALUE</Badge>
+                  <Badge className="bg-purple-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-purple-800 shadow-lg uppercase tracking-wide">BEST VALUE</Badge>
                   <span className="text-3xl">⭐</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Full Life Report</h3>
@@ -435,7 +453,7 @@ export default function AIAstrologyLandingPage() {
             {/* Any 2 Reports Bundle */}
             <div className="cosmic-card rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50">
               <div className="p-8">
-                <Badge className="bg-emerald-600 text-white text-sm font-bold px-4 py-1.5 mb-4">SAVE 15%</Badge>
+                <Badge className="bg-emerald-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-emerald-800 shadow-lg uppercase tracking-wide mb-4">SAVE 15%</Badge>
                 <h3 className="text-2xl font-bold text-slate-800 mb-3">Any 2 Reports Bundle</h3>
                 <p className="text-slate-600 mb-4 leading-relaxed">
                   Choose any 2 premium reports and save 15%. Perfect for focusing on marriage timing and career together.
@@ -465,7 +483,7 @@ export default function AIAstrologyLandingPage() {
                     <span>Instant PDF delivery</span>
                   </div>
                 </div>
-                <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
+                <Link href="/ai-astrology/bundle?type=any-2" className="block">
                   <Button className="cosmic-button w-full bg-emerald-600 hover:bg-emerald-700">
                     Get 2 Reports Bundle →
                   </Button>
@@ -476,7 +494,7 @@ export default function AIAstrologyLandingPage() {
             {/* All 3 Reports Bundle */}
             <div className="cosmic-card rounded-2xl border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50">
               <div className="p-8">
-                <Badge className="bg-purple-600 text-white text-sm font-bold px-4 py-1.5 mb-4">BEST VALUE - SAVE 25%</Badge>
+                <Badge className="bg-purple-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-purple-800 shadow-lg uppercase tracking-wide mb-4">BEST VALUE - SAVE 25%</Badge>
                 <h3 className="text-2xl font-bold text-slate-800 mb-3">All 3 Reports Bundle</h3>
                 <p className="text-slate-600 mb-4 leading-relaxed">
                   Get all premium reports in one comprehensive package. Maximum savings for complete life insights.
@@ -510,7 +528,7 @@ export default function AIAstrologyLandingPage() {
                     <span>Instant PDF delivery</span>
                   </div>
                 </div>
-                <Link href="/ai-astrology/input?reportType=full-life" className="block">
+                <Link href="/ai-astrology/bundle?type=all-3" className="block">
                   <Button className="cosmic-button w-full bg-purple-600 hover:bg-purple-700">
                     Get All 3 Reports →
                   </Button>
