@@ -26,7 +26,7 @@ export function AIFooter() {
             <p className="text-slate-600 text-sm leading-relaxed">
               A fully automated astrology intelligence platform. No human involvement. No live support.
             </p>
-            <p className="text-xs text-slate-500">© 2024 AstroSetu</p>
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu</p>
           </div>
 
           {/* Middle Column: Important Notice */}
@@ -84,7 +84,7 @@ export function AIFooter() {
                 </Link>
               </nav>
             </div>
-            <p className="text-xs text-slate-500">© 2024 AstroSetu</p>
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu</p>
             <p className="text-xs text-slate-600 font-medium">
               No change-of-mind refunds on digital reports.
             </p>

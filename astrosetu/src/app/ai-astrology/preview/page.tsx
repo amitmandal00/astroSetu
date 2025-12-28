@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/Badge";
 import { apiPost, apiGet } from "@/lib/http";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import type { ReportContent } from "@/lib/ai-astrology/types";
-import { REPORT_PRICES } from "@/lib/ai-astrology/payments";
+import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
 
 function PreviewContent() {
@@ -36,6 +36,7 @@ function PreviewContent() {
   const [bundleReports, setBundleReports] = useState<ReportType[]>([]);
   const [bundleContents, setBundleContents] = useState<Map<ReportType, ReportContent>>(new Map());
   const [bundleGenerating, setBundleGenerating] = useState(false);
+  const [bundleProgress, setBundleProgress] = useState<{ current: number; total: number; currentReport: string } | null>(null);
 
   const getReportName = (type: ReportType | null) => {
     switch (type) {
@@ -108,6 +109,7 @@ function PreviewContent() {
     setBundleGenerating(true);
     setLoading(true);
     setError(null);
+    setBundleProgress({ current: 0, total: reports.length, currentReport: getReportName(reports[0]) });
 
     try {
       // Get payment token for paid reports (handle sessionStorage errors)
@@ -118,10 +120,18 @@ function PreviewContent() {
         console.error("Failed to read paymentToken from sessionStorage:", storageError);
       }
 
-      const bundleContentsMap = new Map<ReportType, ReportContent>();
-      
-      // Generate all reports in the bundle sequentially
-      for (const reportType of reports) {
+      // Generate all reports in parallel for faster loading
+      const completedReports = new Set<ReportType>();
+      const updateProgress = (reportType: ReportType) => {
+        completedReports.add(reportType);
+        setBundleProgress({ 
+          current: completedReports.size, 
+          total: reports.length, 
+          currentReport: getReportName(reportType) 
+        });
+      };
+
+      const reportPromises = reports.map(async (reportType) => {
         try {
           const response = await apiPost<{
             ok: boolean;
@@ -139,28 +149,59 @@ function PreviewContent() {
           });
 
           if (response.ok && response.data?.content) {
-            bundleContentsMap.set(reportType, response.data.content);
+            updateProgress(reportType);
+            return { reportType, content: response.data.content, success: true };
           } else {
             console.error(`Failed to generate ${reportType}:`, response.error);
-            setError(`Failed to generate ${getReportName(reportType)}. ${response.error || "Please try again."}`);
-            break;
+            return { 
+              reportType, 
+              content: null, 
+              success: false, 
+              error: response.error || "Failed to generate report" 
+            };
           }
         } catch (e: any) {
           console.error(`Error generating ${reportType}:`, e);
-          setError(`Failed to generate ${getReportName(reportType)}. ${e.message || "Please try again."}`);
-          break;
+          return { 
+            reportType, 
+            content: null, 
+            success: false, 
+            error: e.message || "Failed to generate report" 
+          };
         }
+      });
+
+      // Wait for all reports to complete
+      const results = await Promise.all(reportPromises);
+      
+      // Check for failures
+      const failures = results.filter(r => !r.success);
+      if (failures.length > 0) {
+        const failedReport = failures[0];
+        setError(`Failed to generate ${getReportName(failedReport.reportType)}. ${failedReport.error || "Please try again."}`);
+        setBundleProgress(null);
+        return;
       }
+
+      // All reports generated successfully
+      const bundleContentsMap = new Map<ReportType, ReportContent>();
+      results.forEach(result => {
+        if (result.content) {
+          bundleContentsMap.set(result.reportType, result.content);
+        }
+      });
 
       if (bundleContentsMap.size === reports.length) {
         setBundleContents(bundleContentsMap);
         // Set the first report as the primary report for display purposes
         setReportContent(bundleContentsMap.get(reports[0]) || null);
         setReportType(reports[0]);
+        setBundleProgress(null);
       }
     } catch (e: any) {
       console.error("Bundle generation error:", e);
       setError(e.message || "Failed to generate bundle reports. Please try again.");
+      setBundleProgress(null);
     } finally {
       setBundleGenerating(false);
       setLoading(false);
@@ -305,16 +346,42 @@ function PreviewContent() {
   };
 
   if (loading) {
+    const isBundleLoading = bundleType && bundleReports.length > 0;
+    
     return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
         <Card className="max-w-2xl w-full mx-4">
           <CardContent className="p-12 text-center">
             <div className="animate-spin text-6xl mb-6">🌙</div>
-            <h2 className="text-2xl font-bold mb-4">Generating Your Report...</h2>
-            <p className="text-slate-600">
-              Our AI is analyzing your birth chart and generating personalized insights.
-              This may take a moment.
-            </p>
+            <h2 className="text-2xl font-bold mb-4">
+              {isBundleLoading ? "Generating Your Bundle Reports..." : "Generating Your Report..."}
+            </h2>
+            {isBundleLoading && bundleProgress ? (
+              <div className="space-y-4">
+                <p className="text-slate-600 mb-4">
+                  Generating {bundleProgress.total} reports in parallel for faster loading...
+                </p>
+                <div className="bg-slate-100 rounded-full h-3 mb-2">
+                  <div 
+                    className="bg-purple-600 h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${(bundleProgress.current / bundleProgress.total) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-slate-600">
+                  {bundleProgress.current} of {bundleProgress.total} reports completed
+                </p>
+                {bundleProgress.currentReport && bundleProgress.current > 0 && (
+                  <p className="text-xs text-slate-500 italic">
+                    Latest completed: {bundleProgress.currentReport}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-slate-600">
+                Our AI is analyzing your birth chart and generating personalized insights.
+                This may take a moment.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -386,31 +453,64 @@ function PreviewContent() {
       );
     }
     
+    // Check if this is a bundle
+    const isBundle = bundleType && bundleReports.length > 0;
+    const bundlePrice = isBundle ? (bundleType === "all-3" ? BUNDLE_PRICES["all-3"] : BUNDLE_PRICES["any-2"]) : null;
+
     return (
       <div className="cosmic-bg py-8">
         <div className="container mx-auto px-4 max-w-2xl">
           <Card className="cosmic-card">
             <CardContent className="p-8 text-center">
               <div className="text-6xl mb-4">🔒</div>
-              <h2 className="text-2xl font-bold mb-4 text-slate-800">Unlock Your {getReportName(reportType)}</h2>
+              <h2 className="text-2xl font-bold mb-4 text-slate-800">
+                {isBundle 
+                  ? `Unlock Your ${bundleType === "all-3" ? "All 3 Reports" : "Any 2 Reports"} Bundle`
+                  : `Unlock Your ${getReportName(reportType)}`}
+              </h2>
               <p className="text-slate-600 mb-6">
-                Get detailed, AI-powered insights for just AU${(price?.amount || 0) / 100} (includes GST).
+                {isBundle
+                  ? `Get ${bundleReports.length} comprehensive reports for just AU$${((bundlePrice?.amount || 0) / 100).toFixed(2)} (includes GST).`
+                  : `Get detailed, AI-powered insights for just AU$${(price?.amount || 0) / 100} (includes GST).`}
               </p>
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-xl mb-6 border border-amber-200">
                 <div className="text-3xl font-bold text-amber-700 mb-2">
-                  AU${((price?.amount || 0) / 100).toFixed(2)}
+                  AU${isBundle ? ((bundlePrice?.amount || 0) / 100).toFixed(2) : ((price?.amount || 0) / 100).toFixed(2)}
                   <span className="text-lg font-normal text-amber-600 ml-2">(incl. GST)</span>
                 </div>
-                <p className="text-sm text-slate-600 mb-3">{price?.description}</p>
+                <p className="text-sm text-slate-600 mb-3">
+                  {isBundle ? bundlePrice?.description : price?.description}
+                </p>
+                
+                {/* Bundle Reports List */}
+                {isBundle && bundleReports.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-amber-200">
+                    <p className="text-sm font-semibold text-amber-800 mb-3">Your Bundle Includes:</p>
+                    <div className="space-y-2 text-left">
+                      {bundleReports.map((reportTypeInBundle, idx) => (
+                        <div key={reportTypeInBundle} className="flex items-start gap-2 p-2 bg-white/50 rounded">
+                          <span className="text-amber-700 font-bold mt-0.5">{idx + 1}.</span>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-800">{getReportName(reportTypeInBundle)}</p>
+                            <p className="text-xs text-slate-600">{REPORT_PRICES[reportTypeInBundle as keyof typeof REPORT_PRICES]?.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 {/* What You'll Get */}
-                <div className="mt-4 pt-4 border-t border-amber-200">
+                <div className={`mt-4 pt-4 border-t border-amber-200 ${isBundle ? '' : ''}`}>
                   <p className="text-sm font-semibold text-amber-800 mb-2">What you&apos;ll get:</p>
                   <ul className="text-sm text-slate-700 space-y-1">
-                    <li>• Detailed AI-generated analysis</li>
+                    <li>• {isBundle ? `${bundleReports.length} detailed AI-generated reports` : 'Detailed AI-generated analysis'}</li>
                     <li>• Personalized insights based on your birth chart</li>
-                    <li>• Downloadable PDF report</li>
+                    <li>• {isBundle ? `${bundleReports.length} downloadable PDF reports` : 'Downloadable PDF report'}</li>
                     <li>• Instant access after payment</li>
+                    {isBundle && bundlePrice && (
+                      <li>• Save AU${(bundlePrice.savings / 100).toFixed(2)} compared to buying individually</li>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -445,7 +545,11 @@ function PreviewContent() {
                 disabled={loading || !refundAcknowledged}
                 className="w-full cosmic-button py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? "Processing..." : `Purchase ${getReportName(reportType)} →`}
+                {loading 
+                  ? "Processing..." 
+                  : isBundle 
+                    ? `Purchase ${bundleType === "all-3" ? "All 3 Reports" : "Any 2 Reports"} Bundle →`
+                    : `Purchase ${getReportName(reportType)} →`}
               </Button>
               <Link href="/ai-astrology/input?reportType=life-summary">
                 <Button className="cosmic-button-secondary w-full mt-4">

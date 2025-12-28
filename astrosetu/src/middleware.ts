@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { AI_ONLY_MODE, isAllowedRoute } from '@/lib/feature-flags';
 
 // Simple in-memory rate limiter (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -32,8 +33,19 @@ setInterval(() => {
 }, 60000); // Clean every minute
 
 export function middleware(request: NextRequest) {
-  const response = NextResponse.next();
   const pathname = request.nextUrl.pathname;
+  
+  // AI-Only Mode: Redirect non-allowed routes to AI section
+  if (AI_ONLY_MODE && !isAllowedRoute(pathname)) {
+    // Redirect root to AI section
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/ai-astrology', request.url));
+    }
+    // For all other non-allowed routes, redirect to AI section
+    return NextResponse.redirect(new URL('/ai-astrology', request.url));
+  }
+  
+  const response = NextResponse.next();
 
   // Security Headers
   response.headers.set('X-DNS-Prefetch-Control', 'on');

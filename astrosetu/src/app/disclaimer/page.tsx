@@ -3,9 +3,11 @@
 import { Card, CardContent } from "@/components/ui/Card";
 import { AIHeader } from "@/components/ai-astrology/AIHeader";
 import { AIFooter } from "@/components/ai-astrology/AIFooter";
+import { LEGAL_DATES } from "@/lib/legal-dates";
 
 export default function DisclaimerPage() {
-  const effectiveDate = "December 26, 2024";
+  const effectiveDate = LEGAL_DATES.EFFECTIVE_DATE;
+  const lastUpdated = LEGAL_DATES.LAST_UPDATED;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -15,9 +17,10 @@ export default function DisclaimerPage() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Astrology Disclaimer</h1>
-            <p className="text-slate-600 text-base">
-              Effective Date: {effectiveDate}
-            </p>
+            <div className="text-slate-600 text-base space-y-1">
+              <p>Effective Date: {effectiveDate}</p>
+              <p>Last Updated: {lastUpdated}</p>
+            </div>
           </div>
 
           <Card className="cosmic-card">

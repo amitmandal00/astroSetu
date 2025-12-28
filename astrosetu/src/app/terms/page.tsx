@@ -3,9 +3,11 @@
 import { Card, CardContent } from "@/components/ui/Card";
 import { AIHeader } from "@/components/ai-astrology/AIHeader";
 import { AIFooter } from "@/components/ai-astrology/AIFooter";
+import { LEGAL_DATES } from "@/lib/legal-dates";
 
 export default function TermsPage() {
-  const effectiveDate = "December 26, 2024";
+  const effectiveDate = LEGAL_DATES.EFFECTIVE_DATE;
+  const lastUpdated = LEGAL_DATES.LAST_UPDATED;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -15,9 +17,10 @@ export default function TermsPage() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Terms & Conditions</h1>
-            <p className="text-slate-600 text-base">
-              Effective Date: {effectiveDate}
-            </p>
+            <div className="text-slate-600 text-base space-y-1">
+              <p>Effective Date: {effectiveDate}</p>
+              <p>Last Updated: {lastUpdated}</p>
+            </div>
           </div>
 
           <Card className="cosmic-card">
@@ -225,8 +228,9 @@ export default function TermsPage() {
                   <strong>Contact:</strong>
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li>Compliance Contact: <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline">compliance@astrosetu.app</a> (for legal notices and compliance requests only)</li>
-                  <li className="text-xs text-slate-600 italic ml-4">This inbox is monitored for legal and compliance requests only. No customer support is provided.</li>
+                  <li><strong>Legal Notices:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a> (for legal notices and formal correspondence)</li>
+                  <li><strong>Consumer Law:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a> (for Australian Consumer Law compliance)</li>
+                  <li className="text-xs text-slate-600 italic ml-4 mt-2">All email addresses are automated compliance mailboxes. AstroSetu does not provide live support. Valid requests will be processed as required by law.</li>
                 </ul>
               </section>
             </div>

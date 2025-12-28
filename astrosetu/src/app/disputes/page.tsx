@@ -3,9 +3,11 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { AIHeader } from "@/components/ai-astrology/AIHeader";
 import { AIFooter } from "@/components/ai-astrology/AIFooter";
+import { LEGAL_DATES } from "@/lib/legal-dates";
 
 export default function DisputesPage() {
-  const effectiveDate = "December 26, 2024";
+  const effectiveDate = LEGAL_DATES.EFFECTIVE_DATE;
+  const lastUpdated = LEGAL_DATES.LAST_UPDATED;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -15,9 +17,10 @@ export default function DisputesPage() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Dispute Resolution Policy</h1>
-            <p className="text-slate-600 text-base">
-              Effective Date: {effectiveDate}
-            </p>
+            <div className="text-slate-600 text-base space-y-1">
+              <p>Effective Date: {effectiveDate}</p>
+              <p>Last Updated: {lastUpdated}</p>
+            </div>
           </div>
 
           <Card className="cosmic-card">
@@ -39,10 +42,10 @@ export default function DisputesPage() {
                 </p>
                 <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mt-3">
                   <p className="text-sm text-slate-700 mb-2">
-                    <strong>Compliance Contact:</strong> <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline">compliance@astrosetu.app</a>
+                    <strong>Legal & Disputes:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a>
                   </p>
                   <p className="text-xs text-slate-600 italic mb-2">
-                    This inbox is monitored for legal and compliance requests only. No customer support is provided.
+                    This is an automated compliance mailbox. AstroSetu does not provide live support. Valid legal notices and disputes will be processed as required by law.
                   </p>
                   <p className="text-xs text-slate-600">
                     Include: Your account details, description of the issue, and any relevant documents. Use subject line: &quot;Complaint&quot; or &quot;Dispute&quot;
@@ -180,10 +183,10 @@ export default function DisputesPage() {
                 </p>
                 <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mt-3">
                   <p className="text-sm text-slate-700 mb-2">
-                    <strong>Compliance Contact:</strong> <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline">compliance@astrosetu.app</a>
+                    <strong>Legal & Disputes:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a>
                   </p>
                   <p className="text-xs text-slate-600 italic">
-                    This inbox is monitored for legal and compliance requests only. No customer support is provided.
+                    This is an automated compliance mailbox. AstroSetu does not provide live support. Valid legal notices and disputes will be processed as required by law.
                   </p>
                 </div>
               </section>

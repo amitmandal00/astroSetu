@@ -67,11 +67,11 @@ export default function ContactPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Legal & Compliance Contact</h1>
-            <p className="text-slate-600 text-base mb-3 max-w-2xl mx-auto">
-              This page is provided to satisfy legal and regulatory requirements only.
+            <p className="text-slate-600 text-base mb-3 max-w-2xl mx-auto leading-relaxed">
+              This page exists solely to meet legal, privacy, and regulatory requirements.
             </p>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto">
-              AstroSetu does not offer customer support, consultations, or personalised assistance.
+              AstroSetu is a fully automated, self-service platform and does not provide live customer support, consultations, or personalised assistance.
             </p>
           </div>
 
@@ -92,6 +92,10 @@ export default function ContactPage() {
           <Card className="cosmic-card mb-8">
             <CardHeader eyebrow="Start Here" title="Find answers instantly — no contact required" />
             <CardContent>
+              <p className="text-sm text-slate-700 mb-6 leading-relaxed">
+                AstroSetu is designed as a self-service platform.
+                Most questions are answered in our published policies and FAQs below.
+              </p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Link 
                   href="/ai-astrology/faq" 
@@ -164,25 +168,27 @@ export default function ContactPage() {
             <CardHeader eyebrow="Legal & Regulatory Contact" title="Legal & Regulatory Contact (Mandatory Disclosure)" />
             <CardContent className="space-y-4">
               <p className="text-sm text-slate-700 leading-relaxed">
-                AstroSetu is a self-service, automated platform.
+                AstroSetu is a fully automated, self-service digital platform.
               </p>
               <p className="text-sm text-slate-700 leading-relaxed">
-                The following contact details are provided solely to meet legal, privacy, and regulatory requirements.
+                The contact details below are provided solely to satisfy legal, privacy, and regulatory obligations.
               </p>
               <p className="text-sm text-slate-700 leading-relaxed mb-4">
-                We do not provide customer support or personalised assistance.
+                No customer support or personalised assistance is provided via these channels.
               </p>
 
-              <div className="space-y-3 pt-4 border-t border-slate-200">
+              <div className="space-y-4 pt-4 border-t border-slate-200">
                 <div>
-                  <div className="font-medium text-slate-900 mb-1">Compliance Contact</div>
-                  <div className="text-slate-700 text-sm">compliance@astrosetu.app</div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    This inbox is monitored for legal and compliance requests only. No customer support is provided.
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    For: Privacy requests, data deletion, legal notices, breach notifications, disputes
-                  </div>
+                  <div className="font-medium text-slate-900 mb-2">Compliance Contact</div>
+                  <div className="text-slate-700 text-base mb-3">📧 compliance@astrosetu.app</div>
+                  <p className="text-xs text-slate-600 mb-2">This mailbox is used only for:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4 text-xs text-slate-600">
+                    <li>Privacy access, correction, or deletion requests</li>
+                    <li>Legal notices</li>
+                    <li>Regulatory correspondence</li>
+                    <li>Data breach notifications</li>
+                    <li>Dispute resolution (as required by law)</li>
+                  </ul>
                 </div>
 
                 <div className="pt-3 border-t border-slate-200">
@@ -192,7 +198,16 @@ export default function ContactPage() {
 
                 <div>
                   <div className="font-medium text-slate-900 mb-1">Jurisdiction</div>
-                  <div className="text-slate-700 text-sm">Australia (Primary), India (Operations)</div>
+                  <div className="text-slate-700 text-sm">Australia (Primary)</div>
+                  <div className="text-slate-700 text-sm">India (Operations)</div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200">
+                  <div className="text-xs text-slate-500 italic space-y-1">
+                    <p>✔ No promise of response</p>
+                    <p>✔ &quot;As required by law&quot; protects you</p>
+                    <p>✔ App-store safe language</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -291,7 +306,7 @@ export default function ContactPage() {
                   )}
                 </Button>
 
-                <p className="text-xs text-slate-500 text-center">
+                <p className="text-xs text-slate-500 text-center mt-2">
                   Requests unrelated to legal or privacy compliance will not receive a response.
                 </p>
 

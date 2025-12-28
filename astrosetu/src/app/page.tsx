@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -12,9 +13,10 @@ import { AppDownload } from "@/components/mobile/AppDownload";
 import { session } from "@/lib/session";
 import { getPrioritizedModules, type UserGoal } from "@/lib/goalPrioritization";
 import { ASTRO_IMAGES } from "@/lib/astroImages";
+import { AI_ONLY_MODE } from "@/lib/feature-flags";
 
 export default function Home() {
-  // Get user goals and prioritize modules
+  // Get user goals and prioritize modules (hooks must be called before any returns)
   const userGoals = useMemo(() => {
     const goals = session.getGoals();
     return (goals || []) as UserGoal[];
@@ -23,6 +25,25 @@ export default function Home() {
   const { astrologyTools, consultations } = useMemo(() => {
     return getPrioritizedModules(userGoals);
   }, [userGoals]);
+  
+  // Redirect to AI section if AI-only mode is enabled
+  useEffect(() => {
+    if (AI_ONLY_MODE) {
+      window.location.href = '/ai-astrology';
+    }
+  }, []);
+  
+  // If AI-only mode, show nothing (will redirect)
+  if (AI_ONLY_MODE) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">🌙</div>
+          <p className="text-slate-600">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="grid gap-10">
       {/* Hero Section - Indian spiritual theme */}

@@ -2,9 +2,11 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
+import { LEGAL_DATES } from "@/lib/legal-dates";
 
 export default function AccessibilityPage() {
-  const effectiveDate = "December 26, 2024";
+  const effectiveDate = LEGAL_DATES.EFFECTIVE_DATE;
+  const lastUpdated = LEGAL_DATES.LAST_UPDATED;
 
   return (
     <div className="grid gap-5">
@@ -13,9 +15,10 @@ export default function AccessibilityPage() {
         <HeaderPattern />
         <div className="relative z-10">
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">Accessibility Statement</h1>
-          <p className="text-white/90 text-base">
-            Effective Date: {effectiveDate}
-          </p>
+          <div className="text-white/90 text-base space-y-1">
+            <p>Effective Date: {effectiveDate}</p>
+            <p>Last Updated: {lastUpdated}</p>
+          </div>
         </div>
       </div>
 

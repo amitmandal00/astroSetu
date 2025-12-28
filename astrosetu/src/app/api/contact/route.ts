@@ -199,8 +199,25 @@ async function sendContactNotifications(data: {
 
   // Use Resend API if configured, otherwise log for manual processing
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const COMPLIANCE_EMAIL = process.env.COMPLIANCE_EMAIL || "compliance@astrosetu.app";
-  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || COMPLIANCE_EMAIL;
+  
+  // Route emails to appropriate compliance addresses based on category
+  const getComplianceEmail = (category: string): string => {
+    const categoryLower = category.toLowerCase();
+    if (categoryLower.includes("privacy") || categoryLower.includes("data_deletion") || categoryLower.includes("account_access")) {
+      return process.env.PRIVACY_EMAIL || "privacy@astrosetu.app";
+    }
+    if (categoryLower.includes("legal") || categoryLower.includes("legal_notice") || categoryLower.includes("dispute")) {
+      return process.env.LEGAL_EMAIL || "legal@astrosetu.app";
+    }
+    if (categoryLower.includes("security") || categoryLower.includes("breach")) {
+      return process.env.SECURITY_EMAIL || "security@astrosetu.app";
+    }
+    // Default to support@ for consumer law and general compliance
+    return process.env.SUPPORT_EMAIL || "support@astrosetu.app";
+  };
+  
+  const complianceEmail = getComplianceEmail(category);
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || complianceEmail;
 
   if (!RESEND_API_KEY) {
     // No email service configured - log for manual processing
@@ -221,7 +238,7 @@ async function sendContactNotifications(data: {
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: email,
-      from: `AstroSetu Compliance <${COMPLIANCE_EMAIL}>`,
+      from: `AstroSetu Compliance <${complianceEmail}>`,
       subject: `Compliance Request Received - ${subject}`,
       html: generateAutoReplyEmail(name || "User", subject, category),
     });
@@ -230,7 +247,7 @@ async function sendContactNotifications(data: {
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: ADMIN_EMAIL,
-      from: `AstroSetu Contact Form <${COMPLIANCE_EMAIL}>`,
+      from: `AstroSetu Contact Form <${complianceEmail}>`,
       subject: `[${category.toUpperCase()}] New Contact: ${subject}`,
       html: generateAdminNotificationEmail({
         submissionId,
@@ -287,13 +304,19 @@ async function sendEmail(data: {
  * Generate auto-reply email HTML (Compliance-focused, no SLA promises)
  */
 function generateAutoReplyEmail(name: string, subject: string, category: string): string {
+  // Standard auto-reply message for all compliance emails
+  const standardAutoReply = "This is an automated compliance mailbox. AstroSetu does not provide live support. Please refer to FAQs and policies.";
+  
   const categoryMessages: Record<string, string> = {
-    privacy: "Your privacy request has been received and will be processed according to applicable privacy laws (Australian Privacy Act).",
-    data_deletion: "Your data deletion request has been received and will be processed according to applicable privacy laws.",
-    account_access: "Your account access request has been received. We will review it according to our security and privacy policies.",
-    legal_notice: "Your legal notice has been received and will be reviewed by our legal team.",
-    general: "Your compliance request has been received. We will process it according to applicable laws and our policies.",
-    other: "Your request has been received. We will process it according to applicable laws and our policies.",
+    privacy: `Your privacy request has been received and will be processed according to applicable privacy laws (Australian Privacy Act). ${standardAutoReply}`,
+    privacy_complaint: `Your privacy complaint has been received and will be processed according to applicable privacy laws (Australian Privacy Act). ${standardAutoReply}`,
+    data_deletion: `Your data deletion request has been received and will be processed according to applicable privacy laws. ${standardAutoReply}`,
+    account_access: `Your account access request has been received. We will review it according to our security and privacy policies. ${standardAutoReply}`,
+    legal_notice: `Your legal notice has been received and will be reviewed. ${standardAutoReply}`,
+    security: `Your security notification has been received. ${standardAutoReply}`,
+    breach: `Your data breach notification has been received. ${standardAutoReply}`,
+    general: `Your compliance request has been received. We will process it according to applicable laws and our policies. ${standardAutoReply}`,
+    other: `Your request has been received. We will process it according to applicable laws and our policies. ${standardAutoReply}`,
   };
 
   const responseMessage = categoryMessages[category] || categoryMessages.general;
@@ -324,7 +347,7 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
           <p>${responseMessage}</p>
           
           <div class="notice">
-            <p><strong>Important:</strong> AstroSetu is a self-service, automated platform. We do not provide live support, consultations, or personalized assistance. This email is monitored periodically for compliance requests only.</p>
+            <p><strong>Automated Compliance Mailbox:</strong> This is an automated compliance mailbox. AstroSetu does not provide live support. Please refer to <a href="https://astrosetu.app/ai-astrology/faq">FAQs</a> and policies for self-service information.</p>
             <p><strong>No response timeline is guaranteed.</strong> We process compliance requests as required by applicable privacy laws.</p>
           </div>
           

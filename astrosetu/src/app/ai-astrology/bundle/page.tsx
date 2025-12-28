@@ -53,47 +53,35 @@ function BundleSelectionPageContent() {
   const [selectedReports, setSelectedReports] = useState<PaidReportType[]>([]);
 
   const handleReportToggle = (reportType: PaidReportType) => {
-    if (bundleType === "all-3") {
-      // For all-3 bundle, we use fixed reports: marriage-timing, career-money, full-life
-      return;
-    }
-
+    const maxSelection = bundleType === "all-3" ? 3 : 2;
+    
     setSelectedReports((prev) => {
       if (prev.includes(reportType)) {
         return prev.filter((t) => t !== reportType);
-      } else if (prev.length < 2) {
+      } else if (prev.length < maxSelection) {
         return [...prev, reportType];
       } else {
         // Replace the first selected report
-        return [prev[1], reportType];
+        return [...prev.slice(1), reportType];
       }
     });
   };
 
   const handleContinue = () => {
-    if (bundleType === "all-3") {
-      // For all-3, use fixed reports
-      const bundleReports = ["marriage-timing", "career-money", "full-life"] as PaidReportType[];
-      const reportsParam = bundleReports.join(",");
-      router.push(`/ai-astrology/input?bundle=all-3&reports=${reportsParam}`);
-    } else {
-      // For any-2, use selected reports
-      if (selectedReports.length !== 2) {
-        alert("Please select exactly 2 reports");
-        return;
-      }
-      const reportsParam = selectedReports.join(",");
-      router.push(`/ai-astrology/input?bundle=any-2&reports=${reportsParam}`);
+    const requiredCount = bundleType === "all-3" ? 3 : 2;
+    
+    if (selectedReports.length !== requiredCount) {
+      alert(`Please select exactly ${requiredCount} reports`);
+      return;
     }
+    
+    const reportsParam = selectedReports.join(",");
+    router.push(`/ai-astrology/input?bundle=${bundleType}&reports=${reportsParam}`);
   };
 
-  // For all-3 bundle, show fixed reports
-  const bundleReports = bundleType === "all-3" 
-    ? ["marriage-timing", "career-money", "full-life"] as PaidReportType[]
-    : selectedReports;
-
   const bundleInfo = bundleType === "all-3" ? BUNDLE_PRICES["all-3"] : BUNDLE_PRICES["any-2"];
-  const canContinue = bundleType === "all-3" || selectedReports.length === 2;
+  const requiredCount = bundleType === "all-3" ? 3 : 2;
+  const canContinue = selectedReports.length === requiredCount;
 
   return (
     <div className="cosmic-bg">
@@ -104,7 +92,7 @@ function BundleSelectionPageContent() {
             </h1>
             <p className="text-slate-600 text-lg">
               {bundleType === "all-3" 
-                ? "Get all premium reports in one comprehensive package"
+                ? "Choose any 3 premium reports and save 25%"
                 : "Choose any 2 premium reports and save 15%"}
             </p>
           </div>
@@ -119,7 +107,7 @@ function BundleSelectionPageContent() {
                   </h2>
                   <p className="text-slate-600">
                     {bundleType === "all-3" 
-                      ? "Marriage Timing + Career & Money + Full Life Reports"
+                      ? "Select 3 reports to include in your bundle"
                       : "Select 2 reports to include in your bundle"}
                   </p>
                 </div>
@@ -141,36 +129,14 @@ function BundleSelectionPageContent() {
           {/* Report Selection */}
           <Card className="cosmic-card">
             <CardHeader 
-              eyebrow={bundleType === "all-3" ? "Included Reports" : "Select 2 Reports"}
-              title={bundleType === "all-3" ? "All 3 Reports Included" : "Choose Your Reports"}
+              eyebrow={bundleType === "all-3" ? "Select 3 Reports" : "Select 2 Reports"}
+              title={bundleType === "all-3" ? "Choose Your 3 Reports" : "Choose Your Reports"}
             />
             <CardContent className="p-6">
-              {bundleType === "all-3" ? (
-                <div className="space-y-4">
-                  {AVAILABLE_REPORTS.filter(r => 
-                    ["marriage-timing", "career-money", "full-life"].includes(r.type)
-                  ).map((report) => (
-                    <div
-                      key={report.type}
-                      className="p-4 rounded-lg border-2 border-purple-300 bg-purple-50"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-slate-800 mb-1">{report.name}</h3>
-                          <p className="text-sm text-slate-600">{report.description}</p>
-                        </div>
-                        <div className="ml-4">
-                          <span className="text-purple-600 font-bold">✓ Included</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {AVAILABLE_REPORTS.map((report) => {
-                    const isSelected = selectedReports.includes(report.type);
-                    const isDisabled = !isSelected && selectedReports.length >= 2;
+              <div className="space-y-4">
+                {AVAILABLE_REPORTS.map((report) => {
+                  const isSelected = selectedReports.includes(report.type);
+                  const isDisabled = !isSelected && selectedReports.length >= requiredCount;
 
                     return (
                       <button
@@ -207,13 +173,12 @@ function BundleSelectionPageContent() {
                   {selectedReports.length > 0 && (
                     <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-sm text-blue-800">
-                        <strong>Selected:</strong> {selectedReports.length} of 2 reports
-                        {selectedReports.length === 2 && " - Ready to continue!"}
+                        <strong>Selected:</strong> {selectedReports.length} of {requiredCount} reports
+                        {selectedReports.length === requiredCount && " - Ready to continue!"}
                       </p>
                     </div>
                   )}
                 </div>
-              )}
 
               <div className="mt-8 flex gap-4">
                 <Link href="/ai-astrology" className="flex-1">
@@ -226,7 +191,7 @@ function BundleSelectionPageContent() {
                   onClick={handleContinue}
                   disabled={!canContinue}
                 >
-                  {bundleType === "all-3" ? "Continue to Input" : selectedReports.length === 2 ? "Continue to Input" : `Select ${2 - selectedReports.length} more`}
+                  {selectedReports.length === requiredCount ? "Continue to Input" : `Select ${requiredCount - selectedReports.length} more`}
                 </Button>
               </div>
             </CardContent>
