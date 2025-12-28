@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 
     // Parse request body early to check for test user
     const json = await parseJsonBody<{
-      reportType?: "marriage-timing" | "career-money" | "full-life";
+      reportType?: "marriage-timing" | "career-money" | "full-life" | "year-analysis";
       subscription?: boolean;
       input?: any;
       successUrl?: string;
@@ -169,15 +169,23 @@ export async function POST(req: Request) {
       priceData = SUBSCRIPTION_PRICE;
       metadata.reportType = "subscription";
     } else {
-      const reportPrice = REPORT_PRICES[reportType!];
+      // Validate reportType exists and is valid
+      if (!reportType) {
+        return NextResponse.json(
+          { ok: false, error: "reportType is required when subscription is false" },
+          { status: 400 }
+        );
+      }
+      
+      const reportPrice = REPORT_PRICES[reportType as keyof typeof REPORT_PRICES];
       if (!reportPrice) {
         return NextResponse.json(
-          { ok: false, error: `Invalid report type: ${reportType}` },
+          { ok: false, error: `Invalid report type: ${reportType}. Valid types are: ${Object.keys(REPORT_PRICES).join(", ")}` },
           { status: 400 }
         );
       }
       priceData = reportPrice;
-      metadata.reportType = reportType!;
+      metadata.reportType = reportType;
     }
 
     // Add input metadata if provided

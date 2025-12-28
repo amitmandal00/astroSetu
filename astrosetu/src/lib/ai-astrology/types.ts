@@ -13,7 +13,7 @@ export type AIAstrologyInput = {
   timezone?: string;
 };
 
-export type ReportType = "life-summary" | "marriage-timing" | "career-money" | "full-life" | "daily-guidance";
+export type ReportType = "life-summary" | "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "daily-guidance";
 
 export type AIReport = {
   id: string;
@@ -36,6 +36,39 @@ export type ReportContent = {
   recommendations?: Recommendation[];
   reportId?: string; // Unique report ID
   generatedAt?: string; // Timestamp
+  // Year Analysis specific fields
+  yearTheme?: string;
+  quarterlyBreakdown?: QuarterlyBreakdown[];
+  bestPeriods?: Period[];
+  cautionPeriods?: Period[];
+  focusAreasByMonth?: MonthlyFocus[];
+  yearScorecard?: Scorecard;
+  confidenceLevel?: number; // 1-10
+};
+
+export type QuarterlyBreakdown = {
+  quarter: "Q1" | "Q2" | "Q3" | "Q4";
+  focusTheme: string;
+  careerMoneyTone: string;
+  relationshipFocus: string;
+  energyLevel: "low" | "moderate" | "high";
+};
+
+export type Period = {
+  months: string[];
+  focus: string;
+  description: string;
+};
+
+export type MonthlyFocus = {
+  month: string;
+  focus: string;
+};
+
+export type Scorecard = {
+  career: number; // 1-5 stars
+  relationships: number;
+  money: number;
 };
 
 export type ReportSection = {

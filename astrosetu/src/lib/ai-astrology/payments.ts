@@ -4,7 +4,7 @@
  */
 
 export type ReportPrice = {
-  reportType: "marriage-timing" | "career-money" | "full-life";
+  reportType: "marriage-timing" | "career-money" | "full-life" | "year-analysis";
   amount: number; // in cents
   currency: string;
   description: string;
@@ -30,6 +30,12 @@ export const REPORT_PRICES: Record<ReportPrice["reportType"], ReportPrice> = {
     amount: 1, // AU$0.01 (includes GST) - Testing price
     currency: "aud",
     description: "Full Life Report - Comprehensive analysis covering all aspects of life",
+  },
+  "year-analysis": {
+    reportType: "year-analysis",
+    amount: 1, // AU$0.01 (includes GST) - Testing price (production: 1900-2900 = AU$19-29)
+    currency: "aud",
+    description: "Year Analysis Report - 12-month strategic guidance with quarterly breakdown",
   },
 };
 

@@ -319,6 +319,132 @@ export const AI_PROMPT_TEMPLATES = {
          - Career & Money (with key insight, phase-based guidance, disclaimer)
          - Remedies & Guidance (non-religious, practical)
       `,
+
+    yearAnalysis: (birthDetails: any, planetaryData: any, targetYear: number) => `
+      ${AI_PROMPT_SYSTEM_MESSAGE}
+
+      INPUT:
+      Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
+      Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
+      Target year for analysis: ${targetYear}
+
+      OUTPUT:
+      Generate a "Year Analysis Report" for ${targetYear} that provides strategic 12-month guidance with quarterly breakdowns.
+      
+      CRITICAL REQUIREMENTS:
+      1. THIS IS STRATEGIC GUIDANCE, NOT PREDICTIONS:
+         - Focus on themes, tendencies, and strategic guidance
+         - NO specific dates or event predictions
+         - NO guarantees or certainties
+         - Use language: "favors", "best used for", "tends to", "more favorable for"
+         - NEVER say: "will happen", "don't do", "must avoid", "will fail"
+      
+      2. PERSONALIZE EVERYTHING:
+         - Reference ${birthDetails.name}, birth date ${birthDetails.dob}
+         - Use specific planetary positions from the data
+         - Make every section feel personal, not generic
+      
+      3. MANDATORY STRUCTURE (follow exactly):
+         
+         a) YEAR THEME (first section):
+            Title: "Year Theme"
+            Content: One clear sentence describing the overall theme of ${targetYear}
+            Example: "${targetYear} is a year of consolidation and relationship alignment for you."
+            This should be the main strategic theme, not detailed predictions.
+         
+         b) YEAR-AT-A-GLANCE SUMMARY (MANDATORY - one screen only):
+            Title: "Year-at-a-Glance Summary"
+            Include:
+            • Overall theme of the year (1 line)
+            • Main opportunity area (1 line)
+            • Main challenge area (1 line)
+            • Where to be cautious (1 line)
+            • Where to invest energy (1 line)
+            Format as clear bullet points, max 15 words each.
+         
+         c) QUARTER-BY-QUARTER BREAKDOWN (MANDATORY - users LOVE quarters):
+            Title: "Quarter-by-Quarter Breakdown"
+            For EACH quarter (Q1, Q2, Q3, Q4), include:
+            - Quarter name: "Q1: [Jan-Mar]", "Q2: [Apr-Jun]", "Q3: [Jul-Sep]", "Q4: [Oct-Dec]"
+            - Focus theme: One line describing the theme
+            - Career & money tone: Description (e.g., "planning & preparation", "momentum begins")
+            - Relationship / personal focus: Description
+            - Energy level: "low", "moderate", or "high"
+            Format as clear subsections for each quarter.
+         
+         d) BEST PERIODS (MANDATORY):
+            Title: "Best Periods"
+            Include three subsections:
+            - Best months for action: List months (e.g., "March, July, November")
+            - Best months for relationships: List months
+            - Best months for finances: List months
+            For each, provide brief description (1 line) of why these periods are favorable.
+            Use strategic language, not predictions.
+         
+         e) CAUTION PERIODS (MANDATORY - increases trust):
+            Title: "Caution Periods"
+            Include:
+            - Emotional volatility periods: Months and brief description
+            - Financial risk periods: Months and brief description  
+            - Decision fatigue periods: Months and brief description
+            Frame as "more challenging for" not "avoid" or "will fail".
+         
+         f) FOCUS AREAS BY MONTH (optional but valuable):
+            Title: "Focus Areas by Month"
+            Create a simple table/list format:
+            Month | Focus
+            Jan   | Planning
+            Mar   | Action
+            Jul   | Avoid risks
+            Nov   | Consolidate
+            Keep to 2-4 words per month focus.
+         
+         g) YEAR SCORECARD (visual indicator):
+            Title: "Year Scorecard"
+            Rate on 1-5 star scale (use ★ symbols):
+            • Career: ★★★★☆ (4/5) - Brief explanation
+            • Relationships: ★★★☆☆ (3/5) - Brief explanation
+            • Money: ★★★★☆ (4/5) - Brief explanation
+            Frame as "favorability" not "guaranteed success".
+         
+         h) WHAT TO DO THIS YEAR (actionable guidance):
+            Title: "What to Do This Year"
+            Clear bullet actions:
+            • Strengthen [specific area]
+            • Focus on [specific approach]
+            • Best used for [specific actions]
+            • Favors [specific behaviors]
+            • Avoid over-emphasizing [specific areas]
+            Use "favors" and "best used for" language, NOT "must do" or "don't do".
+         
+         i) CONFIDENCE LEVEL (mandatory):
+            Include: "Confidence Level: [X]/10"
+            Where X is between 6-9 (never 10, never below 6 for strategic guidance).
+            Add note: "This is guidance strength, not certainty."
+         
+         j) YEAR-END OUTLOOK (closing section):
+            Title: "Year-End Outlook"
+            Include:
+            • What improves by year-end (1-2 lines)
+            • What carries forward into next year (1-2 lines)
+            Frame as themes and tendencies, not predictions.
+      
+      4. LANGUAGE RULES:
+         - Keep bullets to 12-15 words max
+         - Use calm, strategic language
+         - NO fear-based language
+         - NO absolute statements
+         - Focus on guidance and themes
+         - After technical terms, explain what they mean in daily life
+      
+      5. DATA SOURCE LABEL (add at very beginning):
+         "Based on: Ascendant + Moon Sign + Dasha + Transit Analysis for ${targetYear} (strategic year guidance)"
+      
+      6. DISCLAIMER (include at end):
+         "This report provides strategic guidance for ${targetYear} based on astrological patterns. 
+         These are themes and tendencies, not predictions. Use this guidance to plan thoughtfully, 
+         not as definitive outcomes. Your actions and circumstances always play a role in outcomes."
+      `,
   },
 };
 
@@ -359,4 +485,16 @@ export function generateDailyGuidancePrompt(
   currentTransits: any
 ): string {
   return AI_PROMPT_TEMPLATES["v1.0"].dailyGuidance(birthDetails, planetaryData, currentTransits);
+}
+
+/**
+ * Generate prompt for Year Analysis report
+ */
+export function generateYearAnalysisPrompt(
+  birthDetails: any,
+  planetaryData: any,
+  targetYear?: number
+): string {
+  const year = targetYear || new Date().getFullYear() + 1; // Default to next year
+  return AI_PROMPT_TEMPLATES["v1.0"].yearAnalysis(birthDetails, planetaryData, year);
 }

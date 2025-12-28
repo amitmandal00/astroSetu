@@ -6,6 +6,7 @@ import {
   generateMarriageTimingReport,
   generateCareerMoneyReport,
   generateFullLifeReport,
+  generateYearAnalysisReport,
   isAIConfigured,
 } from "@/lib/ai-astrology/reportGenerator";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
     }
 
     // Validate report type
-    const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life"];
+    const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis"];
     if (!reportType || !validReportTypes.includes(reportType)) {
       return NextResponse.json(
         { ok: false, error: `Invalid report type. Must be one of: ${validReportTypes.join(", ")}` },
@@ -191,6 +192,10 @@ export async function POST(req: Request) {
           break;
         case "full-life":
           reportContent = await generateFullLifeReport(input);
+          break;
+        case "year-analysis":
+          const targetYear = new Date().getFullYear() + 1; // Default to next year
+          reportContent = await generateYearAnalysisReport(input, targetYear);
           break;
         default:
           throw new Error(`Unknown report type: ${reportType}`);

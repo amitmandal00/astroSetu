@@ -87,6 +87,7 @@ function SubscriptionContent() {
 
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
       const response = await apiPost<{
         ok: boolean;
         data?: { url: string; sessionId: string };
@@ -103,13 +104,26 @@ function SubscriptionContent() {
       // Redirect to Stripe checkout (validate URL to prevent open redirects)
       if (response.data?.url) {
         const checkoutUrl = response.data.url;
-        // Validate URL is from Stripe or is a relative path
-        if (checkoutUrl.startsWith("https://checkout.stripe.com") || 
-            checkoutUrl.startsWith("http://localhost") ||
-            checkoutUrl.startsWith("/")) {
-          window.location.href = checkoutUrl;
-        } else {
-          throw new Error("Invalid checkout URL");
+        // Validate URL is from Stripe, localhost, relative path, or same origin (for test users)
+        try {
+          const url = new URL(checkoutUrl, window.location.origin);
+          const isStripe = url.hostname === "checkout.stripe.com";
+          const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+          const isSameOrigin = url.origin === window.location.origin;
+          const isRelative = checkoutUrl.startsWith("/");
+          
+          if (isStripe || isLocalhost || isSameOrigin || isRelative) {
+            window.location.href = checkoutUrl;
+          } else {
+            throw new Error("Invalid checkout URL");
+          }
+        } catch (urlError) {
+          // If URL parsing fails, check if it's a relative path
+          if (checkoutUrl.startsWith("/")) {
+            window.location.href = checkoutUrl;
+          } else {
+            throw new Error("Invalid checkout URL");
+          }
         }
       }
     } catch (e: any) {

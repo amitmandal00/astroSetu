@@ -4,7 +4,7 @@
  */
 
 import type { AIAstrologyInput, ReportType, ReportContent } from "./types";
-import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt, generateFullLifePrompt } from "./prompts";
+import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt, generateFullLifePrompt, generateYearAnalysisPrompt } from "./prompts";
 import { getKundli } from "../astrologyAPI";
 import type { KundliResult, DoshaAnalysis } from "@/types/astrology";
 
@@ -208,6 +208,8 @@ function getReportTitle(reportType: ReportType): string {
       return "Career & Money Path Report";
     case "full-life":
       return "Full Life Report";
+    case "year-analysis":
+      return "Year Analysis Report";
     default:
       return "Life Summary Report";
   }
@@ -536,6 +538,66 @@ export async function generateFullLifeReport(input: AIAstrologyInput): Promise<R
     } catch (fallbackError) {
       throw error; // Re-throw original error
     }
+  }
+}
+
+/**
+ * Generate Year Analysis Report (Paid - 12-month strategic guidance)
+ */
+export async function generateYearAnalysisReport(input: AIAstrologyInput, targetYear?: number): Promise<ReportContent> {
+  try {
+    // Get astrology data from Prokerala API
+    const kundliResult = await getKundli({
+      name: input.name,
+      dob: input.dob,
+      tob: input.tob,
+      place: input.place,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone || "Asia/Kolkata",
+      ayanamsa: 1,
+    });
+
+    // Extract planetary data (handle missing planets array)
+    const planets = (kundliResult.planets || []).map(p => ({
+      name: p.name,
+      sign: p.sign,
+      house: p.house || 0,
+      degrees: p.degree || 0,
+    }));
+
+    // Planetary data for Year Analysis Report
+    const planetaryData = {
+      ascendant: kundliResult.ascendant || "Unknown",
+      moonSign: planets.find(p => p.name === "Moon")?.sign || "Unknown",
+      sunSign: planets.find(p => p.name === "Sun")?.sign || "Unknown",
+      nakshatra: kundliResult.nakshatra || "Unknown",
+      planets,
+      currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
+      nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
+    };
+
+    // Generate prompt using Year Analysis prompt template
+    const prompt = generateYearAnalysisPrompt(
+      {
+        name: input.name,
+        dob: input.dob,
+        tob: input.tob,
+        place: input.place,
+        gender: input.gender,
+      },
+      planetaryData,
+      targetYear
+    );
+
+    // Generate AI content
+    const aiResponse = await generateAIContent(prompt);
+    
+    // Parse and return
+    return parseAIResponse(aiResponse, "year-analysis");
+  } catch (error: any) {
+    console.error("[generateYearAnalysisReport] Error:", error);
+    throw error; // Re-throw to be handled by API route
   }
 }
 

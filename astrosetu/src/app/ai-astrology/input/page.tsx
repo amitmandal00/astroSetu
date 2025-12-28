@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { AutocompleteInput, type PlaceSuggestion } from "@/components/ui/AutocompleteInput";
 import { resolvePlaceCoordinates } from "@/lib/indianCities";
 
-type ReportType = "life-summary" | "marriage-timing" | "career-money" | "full-life" | null;
+import type { ReportType } from "@/lib/ai-astrology/types";
 
 function InputFormContent() {
   const searchParams = useSearchParams();
@@ -22,7 +22,7 @@ function InputFormContent() {
   
   // Support both "report" and "reportType" query parameters for compatibility
   const reportTypeParam = searchParams.get("reportType") || searchParams.get("report");
-  const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life"];
+  const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis"];
   const reportType = (reportTypeParam && validReportTypes.includes(reportTypeParam as ReportType)) 
     ? (reportTypeParam as ReportType) 
     : null;

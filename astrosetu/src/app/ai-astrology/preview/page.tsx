@@ -130,6 +130,8 @@ function PreviewContent() {
         return "Career & Money Report";
       case "full-life":
         return "Full Life Report";
+      case "year-analysis":
+        return "Year Analysis Report";
       default:
         return "Life Summary";
     }
@@ -140,6 +142,7 @@ function PreviewContent() {
 
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
       const response = await apiPost<{
         ok: boolean;
         data?: { url: string; sessionId: string };
@@ -156,13 +159,26 @@ function PreviewContent() {
       // Redirect to Stripe checkout (validate URL to prevent open redirects)
       if (response.data?.url) {
         const checkoutUrl = response.data.url;
-        // Validate URL is from Stripe or is a relative path
-        if (checkoutUrl.startsWith("https://checkout.stripe.com") || 
-            checkoutUrl.startsWith("http://localhost") ||
-            checkoutUrl.startsWith("/")) {
-          window.location.href = checkoutUrl;
-        } else {
-          throw new Error("Invalid checkout URL");
+        // Validate URL is from Stripe, localhost, relative path, or same origin (for test users)
+        try {
+          const url = new URL(checkoutUrl, window.location.origin);
+          const isStripe = url.hostname === "checkout.stripe.com";
+          const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+          const isSameOrigin = url.origin === window.location.origin;
+          const isRelative = checkoutUrl.startsWith("/");
+          
+          if (isStripe || isLocalhost || isSameOrigin || isRelative) {
+            window.location.href = checkoutUrl;
+          } else {
+            throw new Error("Invalid checkout URL");
+          }
+        } catch (urlError) {
+          // If URL parsing fails, check if it's a relative path
+          if (checkoutUrl.startsWith("/")) {
+            window.location.href = checkoutUrl;
+          } else {
+            throw new Error("Invalid checkout URL");
+          }
         }
       }
     } catch (e: any) {
@@ -229,7 +245,47 @@ function PreviewContent() {
 
   // Show payment prompt for paid reports
   if (needsPayment && !loading) {
+    if (!reportType) {
+      // Should not happen, but handle gracefully
+      return (
+        <div className="cosmic-bg py-8">
+          <div className="container mx-auto px-4 max-w-2xl">
+            <Card className="cosmic-card">
+              <CardContent className="p-8 text-center">
+                <div className="text-5xl mb-4">⚠️</div>
+                <h2 className="text-2xl font-bold mb-4 text-red-700">Invalid Report Type</h2>
+                <p className="text-slate-600 mb-6">Please select a valid report type.</p>
+                <Link href="/ai-astrology/input">
+                  <Button className="cosmic-button-secondary">Start Over</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    
     const price = REPORT_PRICES[reportType as keyof typeof REPORT_PRICES];
+    if (!price) {
+      // Invalid report type - should not happen but handle gracefully
+      return (
+        <div className="cosmic-bg py-8">
+          <div className="container mx-auto px-4 max-w-2xl">
+            <Card className="cosmic-card">
+              <CardContent className="p-8 text-center">
+                <div className="text-5xl mb-4">⚠️</div>
+                <h2 className="text-2xl font-bold mb-4 text-red-700">Invalid Report Type</h2>
+                <p className="text-slate-600 mb-6">The selected report type is not available.</p>
+                <Link href="/ai-astrology/input">
+                  <Button className="cosmic-button-secondary">Start Over</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="cosmic-bg py-8">
         <div className="container mx-auto px-4 max-w-2xl">
