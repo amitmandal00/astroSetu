@@ -126,15 +126,18 @@ export default function DataBreachPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Reporting a Suspected Breach</h2>
                 <p>
-                  If you believe we have experienced a data breach, please contact us immediately:
+                  For privacy or data breach notices only:
                 </p>
-                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Privacy Officer:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a></li>
-                  <li><strong>Emergency Contact:</strong> <a href="mailto:security@astrosetu.app" className="text-indigo-600 hover:underline font-medium">security@astrosetu.app</a></li>
-                  <li><strong>Subject Line:</strong> &quot;URGENT: Data Breach Report&quot;</li>
-                </ul>
-                <p className="mt-3">
-                  Include as much detail as possible about the suspected breach.
+                <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mt-3">
+                  <p className="text-sm text-slate-700 mb-2">
+                    <strong>Compliance Contact:</strong> <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline font-medium">compliance@astrosetu.app</a>
+                  </p>
+                  <p className="text-xs text-slate-600 italic">
+                    This inbox is monitored for legal and compliance requests only. No customer support is provided.
+                  </p>
+                </div>
+                <p className="mt-3 text-sm">
+                  Include as much detail as possible about the suspected breach in your email.
                 </p>
               </section>
 
@@ -158,13 +161,20 @@ export default function DataBreachPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Contact & Further Information</h2>
                 <p>
-                  For questions about this policy or to report a breach:
+                  For privacy or data breach notices only:
                 </p>
-                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Privacy Officer:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline">privacy@astrosetu.app</a></li>
-                  <li><strong>Office of the Australian Information Commissioner:</strong> <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">www.oaic.gov.au</a></li>
-                </ul>
-                <p className="mt-3">
+                <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mt-3">
+                  <p className="text-sm text-slate-700 mb-2">
+                    <strong>Compliance Contact:</strong> <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline">compliance@astrosetu.app</a>
+                  </p>
+                  <p className="text-xs text-slate-600 italic">
+                    This inbox is monitored for legal and compliance requests only. No customer support is provided.
+                  </p>
+                </div>
+                <p className="mt-3 text-sm">
+                  <strong>Office of the Australian Information Commissioner:</strong> <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">www.oaic.gov.au</a>
+                </p>
+                <p className="mt-3 text-sm">
                   This policy is part of our broader <a href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</a>.
                 </p>
               </section>

@@ -65,310 +65,243 @@ export default function ContactPage() {
       <main className="flex-1 cosmic-bg">
         <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Contact & Legal Information</h1>
-            <p className="text-slate-600 text-base mb-4">
-              Compliance requests and legal notices only
+          <div className="text-center mb-8">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Legal & Compliance Contact</h1>
+            <p className="text-slate-600 text-base mb-3 max-w-2xl mx-auto">
+              This page is provided to satisfy legal and regulatory requirements only.
             </p>
-            <p className="text-sm text-slate-500 italic max-w-2xl mx-auto">
-              This page exists to meet legal and regulatory requirements. For product information, please see <Link href="/ai-astrology/faq" className="text-purple-600 hover:underline">FAQs</Link>.
+            <p className="text-slate-600 text-sm max-w-2xl mx-auto">
+              AstroSetu does not offer customer support, consultations, or personalised assistance.
             </p>
           </div>
 
-          {/* Primary Message - Critical */}
-          <Card className="cosmic-card border-2 border-amber-200 bg-amber-50">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <div className="text-2xl">⚠️</div>
-            <div>
-              <h2 className="font-bold text-slate-900 mb-2">Self-Service Platform</h2>
-              <p className="text-slate-700 text-sm leading-relaxed">
-                <strong>AstroSetu is a self-service, automated platform.</strong> We do not provide live support, 
-                consultations, or personalised assistance. This page is for compliance requests and legal notices only.
+          {/* Status Banner - Calm, Official */}
+          <div className="mb-8">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+              <div className="flex flex-wrap justify-center gap-4 text-sm text-slate-600">
+                <span>Educational use only</span>
+                <span>•</span>
+                <span>Fully automated</span>
+                <span>•</span>
+                <span>No live support</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1: Self-Service First (Dominant) */}
+          <Card className="cosmic-card mb-8">
+            <CardHeader eyebrow="Start Here" title="Find answers instantly — no contact required" />
+            <CardContent>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Link 
+                  href="/ai-astrology/faq" 
+                  className="p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                >
+                  <div className="text-2xl mb-2">📘</div>
+                  <div className="font-semibold text-slate-900 mb-1">FAQs</div>
+                  <div className="text-sm text-slate-600">
+                    Common questions and answers
+                  </div>
+                </Link>
+
+                <Link 
+                  href="/terms" 
+                  className="p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                >
+                  <div className="text-2xl mb-2">📜</div>
+                  <div className="font-semibold text-slate-900 mb-1">Terms & Disclaimer</div>
+                  <div className="text-sm text-slate-600">
+                    Service terms and legal disclaimers
+                  </div>
+                </Link>
+
+                <Link 
+                  href="/privacy" 
+                  className="p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                >
+                  <div className="text-2xl mb-2">🔒</div>
+                  <div className="font-semibold text-slate-900 mb-1">Privacy Policy</div>
+                  <div className="text-sm text-slate-600">
+                    How we handle your data
+                  </div>
+                </Link>
+
+                <Link 
+                  href="/refund" 
+                  className="p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                >
+                  <div className="text-2xl mb-2">💳</div>
+                  <div className="font-semibold text-slate-900 mb-1">Refund Policy</div>
+                  <div className="text-sm text-slate-600">
+                    Refund terms and conditions
+                  </div>
+                </Link>
+
+                <Link 
+                  href="/disclaimer" 
+                  className="p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                >
+                  <div className="text-2xl mb-2">ℹ️</div>
+                  <div className="font-semibold text-slate-900 mb-1">Astrology Disclaimer</div>
+                  <div className="text-sm text-slate-600">
+                    Important information about our services
+                  </div>
+                </Link>
+
+                <div className="p-4 rounded-lg border-2 border-slate-200 bg-slate-50">
+                  <div className="text-2xl mb-2">🧮</div>
+                  <div className="font-semibold text-slate-900 mb-1">How Calculations Work</div>
+                  <div className="text-sm text-slate-600">
+                    Coming soon: Explanation of our astrology calculations
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 2: Compliance Contact (De-emphasized) */}
+          <Card className="cosmic-card mb-8">
+            <CardHeader eyebrow="Legal & Regulatory Contact" title="Legal & Regulatory Contact (Mandatory Disclosure)" />
+            <CardContent className="space-y-4">
+              <p className="text-sm text-slate-700 leading-relaxed">
+                AstroSetu is a self-service, automated platform.
               </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              <p className="text-sm text-slate-700 leading-relaxed">
+                The following contact details are provided solely to meet legal, privacy, and regulatory requirements.
+              </p>
+              <p className="text-sm text-slate-700 leading-relaxed mb-4">
+                We do not provide customer support or personalised assistance.
+              </p>
 
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Contact Information */}
-            <Card className="cosmic-card">
-          <CardHeader eyebrow="Legal & Compliance" title="Contact Information" />
-          <CardContent className="space-y-6">
-            {/* General Contact */}
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="text-2xl">📧</div>
-                <div className="flex-1">
-                  <div className="font-semibold text-slate-900 mb-1">General Contact (Required by Law)</div>
-                  <a 
-                    href="mailto:support@astrosetu.app" 
-                    className="text-indigo-600 hover:underline break-all"
-                  >
-                    support@astrosetu.app
-                  </a>
-                  <div className="text-sm text-slate-600 mt-1">
-                    <strong>Purpose:</strong> Legal notices, account access issues, compliance requests only
+              <div className="space-y-3 pt-4 border-t border-slate-200">
+                <div>
+                  <div className="font-medium text-slate-900 mb-1">Compliance Contact</div>
+                  <div className="text-slate-700 text-sm">compliance@astrosetu.app</div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    This inbox is monitored for legal and compliance requests only. No customer support is provided.
                   </div>
-                  <div className="text-xs text-slate-500 mt-1 italic">
-                    This email is monitored periodically. We do not guarantee responses to general inquiries.
+                  <div className="text-xs text-slate-500 mt-1">
+                    For: Privacy requests, data deletion, legal notices, breach notifications, disputes
                   </div>
                 </div>
-              </div>
 
-              {/* Privacy Contact */}
-              <div className="flex items-start gap-4">
-                <div className="text-2xl">🔒</div>
-                <div className="flex-1">
-                  <div className="font-semibold text-slate-900 mb-1">
-                    Privacy & Data Protection (Mandatory under AU law)
-                  </div>
-                  <a 
-                    href="mailto:privacy@astrosetu.app" 
-                    className="text-indigo-600 hover:underline break-all"
-                  >
-                    privacy@astrosetu.app
-                  </a>
-                  <div className="text-sm text-slate-600 mt-1">
-                    <strong>Purpose:</strong> Data access, correction, deletion, privacy complaints
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1 italic">
-                    This satisfies Australian Privacy Act requirements without creating support load.
-                  </div>
+                <div className="pt-3 border-t border-slate-200">
+                  <div className="font-medium text-slate-900 mb-1">Legal Entity</div>
+                  <div className="text-slate-700 text-sm">AstroSetu Services Pvt. Ltd.</div>
                 </div>
-              </div>
 
-              {/* Legal Entity */}
-              <div className="flex items-start gap-4 pt-4 border-t border-slate-200">
-                <div className="text-2xl">📍</div>
-                <div className="flex-1">
-                  <div className="font-semibold text-slate-900 mb-1">Legal Entity & Jurisdiction</div>
-                  <div className="text-slate-700 text-sm space-y-1">
-                    <div><strong>Legal Entity:</strong> AstroSetu Services Pvt. Ltd.</div>
-                    <div><strong>Operating Jurisdiction:</strong> Australia (primary)</div>
-                    <div><strong>International Operations:</strong> India</div>
-                  </div>
+                <div>
+                  <div className="font-medium text-slate-900 mb-1">Jurisdiction</div>
+                  <div className="text-slate-700 text-sm">Australia (Primary), India (Operations)</div>
                 </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* What We Don't Offer */}
-            <div className="pt-4 border-t border-slate-200">
-              <div className="font-semibold text-slate-900 mb-3">What We Do NOT Offer</div>
-              <div className="text-sm text-slate-700 space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-slate-400">•</span>
-                  <span>Phone support</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-slate-400">•</span>
-                  <span>WhatsApp or chat support</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-slate-400">•</span>
-                  <span>Personal astrology consultations</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-slate-400">•</span>
-                  <span>Interpretation assistance</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-slate-400">•</span>
-                  <span>Refund negotiation via email</span>
-                </div>
-              </div>
-              <div className="text-xs text-slate-500 mt-3 italic">
-                This platform is fully automated. Most answers can be found in our self-help resources below.
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-            {/* Compliance Request Form */}
-            <Card className="cosmic-card">
-          <CardHeader eyebrow="Compliance Requests Only" title="Compliance Request Form" />
-          <CardContent>
-            {/* Important Notice */}
-            <div className="mb-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
-              <div className="text-sm text-slate-700">
-                <strong>This form is for compliance and account access requests only.</strong>
-                <br />
-                <span className="text-slate-600">
-                  We do not provide customer support or personalised assistance.
-                </span>
-              </div>
-            </div>
-
-            {success && (
-              <div className="mb-4 p-4 rounded-xl bg-green-50 border-2 border-green-200 text-green-700">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg">✅</span>
-                  <div>
+          {/* Section 3: Compliance Request Form (Minimal, Below Self-Help) */}
+          <Card className="cosmic-card max-w-2xl mx-auto">
+            <CardHeader eyebrow="Regulatory Requests" title="Regulatory Request Form" />
+            <CardContent>
+              {success && (
+                <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200 text-green-700">
+                  <div className="text-sm">
                     <div className="font-semibold mb-1">Request Submitted</div>
-                    <div className="text-sm">
-                      Your compliance request has been received. We will process it according to 
-                      applicable privacy laws. No response timeline is guaranteed.
+                    <div>
+                      Your regulatory request has been received. Valid requests will be handled as required by law. 
+                      No response timeline is guaranteed.
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {error && (
-              <div className="mb-4 p-4 rounded-xl bg-rose-50 border-2 border-rose-200 text-rose-700">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg">⚠️</span>
-                  <div>
+              {error && (
+                <div className="mb-4 p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700">
+                  <div className="text-sm">
                     <div className="font-semibold mb-1">Error</div>
-                    <div className="text-sm">{error}</div>
+                    <div>{error}</div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Email <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Request Category <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as ComplianceCategory })}
-                  disabled={loading}
-                  required
-                >
-                  <option value="data_deletion">Data Deletion Request</option>
-                  <option value="account_access">Account Access Issue</option>
-                  <option value="legal_notice">Legal Notice</option>
-                  <option value="privacy_complaint">Privacy Complaint</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Message <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 resize-none"
-                  rows={5}
-                  placeholder="Please describe your compliance request..."
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  required
-                  disabled={loading}
-                  maxLength={500}
-                />
-                <div className="text-xs text-slate-500 mt-1">
-                  {formData.message.length}/500 characters
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Email <span className="text-rose-500">*</span>
+                  </label>
+                  <Input
+                    type="email"
+                    placeholder="your.email@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    disabled={loading}
+                    className="bg-white"
+                  />
                 </div>
-              </div>
-              
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <span className="animate-spin inline-block mr-2">⏳</span>
-                    Submitting...
-                  </>
-                ) : (
-                  "Submit Compliance Request"
-                )}
-              </Button>
 
-              <div className="text-xs text-slate-500 text-center">
-                By submitting this form, you agree to our{" "}
-                <Link href="/terms" className="text-indigo-600 hover:underline">Terms & Conditions</Link>
-                {" "}and{" "}
-                <Link href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</Link>.
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Request Category <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:border-slate-400 bg-white"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value as ComplianceCategory })}
+                    disabled={loading}
+                    required
+                  >
+                    <option value="data_deletion">Data Deletion Request</option>
+                    <option value="account_access">Account Access Issue</option>
+                    <option value="legal_notice">Legal Notice</option>
+                    <option value="privacy_complaint">Privacy Complaint</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Message <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:border-slate-400 resize-none bg-white"
+                    rows={5}
+                    placeholder="Please describe your regulatory request..."
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    required
+                    disabled={loading}
+                    maxLength={500}
+                  />
+                  <div className="text-xs text-slate-500 mt-1">
+                    {formData.message.length}/500 characters
+                  </div>
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  className="w-full bg-slate-600 hover:bg-slate-700 text-white" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="animate-spin inline-block mr-2">⏳</span>
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Regulatory Request"
+                  )}
+                </Button>
 
-          {/* Self-Help Section */}
-          <Card className="cosmic-card">
-        <CardHeader eyebrow="Self-Help Resources" title="Find Answers Yourself" />
-        <CardContent>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Link 
-              href="/faq" 
-              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
-            >
-              <div className="text-2xl mb-2">📘</div>
-              <div className="font-semibold text-slate-900 mb-1">Help & FAQs</div>
-              <div className="text-sm text-slate-600">
-                Common questions and answers
-              </div>
-            </Link>
+                <p className="text-xs text-slate-500 text-center">
+                  Requests unrelated to legal or privacy compliance will not receive a response.
+                </p>
 
-            <Link 
-              href="/terms" 
-              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
-            >
-              <div className="text-2xl mb-2">⚖️</div>
-              <div className="font-semibold text-slate-900 mb-1">Terms & Disclaimer</div>
-              <div className="text-sm text-slate-600">
-                Service terms and legal disclaimers
-              </div>
-            </Link>
-
-            <Link 
-              href="/privacy" 
-              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
-            >
-              <div className="text-2xl mb-2">🔐</div>
-              <div className="font-semibold text-slate-900 mb-1">Privacy Policy</div>
-              <div className="text-sm text-slate-600">
-                How we handle your data
-              </div>
-            </Link>
-
-            <Link 
-              href="/refund" 
-              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
-            >
-              <div className="text-2xl mb-2">💳</div>
-              <div className="font-semibold text-slate-900 mb-1">Refund Policy</div>
-              <div className="text-sm text-slate-600">
-                Refund terms and conditions
-              </div>
-            </Link>
-
-            <Link 
-              href="/disclaimer" 
-              className="p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
-            >
-              <div className="text-2xl mb-2">ℹ️</div>
-              <div className="font-semibold text-slate-900 mb-1">Astrology Disclaimer</div>
-              <div className="text-sm text-slate-600">
-                Important information about our services
-              </div>
-            </Link>
-
-            <div className="p-4 rounded-lg border-2 border-slate-200 bg-slate-50">
-              <div className="text-2xl mb-2">🔍</div>
-              <div className="font-semibold text-slate-900 mb-1">How Calculations Work</div>
-              <div className="text-sm text-slate-600">
-                Coming soon: Explanation of our astrology calculations
-              </div>
-            </div>
-          </div>
+                <div className="text-xs text-slate-500 text-center">
+                  By submitting this form, you agree to our{" "}
+                  <Link href="/terms" className="text-slate-600 hover:underline">Terms & Conditions</Link>
+                  {" "}and{" "}
+                  <Link href="/privacy" className="text-slate-600 hover:underline">Privacy Policy</Link>.
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

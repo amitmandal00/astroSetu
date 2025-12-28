@@ -35,15 +35,21 @@ export default function DisputesPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Step 1: Contact Us First</h2>
                 <p>
-                  If you have a complaint or dispute, please contact us first so we can resolve it quickly:
+                  Dispute and legal notices:
                 </p>
-                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Email:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
-                  <li><strong>Subject Line:</strong> &quot;Complaint&quot; or &quot;Dispute&quot;</li>
-                  <li>Include: Your account details, description of the issue, and any relevant documents</li>
-                </ul>
-                <p className="mt-3">
-                  <strong>Response Time:</strong> We aim to acknowledge your complaint within 5 business days and provide a response within 30 days.
+                <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mt-3">
+                  <p className="text-sm text-slate-700 mb-2">
+                    <strong>Compliance Contact:</strong> <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline">compliance@astrosetu.app</a>
+                  </p>
+                  <p className="text-xs text-slate-600 italic mb-2">
+                    This inbox is monitored for legal and compliance requests only. No customer support is provided.
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    Include: Your account details, description of the issue, and any relevant documents. Use subject line: &quot;Complaint&quot; or &quot;Dispute&quot;
+                  </p>
+                </div>
+                <p className="mt-3 text-sm text-slate-600 italic">
+                  <strong>Note:</strong> AstroSetu is a fully automated platform. This inbox is monitored for legal and regulatory compliance only. No response timeline is guaranteed.
                 </p>
               </section>
 
@@ -51,16 +57,16 @@ export default function DisputesPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Step 2: Internal Review</h2>
                 <p>
-                  Our team will:
+                  Valid legal and compliance requests will be handled as required by law:
                 </p>
                 <ol className="list-decimal list-inside space-y-1 ml-4 mt-2">
-                  <li>Acknowledge receipt of your complaint</li>
-                  <li>Investigate the matter thoroughly</li>
-                  <li>Review relevant records and information</li>
-                  <li>Provide a written response with our findings and proposed resolution</li>
+                  <li>Review of your complaint or dispute</li>
+                  <li>Investigation of the matter</li>
+                  <li>Review of relevant records and information</li>
+                  <li>Response as required by applicable laws and regulations</li>
                 </ol>
-                <p className="mt-3">
-                  If we need more time to investigate, we will notify you and provide regular updates.
+                <p className="mt-3 text-sm text-slate-600 italic">
+                  This process is automated and compliance-focused. No response timeline is guaranteed.
                 </p>
               </section>
 
@@ -170,13 +176,16 @@ export default function DisputesPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Contact Information</h2>
                 <p>
-                  For complaints or disputes:
+                  Dispute and legal notices:
                 </p>
-                <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>General Complaints:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a></li>
-                  <li><strong>Privacy Complaints:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline">privacy@astrosetu.app</a></li>
-                  <li><strong>Legal Matters:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a></li>
-                </ul>
+                <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mt-3">
+                  <p className="text-sm text-slate-700 mb-2">
+                    <strong>Compliance Contact:</strong> <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline">compliance@astrosetu.app</a>
+                  </p>
+                  <p className="text-xs text-slate-600 italic">
+                    This inbox is monitored for legal and compliance requests only. No customer support is provided.
+                  </p>
+                </div>
               </section>
 
               {/* Updates */}

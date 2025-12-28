@@ -4,8 +4,6 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { AIHeader } from "@/components/ai-astrology/AIHeader";
-import { AIFooter } from "@/components/ai-astrology/AIFooter";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 import type { ReportType } from "@/lib/ai-astrology/types";
 import Link from "next/link";
@@ -98,10 +96,8 @@ function BundleSelectionPageContent() {
   const canContinue = bundleType === "all-3" || selectedReports.length === 2;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <AIHeader />
-      <main className="flex-1 cosmic-bg">
-        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+    <div className="cosmic-bg">
+      <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
           <div className="text-center mb-12">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">
               {bundleType === "all-3" ? "All 3 Reports Bundle" : "Any 2 Reports Bundle"}
@@ -236,8 +232,6 @@ function BundleSelectionPageContent() {
             </CardContent>
           </Card>
         </div>
-      </main>
-      <AIFooter />
     </div>
   );
 }
@@ -245,17 +239,13 @@ function BundleSelectionPageContent() {
 export default function BundleSelectionPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col">
-        <AIHeader />
-        <main className="flex-1 cosmic-bg">
-          <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
-            <div className="text-center">
-              <div className="animate-spin text-4xl mb-4">🌙</div>
-              <p className="text-slate-600">Loading...</p>
-            </div>
+      <div className="cosmic-bg">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+          <div className="text-center">
+            <div className="animate-spin text-4xl mb-4">🌙</div>
+            <p className="text-slate-600">Loading...</p>
           </div>
-        </main>
-        <AIFooter />
+        </div>
       </div>
     }>
       <BundleSelectionPageContent />

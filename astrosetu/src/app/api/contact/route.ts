@@ -199,8 +199,8 @@ async function sendContactNotifications(data: {
 
   // Use Resend API if configured, otherwise log for manual processing
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@astrosetu.app";
-  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || SUPPORT_EMAIL;
+  const COMPLIANCE_EMAIL = process.env.COMPLIANCE_EMAIL || "compliance@astrosetu.app";
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || COMPLIANCE_EMAIL;
 
   if (!RESEND_API_KEY) {
     // No email service configured - log for manual processing
@@ -221,7 +221,7 @@ async function sendContactNotifications(data: {
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: email,
-      from: `AstroSetu Compliance <${SUPPORT_EMAIL}>`,
+      from: `AstroSetu Compliance <${COMPLIANCE_EMAIL}>`,
       subject: `Compliance Request Received - ${subject}`,
       html: generateAutoReplyEmail(name || "User", subject, category),
     });
@@ -230,7 +230,7 @@ async function sendContactNotifications(data: {
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: ADMIN_EMAIL,
-      from: `AstroSetu Contact Form <${SUPPORT_EMAIL}>`,
+      from: `AstroSetu Contact Form <${COMPLIANCE_EMAIL}>`,
       subject: `[${category.toUpperCase()}] New Contact: ${subject}`,
       html: generateAdminNotificationEmail({
         submissionId,

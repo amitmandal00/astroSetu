@@ -163,69 +163,103 @@ function SubscriptionContent() {
           <h1 className="text-3xl lg:text-4xl font-bold text-slate-800 mb-2">
             Monthly AI Astrology Outlook (Optional)
           </h1>
-          <p className="text-slate-600 mb-3">
-            Get a personalized monthly overview of focus areas, favorable themes, and guidance
+          <p className="text-slate-600 mb-4">
+            A calm, reflective monthly overview — not predictions.
           </p>
-          <div className="inline-block p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800 font-medium">
-              💡 Most users prefer one-time reports. This subscription is optional.
-            </p>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="text-2xl font-bold text-slate-800">
+              AU${(SUBSCRIPTION_PRICE.amount / 100).toFixed(2)} / month
+            </div>
+            <div className="text-sm text-slate-600">Cancel anytime</div>
           </div>
         </div>
 
         {/* Subscription Status */}
-        <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-xl font-bold text-slate-900">Monthly AI Astrology Outlook</h2>
-                  {isSubscribed ? (
-                    <Badge tone="green">Active</Badge>
-                  ) : (
-                    <Badge tone="neutral">Not Subscribed</Badge>
-                  )}
-                </div>
-                <p className="text-slate-600">
-                  {isSubscribed
-                    ? "You have access to monthly personalized astrology outlooks"
-                    : "Subscribe to receive monthly personalized astrology outlooks"}
-                </p>
+        {!isSubscribed && (
+          <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
+            <CardContent className="p-6">
+              <div className="text-center">
+                <Button
+                  onClick={handleSubscribe}
+                  disabled={loading}
+                  className="cosmic-button text-lg px-8 py-4"
+                >
+                  {loading ? "Processing..." : "Subscribe"}
+                </Button>
               </div>
-              {!isSubscribed && (
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-amber-700 mb-1">
-                    AU${(SUBSCRIPTION_PRICE.amount / 100).toFixed(2)}
-                  </div>
-                  <div className="text-sm text-slate-600">per month</div>
-                  <div className="text-xs text-slate-500 mt-1">Cancel anytime</div>
-                </div>
-              )}
-            </div>
+            </CardContent>
+          </Card>
+        )}
 
-            {!isSubscribed && (
-              <Button
-                onClick={handleSubscribe}
-                disabled={loading}
-                className="w-full mt-4 cosmic-button"
-              >
-                {loading ? "Processing..." : "Subscribe Now →"}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        {/* Short Value Section */}
+        {!isSubscribed && (
+          <Card className="cosmic-card mb-6">
+            <CardHeader title="What You Get" />
+            <CardContent>
+              <ul className="space-y-2">
+                <li className="flex items-start gap-3">
+                  <span className="text-amber-700 text-lg">•</span>
+                  <span className="text-slate-700">Monthly focus areas & themes</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-amber-700 text-lg">•</span>
+                  <span className="text-slate-700">Planetary influences (educational)</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-amber-700 text-lg">•</span>
+                  <span className="text-slate-700">Emotional & mindset guidance</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-amber-700 text-lg">•</span>
+                  <span className="text-slate-700">No predictions, no advice</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-amber-700 text-lg">•</span>
+                  <span className="text-slate-700">Fully automated delivery</span>
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Why This Exists */}
+        {!isSubscribed && (
+          <Card className="cosmic-card mb-6 bg-slate-50">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-slate-900 mb-2">Why This Exists</h3>
+              <p className="text-sm text-slate-700 leading-relaxed">
+                This monthly outlook is designed for users who enjoy gentle, recurring reflection.
+                If you prefer deep, complete insights, one-time reports like{" "}
+                <Link href="/ai-astrology" className="text-purple-600 hover:underline">Year Analysis</Link> or{" "}
+                <Link href="/ai-astrology" className="text-purple-600 hover:underline">Life Phase Reports</Link> may suit you better.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Compliance Notice */}
+        {!isSubscribed && (
+          <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg text-center">
+            <p className="text-sm text-slate-600">
+              Educational guidance only. Not advice or prediction.
+            </p>
+          </div>
+        )}
 
         {/* Current Theme & Focus */}
         {isSubscribed && (
           <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
             <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b-2 border-slate-200 bg-slate-50">
-              <h2 className="text-xl font-bold text-slate-800">Current Theme & Focus</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-800">Current Theme & Focus</h2>
+                <Badge tone="green">Active</Badge>
+              </div>
             </div>
             <CardContent>
-              {/* Strong Boundary Text */}
-              <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
-                <p className="text-sm font-semibold text-amber-900">
-                  ⚠️ Important: This guidance is general and reflective, not advice or prediction.
+              {/* Softer Info Tone */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  This guidance is general and reflective, not advice or prediction.
                 </p>
               </div>
 
@@ -243,17 +277,23 @@ function SubscriptionContent() {
               )}
 
               {guidance && (
-                <div className="space-y-6">
-                  {/* Single Calm Theme Block */}
-                  <div className="p-6 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-blue-200 shadow-sm">
-                    <div className="mb-4">
-                      <h3 className="text-xl font-bold text-slate-800 mb-3 flex items-center gap-2">
-                        <span>📋</span> Guidance Theme (Educational)
-                      </h3>
-                    </div>
+                <div className="space-y-4">
+                  {/* Monthly Title */}
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-slate-800">
+                      {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Theme: {guidance.guidance?.split(/[\.\n]/)[0]?.substring(0, 50).trim() || 'Balance & Communication'}
+                    </h3>
+                  </div>
+                  
+                  {/* Shortened Theme Block */}
+                  <div className="p-5 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border border-blue-200">
                     <div className="prose prose-slate max-w-none">
-                      <p className="text-slate-800 leading-relaxed text-base whitespace-pre-wrap font-medium">
-                        {guidance.guidance || "This period favors thoughtful action and steady progress. Avoid rushing decisions and maintain balance in daily routines."}
+                      <p className="text-slate-700 leading-relaxed text-sm whitespace-pre-wrap">
+                        {guidance.guidance ? 
+                          guidance.guidance.length > 300 ? 
+                            guidance.guidance.substring(0, 300) + '...' : 
+                            guidance.guidance
+                          : "This period favors thoughtful action and steady progress. Maintain balance in daily routines."}
                       </p>
                     </div>
                   </div>
@@ -278,43 +318,6 @@ function SubscriptionContent() {
           </Card>
         )}
 
-        {/* Benefits */}
-        <Card className="cosmic-card border-purple-500/30">
-          <CardHeader title="What You Get" />
-          <CardContent>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3">
-                <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">Monthly personalized astrology outlook based on your birth chart</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">Key focus areas for the coming month</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">Favorable and challenging themes explained</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">Calm, non-predictive guidance</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">Planetary influence explanations</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-amber-700 text-xl">✓</span>
-                <span className="text-slate-700">Cancel anytime</span>
-              </li>
-            </ul>
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> This subscription is optional. Most users prefer one-time reports (Marriage Timing, Career & Money, or Full Life Report) which provide complete insights without recurring commitments.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

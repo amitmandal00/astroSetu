@@ -225,7 +225,8 @@ export default function TermsPage() {
                   <strong>Contact:</strong>
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li>Legal Contact: <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a> (for legal notices and compliance requests only)</li>
+                  <li>Compliance Contact: <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline">compliance@astrosetu.app</a> (for legal notices and compliance requests only)</li>
+                  <li className="text-xs text-slate-600 italic ml-4">This inbox is monitored for legal and compliance requests only. No customer support is provided.</li>
                 </ul>
               </section>
             </div>

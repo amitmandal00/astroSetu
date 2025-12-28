@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { HeaderPattern } from "@/components/ui/HeaderPattern";
 
@@ -100,7 +101,7 @@ export default function FAQPage() {
           <CardContent className="p-6">
             <div className="text-center">
               <h3 className="font-semibold text-slate-900 mb-2">Still have questions?</h3>
-              <p className="text-slate-700 mb-4">Our support team is here to help you.</p>
+              <p className="text-slate-700 mb-4">AstroSetu is a fully automated platform. For compliance and legal notices only, see our <Link href="/contact" className="text-purple-600 hover:underline">Contact & Legal Information</Link> page.</p>
               <a
                 href="/contact"
                 className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all"

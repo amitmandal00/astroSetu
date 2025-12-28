@@ -137,7 +137,7 @@ export default function PrivacyPage() {
                 <div className="mt-4 p-3 bg-indigo-100 rounded-lg">
                   <p className="text-sm font-semibold text-indigo-900 mb-2">Making a Privacy Complaint</p>
                   <p className="text-sm text-indigo-800 mb-2">
-                    For privacy-related requests only, contact our Privacy Officer at <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a>. We do not provide customer support through this channel.
+                    For privacy-related requests, contact <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline font-medium">compliance@astrosetu.app</a>. This inbox is monitored for legal and compliance requests only. No customer support is provided.
                   </p>
                   <p className="text-sm text-indigo-800">
                     If you are not satisfied with our response, you may lodge a complaint with the Office of the Australian Information Commissioner (OAIC) at <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">www.oaic.gov.au</a> or by calling 1300 363 992.
@@ -234,7 +234,7 @@ export default function PrivacyPage() {
                   <li>Take steps to prevent future breaches</li>
                 </ul>
                 <p className="mt-3 text-amber-800">
-                  If you believe we have experienced a data breach, please contact us immediately at <a href="mailto:privacy@astrosetu.app" className="text-amber-700 hover:underline font-medium">privacy@astrosetu.app</a>.
+                  For privacy or data breach notices: <a href="mailto:compliance@astrosetu.app" className="text-amber-700 hover:underline font-medium">compliance@astrosetu.app</a>. This inbox is monitored for legal and compliance requests only. No customer support is provided.
                 </p>
                 <p className="mt-3">
                   For detailed information, see our <a href="/data-breach" className="text-indigo-600 hover:underline">Data Breach Notification Policy</a>.
@@ -279,8 +279,8 @@ export default function PrivacyPage() {
                 <h2 className="text-xl font-bold text-slate-900 mb-3">8. Your Rights</h2>
                 <p className="text-green-900 font-semibold mb-3">Under Australian Privacy Principles (APPs) and applicable privacy laws, you have the right to:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4 mt-2 text-green-800">
-                  <li><strong>Access (APP 12):</strong> Request a copy of your personal information we hold. We will respond within 30 days and may charge a reasonable fee for providing access.</li>
-                  <li><strong>Correction (APP 13):</strong> Request correction of inaccurate, incomplete, outdated, irrelevant, or misleading information. We will correct information within 30 days where reasonable.</li>
+                  <li><strong>Access (APP 12):</strong> Request a copy of your personal information we hold. Valid requests will be handled as required by law and may charge a reasonable fee for providing access.</li>
+                  <li><strong>Correction (APP 13):</strong> Request correction of inaccurate, incomplete, outdated, irrelevant, or misleading information. Valid requests will be handled as required by law where reasonable.</li>
                   <li><strong>Deletion:</strong> Request deletion of your personal information, subject to legal requirements (e.g., tax retention obligations).</li>
                   <li><strong>Withdraw Consent:</strong> Withdraw consent for processing where applicable (e.g., marketing communications).</li>
                   <li><strong>Complain:</strong> Lodge a complaint with the Office of the Australian Information Commissioner (OAIC) or relevant privacy authority.</li>
@@ -289,7 +289,7 @@ export default function PrivacyPage() {
                   <strong>To Exercise Your Rights:</strong>
                 </p>
                 <p className="text-green-800">
-                  For privacy-related requests only, contact our Privacy Officer at <a href="mailto:privacy@astrosetu.app" className="text-green-700 hover:underline font-medium">privacy@astrosetu.app</a>. Include your request details and verification information. No response timeline is guaranteed.
+                  For privacy-related requests, contact <a href="mailto:compliance@astrosetu.app" className="text-green-700 hover:underline font-medium">compliance@astrosetu.app</a>. Include your request details and verification information. This inbox is monitored for legal and compliance requests only. No customer support is provided. No response timeline is guaranteed.
                 </p>
               </section>
 
@@ -309,7 +309,7 @@ export default function PrivacyPage() {
                   <li><strong>Right to Withdraw Consent:</strong> You can withdraw consent at any time</li>
                 </ul>
                 <p className="mt-3 text-blue-800">
-                  To exercise these rights, contact <a href="mailto:privacy@astrosetu.app" className="text-blue-600 hover:underline font-medium">privacy@astrosetu.app</a>. No response timeline is guaranteed.
+                  To exercise these rights, contact <a href="mailto:compliance@astrosetu.app" className="text-blue-600 hover:underline font-medium">compliance@astrosetu.app</a>. This inbox is monitored for legal and compliance requests only. No customer support is provided. No response timeline is guaranteed.
                 </p>
                 <p className="mt-3 text-blue-800">
                   You also have the right to lodge a complaint with your local data protection authority.
@@ -333,8 +333,8 @@ export default function PrivacyPage() {
                 <p className="font-semibold text-slate-900 mb-2">Data Controller & Privacy Officer:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
                   <li><strong>Platform Owner:</strong> AstroSetu Services Pvt. Ltd.</li>
-                  <li><strong>Privacy Officer Email:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a> (for privacy-related requests only)</li>
-                  <li><strong>General Contact:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a> (for legal notices and compliance requests only)</li>
+                  <li><strong>Compliance Contact:</strong> <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline font-medium">compliance@astrosetu.app</a> (for privacy requests, data deletion, legal notices, breach notifications, disputes)</li>
+                  <li className="text-xs text-slate-600 italic ml-4">This inbox is monitored for legal and compliance requests only. No customer support is provided.</li>
                   <li><strong>Jurisdiction:</strong> Australia (primary) / India (international operations)</li>
                 </ul>
                 <p className="mt-4 font-semibold text-slate-900 mb-2">External Privacy Authority:</p>
