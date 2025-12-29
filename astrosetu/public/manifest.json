@@ -2,7 +2,7 @@
   "name": "AstroSetu - Cosmic Guidance",
   "short_name": "AstroSetu",
   "description": "Complete astrology platform with AI-powered insights: Generate Kundli, match compatibility, horoscopes, and chat with expert astrologers",
-  "start_url": "/",
+  "start_url": "/ai-astrology",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",

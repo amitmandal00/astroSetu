@@ -77,6 +77,8 @@ const calculateBundlePrice = (reportCount: number): number => {
 const marriageCareerTotal = REPORT_PRICES["marriage-timing"].amount + REPORT_PRICES["career-money"].amount;
 const allThreeTotal = REPORT_PRICES["marriage-timing"].amount + REPORT_PRICES["career-money"].amount + REPORT_PRICES["full-life"].amount;
 
+const lifeDecisionPackTotal = REPORT_PRICES["marriage-timing"].amount + REPORT_PRICES["career-money"].amount + REPORT_PRICES["year-analysis"].amount;
+
 export const BUNDLE_PRICES = {
   "any-2": {
     amount: calculateBundlePrice(2),
@@ -91,6 +93,13 @@ export const BUNDLE_PRICES = {
     description: "All 3 Reports Bundle - Get all reports and save 25%",
     savings: Math.round(allThreeTotal * 0.25),
     individualTotal: allThreeTotal,
+  },
+  "life-decision-pack": {
+    amount: Math.round(lifeDecisionPackTotal * 0.75), // 25% off
+    currency: "aud",
+    description: "Life Decision Pack - Marriage + Career + Year Analysis, save 25%",
+    savings: Math.round(lifeDecisionPackTotal * 0.25),
+    individualTotal: lifeDecisionPackTotal,
   },
 };
 

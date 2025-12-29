@@ -6,9 +6,11 @@
 
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 
 export function AIFooter() {
+  const [isLegalOpen, setIsLegalOpen] = useState(false);
   return (
     <footer className="bg-white border-t border-slate-200 mt-auto">
       <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -44,42 +46,93 @@ export function AIFooter() {
 
           {/* Right Column: Legal Links */}
           <div className="space-y-4">
-            <nav className="space-y-2">
-              <Link href="/ai-astrology/faq" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+            {/* Collapsible Legal Section for Mobile */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsLegalOpen(!isLegalOpen)}
+                className="w-full flex items-center justify-between text-slate-700 font-semibold text-sm py-3 min-h-[44px] border-b border-slate-200"
+              >
+                <span>Legal & Policies</span>
+                <span className="text-slate-400">{isLegalOpen ? "−" : "+"}</span>
+              </button>
+              {isLegalOpen && (
+                <nav className="space-y-2 mt-2">
+                  <Link href="/ai-astrology/faq" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 min-h-[44px] flex items-center">
+                    <span className="text-slate-400 mr-2">→</span>
+                    FAQ
+                  </Link>
+                  <Link href="/privacy" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 min-h-[44px] flex items-center">
+                    <span className="text-slate-400 mr-2">→</span>
+                    Privacy Policy
+                  </Link>
+                  <Link href="/terms" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 min-h-[44px] flex items-center">
+                    <span className="text-slate-400 mr-2">→</span>
+                    Terms of Use
+                  </Link>
+                  <Link href="/disclaimer" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 min-h-[44px] flex items-center">
+                    <span className="text-slate-400 mr-2">→</span>
+                    Disclaimer
+                  </Link>
+                  <Link href="/refund" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 min-h-[44px] flex items-center">
+                    <span className="text-slate-400 mr-2">→</span>
+                    Refund Policy
+                  </Link>
+                  <Link href="/cookies" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 min-h-[44px] flex items-center">
+                    <span className="text-slate-400 mr-2">→</span>
+                    Cookie Policy
+                  </Link>
+                  <div className="pt-2 border-t border-slate-200 mt-2">
+                    <Link href="/contact" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-2 min-h-[44px] flex items-center">
+                      Contact & Legal Info
+                    </Link>
+                    <Link href="/data-breach" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-2 min-h-[44px] flex items-center">
+                      Data Breach Policy
+                    </Link>
+                    <Link href="/disputes" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-2 min-h-[44px] flex items-center">
+                      Dispute Resolution
+                    </Link>
+                  </div>
+                </nav>
+              )}
+            </div>
+
+            {/* Desktop: Always Visible */}
+            <nav className="hidden md:block space-y-2">
+              <Link href="/ai-astrology/faq" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-1 flex items-center">
                 <span className="text-slate-400 mr-2">→</span>
                 FAQ
               </Link>
-              <Link href="/privacy" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+              <Link href="/privacy" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-1 flex items-center">
                 <span className="text-slate-400 mr-2">→</span>
                 Privacy Policy
               </Link>
-              <Link href="/terms" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+              <Link href="/terms" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-1 flex items-center">
                 <span className="text-slate-400 mr-2">→</span>
                 Terms of Use
               </Link>
-              <Link href="/disclaimer" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+              <Link href="/disclaimer" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-1 flex items-center">
                 <span className="text-slate-400 mr-2">→</span>
                 Disclaimer
               </Link>
-              <Link href="/refund" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+              <Link href="/refund" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-1 flex items-center">
                 <span className="text-slate-400 mr-2">→</span>
                 Refund Policy
               </Link>
-              <Link href="/cookies" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+              <Link href="/cookies" className="block text-slate-700 hover:text-amber-600 transition-colors text-sm py-1 flex items-center">
                 <span className="text-slate-400 mr-2">→</span>
                 Cookie Policy
               </Link>
             </nav>
-            <div className="pt-2 border-t border-slate-200">
+            <div className="hidden md:block pt-2 border-t border-slate-200">
               <p className="text-xs text-slate-500 mb-2">Additional Information:</p>
               <nav className="space-y-1">
-                <Link href="/contact" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+                <Link href="/contact" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-1 flex items-center">
                   Contact & Legal Info
                 </Link>
-                <Link href="/data-breach" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+                <Link href="/data-breach" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-1 flex items-center">
                   Data Breach Policy
                 </Link>
-                <Link href="/disputes" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-2 sm:py-1 min-h-[44px] sm:min-h-0 flex items-center">
+                <Link href="/disputes" className="block text-slate-500 hover:text-amber-600 transition-colors text-xs py-1 flex items-center">
                   Dispute Resolution
                 </Link>
               </nav>

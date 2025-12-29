@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -8,7 +8,7 @@ import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 import type { ReportType } from "@/lib/ai-astrology/types";
 import Link from "next/link";
 
-type BundleType = "any-2" | "all-3";
+type BundleType = "any-2" | "all-3" | "life-decision-pack";
 
 // Only paid reports are available for bundles (excludes "life-summary" which is free)
 type PaidReportType = Exclude<ReportType, "life-summary" | "daily-guidance">;
@@ -52,7 +52,18 @@ function BundleSelectionPageContent() {
   const bundleType = (searchParams.get("type") as BundleType) || "any-2";
   const [selectedReports, setSelectedReports] = useState<PaidReportType[]>([]);
 
+  // Pre-select reports for life-decision-pack
+  useEffect(() => {
+    if (bundleType === "life-decision-pack" && selectedReports.length === 0) {
+      setSelectedReports(["marriage-timing", "career-money", "year-analysis"]);
+    }
+  }, [bundleType, selectedReports.length]);
+
   const handleReportToggle = (reportType: PaidReportType) => {
+    if (bundleType === "life-decision-pack") {
+      // Life decision pack is fixed, don't allow changes
+      return;
+    }
     const maxSelection = bundleType === "all-3" ? 3 : 2;
     
     setSelectedReports((prev) => {
@@ -68,7 +79,7 @@ function BundleSelectionPageContent() {
   };
 
   const handleContinue = () => {
-    const requiredCount = bundleType === "all-3" ? 3 : 2;
+    const requiredCount = bundleType === "life-decision-pack" ? 3 : (bundleType === "all-3" ? 3 : 2);
     
     if (selectedReports.length !== requiredCount) {
       alert(`Please select exactly ${requiredCount} reports`);
@@ -79,8 +90,10 @@ function BundleSelectionPageContent() {
     router.push(`/ai-astrology/input?bundle=${bundleType}&reports=${reportsParam}`);
   };
 
-  const bundleInfo = bundleType === "all-3" ? BUNDLE_PRICES["all-3"] : BUNDLE_PRICES["any-2"];
-  const requiredCount = bundleType === "all-3" ? 3 : 2;
+    const bundleInfo = bundleType === "life-decision-pack" 
+      ? BUNDLE_PRICES["life-decision-pack"] 
+      : (bundleType === "all-3" ? BUNDLE_PRICES["all-3"] : BUNDLE_PRICES["any-2"]);
+    const requiredCount = bundleType === "life-decision-pack" ? 3 : (bundleType === "all-3" ? 3 : 2);
   const canContinue = selectedReports.length === requiredCount;
 
   return (
@@ -88,10 +101,16 @@ function BundleSelectionPageContent() {
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
           <div className="text-center mb-12">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">
-              {bundleType === "all-3" ? "All 3 Reports Bundle" : "Any 2 Reports Bundle"}
+              {bundleType === "life-decision-pack" 
+                ? "Complete Life Decision Pack" 
+                : bundleType === "all-3" 
+                ? "All 3 Reports Bundle" 
+                : "Any 2 Reports Bundle"}
             </h1>
             <p className="text-slate-600 text-lg">
-              {bundleType === "all-3" 
+              {bundleType === "life-decision-pack"
+                ? "Marriage + Career + Year Analysis - Save 25%"
+                : bundleType === "all-3" 
                 ? "Choose any 3 premium reports and save 25%"
                 : "Choose any 2 premium reports and save 15%"}
             </p>
@@ -103,10 +122,16 @@ function BundleSelectionPageContent() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                    {bundleType === "all-3" ? "All 3 Reports Bundle" : "Any 2 Reports Bundle"}
+                    {bundleType === "life-decision-pack" 
+                      ? "Complete Life Decision Pack" 
+                      : bundleType === "all-3" 
+                      ? "All 3 Reports Bundle" 
+                      : "Any 2 Reports Bundle"}
                   </h2>
                   <p className="text-slate-600">
-                    {bundleType === "all-3" 
+                    {bundleType === "life-decision-pack"
+                      ? "Marriage Timing + Career & Money + Year Analysis (pre-selected)"
+                      : bundleType === "all-3" 
                       ? "Select 3 reports to include in your bundle"
                       : "Select 2 reports to include in your bundle"}
                   </p>
@@ -129,8 +154,8 @@ function BundleSelectionPageContent() {
           {/* Report Selection */}
           <Card className="cosmic-card">
             <CardHeader 
-              eyebrow={bundleType === "all-3" ? "Select 3 Reports" : "Select 2 Reports"}
-              title={bundleType === "all-3" ? "Choose Your 3 Reports" : "Choose Your Reports"}
+              eyebrow={bundleType === "life-decision-pack" ? "Pre-selected Reports" : (bundleType === "all-3" ? "Select 3 Reports" : "Select 2 Reports")}
+              title={bundleType === "life-decision-pack" ? "Your Life Decision Pack" : (bundleType === "all-3" ? "Choose Your 3 Reports" : "Choose Your Reports")}
             />
             <CardContent className="p-6">
               <div className="space-y-4">
@@ -142,11 +167,11 @@ function BundleSelectionPageContent() {
                       <button
                         key={report.type}
                         onClick={() => handleReportToggle(report.type)}
-                        disabled={isDisabled}
+                        disabled={isDisabled || bundleType === "life-decision-pack"}
                         className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                           isSelected
                             ? "border-emerald-500 bg-emerald-50"
-                            : isDisabled
+                            : (isDisabled || bundleType === "life-decision-pack")
                             ? "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed"
                             : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50"
                         }`}

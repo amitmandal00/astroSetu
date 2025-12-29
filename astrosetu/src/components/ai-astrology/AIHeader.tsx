@@ -29,9 +29,9 @@ export function AIHeader() {
 
             {/* CTA Button */}
             <Link href="/ai-astrology/input?reportType=life-summary">
-              <Button className="cosmic-button px-4 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold min-h-[44px]">
+              <Button className="cosmic-button px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold min-h-[44px] whitespace-nowrap">
                 <span className="hidden sm:inline">Generate Report</span>
-                <span className="sm:hidden">Generate</span>
+                <span className="sm:hidden">Start</span>
               </Button>
             </Link>
           </div>

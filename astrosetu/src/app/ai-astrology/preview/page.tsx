@@ -455,7 +455,13 @@ function PreviewContent() {
     
     // Check if this is a bundle
     const isBundle = bundleType && bundleReports.length > 0;
-    const bundlePrice = isBundle ? (bundleType === "all-3" ? BUNDLE_PRICES["all-3"] : BUNDLE_PRICES["any-2"]) : null;
+    const bundlePrice = isBundle 
+      ? (bundleType === "life-decision-pack" 
+          ? BUNDLE_PRICES["life-decision-pack"] 
+          : bundleType === "all-3" 
+          ? BUNDLE_PRICES["all-3"] 
+          : BUNDLE_PRICES["any-2"]) 
+      : null;
 
     return (
       <div className="cosmic-bg py-8">
@@ -465,7 +471,11 @@ function PreviewContent() {
               <div className="text-6xl mb-4">🔒</div>
               <h2 className="text-2xl font-bold mb-4 text-slate-800">
                 {isBundle 
-                  ? `Unlock Your ${bundleType === "all-3" ? "All 3 Reports" : "Any 2 Reports"} Bundle`
+                  ? `Unlock Your ${bundleType === "life-decision-pack" 
+                      ? "Complete Life Decision Pack" 
+                      : bundleType === "all-3" 
+                      ? "All 3 Reports" 
+                      : "Any 2 Reports"} Bundle`
                   : `Unlock Your ${getReportName(reportType)}`}
               </h2>
               <p className="text-slate-600 mb-6">
@@ -548,7 +558,11 @@ function PreviewContent() {
                 {loading 
                   ? "Processing..." 
                   : isBundle 
-                    ? `Purchase ${bundleType === "all-3" ? "All 3 Reports" : "Any 2 Reports"} Bundle →`
+                    ? `Purchase ${bundleType === "life-decision-pack" 
+                        ? "Complete Life Decision Pack" 
+                        : bundleType === "all-3" 
+                        ? "All 3 Reports" 
+                        : "Any 2 Reports"} Bundle →`
                     : `Purchase ${getReportName(reportType)} →`}
               </Button>
               <Link href="/ai-astrology/input?reportType=life-summary">
@@ -590,8 +604,8 @@ function PreviewContent() {
     const sections = content.sections || [];
     const isPaid = type !== "life-summary";
     const shouldGateContent = !isPaid && sections.length > 0;
-    // Show 65% of content, then blur the rest
-    const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.65)) : sections.length;
+    // Show 35% of content (what + why), then gate the rest (when + how long + specific windows)
+    const gateAfterSection = shouldGateContent ? Math.max(1, Math.floor(sections.length * 0.35)) : sections.length;
     const visibleSections = shouldGateContent 
       ? sections.slice(0, gateAfterSection).filter(s => s && s.title) 
       : sections.filter(s => s && s.title);
@@ -923,8 +937,8 @@ function PreviewContent() {
                             Unlock the Full Life Summary Report
                           </h3>
                           <p className="text-slate-700 mb-6 leading-relaxed">
-                            You&apos;ve viewed {Math.round((visibleSections.length / sections.length) * 100)}% of your report. 
-                            Purchase a detailed report to see the remaining {gatedSections.length} section{gatedSections.length > 1 ? 's' : ''} with complete insights.
+                            You&apos;ve seen the overview ({Math.round((visibleSections.length / sections.length) * 100)}% of your report). 
+                            Purchase to unlock the remaining {gatedSections.length} section{gatedSections.length > 1 ? 's' : ''} with <strong>specific timing windows, detailed guidance, and actionable steps</strong>.
                           </p>
                           <div className="flex flex-wrap justify-center gap-3">
                             <Link href="/ai-astrology/input?reportType=marriage-timing">
@@ -981,7 +995,11 @@ function PreviewContent() {
                     <div className="text-4xl">📦</div>
                     <div>
                       <h1 className="text-3xl lg:text-4xl font-bold text-white mb-1">
-                        {bundleType === "all-3" ? "All 3 Reports Bundle" : "Any 2 Reports Bundle"}
+                        {bundleType === "life-decision-pack" 
+                          ? "Complete Life Decision Pack" 
+                          : bundleType === "all-3" 
+                          ? "All 3 Reports Bundle" 
+                          : "Any 2 Reports Bundle"}
                       </h1>
                       <p className="text-purple-100 text-lg">
                         {bundleReports.map((rt, idx) => {
