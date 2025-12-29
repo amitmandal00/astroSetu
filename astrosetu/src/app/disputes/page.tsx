@@ -42,7 +42,7 @@ export default function DisputesPage() {
                 </p>
                 <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mt-3">
                   <p className="text-sm text-slate-700 mb-2">
-                    <strong>Legal & Disputes:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a>
+                    <strong>Legal & Disputes:</strong> <a href="mailto:legal@mindveda.net" className="text-indigo-600 hover:underline">legal@mindveda.net</a>
                   </p>
                   <p className="text-xs text-slate-600 italic mb-2">
                     This is an automated compliance mailbox. AstroSetu does not provide live support. Valid legal notices and disputes will be processed as required by law.
@@ -183,7 +183,7 @@ export default function DisputesPage() {
                 </p>
                 <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mt-3">
                   <p className="text-sm text-slate-700 mb-2">
-                    <strong>Legal & Disputes:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a>
+                    <strong>Legal & Disputes:</strong> <a href="mailto:legal@mindveda.net" className="text-indigo-600 hover:underline">legal@mindveda.net</a>
                   </p>
                   <p className="text-xs text-slate-600 italic">
                     This is an automated compliance mailbox. AstroSetu does not provide live support. Valid legal notices and disputes will be processed as required by law.

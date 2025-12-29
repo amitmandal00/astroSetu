@@ -180,7 +180,7 @@ export default function ContactPage() {
               <div className="space-y-4 pt-4 border-t border-slate-200">
                 <div>
                   <div className="font-medium text-slate-900 mb-2">Compliance Contact</div>
-                  <div className="text-slate-700 text-base mb-3">📧 compliance@astrosetu.app</div>
+                  <div className="text-slate-700 text-base mb-3">📧 legal@mindveda.net</div>
                   <p className="text-xs text-slate-600 mb-2">This mailbox is used only for:</p>
                   <ul className="list-disc list-inside space-y-1 ml-4 text-xs text-slate-600">
                     <li>Privacy access, correction, or deletion requests</li>

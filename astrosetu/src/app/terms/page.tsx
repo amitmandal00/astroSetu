@@ -231,8 +231,8 @@ export default function TermsPage() {
                   <strong>Contact:</strong>
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Legal Notices:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline">legal@astrosetu.app</a> (for legal notices and formal correspondence)</li>
-                  <li><strong>Consumer Law:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline">support@astrosetu.app</a> (for Australian Consumer Law compliance)</li>
+                  <li><strong>Legal Notices:</strong> <a href="mailto:legal@mindveda.net" className="text-indigo-600 hover:underline">legal@mindveda.net</a> (for legal notices and formal correspondence)</li>
+                  <li><strong>Consumer Law:</strong> <a href="mailto:support@mindveda.net" className="text-indigo-600 hover:underline">support@mindveda.net</a> (for Australian Consumer Law compliance)</li>
                   <li className="text-xs text-slate-600 italic ml-4 mt-2">All email addresses are automated compliance mailboxes. AstroSetu does not provide live support. Valid requests will be processed as required by law.</li>
                 </ul>
               </section>

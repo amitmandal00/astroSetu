@@ -59,9 +59,9 @@ export interface ContactConfig {
 export function getContactConfig(): ContactConfig {
   // Get from environment variables or use defaults
   const config: ContactConfig = {
-    supportEmail: process.env.SUPPORT_EMAIL || process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@astrosetu.app",
-    privacyEmail: process.env.PRIVACY_EMAIL || process.env.NEXT_PUBLIC_PRIVACY_EMAIL || "privacy@astrosetu.app",
-    adminEmail: process.env.ADMIN_EMAIL || "admin@astrosetu.app",
+    supportEmail: process.env.SUPPORT_EMAIL || process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@mindveda.net",
+    privacyEmail: process.env.PRIVACY_EMAIL || process.env.NEXT_PUBLIC_PRIVACY_EMAIL || "privacy@mindveda.net",
+    adminEmail: process.env.ADMIN_EMAIL || "admin@mindveda.net",
     
     phoneNumber: process.env.PHONE_NUMBER || process.env.NEXT_PUBLIC_PHONE_NUMBER || "+918001234567",
     whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+918001234567",

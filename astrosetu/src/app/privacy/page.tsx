@@ -140,7 +140,7 @@ export default function PrivacyPage() {
                 <div className="mt-4 p-3 bg-indigo-100 rounded-lg">
                   <p className="text-sm font-semibold text-indigo-900 mb-2">Making a Privacy Complaint</p>
                   <p className="text-sm text-indigo-800 mb-2">
-                    For privacy-related requests, contact <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a>. This is an automated compliance mailbox. AstroSetu does not provide live support. Please refer to FAQs and policies. Valid requests will be processed as required by law.
+                    For privacy-related requests, contact <a href="mailto:privacy@mindveda.net" className="text-indigo-600 hover:underline font-medium">privacy@mindveda.net</a>. This is an automated compliance mailbox. AstroSetu does not provide live support. Please refer to FAQs and policies. Valid requests will be processed as required by law.
                   </p>
                   <p className="text-sm text-indigo-800">
                     If you are not satisfied with our response, you may lodge a complaint with the Office of the Australian Information Commissioner (OAIC) at <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">www.oaic.gov.au</a> or by calling 1300 363 992.
@@ -237,7 +237,7 @@ export default function PrivacyPage() {
                   <li>Take steps to prevent future breaches</li>
                 </ul>
                 <p className="mt-3 text-amber-800">
-                  For privacy requests: <a href="mailto:privacy@astrosetu.app" className="text-amber-700 hover:underline font-medium">privacy@astrosetu.app</a>. For data breach notices: <a href="mailto:security@astrosetu.app" className="text-amber-700 hover:underline font-medium">security@astrosetu.app</a>. These are automated compliance mailboxes. AstroSetu does not provide live support. Valid requests will be processed as required by law.
+                  For privacy requests: <a href="mailto:privacy@mindveda.net" className="text-amber-700 hover:underline font-medium">privacy@mindveda.net</a>. For data breach notices: <a href="mailto:security@mindveda.net" className="text-amber-700 hover:underline font-medium">security@mindveda.net</a>. These are automated compliance mailboxes. AstroSetu does not provide live support. Valid requests will be processed as required by law.
                 </p>
                 <p className="mt-3">
                   For detailed information, see our <a href="/data-breach" className="text-indigo-600 hover:underline">Data Breach Notification Policy</a>.
@@ -292,7 +292,7 @@ export default function PrivacyPage() {
                   <strong>To Exercise Your Rights:</strong>
                 </p>
                 <p className="text-green-800">
-                  For privacy-related requests, contact <a href="mailto:privacy@astrosetu.app" className="text-green-700 hover:underline font-medium">privacy@astrosetu.app</a>. Include your request details and verification information. This is an automated compliance mailbox. AstroSetu does not provide live support. Valid requests will be processed as required by law. No response timeline is guaranteed.
+                  For privacy-related requests, contact <a href="mailto:privacy@mindveda.net" className="text-green-700 hover:underline font-medium">privacy@mindveda.net</a>. Include your request details and verification information. This is an automated compliance mailbox. AstroSetu does not provide live support. Valid requests will be processed as required by law. No response timeline is guaranteed.
                 </p>
               </section>
 
@@ -312,7 +312,7 @@ export default function PrivacyPage() {
                   <li><strong>Right to Withdraw Consent:</strong> You can withdraw consent at any time</li>
                 </ul>
                 <p className="mt-3 text-blue-800">
-                  To exercise these rights, contact <a href="mailto:privacy@astrosetu.app" className="text-blue-600 hover:underline font-medium">privacy@astrosetu.app</a>. This is an automated compliance mailbox. AstroSetu does not provide live support. Valid requests will be processed as required by law. No response timeline is guaranteed.
+                  To exercise these rights, contact <a href="mailto:privacy@mindveda.net" className="text-blue-600 hover:underline font-medium">privacy@mindveda.net</a>. This is an automated compliance mailbox. AstroSetu does not provide live support. Valid requests will be processed as required by law. No response timeline is guaranteed.
                 </p>
                 <p className="mt-3 text-blue-800">
                   You also have the right to lodge a complaint with your local data protection authority.
@@ -336,10 +336,10 @@ export default function PrivacyPage() {
                 <p className="font-semibold text-slate-900 mb-2">Data Controller & Privacy Officer:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
                   <li><strong>Platform Owner:</strong> AstroSetu Services Pty Ltd</li>
-                  <li><strong>Privacy Requests:</strong> <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a> (Privacy Act requests, data access, correction, deletion)</li>
-                  <li><strong>Consumer Law:</strong> <a href="mailto:support@astrosetu.app" className="text-indigo-600 hover:underline font-medium">support@astrosetu.app</a> (Australian Consumer Law compliance)</li>
-                  <li><strong>Legal Notices:</strong> <a href="mailto:legal@astrosetu.app" className="text-indigo-600 hover:underline font-medium">legal@astrosetu.app</a> (Legal notices, formal correspondence)</li>
-                  <li><strong>Data Breach:</strong> <a href="mailto:security@astrosetu.app" className="text-indigo-600 hover:underline font-medium">security@astrosetu.app</a> (Data breach notifications)</li>
+                  <li><strong>Privacy Requests:</strong> <a href="mailto:privacy@mindveda.net" className="text-indigo-600 hover:underline font-medium">privacy@mindveda.net</a> (Privacy Act requests, data access, correction, deletion)</li>
+                  <li><strong>Consumer Law:</strong> <a href="mailto:support@mindveda.net" className="text-indigo-600 hover:underline font-medium">support@mindveda.net</a> (Australian Consumer Law compliance)</li>
+                  <li><strong>Legal Notices:</strong> <a href="mailto:legal@mindveda.net" className="text-indigo-600 hover:underline font-medium">legal@mindveda.net</a> (Legal notices, formal correspondence)</li>
+                  <li><strong>Data Breach:</strong> <a href="mailto:security@mindveda.net" className="text-indigo-600 hover:underline font-medium">security@mindveda.net</a> (Data breach notifications)</li>
                   <li className="text-xs text-slate-600 italic ml-4 mt-2">All email addresses are automated compliance mailboxes. AstroSetu does not provide live support. Valid requests will be processed as required by law.</li>
                   <li><strong>Jurisdiction:</strong> Australia (primary) / India (international operations)</li>
                 </ul>

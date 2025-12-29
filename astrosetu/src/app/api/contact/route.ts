@@ -204,16 +204,16 @@ async function sendContactNotifications(data: {
   const getComplianceEmail = (category: string): string => {
     const categoryLower = category.toLowerCase();
     if (categoryLower.includes("privacy") || categoryLower.includes("data_deletion") || categoryLower.includes("account_access")) {
-      return process.env.PRIVACY_EMAIL || "privacy@astrosetu.app";
+      return process.env.PRIVACY_EMAIL || "privacy@mindveda.net";
     }
     if (categoryLower.includes("legal") || categoryLower.includes("legal_notice") || categoryLower.includes("dispute")) {
-      return process.env.LEGAL_EMAIL || "legal@astrosetu.app";
+      return process.env.LEGAL_EMAIL || "legal@mindveda.net";
     }
     if (categoryLower.includes("security") || categoryLower.includes("breach")) {
-      return process.env.SECURITY_EMAIL || "security@astrosetu.app";
+      return process.env.SECURITY_EMAIL || "security@mindveda.net";
     }
     // Default to support@ for consumer law and general compliance
-    return process.env.SUPPORT_EMAIL || "support@astrosetu.app";
+    return process.env.SUPPORT_EMAIL || "support@mindveda.net";
   };
   
   const complianceEmail = getComplianceEmail(category);

@@ -108,12 +108,12 @@ export function Footer() {
               © {currentYear} <span className="font-semibold text-slate-900">AstroSetu</span>
             </div>
             <div className="text-slate-500">
-              <a href="mailto:support@astrosetu.app" className="hover:text-saffron-600 transition-colors">
-                support@astrosetu.app
+              <a href="mailto:support@mindveda.net" className="hover:text-saffron-600 transition-colors">
+                support@mindveda.net
               </a>
               {" • "}
-              <a href="mailto:privacy@astrosetu.app" className="hover:text-saffron-600 transition-colors">
-                privacy@astrosetu.app
+              <a href="mailto:privacy@mindveda.net" className="hover:text-saffron-600 transition-colors">
+                privacy@mindveda.net
               </a>
             </div>
           </div>

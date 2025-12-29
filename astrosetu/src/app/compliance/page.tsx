@@ -90,7 +90,7 @@ export default function CompliancePage() {
                 <section className="bg-slate-50 border-l-4 border-slate-400 p-4 rounded-r-lg">
                   <h2 className="text-xl font-bold text-slate-900 mb-3">Compliance Contact</h2>
                   <p className="text-base">
-                    📧 <a href="mailto:compliance@astrosetu.app" className="text-indigo-600 hover:underline font-medium">compliance@astrosetu.app</a>
+                    📧 <a href="mailto:legal@mindveda.net" className="text-indigo-600 hover:underline font-medium">legal@mindveda.net</a>
                   </p>
                 </section>
               </div>

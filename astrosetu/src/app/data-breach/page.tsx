@@ -95,10 +95,10 @@ export default function DataBreachPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">Reporting a Suspected Breach</h2>
                 <p className="mb-3">
-                  📧 <a href="mailto:privacy@astrosetu.app" className="text-indigo-600 hover:underline font-medium">privacy@astrosetu.app</a>
+                  📧 <a href="mailto:privacy@mindveda.net" className="text-indigo-600 hover:underline font-medium">privacy@mindveda.net</a>
                 </p>
                 <p className="mb-3">
-                  📧 <a href="mailto:security@astrosetu.app" className="text-indigo-600 hover:underline font-medium">security@astrosetu.app</a>
+                  📧 <a href="mailto:security@mindveda.net" className="text-indigo-600 hover:underline font-medium">security@mindveda.net</a>
                 </p>
                 <p className="text-sm text-slate-600 italic">
                   This platform is fully automated. Breach reports are reviewed periodically in accordance with legal obligations.
