@@ -7,14 +7,14 @@ create table if not exists contact_submissions (
   updated_at timestamptz not null default now(),
 
   -- Contact Information
-  name text not null,
+  name text null,  -- Optional for compliance requests
   email text not null,
   phone text null,
 
   -- Message Details
   subject text not null,
   message text not null,
-  category text not null default 'general' check (category in ('general','support','feedback','bug','partnership','other')),
+  category text not null default 'general' check (category in ('general','support','feedback','bug','partnership','privacy','other','data_deletion','account_access','legal_notice','privacy_complaint')),
 
   -- Tracking
   status text not null default 'new' check (status in ('new','read','in_progress','resolved','archived')),

@@ -30,7 +30,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const tagline = process.env.NEXT_PUBLIC_TAGLINE ?? "Bridging humans with cosmic guidance";
 
   return (
-    <div className="min-h-screen bg-orbit">
+    <div className="min-h-screen bg-orbit" data-shell-content>
         {/* Top app shell - Indian spiritual saffron header with enhanced contrast */}
         <header className="sticky top-0 z-50 bg-gradient-to-r from-saffron-600 via-amber-600 to-orange-600 text-white shadow-2xl relative overflow-hidden border-b-2 border-saffron-700/30">
           <HeaderPattern />

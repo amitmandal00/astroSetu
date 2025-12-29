@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient, isSupabaseConfigured } from "@/lib/supabase";
 import { checkRateLimit, handleApiError, parseJsonBody, validateRequestSize, getClientIP } from "@/lib/apiHelpers";
 import { z } from "zod";
+import nodemailer from "nodemailer";
 
 const ContactFormSchema = z.object({
   name: z.string().optional(), // Optional for compliance requests
@@ -91,13 +92,23 @@ export async function POST(req: Request) {
           .single();
 
         if (dbError) {
-          console.error("[Contact API] Database error:", dbError);
+          // Check if table doesn't exist
+          if (dbError.code === 'PGRST205' || dbError.message?.includes('Could not find the table')) {
+            console.error("[Contact API] Table 'contact_submissions' does not exist. Please run the SQL script from supabase-contact-submissions.sql in your Supabase SQL Editor.");
+          } else {
+            console.error("[Contact API] Database error:", dbError);
+          }
           // Continue anyway - email will still be sent
         } else {
           submissionId = submission?.id || null;
         }
-      } catch (dbError) {
-        console.error("[Contact API] Database storage failed:", dbError);
+      } catch (dbError: any) {
+        // Check if table doesn't exist
+        if (dbError?.code === 'PGRST205' || dbError?.message?.includes('Could not find the table')) {
+          console.error("[Contact API] Table 'contact_submissions' does not exist. Please run the SQL script from supabase-contact-submissions.sql in your Supabase SQL Editor.");
+        } else {
+          console.error("[Contact API] Database storage failed:", dbError);
+        }
         // Continue anyway - email will still be sent
       }
     }
@@ -116,13 +127,34 @@ export async function POST(req: Request) {
       // Don't fail the request if email fails
     });
 
+    // Check if email service is configured (SMTP or Resend)
+    const SMTP_HOST = process.env.SMTP_HOST;
+    const SMTP_PORT = process.env.SMTP_PORT;
+    const SMTP_USER = process.env.SMTP_USER;
+    const SMTP_PASS = process.env.SMTP_PASS;
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    const isSMTPConfigured = !!(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
+    const isResendConfigured = !!RESEND_API_KEY;
+    const emailConfigured = isSMTPConfigured || isResendConfigured;
+
+    // Log successful submission for audit trail (required for compliance)
+    console.log(`[Contact API] Regulatory request received:`, {
+      submissionId,
+      email: email.substring(0, 3) + "***", // Partial email for logging (PII redaction)
+      category: autoCategory,
+      timestamp: new Date().toISOString(),
+      emailConfigured,
+      stored: !!submissionId,
+    });
+
     return NextResponse.json(
       {
         ok: true,
         data: {
-          message: "Your compliance request has been received. We will process it according to applicable privacy laws.",
+          message: "Your regulatory request has been received. We will process it according to applicable privacy laws.",
           submissionId,
-          autoReplySent: true,
+          autoReplySent: emailConfigured, // Only true if email service is configured
+          emailConfigured, // Indicate if email service is available
         },
       },
       { headers: { 'X-Request-ID': requestId } }
@@ -218,8 +250,19 @@ async function sendContactNotifications(data: {
   
   const complianceEmail = getComplianceEmail(category);
   const ADMIN_EMAIL = process.env.ADMIN_EMAIL || complianceEmail;
+  const COMPLIANCE_TO = process.env.COMPLIANCE_TO || complianceEmail;
+  const COMPLIANCE_CC = process.env.COMPLIANCE_CC || (category.includes("legal") ? process.env.LEGAL_EMAIL : undefined);
+  const BRAND_NAME = process.env.BRAND_NAME || "AstroSetu AI";
 
-  if (!RESEND_API_KEY) {
+  // Check for email service configuration (SMTP first, then Resend)
+  const SMTP_HOST = process.env.SMTP_HOST;
+  const SMTP_PORT = process.env.SMTP_PORT;
+  const SMTP_USER = process.env.SMTP_USER;
+  const SMTP_PASS = process.env.SMTP_PASS;
+  const isSMTPConfigured = !!(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
+  const isResendConfigured = !!RESEND_API_KEY;
+
+  if (!isSMTPConfigured && !isResendConfigured) {
     // No email service configured - log for manual processing
     console.log("[Contact API] Email service not configured. Submission details:", {
       submissionId,
@@ -234,34 +277,61 @@ async function sendContactNotifications(data: {
   }
 
   try {
-    // Send auto-reply to user
-    await sendEmail({
-      apiKey: RESEND_API_KEY,
-      to: email,
-      from: `AstroSetu Compliance <${complianceEmail}>`,
-      subject: `Compliance Request Received - ${subject}`,
-      html: generateAutoReplyEmail(name || "User", subject, category),
-    });
+    // Format category for display
+    const categoryDisplay = category === "data_deletion" ? "Data Deletion" 
+      : category === "privacy_complaint" ? "Privacy Complaint" 
+      : category === "legal_notice" ? "Legal Notice" 
+      : category === "account_access" ? "Account Access" 
+      : category;
 
-    // Send notification to admin
-    await sendEmail({
-      apiKey: RESEND_API_KEY,
-      to: ADMIN_EMAIL,
-      from: `AstroSetu Contact Form <${complianceEmail}>`,
-      subject: `[${category.toUpperCase()}] New Contact: ${subject}`,
-      html: generateAdminNotificationEmail({
+    if (isSMTPConfigured) {
+      // Use Gmail SMTP (Option A)
+      await sendEmailsViaSMTP({
+        userEmail: email,
+        userName: name,
+        category: categoryDisplay,
+        subject: subject,
+        message: message,
+        complianceTo: COMPLIANCE_TO,
+        complianceCC: COMPLIANCE_CC,
         submissionId,
-        name,
-        email,
         phone,
-        subject,
-        message,
-        category,
-      }),
-      replyTo: email, // Allow admin to reply directly
-    });
+        brandName: BRAND_NAME,
+        smtpUser: SMTP_USER!,
+      });
+    } else {
+      // Use Resend API (Option B - fallback)
+      // Send user acknowledgement email (auto-reply)
+      await sendEmail({
+        apiKey: RESEND_API_KEY!,
+        to: email,
+        from: `${BRAND_NAME} <${complianceEmail}>`,
+        subject: `Regulatory Request Received – ${BRAND_NAME}`,
+        html: generateAutoReplyEmail(name || "User", subject, category),
+      });
 
-    console.log(`[Contact API] Emails sent for submission: ${submissionId || email}`);
+      // Send internal compliance notification to admin
+      const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
+      
+      await sendEmail({
+        apiKey: RESEND_API_KEY!,
+        to: ADMIN_EMAIL,
+        from: `${BRAND_NAME} Compliance <${complianceEmail}>`,
+        subject: internalSubject,
+        html: generateAdminNotificationEmail({
+          submissionId,
+          name,
+          email,
+          phone,
+          subject,
+          message,
+          category,
+        }),
+        replyTo: email, // Allow admin to reply directly
+      });
+    }
+
+    console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via ${isSMTPConfigured ? 'SMTP' : 'Resend'})`);
   } catch (error) {
     console.error("[Contact API] Email sending failed:", error);
     throw error;
@@ -269,7 +339,108 @@ async function sendContactNotifications(data: {
 }
 
 /**
- * Send email using Resend API
+ * Send emails via Gmail SMTP (Option A)
+ */
+async function sendEmailsViaSMTP(data: {
+  userEmail: string;
+  userName?: string;
+  category: string;
+  subject: string;
+  message: string;
+  complianceTo: string;
+  complianceCC?: string;
+  submissionId: string | null;
+  phone?: string;
+  brandName: string;
+  smtpUser: string;
+}): Promise<void> {
+  const {
+    userEmail,
+    userName,
+    category,
+    subject,
+    message,
+    complianceTo,
+    complianceCC,
+    submissionId,
+    phone,
+    brandName,
+    smtpUser,
+  } = data;
+
+  const SMTP_HOST = process.env.SMTP_HOST!;
+  const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+  const SMTP_PASS = process.env.SMTP_PASS!;
+
+  // Create SMTP transporter
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465, // true for 465 (SSL), false for 587 (TLS)
+    auth: {
+      user: smtpUser,
+      pass: SMTP_PASS,
+    },
+  });
+
+  try {
+    // 1) Internal compliance notification
+    await transporter.sendMail({
+      from: `"${brandName} Compliance" <${smtpUser}>`,
+      to: complianceTo,
+      cc: complianceCC,
+      subject: `Regulatory Request – ${category}`,
+      text: `New Regulatory Request received
+
+From: ${userEmail}
+${userName ? `Name: ${userName}` : ''}
+${phone ? `Phone: ${phone}` : ''}
+Category: ${category}
+${submissionId ? `Submission ID: ${submissionId}` : ''}
+
+Message:
+${message || "(no message)"}
+
+---
+This is an automated notification from ${brandName} regulatory request form.
+`,
+      html: generateAdminNotificationEmail({
+        submissionId,
+        name: userName,
+        email: userEmail,
+        phone,
+        subject,
+        message,
+        category,
+      }),
+      replyTo: userEmail, // Allow admin to reply directly
+    });
+
+    // 2) User acknowledgement email
+    await transporter.sendMail({
+      from: `"${brandName}" <${smtpUser}>`,
+      to: userEmail,
+      subject: `Request Received – ${brandName}`,
+      text: `We have received your regulatory/compliance request.
+
+This is an automated acknowledgement.
+Requests are reviewed periodically as required by applicable law.
+No live customer support is provided.
+
+If your request relates to privacy access or deletion, please include any relevant account identifiers.
+
+— ${brandName}
+`,
+      html: generateAutoReplyEmail(userName || "User", subject, category),
+    });
+  } catch (smtpError: any) {
+    console.error("[Contact API] SMTP email sending failed:", smtpError?.message || smtpError);
+    throw new Error(`Failed to send emails via SMTP: ${smtpError?.message || 'Unknown error'}`);
+  }
+}
+
+/**
+ * Send email using Resend API (Option B - fallback)
  */
 async function sendEmail(data: {
   apiKey: string;
@@ -304,19 +475,19 @@ async function sendEmail(data: {
  * Generate auto-reply email HTML (Compliance-focused, no SLA promises)
  */
 function generateAutoReplyEmail(name: string, subject: string, category: string): string {
-  // Standard auto-reply message for all compliance emails
-  const standardAutoReply = "This is an automated compliance mailbox. AstroSetu does not provide live support. Please refer to FAQs and policies.";
+  // Standard auto-reply message per ChatGPT feedback
+  const standardAutoReply = "This is an automated acknowledgement. Requests are reviewed periodically as required by law. No individual response is guaranteed.";
   
   const categoryMessages: Record<string, string> = {
-    privacy: `Your privacy request has been received and will be processed according to applicable privacy laws (Australian Privacy Act). ${standardAutoReply}`,
-    privacy_complaint: `Your privacy complaint has been received and will be processed according to applicable privacy laws (Australian Privacy Act). ${standardAutoReply}`,
-    data_deletion: `Your data deletion request has been received and will be processed according to applicable privacy laws. ${standardAutoReply}`,
-    account_access: `Your account access request has been received. We will review it according to our security and privacy policies. ${standardAutoReply}`,
-    legal_notice: `Your legal notice has been received and will be reviewed. ${standardAutoReply}`,
-    security: `Your security notification has been received. ${standardAutoReply}`,
-    breach: `Your data breach notification has been received. ${standardAutoReply}`,
-    general: `Your compliance request has been received. We will process it according to applicable laws and our policies. ${standardAutoReply}`,
-    other: `Your request has been received. We will process it according to applicable laws and our policies. ${standardAutoReply}`,
+    privacy: `We have received your privacy request. ${standardAutoReply}`,
+    privacy_complaint: `We have received your privacy complaint. ${standardAutoReply}`,
+    data_deletion: `We have received your data deletion request. ${standardAutoReply}`,
+    account_access: `We have received your account access request. ${standardAutoReply}`,
+    legal_notice: `We have received your legal notice. ${standardAutoReply}`,
+    security: `We have received your security notification. ${standardAutoReply}`,
+    breach: `We have received your data breach notification. ${standardAutoReply}`,
+    general: `We have received your request. ${standardAutoReply}`,
+    other: `We have received your request. ${standardAutoReply}`,
   };
 
   const responseMessage = categoryMessages[category] || categoryMessages.general;
@@ -347,8 +518,8 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
           <p>${responseMessage}</p>
           
           <div class="notice">
-            <p><strong>Automated Compliance Mailbox:</strong> This is an automated compliance mailbox. AstroSetu does not provide live support. Please refer to <a href="https://astrosetu.app/ai-astrology/faq">FAQs</a> and policies for self-service information.</p>
-            <p><strong>No response timeline is guaranteed.</strong> We process compliance requests as required by applicable privacy laws.</p>
+            <p><strong>Automated Compliance Mailbox:</strong> This is an automated acknowledgement. AstroSetu AI does not provide live support. Please refer to <a href="https://astrosetu.app/ai-astrology/faq">FAQs</a> and policies for self-service information.</p>
+            <p><strong>No individual response is guaranteed.</strong> Requests are reviewed periodically as required by applicable privacy laws.</p>
           </div>
           
           <p>For self-help resources, please visit:</p>

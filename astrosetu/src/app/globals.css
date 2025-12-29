@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent flash of Shell content on AI routes - hide immediately */
+html[data-ai-route="true"] [data-shell-content] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
 :root {
   --indigo: 43 46 74;
   --saffron: 244 196 48;

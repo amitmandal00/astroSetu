@@ -20,6 +20,7 @@ export default function ContactPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [responseData, setResponseData] = useState<{ autoReplySent?: boolean; emailConfigured?: boolean } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,7 +30,7 @@ export default function ContactPage() {
     try {
       const res = await apiPost<{
         ok: boolean;
-        data?: { message: string; submissionId?: string };
+        data?: { message: string; submissionId?: string; autoReplySent?: boolean; emailConfigured?: boolean };
         error?: string;
       }>("/api/contact", {
         email: formData.email.trim(),
@@ -42,6 +43,10 @@ export default function ContactPage() {
         throw new Error(res.error || "Failed to submit request");
       }
 
+      setResponseData({
+        autoReplySent: res.data?.autoReplySent,
+        emailConfigured: res.data?.emailConfigured,
+      });
       setSuccess(true);
       // Reset form
       setFormData({
@@ -51,7 +56,10 @@ export default function ContactPage() {
       });
 
       // Reset success message after 8 seconds
-      setTimeout(() => setSuccess(false), 8000);
+      setTimeout(() => {
+        setSuccess(false);
+        setResponseData(null);
+      }, 8000);
     } catch (err: any) {
       setError(err?.message || "Failed to submit request. Please try again.");
     } finally {
@@ -240,14 +248,39 @@ export default function ContactPage() {
             <CardHeader eyebrow="Regulatory Requests" title="Regulatory Request Form" />
             <CardContent>
               {success && (
-                <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200 text-green-700">
-                  <div className="text-sm">
-                    <div className="font-semibold mb-1">Request Submitted</div>
-                    <div>
-                      Your regulatory request has been received. Valid requests will be handled as required by law. 
-                      No response timeline is guaranteed.
+                <div className="mb-4 space-y-3">
+                  <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700">
+                    <div className="text-sm">
+                      <div className="font-semibold mb-1">Request Submitted</div>
+                      <div>
+                        Your regulatory request has been received. Valid requests will be handled as required by law. 
+                        No response timeline is guaranteed.
+                      </div>
                     </div>
                   </div>
+                  {!responseData?.emailConfigured && (
+                    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+                      <div className="text-sm">
+                        <div className="font-semibold mb-1">⚠️ Email Service Not Configured</div>
+                        <div>
+                          Your request has been saved, but acknowledgement emails are not being sent because the email service is not configured.
+                          <br />
+                          <br />
+                          <strong>Your submission was received and saved.</strong> To enable email notifications, configure <code className="text-xs bg-amber-100 px-1 py-0.5 rounded">RESEND_API_KEY</code> in your environment variables.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {responseData?.emailConfigured && !responseData?.autoReplySent && (
+                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 text-blue-700">
+                      <div className="text-sm">
+                        <div className="font-semibold mb-1">📧 Email Status</div>
+                        <div>
+                          Email service is configured. If you don&apos;t receive an acknowledgement email, please check your spam folder.
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -330,6 +363,10 @@ export default function ContactPage() {
 
                 <p className="text-xs text-slate-500 text-center mt-2">
                   Requests unrelated to legal or privacy compliance will not receive a response.
+                </p>
+
+                <p className="text-xs text-slate-600 text-center mt-2 font-medium">
+                  You will receive an automated acknowledgement email if your request is successfully submitted.
                 </p>
 
                 <div className="text-xs text-slate-500 text-center">
