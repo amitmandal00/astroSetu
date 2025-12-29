@@ -68,10 +68,13 @@ export default function ContactPage() {
           <div className="text-center mb-8">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Legal & Compliance Contact</h1>
             <p className="text-slate-600 text-base mb-3 max-w-2xl mx-auto leading-relaxed">
-              This page exists solely to meet legal, privacy, and regulatory requirements.
+              AstroSetu AI is a self-service, fully automated platform.
+            </p>
+            <p className="text-slate-600 text-sm max-w-2xl mx-auto mb-2">
+              Compliance and regulatory contact emails are managed under the MindVeda domain for operational purposes.
             </p>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto">
-              AstroSetu is a fully automated, self-service platform and does not provide live customer support, consultations, or personalised assistance.
+              AstroSetu AI does not provide live customer support, consultations, or personalised assistance.
             </p>
           </div>
 
@@ -168,20 +171,33 @@ export default function ContactPage() {
             <CardHeader eyebrow="Legal & Regulatory Contact" title="Legal & Regulatory Contact (Mandatory Disclosure)" />
             <CardContent className="space-y-4">
               <p className="text-sm text-slate-700 leading-relaxed">
-                AstroSetu is a fully automated, self-service digital platform.
+                AstroSetu AI is a self-service, fully automated platform.
               </p>
               <p className="text-sm text-slate-700 leading-relaxed">
-                The contact details below are provided solely to satisfy legal, privacy, and regulatory obligations.
+                Compliance and regulatory contact emails are managed under the MindVeda domain for operational purposes.
               </p>
               <p className="text-sm text-slate-700 leading-relaxed mb-4">
-                No customer support or personalised assistance is provided via these channels.
+                AstroSetu AI does not provide live customer support, consultations, or personalised assistance.
               </p>
 
               <div className="space-y-4 pt-4 border-t border-slate-200">
                 <div>
-                  <div className="font-medium text-slate-900 mb-2">Compliance Contact</div>
-                  <div className="text-slate-700 text-base mb-3">📧 legal@mindveda.net</div>
-                  <p className="text-xs text-slate-600 mb-2">This mailbox is used only for:</p>
+                  <div className="font-medium text-slate-900 mb-2">Contact Information (Legal & Compliance Only)</div>
+                  <div className="space-y-2 mb-3">
+                    <div className="text-slate-700 text-sm">
+                      <span className="font-medium">Privacy & Data Protection:</span> <a href="mailto:privacy@mindveda.net" className="text-amber-600 hover:underline">privacy@mindveda.net</a>
+                    </div>
+                    <div className="text-slate-700 text-sm">
+                      <span className="font-medium">Legal & Compliance:</span> <a href="mailto:legal@mindveda.net" className="text-amber-600 hover:underline">legal@mindveda.net</a>
+                    </div>
+                    <div className="text-slate-700 text-sm">
+                      <span className="font-medium">Security Reporting:</span> <a href="mailto:security@mindveda.net" className="text-amber-600 hover:underline">security@mindveda.net</a>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600 mb-2 italic">
+                    These contact points exist solely for legal and regulatory compliance. No live support is provided.
+                  </p>
+                  <p className="text-xs text-slate-600 mb-2 mt-3">These mailboxes are used only for:</p>
                   <ul className="list-disc list-inside space-y-1 ml-4 text-xs text-slate-600">
                     <li>Privacy access, correction, or deletion requests</li>
                     <li>Legal notices</li>
@@ -192,9 +208,9 @@ export default function ContactPage() {
                 </div>
 
                 <div className="pt-3 border-t border-slate-200">
-                  <div className="font-medium text-slate-900 mb-1">Legal Entity</div>
-                  <div className="text-slate-700 text-sm">AstroSetu Services Pty Ltd</div>
-                  <div className="text-xs text-slate-500 mt-1">ABN: [To be provided]</div>
+                  <div className="font-medium text-slate-900 mb-1">Operating Entity</div>
+                  <div className="text-slate-700 text-sm">AstroSetu AI is operated by MindVeda.</div>
+                  <div className="text-xs text-slate-500 mt-1">This platform is fully automated and provides educational guidance only.</div>
                 </div>
 
                 <div>

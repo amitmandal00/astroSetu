@@ -198,6 +198,19 @@ export default function DisputesPage() {
                   We may update this dispute resolution policy from time to time. Last updated: {effectiveDate}
                 </p>
               </section>
+
+              {/* Operating Entity Notice */}
+              <section className="mt-8 pt-6 border-t border-slate-200">
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  <strong>AstroSetu AI</strong> is a fully automated astrology guidance platform.
+                </p>
+                <p className="text-sm text-slate-600 leading-relaxed mt-2">
+                  <strong>Operated by MindVeda.</strong>
+                </p>
+                <p className="text-xs text-slate-500 mt-2 italic">
+                  This platform is fully automated and provides educational guidance only.
+                </p>
+              </section>
             </div>
           </CardContent>
         </Card>

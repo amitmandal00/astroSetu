@@ -106,16 +106,24 @@ export function Footer() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
             <div>
               © {currentYear} <span className="font-semibold text-slate-900">AstroSetu</span>
+              <span className="text-slate-500 ml-2">Operated by MindVeda.</span>
             </div>
             <div className="text-slate-500">
-              <a href="mailto:support@mindveda.net" className="hover:text-saffron-600 transition-colors">
-                support@mindveda.net
-              </a>
-              {" • "}
               <a href="mailto:privacy@mindveda.net" className="hover:text-saffron-600 transition-colors">
                 privacy@mindveda.net
               </a>
+              {" • "}
+              <a href="mailto:legal@mindveda.net" className="hover:text-saffron-600 transition-colors">
+                legal@mindveda.net
+              </a>
+              {" • "}
+              <a href="mailto:security@mindveda.net" className="hover:text-saffron-600 transition-colors">
+                security@mindveda.net
+              </a>
             </div>
+          </div>
+          <div className="mt-2 text-xs text-slate-500 text-center">
+            <p>These contact points exist solely for legal and regulatory compliance. No live support is provided.</p>
           </div>
         </div>
       </div>

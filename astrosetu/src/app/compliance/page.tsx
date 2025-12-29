@@ -26,9 +26,10 @@ export default function CompliancePage() {
                 <section>
                   <h2 className="text-xl font-bold text-slate-900 mb-3">Platform Information</h2>
                   <ul className="list-none space-y-2 ml-0">
-                    <li><strong>Platform Name:</strong> AstroSetu</li>
+                    <li><strong>Platform Name:</strong> AstroSetu AI</li>
                     <li><strong>Nature:</strong> Fully automated, self-service digital astrology platform</li>
                     <li><strong>Human Involvement:</strong> None (AI-generated content only)</li>
+                    <li><strong>Operating Entity:</strong> AstroSetu AI is operated by MindVeda.</li>
                   </ul>
                 </section>
 
@@ -91,6 +92,22 @@ export default function CompliancePage() {
                   <h2 className="text-xl font-bold text-slate-900 mb-3">Compliance Contact</h2>
                   <p className="text-base">
                     📧 <a href="mailto:legal@mindveda.net" className="text-indigo-600 hover:underline font-medium">legal@mindveda.net</a>
+                  </p>
+                  <p className="text-xs text-slate-600 mt-2 italic">
+                    These contact points exist solely for legal and regulatory compliance. No live support is provided.
+                  </p>
+                </section>
+
+                {/* Operating Entity Notice */}
+                <section className="mt-8 pt-6 border-t border-slate-200">
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    <strong>AstroSetu AI</strong> is a fully automated astrology guidance platform.
+                  </p>
+                  <p className="text-sm text-slate-600 leading-relaxed mt-2">
+                    <strong>Operated by MindVeda.</strong>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-2 italic">
+                    This platform is fully automated and provides educational guidance only.
                   </p>
                 </section>
               </div>

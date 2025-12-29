@@ -28,7 +28,8 @@ export function AIFooter() {
             <p className="text-slate-600 text-sm leading-relaxed">
               A fully automated astrology intelligence platform. No human involvement. No live support.
             </p>
-            <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu</p>
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu AI</p>
+            <p className="text-xs text-slate-500">Operated by MindVeda.</p>
           </div>
 
           {/* Middle Column: Important Notice */}
@@ -137,7 +138,18 @@ export function AIFooter() {
                 </Link>
               </nav>
             </div>
-            <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu</p>
+            <div className="pt-2 border-t border-slate-200">
+              <p className="text-xs text-slate-500 mb-2">Contact (Legal & Compliance Only):</p>
+              <div className="space-y-1 text-xs text-slate-600">
+                <div>Privacy & Data Protection: <a href="mailto:privacy@mindveda.net" className="text-amber-600 hover:underline">privacy@mindveda.net</a></div>
+                <div>Legal & Compliance: <a href="mailto:legal@mindveda.net" className="text-amber-600 hover:underline">legal@mindveda.net</a></div>
+                <div>Security Reporting: <a href="mailto:security@mindveda.net" className="text-amber-600 hover:underline">security@mindveda.net</a></div>
+              </div>
+              <p className="text-xs text-slate-500 mt-2 italic">
+                These contact points exist solely for legal and regulatory compliance. No live support is provided.
+              </p>
+            </div>
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu AI</p>
             <p className="text-xs text-slate-600 font-medium">
               No change-of-mind refunds on digital reports.
             </p>
