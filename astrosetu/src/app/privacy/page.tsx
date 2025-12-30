@@ -335,7 +335,10 @@ export default function PrivacyPage() {
                 <h2 className="text-xl font-bold text-slate-900 mb-3">10. Contact Information & Privacy Officer</h2>
                 <p className="font-semibold text-slate-900 mb-2">Data Controller & Privacy Officer:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Platform Owner:</strong> AstroSetu Services Pty Ltd</li>
+                  <li><strong>Business Name:</strong> MindVeda</li>
+                  <li><strong>Trading As:</strong> AstroSetu AI</li>
+                  <li><strong>ABN:</strong> 60 656 401 253</li>
+                  <li><strong>Business Structure:</strong> Sole Trader</li>
                   <li><strong>Privacy Requests:</strong> <a href="mailto:privacy@mindveda.net" className="text-indigo-600 hover:underline font-medium">privacy@mindveda.net</a> (Privacy Act requests, data access, correction, deletion)</li>
                   <li><strong>Consumer Law:</strong> <a href="mailto:support@mindveda.net" className="text-indigo-600 hover:underline font-medium">support@mindveda.net</a> (Australian Consumer Law compliance)</li>
                   <li><strong>Legal Notices:</strong> <a href="mailto:legal@mindveda.net" className="text-indigo-600 hover:underline font-medium">legal@mindveda.net</a> (Legal notices, formal correspondence)</li>

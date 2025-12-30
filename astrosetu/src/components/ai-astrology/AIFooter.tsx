@@ -26,21 +26,22 @@ export function AIFooter() {
               </div>
             </Link>
             <p className="text-slate-600 text-sm leading-relaxed">
-              A fully automated astrology intelligence platform. No human involvement. No live support.
+              Fully automated platform. No human involvement. No live support. Educational guidance only.
             </p>
             <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu AI</p>
-            <p className="text-xs text-slate-500">Operated by MindVeda.</p>
+            <p className="text-xs text-slate-500">Operated by MindVeda</p>
+            <p className="text-xs text-slate-600 font-medium">ABN: 60 656 401 253</p>
           </div>
 
           {/* Middle Column: Important Notice */}
           <div className="space-y-4">
             <p className="text-slate-600 text-sm leading-relaxed">
-              A fully automated astrology intelligence platform. No human involvement. No live support.
+              Fully automated platform. No human involvement. No live support. Educational guidance only.
             </p>
             <div>
               <h3 className="font-bold text-slate-900 mb-2">Important Notice</h3>
               <p className="text-sm text-slate-700 leading-relaxed">
-                Reports are generated automatically using AI-based astrological interpretation for educational purposes only. No medical, legal, financial, or professional advice is provided.
+                AstroSetu AI is a fully automated, self-service platform operated by MindVeda (ABN 60 656 401 253). All reports are generated automatically using AI-based interpretive systems for educational and informational purposes only. AstroSetu AI does not provide medical, legal, financial, psychological, or professional advice. No live consultations, personalised support, or human astrologers are offered. By using this platform, you acknowledge that interpretations are non-deterministic and intended for personal reflection only.
               </p>
             </div>
           </div>

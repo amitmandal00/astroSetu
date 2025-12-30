@@ -29,15 +29,16 @@ export default function DisclaimerPage() {
               {/* Main Disclaimer */}
               <section className="bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg">
                 <p className="text-amber-900 font-semibold mb-4 text-base">
-                  AstroSetu provides astrology-based insights derived from traditional belief systems.
+                  AstroSetu AI is a fully automated, self-service platform operated by MindVeda (ABN 60 656 401 253).
                 </p>
-                <ul className="list-disc list-inside space-y-2 text-amber-800 ml-4">
-                  <li>Astrology is not a science</li>
-                  <li>Interpretations are subjective</li>
-                  <li>Results may vary across cultures, astrologers, and systems</li>
-                </ul>
-                <p className="mt-4 text-amber-900 font-semibold">
-                  All content is provided for informational purposes only. AstroSetu does not provide professional, medical, legal, or financial advice. Personalised insights are provided for informational and self-reflection purposes only.
+                <p className="text-amber-900 mb-4">
+                  All reports are generated automatically using AI-based interpretive systems for educational and informational purposes only.
+                </p>
+                <p className="text-amber-900 font-semibold mb-4">
+                  AstroSetu AI does not provide medical, legal, financial, psychological, or professional advice. No live consultations, personalised support, or human astrologers are offered.
+                </p>
+                <p className="text-amber-900">
+                  By using this platform, you acknowledge that interpretations are non-deterministic and intended for personal reflection only.
                 </p>
               </section>
 

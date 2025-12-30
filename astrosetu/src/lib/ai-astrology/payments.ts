@@ -17,37 +17,37 @@ export const REPORT_PRICES: Record<ReportPrice["reportType"], ReportPrice> = {
     reportType: "marriage-timing",
     amount: 1, // AU$0.01 (includes GST) - Testing price
     currency: "aud",
-    description: "Marriage Timing Report - Ideal marriage windows, compatibility, and remedies",
+    description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
   },
   "career-money": {
     reportType: "career-money",
     amount: 1, // AU$0.01 (includes GST) - Testing price
     currency: "aud",
-    description: "Career & Money Path Report - Career direction, timing, and financial phases",
+    description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
   },
   "full-life": {
     reportType: "full-life",
     amount: 1, // AU$0.01 (includes GST) - Testing price
     currency: "aud",
-    description: "Full Life Report - Comprehensive analysis covering all aspects of life",
+    description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
   },
   "year-analysis": {
     reportType: "year-analysis",
     amount: 1, // AU$0.01 (includes GST) - Testing price (production: 1900-2900 = AU$19-29)
     currency: "aud",
-    description: "Year Analysis Report - 12-month strategic guidance with quarterly breakdown",
+    description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
   },
   "major-life-phase": {
     reportType: "major-life-phase",
     amount: 1, // AU$0.01 (includes GST) - Testing price (production: 2900-3900 = AU$29-39)
     currency: "aud",
-    description: "3-5 Year Strategic Life Phase Report - Strategic outlook with major transitions and opportunities",
+    description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
   },
   "decision-support": {
     reportType: "decision-support",
     amount: 1, // AU$0.01 (includes GST) - Testing price (production: 1900-2900 = AU$19-29)
     currency: "aud",
-    description: "Decision Support Report - Astrological guidance for major life decisions",
+    description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
   },
 };
 

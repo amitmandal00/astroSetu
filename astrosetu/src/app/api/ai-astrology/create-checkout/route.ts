@@ -231,7 +231,7 @@ export async function POST(req: Request) {
               currency: priceData.currency,
               product_data: {
                 name: "AI Astrology Premium Subscription",
-                description: priceData.description,
+                description: "AI-generated digital astrology report. Instant delivery. Educational guidance only. No refunds after access.",
               },
               recurring: {
                 interval: "month",
@@ -245,6 +245,9 @@ export async function POST(req: Request) {
         success_url: success,
         cancel_url: cancel,
         metadata,
+        payment_intent_data: {
+          statement_descriptor: "ASTROSETU AI",
+        },
       });
     } else {
       // Create one-time payment
@@ -255,8 +258,8 @@ export async function POST(req: Request) {
             price_data: {
               currency: priceData.currency,
               product_data: {
-                name: priceData.description,
-                description: priceData.description,
+                name: "AI-Generated Astrology Report (Digital Product)",
+                description: "AI-generated digital astrology report. Instant delivery. Educational guidance only. No refunds after access.",
               },
               unit_amount: priceData.amount,
             },
@@ -267,6 +270,9 @@ export async function POST(req: Request) {
         success_url: success,
         cancel_url: cancel,
         metadata,
+        payment_intent_data: {
+          statement_descriptor: "ASTROSETU AI",
+        },
       });
     }
 

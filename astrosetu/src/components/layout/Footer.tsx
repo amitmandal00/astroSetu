@@ -96,8 +96,8 @@ export function Footer() {
 
           {/* Right: Autonomous Notice */}
           <div className="text-xs text-slate-500 text-right md:text-left">
-            <p>This platform is fully automated.</p>
-            <p className="mt-1">No live support provided.</p>
+            <p>Fully automated platform. No human involvement. No live support.</p>
+            <p className="mt-1">Educational guidance only.</p>
           </div>
         </div>
 
@@ -105,8 +105,11 @@ export function Footer() {
         <div className="border-t border-slate-200 pt-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
             <div>
-              © {currentYear} <span className="font-semibold text-slate-900">AstroSetu</span>
-              <span className="text-slate-500 ml-2">Operated by MindVeda.</span>
+              © {currentYear} <span className="font-semibold text-slate-900">AstroSetu AI</span>
+              <br className="sm:hidden" />
+              <span className="text-slate-500">Operated by MindVeda</span>
+              <br className="sm:hidden" />
+              <span className="text-slate-600 font-medium">ABN: 60 656 401 253</span>
             </div>
             <div className="text-slate-500">
               <a href="mailto:privacy@mindveda.net" className="hover:text-saffron-600 transition-colors">

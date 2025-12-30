@@ -78,12 +78,14 @@ export default function CompliancePage() {
 
                 {/* Legal Entity Information */}
                 <section>
-                  <h2 className="text-xl font-bold text-slate-900 mb-3">Legal Entity Information</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-3">Business Information</h2>
                   <ul className="list-none space-y-2 ml-0">
-                    <li><strong>Legal Entity:</strong> AstroSetu Services Pty Ltd</li>
-                    <li><strong>ABN:</strong> [To be provided]</li>
-                    <li><strong>Registered Office:</strong> [To be provided]</li>
+                    <li><strong>Business Name:</strong> MindVeda</li>
+                    <li><strong>Trading As:</strong> AstroSetu AI</li>
+                    <li><strong>ABN:</strong> 60 656 401 253</li>
+                    <li><strong>Business Structure:</strong> Sole Trader</li>
                     <li><strong>Jurisdiction:</strong> Australia (Primary), India (Operations)</li>
+                    <li><strong>GST:</strong> Not applicable (GST not registered)</li>
                   </ul>
                 </section>
 

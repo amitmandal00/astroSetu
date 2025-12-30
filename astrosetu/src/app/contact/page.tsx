@@ -76,13 +76,13 @@ export default function ContactPage() {
           <div className="text-center mb-8">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-800">Legal & Compliance Contact</h1>
             <p className="text-slate-600 text-base mb-3 max-w-2xl mx-auto leading-relaxed">
-              AstroSetu AI is a self-service, fully automated platform.
+              AstroSetu AI is a fully automated, self-service platform operated by MindVeda (ABN 60 656 401 253).
             </p>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto mb-2">
-              Compliance and regulatory contact emails are managed under the MindVeda domain for operational purposes.
+              All reports are generated automatically using AI-based interpretive systems for educational and informational purposes only.
             </p>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto">
-              AstroSetu AI does not provide live customer support, consultations, or personalised assistance.
+              AstroSetu AI does not provide medical, legal, financial, psychological, or professional advice. No live consultations, personalised support, or human astrologers are offered.
             </p>
           </div>
 

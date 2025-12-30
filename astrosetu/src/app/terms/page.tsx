@@ -212,20 +212,26 @@ export default function TermsPage() {
                 </p>
               </section>
 
-              {/* Company Information */}
+              {/* Business Information */}
               <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-3">12. Company Information</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-3">12. Business Information</h2>
                 <p>
-                  <strong>Business Name:</strong> AstroSetu Services Pty Ltd
+                  <strong>Business Name:</strong> MindVeda
                 </p>
                 <p className="mt-2">
-                  <strong>ABN:</strong> [To be provided]
+                  <strong>Trading As:</strong> AstroSetu AI
                 </p>
                 <p className="mt-2">
-                  <strong>Registered Office:</strong> [To be provided]
+                  <strong>ABN:</strong> 60 656 401 253
+                </p>
+                <p className="mt-2">
+                  <strong>Business Structure:</strong> Sole Trader
                 </p>
                 <p className="mt-2">
                   <strong>Jurisdiction:</strong> Australia (Primary), India (Operations)
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  <strong>GST:</strong> Not applicable (GST not registered)
                 </p>
                 <p className="mt-2">
                   <strong>Contact:</strong>
