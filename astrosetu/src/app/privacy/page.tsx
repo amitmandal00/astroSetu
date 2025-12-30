@@ -344,7 +344,7 @@ export default function PrivacyPage() {
                   <li><strong>Legal Notices:</strong> <a href="mailto:legal@mindveda.net" className="text-indigo-600 hover:underline font-medium">legal@mindveda.net</a> (Legal notices, formal correspondence)</li>
                   <li><strong>Data Breach:</strong> <a href="mailto:security@mindveda.net" className="text-indigo-600 hover:underline font-medium">security@mindveda.net</a> (Data breach notifications)</li>
                   <li className="text-xs text-slate-600 italic ml-4 mt-2">All email addresses are automated compliance mailboxes. AstroSetu does not provide live support. Valid requests will be processed as required by law.</li>
-                  <li><strong>Jurisdiction:</strong> Australia (primary) / India (international operations)</li>
+                  <li><strong>Jurisdiction:</strong> Australia (Primary). India (Operational support only). All legal matters are governed by Australian law.</li>
                 </ul>
                 <p className="mt-4 font-semibold text-slate-900 mb-2">External Privacy Authority:</p>
                 <p className="ml-4">

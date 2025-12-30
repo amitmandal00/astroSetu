@@ -161,14 +161,17 @@ export async function POST(req: Request) {
 
     // Get price info
     let priceData;
+    let reportDisplayName: string;
     let metadata: Record<string, string> = {
       requestId,
       type: subscription ? "subscription" : "report",
+      timestamp: new Date().toISOString(),
     };
 
     if (subscription) {
       priceData = SUBSCRIPTION_PRICE;
-      metadata.reportType = "subscription";
+      metadata.report_type = "subscription";
+      reportDisplayName = "AI Astrology Premium Subscription";
     } else {
       // Validate reportType exists and is valid
       if (!reportType) {
@@ -186,14 +189,28 @@ export async function POST(req: Request) {
         );
       }
       priceData = reportPrice;
-      metadata.reportType = reportType;
+      reportDisplayName = reportPrice.displayName;
+      metadata.report_type = reportType;
     }
 
-    // Add input metadata if provided
+    // Add user_id if available (from session or input)
+    // Note: In a real app, you'd get this from authentication
+    // For now, we'll use a hash of input data or session ID
+    try {
+      const userId = req.headers.get("x-user-id") || 
+                     (input ? `user_${Buffer.from(JSON.stringify(input)).toString("base64").slice(0, 16)}` : undefined);
+      if (userId) {
+        metadata.user_id = userId;
+      }
+    } catch (e) {
+      // If user_id extraction fails, continue without it
+      console.warn("[create-checkout] Could not extract user_id:", e);
+    }
+
+    // Add input metadata if provided (non-sensitive only)
     if (input) {
       if (input.name) metadata.customerName = input.name;
-      if (input.dob) metadata.dob = input.dob;
-      // Don't store sensitive data in metadata
+      // Don't store sensitive data like DOB, place, etc. in metadata
     }
 
     // Determine redirect URLs - use request URL to support preview deployments
@@ -221,6 +238,13 @@ export async function POST(req: Request) {
     // Create checkout session
     let session;
     
+    // Always use AUD currency (code-driven rule)
+    const currency = "aud";
+    const amount = priceData.amount; // Already in cents
+    
+    // Format description: "AstroSetu AI – {Report Name}"
+    const productDescription = `AstroSetu AI – ${reportDisplayName}`;
+
     if (subscription) {
       // Create subscription checkout
       session = await stripe.checkout.sessions.create({
@@ -228,15 +252,15 @@ export async function POST(req: Request) {
         line_items: [
           {
             price_data: {
-              currency: priceData.currency,
+              currency: currency, // Always AUD
               product_data: {
-                name: "AI Astrology Premium Subscription",
-                description: "AI-generated digital astrology report. Instant delivery. Educational guidance only. No refunds after access.",
+                name: productDescription, // "AstroSetu AI – {Report Name}"
+                description: priceData.description,
               },
               recurring: {
                 interval: "month",
               },
-              unit_amount: priceData.amount,
+              unit_amount: amount, // Price in cents
             },
             quantity: 1,
           },
@@ -244,7 +268,7 @@ export async function POST(req: Request) {
         mode: "subscription",
         success_url: success,
         cancel_url: cancel,
-        metadata,
+        metadata, // Includes: report_type, user_id, timestamp, requestId
         payment_intent_data: {
           statement_descriptor: "ASTROSETU AI",
         },
@@ -256,12 +280,12 @@ export async function POST(req: Request) {
         line_items: [
           {
             price_data: {
-              currency: priceData.currency,
+              currency: currency, // Always AUD
               product_data: {
-                name: "AI-Generated Astrology Report (Digital Product)",
-                description: "AI-generated digital astrology report. Instant delivery. Educational guidance only. No refunds after access.",
+                name: productDescription, // "AstroSetu AI – {Report Name}"
+                description: priceData.description,
               },
-              unit_amount: priceData.amount,
+              unit_amount: amount, // Price in cents
             },
             quantity: 1,
           },
@@ -269,7 +293,7 @@ export async function POST(req: Request) {
         mode: "payment",
         success_url: success,
         cancel_url: cancel,
-        metadata,
+        metadata, // Includes: report_type, user_id, timestamp, requestId
         payment_intent_data: {
           statement_descriptor: "ASTROSETU AI",
         },

@@ -8,46 +8,53 @@ export type ReportPrice = {
   amount: number; // in cents
   currency: string;
   description: string;
+  displayName: string; // Human-readable report name for descriptions
 };
 
-// Prices in AUD (Australian Dollars) with GST included
+// Prices in AUD (Australian Dollars) - amount in cents
 // TESTING PRICE: All reports set to AU$0.01 for production testing
 export const REPORT_PRICES: Record<ReportPrice["reportType"], ReportPrice> = {
   "marriage-timing": {
     reportType: "marriage-timing",
-    amount: 1, // AU$0.01 (includes GST) - Testing price
+    amount: 1, // AU$0.01 (Testing price)
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
+    displayName: "Marriage Timing Report",
   },
   "career-money": {
     reportType: "career-money",
-    amount: 1, // AU$0.01 (includes GST) - Testing price
+    amount: 1, // AU$0.01 (Testing price)
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
+    displayName: "Career & Money Path Report",
   },
   "full-life": {
     reportType: "full-life",
-    amount: 1, // AU$0.01 (includes GST) - Testing price
+    amount: 1, // AU$0.01 (Testing price)
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
+    displayName: "Full Life Report",
   },
   "year-analysis": {
     reportType: "year-analysis",
-    amount: 1, // AU$0.01 (includes GST) - Testing price (production: 1900-2900 = AU$19-29)
+    amount: 1, // AU$0.01 (Testing price) (production: 1900-2900 = AU$19-29)
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
+    displayName: "Year Analysis Report",
   },
   "major-life-phase": {
     reportType: "major-life-phase",
-    amount: 1, // AU$0.01 (includes GST) - Testing price (production: 2900-3900 = AU$29-39)
+    amount: 1, // AU$0.01 (Testing price) (production: 2900-3900 = AU$29-39)
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
+    displayName: "3-5 Year Strategic Life Phase Report",
   },
   "decision-support": {
     reportType: "decision-support",
-    amount: 1, // AU$0.01 (includes GST) - Testing price (production: 1900-2900 = AU$19-29)
+    amount: 1, // AU$0.01 (Testing price) (production: 1900-2900 = AU$19-29)
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
+    displayName: "Decision Support Report",
   },
 };
 

@@ -205,10 +205,13 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-xl font-bold text-slate-900 mb-3">11. Governing Law & Jurisdiction</h2>
                 <p>
-                  <strong>Australian Users:</strong> These Terms are governed by the laws of <strong>Australia</strong> and the laws of the State or Territory where you access our services. Any disputes will be subject to the exclusive jurisdiction of Australian courts.
+                  <strong>All Users:</strong> These Terms are governed by the laws of <strong>Australia</strong> and the laws of the State or Territory where you access our services. All legal matters are governed by Australian law.
                 </p>
                 <p className="mt-3">
-                  <strong>International Users:</strong> For users outside Australia, these Terms are governed by the laws of <strong>India</strong>, without regard to conflict-of-law principles.
+                  Any disputes will be subject to the exclusive jurisdiction of Australian courts.
+                </p>
+                <p className="mt-3 text-sm text-slate-600">
+                  <strong>Note:</strong> India provides operational support only. All legal matters, including disputes, are governed by Australian law.
                 </p>
               </section>
 
@@ -228,7 +231,7 @@ export default function TermsPage() {
                   <strong>Business Structure:</strong> Sole Trader
                 </p>
                 <p className="mt-2">
-                  <strong>Jurisdiction:</strong> Australia (Primary), India (Operations)
+                  <strong>Jurisdiction:</strong> Australia (Primary). India (Operational support only). All legal matters are governed by Australian law.
                 </p>
                 <p className="mt-2 text-sm text-slate-600">
                   <strong>GST:</strong> Not applicable (GST not registered)

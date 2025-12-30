@@ -224,7 +224,8 @@ export default function ContactPage() {
                 <div>
                   <div className="font-medium text-slate-900 mb-1">Jurisdiction</div>
                   <div className="text-slate-700 text-sm">Australia (Primary)</div>
-                  <div className="text-slate-700 text-sm">India (Operations)</div>
+                  <div className="text-slate-700 text-sm">India (Operational support only)</div>
+                  <div className="text-slate-600 text-xs mt-1 italic">All legal matters are governed by Australian law.</div>
                 </div>
 
                 <div className="pt-3 border-t border-slate-200">

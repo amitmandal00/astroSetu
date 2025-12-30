@@ -143,8 +143,8 @@ export default function DisputesPage() {
                   As a last resort, you may pursue legal action:
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
-                  <li><strong>Australian Users:</strong> Proceedings in Australian courts, subject to the jurisdiction clause in our Terms & Conditions</li>
-                  <li><strong>International Users:</strong> As specified in the Terms & Conditions for your jurisdiction</li>
+                  <li><strong>All Users:</strong> All legal matters are governed by Australian law. Proceedings will be in Australian courts, subject to the jurisdiction clause in our Terms & Conditions.</li>
+                  <li className="text-sm text-slate-600 mt-2"><strong>Note:</strong> India provides operational support only. All disputes and legal matters are governed by Australian law regardless of user location.</li>
                 </ul>
                 <p className="mt-3">
                   We encourage you to exhaust all other dispute resolution options before pursuing legal action.

@@ -74,7 +74,7 @@ export function getContactConfig(): ContactConfig {
       country: process.env.ADDRESS_COUNTRY || process.env.NEXT_PUBLIC_ADDRESS_COUNTRY || "India",
       postalCode: process.env.ADDRESS_POSTAL_CODE || undefined,
     },
-    jurisdiction: process.env.JURISDICTION || process.env.NEXT_PUBLIC_JURISDICTION || "Australia (primary) / India (international operations)",
+    jurisdiction: process.env.JURISDICTION || process.env.NEXT_PUBLIC_JURISDICTION || "Australia (Primary). India (Operational support only). All legal matters are governed by Australian law.",
     
     businessHours: {
       timezone: process.env.BUSINESS_HOURS_TIMEZONE || process.env.NEXT_PUBLIC_BUSINESS_HOURS_TIMEZONE || "Asia/Kolkata",

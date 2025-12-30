@@ -84,7 +84,7 @@ export default function CompliancePage() {
                     <li><strong>Trading As:</strong> AstroSetu AI</li>
                     <li><strong>ABN:</strong> 60 656 401 253</li>
                     <li><strong>Business Structure:</strong> Sole Trader</li>
-                    <li><strong>Jurisdiction:</strong> Australia (Primary), India (Operations)</li>
+                    <li><strong>Jurisdiction:</strong> Australia (Primary). India (Operational support only). All legal matters are governed by Australian law.</li>
                     <li><strong>GST:</strong> Not applicable (GST not registered)</li>
                   </ul>
                 </section>
