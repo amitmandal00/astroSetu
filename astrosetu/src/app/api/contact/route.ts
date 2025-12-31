@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createServerClient, isSupabaseConfigured } from "@/lib/supabase";
 import { checkRateLimit, handleApiError, parseJsonBody, validateRequestSize, getClientIP } from "@/lib/apiHelpers";
 import { z } from "zod";
-import nodemailer from "nodemailer";
 
 const ContactFormSchema = z.object({
   name: z.string().optional(), // Optional for compliance requests
@@ -127,15 +126,9 @@ export async function POST(req: Request) {
       // Don't fail the request if email fails
     });
 
-    // Check if email service is configured (SMTP or Resend)
-    const SMTP_HOST = process.env.SMTP_HOST;
-    const SMTP_PORT = process.env.SMTP_PORT;
-    const SMTP_USER = process.env.SMTP_USER;
-    const SMTP_PASS = process.env.SMTP_PASS;
+    // Check if Resend email service is configured (only Resend, no SMTP)
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
-    const isSMTPConfigured = !!(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
-    const isResendConfigured = !!RESEND_API_KEY;
-    const emailConfigured = isSMTPConfigured || isResendConfigured;
+    const emailConfigured = !!RESEND_API_KEY;
 
     // Log successful submission for audit trail (required for compliance)
     console.log(`[Contact API] Regulatory request received:`, {
@@ -229,8 +222,15 @@ async function sendContactNotifications(data: {
 }): Promise<void> {
   const { submissionId, name, email, phone, subject, message, category } = data;
 
-  // Use Resend API if configured, otherwise log for manual processing
+  // LOCKED SENDER IDENTITY: Only Resend API, no SMTP
+  // Authoritative sender rule (code-locked):
+  // From: "AstroSetu AI" <no-reply@mindveda.net>
+  // Reply-To: privacy@mindveda.net
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  // Support both RESEND_FROM_EMAIL (preferred) and EMAIL_FROM (backwards compatibility)
+  const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || "no-reply@mindveda.net"; // Locked sender identity
+  const RESEND_FROM_NAME = process.env.RESEND_FROM_NAME || "AstroSetu AI"; // Locked sender name
+  const RESEND_REPLY_TO = process.env.RESEND_REPLY_TO || "privacy@mindveda.net"; // Locked reply-to address
   
   // Route emails to appropriate compliance addresses based on category
   const getComplianceEmail = (category: string): string => {
@@ -254,17 +254,10 @@ async function sendContactNotifications(data: {
   const COMPLIANCE_CC = process.env.COMPLIANCE_CC || (category.includes("legal") ? process.env.LEGAL_EMAIL : undefined);
   const BRAND_NAME = process.env.BRAND_NAME || "AstroSetu AI";
 
-  // Check for email service configuration (SMTP first, then Resend)
-  const SMTP_HOST = process.env.SMTP_HOST;
-  const SMTP_PORT = process.env.SMTP_PORT;
-  const SMTP_USER = process.env.SMTP_USER;
-  const SMTP_PASS = process.env.SMTP_PASS;
-  const isSMTPConfigured = !!(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
-  const isResendConfigured = !!RESEND_API_KEY;
-
-  if (!isSMTPConfigured && !isResendConfigured) {
+  // Only Resend is supported - check if configured
+  if (!RESEND_API_KEY) {
     // No email service configured - log for manual processing
-    console.log("[Contact API] Email service not configured. Submission details:", {
+    console.log("[Contact API] Resend API not configured. Submission details:", {
       submissionId,
       name,
       email,
@@ -284,39 +277,50 @@ async function sendContactNotifications(data: {
       : category === "account_access" ? "Account Access" 
       : category;
 
-    if (isSMTPConfigured) {
-      // Use Gmail SMTP (Option A)
-      await sendEmailsViaSMTP({
-        userEmail: email,
-        userName: name,
-        category: categoryDisplay,
-        subject: subject,
-        message: message,
-        complianceTo: COMPLIANCE_TO,
-        complianceCC: COMPLIANCE_CC,
-        submissionId,
-        phone,
-        brandName: BRAND_NAME,
-        smtpUser: SMTP_USER!,
-      });
-    } else {
-      // Use Resend API (Option B - fallback)
-      // Send user acknowledgement email (auto-reply)
-      await sendEmail({
-        apiKey: RESEND_API_KEY!,
-        to: email,
-        from: `${BRAND_NAME} <${complianceEmail}>`,
-        subject: `Regulatory Request Received – ${BRAND_NAME}`,
-        html: generateAutoReplyEmail(name || "User", subject, category),
-      });
+    // LOCKED SENDER IDENTITY: All emails sent via Resend only
+    // Authoritative sender rule (code-locked):
+    // From: "AstroSetu AI" <no-reply@mindveda.net>
+    // Reply-To: privacy@mindveda.net
+    const lockedSender = `${RESEND_FROM_NAME} <${RESEND_FROM_EMAIL}>`;
+    const lockedReplyTo = RESEND_REPLY_TO; // Locked reply-to address
 
-      // Send internal compliance notification to admin
-      const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
-      
+    // Send user acknowledgement email (auto-reply)
+    await sendEmail({
+      apiKey: RESEND_API_KEY,
+      to: email,
+      from: lockedSender, // "AstroSetu AI" <no-reply@mindveda.net>
+      replyTo: lockedReplyTo, // privacy@mindveda.net
+      subject: `Regulatory Request Received – ${BRAND_NAME}`,
+      html: generateAutoReplyEmail(name || "User", subject, category),
+    });
+
+    // Send internal compliance notification to admin
+    const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
+    
+    await sendEmail({
+      apiKey: RESEND_API_KEY,
+      to: ADMIN_EMAIL,
+      from: lockedSender, // "AstroSetu AI" <no-reply@mindveda.net>
+      replyTo: email, // Allow admin to reply directly to user
+      subject: internalSubject,
+      html: generateAdminNotificationEmail({
+        submissionId,
+        name,
+        email,
+        phone,
+        subject,
+        message,
+        category,
+      }),
+    });
+
+    // Send CC email if configured
+    if (COMPLIANCE_CC) {
       await sendEmail({
-        apiKey: RESEND_API_KEY!,
-        to: ADMIN_EMAIL,
-        from: `${BRAND_NAME} Compliance <${complianceEmail}>`,
+        apiKey: RESEND_API_KEY,
+        to: COMPLIANCE_CC,
+        from: lockedSender, // "AstroSetu AI" <no-reply@mindveda.net>
+        replyTo: email, // Allow CC recipient to reply directly to user
         subject: internalSubject,
         html: generateAdminNotificationEmail({
           submissionId,
@@ -327,11 +331,10 @@ async function sendContactNotifications(data: {
           message,
           category,
         }),
-        replyTo: email, // Allow admin to reply directly
       });
     }
 
-    console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via ${isSMTPConfigured ? 'SMTP' : 'Resend'})`);
+    console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via Resend, sender: ${lockedSender})`);
   } catch (error) {
     console.error("[Contact API] Email sending failed:", error);
     throw error;
@@ -339,108 +342,10 @@ async function sendContactNotifications(data: {
 }
 
 /**
- * Send emails via Gmail SMTP (Option A)
- */
-async function sendEmailsViaSMTP(data: {
-  userEmail: string;
-  userName?: string;
-  category: string;
-  subject: string;
-  message: string;
-  complianceTo: string;
-  complianceCC?: string;
-  submissionId: string | null;
-  phone?: string;
-  brandName: string;
-  smtpUser: string;
-}): Promise<void> {
-  const {
-    userEmail,
-    userName,
-    category,
-    subject,
-    message,
-    complianceTo,
-    complianceCC,
-    submissionId,
-    phone,
-    brandName,
-    smtpUser,
-  } = data;
-
-  const SMTP_HOST = process.env.SMTP_HOST!;
-  const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
-  const SMTP_PASS = process.env.SMTP_PASS!;
-
-  // Create SMTP transporter
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465, // true for 465 (SSL), false for 587 (TLS)
-    auth: {
-      user: smtpUser,
-      pass: SMTP_PASS,
-    },
-  });
-
-  try {
-    // 1) Internal compliance notification
-    await transporter.sendMail({
-      from: `"${brandName} Compliance" <${smtpUser}>`,
-      to: complianceTo,
-      cc: complianceCC,
-      subject: `Regulatory Request – ${category}`,
-      text: `New Regulatory Request received
-
-From: ${userEmail}
-${userName ? `Name: ${userName}` : ''}
-${phone ? `Phone: ${phone}` : ''}
-Category: ${category}
-${submissionId ? `Submission ID: ${submissionId}` : ''}
-
-Message:
-${message || "(no message)"}
-
----
-This is an automated notification from ${brandName} regulatory request form.
-`,
-      html: generateAdminNotificationEmail({
-        submissionId,
-        name: userName,
-        email: userEmail,
-        phone,
-        subject,
-        message,
-        category,
-      }),
-      replyTo: userEmail, // Allow admin to reply directly
-    });
-
-    // 2) User acknowledgement email
-    await transporter.sendMail({
-      from: `"${brandName}" <${smtpUser}>`,
-      to: userEmail,
-      subject: `Request Received – ${brandName}`,
-      text: `We have received your regulatory/compliance request.
-
-This is an automated acknowledgement.
-Requests are reviewed periodically as required by applicable law.
-No live customer support is provided.
-
-If your request relates to privacy access or deletion, please include any relevant account identifiers.
-
-— ${brandName}
-`,
-      html: generateAutoReplyEmail(userName || "User", subject, category),
-    });
-  } catch (smtpError: any) {
-    console.error("[Contact API] SMTP email sending failed:", smtpError?.message || smtpError);
-    throw new Error(`Failed to send emails via SMTP: ${smtpError?.message || 'Unknown error'}`);
-  }
-}
-
-/**
- * Send email using Resend API (Option B - fallback)
+ * Send email using Resend API (ONLY method - SMTP removed)
+ * LOCKED SENDER IDENTITY: All emails use locked sender format
+ * From: "AstroSetu AI" <no-reply@mindveda.net>
+ * Reply-To: privacy@mindveda.net (or custom if provided)
  */
 async function sendEmail(data: {
   apiKey: string;
@@ -450,19 +355,31 @@ async function sendEmail(data: {
   html: string;
   replyTo?: string;
 }): Promise<void> {
+  const emailPayload: {
+    to: string;
+    from: string;
+    subject: string;
+    html: string;
+    reply_to?: string;
+  } = {
+    to: data.to,
+    from: data.from, // Locked: "AstroSetu AI" <no-reply@mindveda.net>
+    subject: data.subject,
+    html: data.html,
+  };
+
+  // Always set reply_to (locked to privacy@mindveda.net or custom)
+  if (data.replyTo) {
+    emailPayload.reply_to = data.replyTo;
+  }
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${data.apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      to: data.to,
-      from: data.from,
-      subject: data.subject,
-      html: data.html,
-      reply_to: data.replyTo,
-    }),
+    body: JSON.stringify(emailPayload),
   });
 
   if (!response.ok) {

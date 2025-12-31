@@ -12,46 +12,46 @@ export type ReportPrice = {
 };
 
 // Prices in AUD (Australian Dollars) - amount in cents
-// TESTING PRICE: All reports set to AU$0.01 for production testing
+// All reports set to AU$0.50
 export const REPORT_PRICES: Record<ReportPrice["reportType"], ReportPrice> = {
   "marriage-timing": {
     reportType: "marriage-timing",
-    amount: 1, // AU$0.01 (Testing price)
+    amount: 50, // AU$0.50
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
     displayName: "Marriage Timing Report",
   },
   "career-money": {
     reportType: "career-money",
-    amount: 1, // AU$0.01 (Testing price)
+    amount: 50, // AU$0.50
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
     displayName: "Career & Money Path Report",
   },
   "full-life": {
     reportType: "full-life",
-    amount: 1, // AU$0.01 (Testing price)
+    amount: 50, // AU$0.50
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
     displayName: "Full Life Report",
   },
   "year-analysis": {
     reportType: "year-analysis",
-    amount: 1, // AU$0.01 (Testing price) (production: 1900-2900 = AU$19-29)
+    amount: 50, // AU$0.50
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
     displayName: "Year Analysis Report",
   },
   "major-life-phase": {
     reportType: "major-life-phase",
-    amount: 1, // AU$0.01 (Testing price) (production: 2900-3900 = AU$29-39)
+    amount: 50, // AU$0.50
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
     displayName: "3-5 Year Strategic Life Phase Report",
   },
   "decision-support": {
     reportType: "decision-support",
-    amount: 1, // AU$0.01 (Testing price) (production: 1900-2900 = AU$19-29)
+    amount: 50, // AU$0.50
     currency: "aud",
     description: "AI-generated digital astrology report. Instant delivery. No refunds after access. Educational guidance only.",
     displayName: "Decision Support Report",
@@ -88,21 +88,21 @@ const lifeDecisionPackTotal = REPORT_PRICES["marriage-timing"].amount + REPORT_P
 
 export const BUNDLE_PRICES = {
   "any-2": {
-    amount: calculateBundlePrice(2),
+    amount: 50, // AU$0.50 (Testing price - same as individual reports)
     currency: "aud",
     description: "Any 2 Reports Bundle - Marriage Timing + Career & Money, save 15%",
     savings: Math.round(marriageCareerTotal * 0.15),
     individualTotal: marriageCareerTotal,
   },
   "all-3": {
-    amount: calculateBundlePrice(3),
+    amount: 50, // AU$0.50 (Testing price - same as individual reports)
     currency: "aud",
     description: "All 3 Reports Bundle - Get all reports and save 25%",
     savings: Math.round(allThreeTotal * 0.25),
     individualTotal: allThreeTotal,
   },
   "life-decision-pack": {
-    amount: Math.round(lifeDecisionPackTotal * 0.75), // 25% off
+    amount: 50, // AU$0.50 (Testing price - same as individual reports)
     currency: "aud",
     description: "Life Decision Pack - Marriage + Career + Year Analysis, save 25%",
     savings: Math.round(lifeDecisionPackTotal * 0.25),
