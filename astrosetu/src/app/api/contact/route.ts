@@ -316,10 +316,20 @@ async function sendContactNotifications(data: {
       adminTo: ADMIN_EMAIL,
       from: lockedSender,
       replyTo: lockedReplyTo,
+      resendApiKey: RESEND_API_KEY ? "configured" : "missing",
+      resendFromEnv: process.env.RESEND_FROM || "not set",
+      resendFromEmailEnv: process.env.RESEND_FROM_EMAIL || "not set",
+      resendFromNameEnv: process.env.RESEND_FROM_NAME || "not set",
     });
 
     // Send user acknowledgement email (auto-reply)
     console.log("[Contact API] Sending user acknowledgement email to:", email);
+    console.log("[Contact API] Email payload preview:", {
+      to: email,
+      from: lockedSender,
+      subject: `Regulatory Request Received – ${BRAND_NAME}`,
+      replyTo: lockedReplyTo,
+    });
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: email,
