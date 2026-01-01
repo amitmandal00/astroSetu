@@ -36,7 +36,7 @@ export default function ContactPage() {
         email: formData.email.trim(),
         subject: `[${formData.category.toUpperCase().replace(/_/g, " ")}] Compliance Request`,
         message: formData.message.trim(),
-        category: formData.category === "privacy_complaint" ? "privacy" : "general",
+        category: formData.category, // Send the actual category value
       });
 
       if (!res.ok) {

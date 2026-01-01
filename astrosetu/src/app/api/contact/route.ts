@@ -9,7 +9,10 @@ const ContactFormSchema = z.object({
   phone: z.string().optional(),
   subject: z.string().optional(), // Auto-generated for compliance requests
   message: z.string().min(10, "Message must be at least 10 characters").max(500), // Reduced to 500 for compliance
-  category: z.enum(["general", "support", "feedback", "bug", "partnership", "privacy", "other"]).optional(),
+  category: z.enum([
+    "general", "support", "feedback", "bug", "partnership", "privacy", "other",
+    "data_deletion", "account_access", "legal_notice", "privacy_complaint" // Compliance categories
+  ]).optional(),
 });
 
 /**
@@ -36,6 +39,9 @@ export async function POST(req: Request) {
 
     const { name, email, phone, subject, message, category = "general" } = validatedData;
 
+    // Log received category for debugging
+    console.log("[Contact API] Received category from form:", category);
+
     // Get client IP for spam detection
     const clientIP = getClientIP(req);
     const userAgent = req.headers.get("user-agent") || "";
@@ -45,6 +51,13 @@ export async function POST(req: Request) {
 
     // Auto-categorize based on subject/message content
     const autoCategory = categorizeMessage(finalSubject, message, category);
+    
+    // Log category after auto-categorization
+    if (category !== autoCategory) {
+      console.log(`[Contact API] Category changed: ${category} → ${autoCategory}`);
+    } else {
+      console.log(`[Contact API] Category preserved: ${autoCategory}`);
+    }
 
     // Store submission in database (if Supabase configured)
     let submissionId: string | null = null;
@@ -164,7 +177,12 @@ function categorizeMessage(
   subject: string,
   message: string,
   userCategory?: string
-): "general" | "support" | "feedback" | "bug" | "partnership" | "other" {
+): "general" | "support" | "feedback" | "bug" | "partnership" | "other" | "data_deletion" | "account_access" | "legal_notice" | "privacy_complaint" {
+  // Preserve compliance categories if provided
+  const complianceCategories = ["data_deletion", "account_access", "legal_notice", "privacy_complaint"];
+  if (userCategory && complianceCategories.includes(userCategory)) {
+    return userCategory as "data_deletion" | "account_access" | "legal_notice" | "privacy_complaint";
+  }
   if (userCategory && userCategory !== "general") {
     return userCategory as any;
   }
@@ -288,6 +306,14 @@ async function sendContactNotifications(data: {
     const lockedSender = RESEND_FROM; // Use RESEND_FROM directly
     const lockedReplyTo = RESEND_REPLY_TO; // Locked reply-to address
 
+    console.log("[Contact API] Starting email sending process:", {
+      category,
+      to: email,
+      adminTo: ADMIN_EMAIL,
+      from: lockedSender,
+      replyTo: lockedReplyTo,
+    });
+
     // Send user acknowledgement email (auto-reply)
     await sendEmail({
       apiKey: RESEND_API_KEY,
@@ -339,9 +365,19 @@ async function sendContactNotifications(data: {
     }
 
     console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via Resend, sender: ${lockedSender})`);
-  } catch (error) {
-    console.error("[Contact API] Email sending failed:", error);
-    throw error;
+  } catch (error: any) {
+    console.error("[Contact API] Email sending failed:", {
+      error: error?.message || error,
+      stack: error?.stack,
+      submissionId,
+      email: email.substring(0, 3) + "***",
+      category,
+      resendApiKey: RESEND_API_KEY ? "configured" : "missing",
+      resendFrom: RESEND_FROM,
+    });
+    // Don't throw - allow form submission to succeed even if email fails
+    // This ensures the submission is stored in database
+    console.warn("[Contact API] Email sending failed but submission was stored. Check Resend configuration.");
   }
 }
 
@@ -387,9 +423,37 @@ async function sendEmail(data: {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Resend API error: ${response.status} - ${error}`);
+    const errorText = await response.text();
+    let errorDetails;
+    try {
+      errorDetails = JSON.parse(errorText);
+    } catch {
+      errorDetails = errorText;
+    }
+    const errorMessage = typeof errorDetails === 'object' && errorDetails.message 
+      ? errorDetails.message 
+      : errorText;
+    console.error("[Contact API] Resend API error details:", {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorMessage,
+      payload: { 
+        to: emailPayload.to,
+        from: emailPayload.from,
+        subject: emailPayload.subject,
+        htmlLength: emailPayload.html.length,
+      },
+    });
+    throw new Error(`Resend API error: ${response.status} - ${errorMessage}`);
   }
+
+  const result = await response.json();
+  console.log("[Contact API] Email sent successfully:", {
+    id: result.id,
+    to: data.to,
+    from: data.from,
+    subject: data.subject,
+  });
 }
 
 /**
