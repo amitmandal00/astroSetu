@@ -250,12 +250,29 @@ async function sendContactNotifications(data: {
   // Reply-To: privacy@mindveda.net
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   // Use RESEND_FROM directly (recommended) or construct from separate variables (backwards compatibility)
-  const RESEND_FROM = process.env.RESEND_FROM || 
-    (() => {
-      const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || "no-reply@mindveda.net";
-      const fromName = process.env.RESEND_FROM_NAME || "AstroSetu AI";
-      return `${fromName} <${fromEmail}>`;
-    })();
+  // IMPORTANT: Resend requires format "Name <email@domain.com>" for proper sender display
+  let RESEND_FROM = process.env.RESEND_FROM;
+  
+  if (!RESEND_FROM) {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || "no-reply@mindveda.net";
+    const fromName = process.env.RESEND_FROM_NAME || "AstroSetu AI";
+    RESEND_FROM = `${fromName} <${fromEmail}>`;
+    console.log("[Contact API] Constructed RESEND_FROM:", RESEND_FROM);
+  } else {
+    console.log("[Contact API] Using RESEND_FROM from env:", RESEND_FROM);
+  }
+  
+  // Validate RESEND_FROM format - Resend requires "Name <email>" format
+  if (!RESEND_FROM.includes("<") || !RESEND_FROM.includes(">")) {
+    console.warn("[Contact API] WARNING: RESEND_FROM format may be invalid. Expected: 'Name <email@domain.com>', got:", RESEND_FROM);
+    // Fix it if it's just an email address
+    if (RESEND_FROM.includes("@") && !RESEND_FROM.includes("<")) {
+      const fixedFrom = `AstroSetu AI <${RESEND_FROM}>`;
+      console.log("[Contact API] Fixing RESEND_FROM format to:", fixedFrom);
+      RESEND_FROM = fixedFrom;
+    }
+  }
+  
   const RESEND_REPLY_TO = process.env.RESEND_REPLY_TO || "privacy@mindveda.net"; // Locked reply-to address
   
   // Route emails to appropriate compliance addresses based on category
@@ -330,15 +347,31 @@ async function sendContactNotifications(data: {
       subject: `Regulatory Request Received – ${BRAND_NAME}`,
       replyTo: lockedReplyTo,
     });
-    await sendEmail({
-      apiKey: RESEND_API_KEY,
-      to: email,
-      from: lockedSender, // "AstroSetu AI" <no-reply@mindveda.net>
-      replyTo: lockedReplyTo, // privacy@mindveda.net
-      subject: `Regulatory Request Received – ${BRAND_NAME}`,
-      html: generateAutoReplyEmail(name || "User", subject, category),
-    });
-    console.log("[Contact API] User acknowledgement email sent successfully");
+    
+    try {
+      console.log("[Contact API] Generating auto-reply email HTML...");
+      const autoReplyHtml = generateAutoReplyEmail(name || "User", subject, category);
+      console.log("[Contact API] Auto-reply HTML generated, length:", autoReplyHtml.length);
+      
+      console.log("[Contact API] Calling sendEmail for user acknowledgement...");
+      await sendEmail({
+        apiKey: RESEND_API_KEY,
+        to: email,
+        from: lockedSender, // "AstroSetu AI" <no-reply@mindveda.net>
+        replyTo: lockedReplyTo, // privacy@mindveda.net
+        subject: `Regulatory Request Received – ${BRAND_NAME}`,
+        html: autoReplyHtml,
+      });
+      console.log("[Contact API] User acknowledgement email sent successfully");
+    } catch (emailError: any) {
+      console.error("[Contact API] Failed to send user acknowledgement email:", {
+        error: emailError?.message || String(emailError),
+        stack: emailError?.stack,
+        to: email,
+        from: lockedSender,
+      });
+      throw emailError; // Re-throw to be caught by outer catch
+    }
 
     // Send internal compliance notification to admin
     const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
@@ -386,18 +419,18 @@ async function sendContactNotifications(data: {
 
     console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via Resend, sender: ${lockedSender})`);
   } catch (error: any) {
-    console.error("[Contact API] Email sending failed:", {
-      error: error?.message || error,
+    console.error("[Contact API] Email sending failed in sendContactNotifications:", {
+      error: error?.message || String(error),
+      errorType: error?.constructor?.name || typeof error,
       stack: error?.stack,
       submissionId,
-      email: email.substring(0, 3) + "***",
+      email: email?.substring(0, 3) + "***" || "unknown",
       category,
       resendApiKey: RESEND_API_KEY ? "configured" : "missing",
       resendFrom: RESEND_FROM,
     });
-    // Don't throw - allow form submission to succeed even if email fails
-    // This ensures the submission is stored in database
-    console.warn("[Contact API] Email sending failed but submission was stored. Check Resend configuration.");
+    // Re-throw to be caught by outer catch handler
+    throw error;
   }
 }
 
@@ -415,6 +448,14 @@ async function sendEmail(data: {
   html: string;
   replyTo?: string;
 }): Promise<void> {
+  console.log("[Contact API] sendEmail called:", {
+    to: data.to,
+    from: data.from,
+    subject: data.subject,
+    hasApiKey: !!data.apiKey,
+    hasReplyTo: !!data.replyTo,
+  });
+
   const emailPayload: {
     to: string;
     from: string;
@@ -433,6 +474,7 @@ async function sendEmail(data: {
     emailPayload.reply_to = data.replyTo;
   }
 
+  console.log("[Contact API] Sending request to Resend API...");
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -468,11 +510,28 @@ async function sendEmail(data: {
   }
 
   const result = await response.json();
+  
+  if (!result.id) {
+    console.error("[Contact API] Resend API did not return an email ID:", {
+      status: response.status,
+      statusText: response.statusText,
+      responseBody: result,
+      payload: { 
+        to: emailPayload.to,
+        from: emailPayload.from,
+        subject: emailPayload.subject,
+        htmlLength: emailPayload.html.length,
+      },
+    });
+    throw new Error(`Resend API error: Email sent but no ID returned. Status: ${response.status}`);
+  }
+
   console.log("[Contact API] Email sent successfully:", {
     id: result.id,
     to: data.to,
     from: data.from,
     subject: data.subject,
+    responseStatus: response.status,
   });
 }
 
