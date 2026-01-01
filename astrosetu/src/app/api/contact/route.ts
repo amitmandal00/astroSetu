@@ -324,10 +324,14 @@ async function sendContactNotifications(data: {
       : category === "account_access" ? "Account Access" 
       : category;
 
-    // LOCKED SENDER IDENTITY: All emails sent via Resend only
-    // Authoritative sender rule (code-locked):
-    // From: "AstroSetu AI" <no-reply@mindveda.net>
-    // Reply-To: privacy@mindveda.net
+    // COMPLIANCE EMAIL SENDER IDENTITY (per ChatGPT feedback):
+    // For regulatory/compliance requests, use compliance@mindveda.net
+    // From: "MindVeda Compliance <compliance@mindveda.net>"
+    // Reply-To: "compliance@mindveda.net"
+    const complianceSender = "MindVeda Compliance <compliance@mindveda.net>";
+    const complianceReplyTo = "compliance@mindveda.net";
+    
+    // Internal notifications still use general sender
     const lockedSender = RESEND_FROM; // Use RESEND_FROM directly
     const lockedReplyTo = RESEND_REPLY_TO; // Locked reply-to address
 
@@ -335,21 +339,19 @@ async function sendContactNotifications(data: {
       category,
       to: email,
       adminTo: ADMIN_EMAIL,
-      from: lockedSender,
-      replyTo: lockedReplyTo,
+      complianceSender,
+      complianceReplyTo,
+      internalSender: lockedSender,
       resendApiKey: RESEND_API_KEY ? "configured" : "missing",
-      resendFromEnv: process.env.RESEND_FROM || "not set",
-      resendFromEmailEnv: process.env.RESEND_FROM_EMAIL || "not set",
-      resendFromNameEnv: process.env.RESEND_FROM_NAME || "not set",
     });
 
-    // Send user acknowledgement email (auto-reply)
+    // Send user acknowledgement email (auto-reply) - USE COMPLIANCE SENDER
     console.log("[Contact API] Sending user acknowledgement email to:", email);
     console.log("[Contact API] Email payload preview:", {
       to: email,
-      from: lockedSender,
+      from: complianceSender,
+      replyTo: complianceReplyTo,
       subject: `Regulatory Request Received – ${BRAND_NAME}`,
-      replyTo: lockedReplyTo,
     });
     
     try {
@@ -357,16 +359,33 @@ async function sendContactNotifications(data: {
       const autoReplyHtml = generateAutoReplyEmail(name || "User", subject, category);
       console.log("[Contact API] Auto-reply HTML generated, length:", autoReplyHtml.length);
       
-      console.log("[Contact API] Calling sendEmail for user acknowledgement...");
+      console.log("[Contact API] Calling sendEmail for user acknowledgement (compliance sender)...");
+      
+      // Determine CC recipients based on category
+      const ccRecipients: string[] = [];
+      if (category.includes("legal") || category === "legal_notice") {
+        const legalEmail = process.env.LEGAL_EMAIL || "legal@mindveda.net";
+        if (legalEmail) ccRecipients.push(legalEmail);
+      }
+      if (category.includes("privacy") || category === "data_deletion" || category === "account_access" || category === "privacy_complaint") {
+        const privacyEmail = process.env.PRIVACY_EMAIL || "privacy@mindveda.net";
+        if (privacyEmail && !ccRecipients.includes(privacyEmail)) ccRecipients.push(privacyEmail);
+      }
+      
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: email,
-        from: lockedSender, // "AstroSetu AI" <no-reply@mindveda.net>
-        replyTo: lockedReplyTo, // privacy@mindveda.net
+        from: complianceSender, // "MindVeda Compliance <compliance@mindveda.net>"
+        replyTo: complianceReplyTo, // compliance@mindveda.net
         subject: `Regulatory Request Received – ${BRAND_NAME}`,
         html: autoReplyHtml,
+        cc: ccRecipients.length > 0 ? ccRecipients : undefined,
       });
-      console.log("[Contact API] User acknowledgement email sent successfully");
+      console.log("[Contact API] User acknowledgement email sent successfully", {
+        to: email,
+        from: complianceSender,
+        cc: ccRecipients.length > 0 ? ccRecipients : "none",
+      });
     } catch (emailError: any) {
       console.error("[Contact API] Failed to send user acknowledgement email:", {
         error: emailError?.message || String(emailError),
@@ -451,6 +470,7 @@ async function sendEmail(data: {
   subject: string;
   html: string;
   replyTo?: string;
+  cc?: string | string[];
 }): Promise<void> {
   console.log("[Contact API] sendEmail called:", {
     to: data.to,
@@ -458,6 +478,8 @@ async function sendEmail(data: {
     subject: data.subject,
     hasApiKey: !!data.apiKey,
     hasReplyTo: !!data.replyTo,
+    hasCc: !!data.cc,
+    cc: data.cc,
   });
 
   const emailPayload: {
@@ -466,16 +488,22 @@ async function sendEmail(data: {
     subject: string;
     html: string;
     reply_to?: string;
+    cc?: string | string[];
   } = {
     to: data.to,
-    from: data.from, // Locked: "AstroSetu AI" <no-reply@mindveda.net>
+    from: data.from, // Locked: "AstroSetu AI" <no-reply@mindveda.net> or "MindVeda Compliance <compliance@mindveda.net>"
     subject: data.subject,
     html: data.html,
   };
 
-  // Always set reply_to (locked to privacy@mindveda.net or custom)
+  // Always set reply_to (locked to privacy@mindveda.net or compliance@mindveda.net)
   if (data.replyTo) {
     emailPayload.reply_to = data.replyTo;
+  }
+
+  // Add CC recipients if provided
+  if (data.cc) {
+    emailPayload.cc = data.cc;
   }
 
   console.log("[Contact API] Sending request to Resend API...");
