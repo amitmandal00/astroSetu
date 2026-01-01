@@ -126,6 +126,7 @@ export async function POST(req: Request) {
     }
 
     // Send automated emails (fire and forget - don't block response)
+    console.log("[Contact API] Calling sendContactNotifications with category:", autoCategory);
     sendContactNotifications({
       submissionId,
       name: name || undefined,
@@ -135,7 +136,9 @@ export async function POST(req: Request) {
       message,
       category: autoCategory,
     }).catch((error) => {
-      console.error("[Contact API] Email notification failed:", error);
+      console.error("[Contact API] Email notification failed with error:", error);
+      console.error("[Contact API] Error stack:", error?.stack);
+      console.error("[Contact API] Error message:", error?.message);
       // Don't fail the request if email fails
     });
 
@@ -238,6 +241,7 @@ async function sendContactNotifications(data: {
   message: string;
   category: string;
 }): Promise<void> {
+  console.log("[Contact API] sendContactNotifications called with category:", data.category);
   const { submissionId, name, email, phone, subject, message, category } = data;
 
   // LOCKED SENDER IDENTITY: Only Resend API, no SMTP
