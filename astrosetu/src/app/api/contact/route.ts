@@ -227,9 +227,13 @@ async function sendContactNotifications(data: {
   // From: "AstroSetu AI" <no-reply@mindveda.net>
   // Reply-To: privacy@mindveda.net
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  // Support both RESEND_FROM_EMAIL (preferred) and EMAIL_FROM (backwards compatibility)
-  const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || "no-reply@mindveda.net"; // Locked sender identity
-  const RESEND_FROM_NAME = process.env.RESEND_FROM_NAME || "AstroSetu AI"; // Locked sender name
+  // Use RESEND_FROM directly (recommended) or construct from separate variables (backwards compatibility)
+  const RESEND_FROM = process.env.RESEND_FROM || 
+    (() => {
+      const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || "no-reply@mindveda.net";
+      const fromName = process.env.RESEND_FROM_NAME || "AstroSetu AI";
+      return `${fromName} <${fromEmail}>`;
+    })();
   const RESEND_REPLY_TO = process.env.RESEND_REPLY_TO || "privacy@mindveda.net"; // Locked reply-to address
   
   // Route emails to appropriate compliance addresses based on category
@@ -281,7 +285,7 @@ async function sendContactNotifications(data: {
     // Authoritative sender rule (code-locked):
     // From: "AstroSetu AI" <no-reply@mindveda.net>
     // Reply-To: privacy@mindveda.net
-    const lockedSender = `${RESEND_FROM_NAME} <${RESEND_FROM_EMAIL}>`;
+    const lockedSender = RESEND_FROM; // Use RESEND_FROM directly
     const lockedReplyTo = RESEND_REPLY_TO; // Locked reply-to address
 
     // Send user acknowledgement email (auto-reply)
