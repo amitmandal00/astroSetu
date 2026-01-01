@@ -319,6 +319,7 @@ async function sendContactNotifications(data: {
     });
 
     // Send user acknowledgement email (auto-reply)
+    console.log("[Contact API] Sending user acknowledgement email to:", email);
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: email,
@@ -327,10 +328,12 @@ async function sendContactNotifications(data: {
       subject: `Regulatory Request Received – ${BRAND_NAME}`,
       html: generateAutoReplyEmail(name || "User", subject, category),
     });
+    console.log("[Contact API] User acknowledgement email sent successfully");
 
     // Send internal compliance notification to admin
     const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
     
+    console.log("[Contact API] Sending internal notification email to:", ADMIN_EMAIL);
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: ADMIN_EMAIL,
@@ -347,9 +350,11 @@ async function sendContactNotifications(data: {
         category,
       }),
     });
+    console.log("[Contact API] Internal notification email sent successfully");
 
     // Send CC email if configured
     if (COMPLIANCE_CC) {
+      console.log("[Contact API] Sending CC email to:", COMPLIANCE_CC);
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: COMPLIANCE_CC,
@@ -366,6 +371,7 @@ async function sendContactNotifications(data: {
           category,
         }),
       });
+      console.log("[Contact API] CC email sent successfully");
     }
 
     console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via Resend, sender: ${lockedSender})`);
