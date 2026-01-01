@@ -262,15 +262,19 @@ async function sendContactNotifications(data: {
     console.log("[Contact API] Using RESEND_FROM from env:", RESEND_FROM);
   }
   
-  // Validate RESEND_FROM format - Resend requires "Name <email>" format
+  // Validate and fix RESEND_FROM format - Resend requires "Name <email>" format
   if (!RESEND_FROM.includes("<") || !RESEND_FROM.includes(">")) {
-    console.warn("[Contact API] WARNING: RESEND_FROM format may be invalid. Expected: 'Name <email@domain.com>', got:", RESEND_FROM);
+    console.log("[Contact API] WARNING: RESEND_FROM format is invalid. Expected: 'Name <email@domain.com>', got:", RESEND_FROM);
     // Fix it if it's just an email address
     if (RESEND_FROM.includes("@") && !RESEND_FROM.includes("<")) {
       const fixedFrom = `AstroSetu AI <${RESEND_FROM}>`;
-      console.log("[Contact API] Fixing RESEND_FROM format to:", fixedFrom);
+      console.log("[Contact API] AUTO-FIXING RESEND_FROM format from:", RESEND_FROM, "to:", fixedFrom);
       RESEND_FROM = fixedFrom;
+    } else {
+      console.error("[Contact API] ERROR: Cannot auto-fix RESEND_FROM. Invalid format:", RESEND_FROM);
     }
+  } else {
+    console.log("[Contact API] RESEND_FROM format is valid:", RESEND_FROM);
   }
   
   const RESEND_REPLY_TO = process.env.RESEND_REPLY_TO || "privacy@mindveda.net"; // Locked reply-to address
