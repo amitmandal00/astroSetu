@@ -763,6 +763,11 @@ async function sendEmail(data: {
  * This is sent to users - no internal details, minimal information
  */
 function generateAutoReplyEmail(name: string, subject: string, category: string): string {
+  // Get base URL from environment or use default
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                  "https://astrosetu.app";
+  
   // Standard auto-reply message per ChatGPT feedback
   const standardAutoReply = "This is an automated acknowledgement. Requests are reviewed periodically as required by law. No individual response is guaranteed.";
   
@@ -823,19 +828,19 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
               <li>It will be reviewed as required by applicable privacy and data protection laws</li>
               <li>No individual response is guaranteed</li>
             </ul>
-            <p style="margin-top: 10px;"><strong>Note:</strong> AstroSetu AI is a fully automated platform and does not provide live support. For self-service information, please refer to our <a href="https://astrosetu.app/ai-astrology/faq">FAQs</a> and policies.</p>
+            <p style="margin-top: 10px;"><strong>Note:</strong> AstroSetu AI is a fully automated platform and does not provide live support. For self-service information, please refer to our <a href="${baseUrl}/ai-astrology/faq" style="color: #6366f1; text-decoration: underline;">FAQs</a> and policies.</p>
           </div>
           
           <p>For self-help resources, please visit:</p>
           <ul>
-            <li><a href="https://astrosetu.app/faq">Help & FAQs</a></li>
-            <li><a href="https://astrosetu.app/privacy">Privacy Policy</a></li>
-            <li><a href="https://astrosetu.app/terms">Terms & Conditions</a></li>
+            <li><a href="${baseUrl}/faq" style="color: #6366f1; text-decoration: underline;">Help & FAQs</a></li>
+            <li><a href="${baseUrl}/privacy" style="color: #6366f1; text-decoration: underline;">Privacy Policy</a></li>
+            <li><a href="${baseUrl}/terms" style="color: #6366f1; text-decoration: underline;">Terms & Conditions</a></li>
           </ul>
           
           <div class="footer">
             <p>Best regards,<br>The AstroSetu Compliance Team</p>
-            <p><em>This is an automated response. Please do not reply to this email. For compliance matters, use the contact form on our website.</em></p>
+            <p><em>This is an automated response. Please do not reply to this email. For compliance matters, use the <a href="${baseUrl}/contact" style="color: #6366f1; text-decoration: underline;">contact form</a> on our website.</em></p>
           </div>
         </div>
       </div>
@@ -859,6 +864,11 @@ function generateAdminNotificationEmail(data: {
   ipAddress?: string;
   userAgent?: string;
 }): string {
+  // Get base URL from environment or use default
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                  "https://astrosetu.app";
+  
   const { submissionId, name, email, phone, subject, message, category, ipAddress, userAgent } = data;
   
   // Format category for display - MUST match form labels exactly
