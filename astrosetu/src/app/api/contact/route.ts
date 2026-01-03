@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { createServerClient, isSupabaseConfigured } from "@/lib/supabase";
 import { checkRateLimit, handleApiError, parseJsonBody, validateRequestSize, getClientIP } from "@/lib/apiHelpers";
 import { z } from "zod";
@@ -142,7 +143,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // Send automated emails (fire and forget - don't block response)
+    // Send automated emails using waitUntil to ensure completion on Vercel
+    // This ensures both user and internal emails are sent before function terminates
+    // waitUntil ensures the background task completes even after HTTP response is sent
     console.log("[Contact API] 📧 Calling sendContactNotifications with category:", autoCategory);
     console.log("[Contact API] Email notification parameters:", {
       submissionId,
@@ -150,33 +153,34 @@ export async function POST(req: Request) {
       category: autoCategory,
       hasResendKey: !!process.env.RESEND_API_KEY,
     });
-    // CRITICAL: Ensure email sending doesn't block the API response
-    // But we need to ensure both emails are attempted
-    sendContactNotifications({
-      submissionId,
-      name: name || undefined,
-      email,
-      phone,
-      subject: finalSubject,
-      message,
-      category: autoCategory,
-      ipAddress: clientIP,
-      userAgent: userAgent,
-    })
-    .then(() => {
-      console.log("[Contact API] ✅ sendContactNotifications completed successfully");
-    })
-    .catch((error) => {
-      console.error("[Contact API] ========================================");
-      console.error("[Contact API] ❌ EMAIL NOTIFICATION FAILED");
-      console.error("[Contact API] ========================================");
-      console.error("[Contact API] Email notification failed with error:", error);
-      console.error("[Contact API] Error stack:", error?.stack);
-      console.error("[Contact API] Error message:", error?.message);
-      console.error("[Contact API] Error type:", error?.constructor?.name);
-      console.error("[Contact API] Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-      // Don't fail the request if email fails - but log it for debugging
-    });
+    
+    waitUntil(
+      sendContactNotifications({
+        submissionId,
+        name: name || undefined,
+        email,
+        phone,
+        subject: finalSubject,
+        message,
+        category: autoCategory,
+        ipAddress: clientIP,
+        userAgent: userAgent,
+      })
+      .then(() => {
+        console.log("[Contact API] ✅ sendContactNotifications completed successfully");
+      })
+      .catch((error) => {
+        console.error("[Contact API] ========================================");
+        console.error("[Contact API] ❌ EMAIL NOTIFICATION FAILED");
+        console.error("[Contact API] ========================================");
+        console.error("[Contact API] Email notification failed with error:", error);
+        console.error("[Contact API] Error stack:", error?.stack);
+        console.error("[Contact API] Error message:", error?.message);
+        console.error("[Contact API] Error type:", error?.constructor?.name);
+        console.error("[Contact API] Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        // Don't fail the request if email fails - but log it for debugging
+      })
+    );
 
     // Check if Resend email service is configured (only Resend, no SMTP)
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
