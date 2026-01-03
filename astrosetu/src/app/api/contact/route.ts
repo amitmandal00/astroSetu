@@ -66,13 +66,30 @@ export async function POST(req: Request) {
         const supabase = createServerClient();
         
         // Check for spam (multiple submissions from same IP in short time)
+        // More lenient for testing: 10 submissions per hour instead of 5
         const { data: recentSubmissions } = await supabase
           .from("contact_submissions")
           .select("id")
           .eq("ip_address", clientIP)
           .gte("created_at", new Date(Date.now() - 3600000).toISOString()); // Last hour
 
-        if (recentSubmissions && recentSubmissions.length >= 5) {
+        const spamLimit = parseInt(process.env.CONTACT_SPAM_LIMIT || "10", 10); // Default: 10 per hour
+        const recentCount = recentSubmissions?.length || 0;
+        
+        console.log("[Contact API] Spam check:", {
+          ip: clientIP.substring(0, 8) + "***",
+          recentCount,
+          spamLimit,
+          withinLimit: recentCount < spamLimit,
+        });
+
+        if (recentCount >= spamLimit) {
+          console.warn("[Contact API] ⚠️ Spam detection triggered:", {
+            ip: clientIP.substring(0, 8) + "***",
+            recentCount,
+            spamLimit,
+            timeWindow: "1 hour",
+          });
           return NextResponse.json(
             {
               ok: false,
@@ -126,7 +143,13 @@ export async function POST(req: Request) {
     }
 
     // Send automated emails (fire and forget - don't block response)
-    console.log("[Contact API] Calling sendContactNotifications with category:", autoCategory);
+    console.log("[Contact API] 📧 Calling sendContactNotifications with category:", autoCategory);
+    console.log("[Contact API] Email notification parameters:", {
+      submissionId,
+      email: email.substring(0, 3) + "***",
+      category: autoCategory,
+      hasResendKey: !!process.env.RESEND_API_KEY,
+    });
     sendContactNotifications({
       submissionId,
       name: name || undefined,
@@ -137,10 +160,16 @@ export async function POST(req: Request) {
       category: autoCategory,
       ipAddress: clientIP,
       userAgent: userAgent,
-    }).catch((error) => {
-      console.error("[Contact API] Email notification failed with error:", error);
+    })
+    .then(() => {
+      console.log("[Contact API] ✅ sendContactNotifications completed successfully");
+    })
+    .catch((error) => {
+      console.error("[Contact API] ❌ Email notification failed with error:", error);
       console.error("[Contact API] Error stack:", error?.stack);
       console.error("[Contact API] Error message:", error?.message);
+      console.error("[Contact API] Error type:", error?.constructor?.name);
+      console.error("[Contact API] Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       // Don't fail the request if email fails
     });
 
@@ -245,8 +274,17 @@ async function sendContactNotifications(data: {
   ipAddress?: string;
   userAgent?: string;
 }): Promise<void> {
-  console.log("[Contact API] sendContactNotifications called with category:", data.category);
+  console.log("[Contact API] 📧 sendContactNotifications STARTED with category:", data.category);
   const { submissionId, name, email, phone, subject, message, category } = data;
+  console.log("[Contact API] sendContactNotifications parameters:", {
+    submissionId,
+    email: email.substring(0, 3) + "***",
+    category: category,
+    hasName: !!name,
+    hasPhone: !!phone,
+    hasIpAddress: !!data.ipAddress,
+    hasUserAgent: !!data.userAgent,
+  });
 
   // LOCKED SENDER IDENTITY: Only Resend API, no SMTP
   // Authoritative sender rule (code-locked):
@@ -361,6 +399,13 @@ async function sendContactNotifications(data: {
       replyTo: lockedReplyTo, // Compliance address in replyTo
       resendApiKey: RESEND_API_KEY ? "configured" : "missing",
     });
+
+    if (!RESEND_API_KEY) {
+      console.error("[Contact API] ❌ RESEND_API_KEY is missing - emails will not be sent");
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+
+    console.log("[Contact API] ✅ RESEND_API_KEY is configured, proceeding with email sending");
 
     // Send user acknowledgement email (auto-reply) - EXTERNAL-FACING, MINIMAL
     // NO CC - this is a separate email from internal notifications
@@ -655,13 +700,30 @@ async function sendEmail(data: {
     throw new Error(`Resend API error: ${response.status} - ${errorMessage}`);
   }
 
-  const result = await response.json();
+  let result: any;
+  try {
+    result = await response.json();
+    console.log("[Contact API] Resend API response body:", {
+      hasId: !!result?.id,
+      id: result?.id,
+      keys: Object.keys(result || {}),
+      fullResponse: JSON.stringify(result),
+    });
+  } catch (jsonError: any) {
+    console.error("[Contact API] Failed to parse Resend API response as JSON:", {
+      error: jsonError?.message || String(jsonError),
+      status: response.status,
+      statusText: response.statusText,
+    });
+    throw new Error(`Resend API returned invalid JSON. Status: ${response.status}`);
+  }
   
-  if (!result.id) {
-    console.error("[Contact API] Resend API did not return an email ID:", {
+  if (!result?.id) {
+    console.error("[Contact API] ⚠️ Resend API did not return an email ID:", {
       status: response.status,
       statusText: response.statusText,
       responseBody: result,
+      responseType: typeof result,
       payload: { 
         to: emailPayload.to,
         from: emailPayload.from,
@@ -669,10 +731,10 @@ async function sendEmail(data: {
         htmlLength: emailPayload.html.length,
       },
     });
-    throw new Error(`Resend API error: Email sent but no ID returned. Status: ${response.status}`);
+    throw new Error(`Resend API error: Email sent but no ID returned. Status: ${response.status}, Response: ${JSON.stringify(result)}`);
   }
 
-  console.log("[Contact API] Email sent successfully:", {
+  console.log("[Contact API] ✅ Email sent successfully to Resend:", {
     id: result.id,
     to: data.to,
     from: data.from,
