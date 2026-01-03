@@ -637,23 +637,43 @@ async function sendEmail(data: {
     emailPayload.cc = data.cc;
   }
 
-  console.log("[Contact API] Sending request to Resend API...");
+  console.log("[Contact API] ========================================");
+  console.log("[Contact API] 📤 SENDING REQUEST TO RESEND API");
+  console.log("[Contact API] ========================================");
   console.log("[Contact API] Email payload sender verification:", {
     from: emailPayload.from,
     to: emailPayload.to,
     replyTo: emailPayload.reply_to,
     cc: emailPayload.cc,
+    subject: emailPayload.subject,
+    htmlLength: emailPayload.html.length,
   });
+  console.log("[Contact API] 🔵 About to call fetch() to Resend API...");
   let response: Response;
   try {
-    response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${data.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(emailPayload),
-    });
+    console.log("[Contact API] 🔵 Calling fetch() now with timeout...");
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    try {
+      response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${data.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emailPayload),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error("Resend API request timed out after 30 seconds");
+      }
+      throw fetchError;
+    }
     console.log("[Contact API] 🔵 Resend API response received:", {
       status: response.status,
       statusText: response.statusText,
