@@ -150,6 +150,8 @@ export async function POST(req: Request) {
       category: autoCategory,
       hasResendKey: !!process.env.RESEND_API_KEY,
     });
+    // CRITICAL: Ensure email sending doesn't block the API response
+    // But we need to ensure both emails are attempted
     sendContactNotifications({
       submissionId,
       name: name || undefined,
@@ -165,12 +167,15 @@ export async function POST(req: Request) {
       console.log("[Contact API] ✅ sendContactNotifications completed successfully");
     })
     .catch((error) => {
-      console.error("[Contact API] ❌ Email notification failed with error:", error);
+      console.error("[Contact API] ========================================");
+      console.error("[Contact API] ❌ EMAIL NOTIFICATION FAILED");
+      console.error("[Contact API] ========================================");
+      console.error("[Contact API] Email notification failed with error:", error);
       console.error("[Contact API] Error stack:", error?.stack);
       console.error("[Contact API] Error message:", error?.message);
       console.error("[Contact API] Error type:", error?.constructor?.name);
       console.error("[Contact API] Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-      // Don't fail the request if email fails
+      // Don't fail the request if email fails - but log it for debugging
     });
 
     // Check if Resend email service is configured (only Resend, no SMTP)
