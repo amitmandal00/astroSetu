@@ -288,15 +288,17 @@ async function sendContactNotifications(data: {
 
   // LOCKED SENDER IDENTITY: Only Resend API, no SMTP
   // Authoritative sender rule (code-locked):
-  // From: "AstroSetu AI" <no-reply@mindveda.net>
+  // From: "AstroSetu AI" <privacy@mindveda.net> (changed from no-reply@ for better deliverability)
   // Reply-To: privacy@mindveda.net
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   // Use RESEND_FROM directly (recommended) or construct from separate variables (backwards compatibility)
   // IMPORTANT: Resend requires format "Name <email@domain.com>" for proper sender display
+  // RECOMMENDED: Use privacy@mindveda.net instead of no-reply@ for better email deliverability
   let RESEND_FROM = process.env.RESEND_FROM;
   
   if (!RESEND_FROM) {
-    const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || "no-reply@mindveda.net";
+    // Default to privacy@mindveda.net for better deliverability (no-reply@ addresses are heavily filtered)
+    const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || "privacy@mindveda.net";
     const fromName = process.env.RESEND_FROM_NAME || "AstroSetu AI";
     RESEND_FROM = `${fromName} <${fromEmail}>`;
     console.log("[Contact API] Constructed RESEND_FROM:", RESEND_FROM);
@@ -385,10 +387,11 @@ async function sendContactNotifications(data: {
       : category.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 
     // PRODUCTION-SAFE EMAIL SENDER IDENTITY (per ChatGPT feedback):
-    // Use ONE sender identity everywhere: RESEND_FROM (no-reply@mindveda.net)
+    // Use ONE sender identity everywhere: RESEND_FROM (privacy@mindveda.net)
     // Move compliance address to replyTo, not from
     // This prevents Resend from blocking emails due to unverified domain identities
-    const lockedSender = RESEND_FROM; // Use RESEND_FROM for ALL emails: "AstroSetu AI <no-reply@mindveda.net>"
+    // Using privacy@mindveda.net instead of no-reply@ for better email deliverability
+    const lockedSender = RESEND_FROM; // Use RESEND_FROM for ALL emails: "AstroSetu AI <privacy@mindveda.net>"
     const lockedReplyTo = COMPLIANCE_TO || RESEND_REPLY_TO; // Use compliance email for replyTo: "privacy@mindveda.net"
 
     console.log("[Contact API] Starting email sending process:", {
@@ -412,7 +415,7 @@ async function sendContactNotifications(data: {
     console.log("[Contact API] Sending user acknowledgement email to:", email);
     console.log("[Contact API] Email payload preview:", {
       to: email,
-      from: lockedSender, // Single sender: "AstroSetu AI <no-reply@mindveda.net>"
+      from: lockedSender, // Single sender: "AstroSetu AI <privacy@mindveda.net>"
       replyTo: lockedReplyTo, // Compliance address in replyTo
       subject: `Regulatory Request Received – ${BRAND_NAME}`,
       note: "No CC - external-facing only",
@@ -429,7 +432,7 @@ async function sendContactNotifications(data: {
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: email,
-        from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
+        from: lockedSender, // Single sender identity: "AstroSetu AI <privacy@mindveda.net>"
         replyTo: lockedReplyTo, // Compliance address in replyTo
         subject: `Regulatory Request Received – ${BRAND_NAME}`,
         html: autoReplyHtml,
@@ -454,8 +457,10 @@ async function sendContactNotifications(data: {
 
     // Send internal compliance notification to admin - INTERNAL-ONLY, DETAILED
     // This is sent in a separate try-catch so it always runs, even if user email failed
+    console.log("[Contact API] 📧 Starting internal notification email process...");
     try {
       const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
+      console.log("[Contact API] Internal notification subject:", internalSubject);
       
       // Determine CC recipients for internal notification based on category
       const internalCcRecipients: string[] = [];
@@ -508,7 +513,7 @@ async function sendContactNotifications(data: {
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: ADMIN_EMAIL,
-        from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
+        from: lockedSender, // Single sender identity: "AstroSetu AI <privacy@mindveda.net>"
         replyTo: email, // Allow admin to reply directly to user
         subject: internalSubject,
         html: generateAdminNotificationEmail({
@@ -563,7 +568,7 @@ async function sendContactNotifications(data: {
 /**
  * Send email using Resend API (ONLY method - SMTP removed)
  * SINGLE SENDER IDENTITY: All emails use ONE sender identity to prevent Resend blocking
- * From: "AstroSetu AI <no-reply@mindveda.net>" (RESEND_FROM)
+ * From: "AstroSetu AI <privacy@mindveda.net>" (RESEND_FROM) - using privacy@ for better deliverability
  * Reply-To: privacy@mindveda.net (or custom if provided)
  * Note: Compliance addresses go in replyTo/cc, NOT in from field
  */
@@ -595,7 +600,7 @@ async function sendEmail(data: {
     cc?: string | string[];
   } = {
     to: data.to,
-    from: data.from, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
+    from: data.from, // Single sender identity: "AstroSetu AI <privacy@mindveda.net>"
     subject: data.subject,
     html: data.html,
   };
@@ -702,20 +707,30 @@ async function sendEmail(data: {
 
   let result: any;
   try {
-    result = await response.json();
-    console.log("[Contact API] Resend API response body:", {
-      hasId: !!result?.id,
-      id: result?.id,
-      keys: Object.keys(result || {}),
-      fullResponse: JSON.stringify(result),
-    });
-  } catch (jsonError: any) {
-    console.error("[Contact API] Failed to parse Resend API response as JSON:", {
-      error: jsonError?.message || String(jsonError),
+    const responseText = await response.text();
+    console.log("[Contact API] Resend API raw response text (first 500 chars):", responseText.substring(0, 500));
+    try {
+      result = JSON.parse(responseText);
+      console.log("[Contact API] Resend API response parsed successfully:", {
+        hasId: !!result?.id,
+        id: result?.id,
+        keys: Object.keys(result || {}),
+        fullResponse: JSON.stringify(result),
+      });
+    } catch (parseError: any) {
+      console.error("[Contact API] Failed to parse response text as JSON:", {
+        error: parseError?.message || String(parseError),
+        responseText: responseText.substring(0, 200),
+      });
+      throw new Error(`Resend API returned invalid JSON. Status: ${response.status}, Response: ${responseText.substring(0, 200)}`);
+    }
+  } catch (textError: any) {
+    console.error("[Contact API] Failed to read Resend API response text:", {
+      error: textError?.message || String(textError),
       status: response.status,
       statusText: response.statusText,
     });
-    throw new Error(`Resend API returned invalid JSON. Status: ${response.status}`);
+    throw new Error(`Resend API returned invalid response. Status: ${response.status}`);
   }
   
   if (!result?.id) {
