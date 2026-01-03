@@ -930,10 +930,12 @@ function generateAdminNotificationEmail(data: {
         .value { color: #1f2937; margin-top: 5px; }
         .message-box { background: #f9fafb; padding: 15px; border-radius: 5px; border-left: 4px solid #6366f1; margin-top: 10px; white-space: pre-wrap; }
         .category-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
-        .category-support { background: #fef3c7; color: #92400e; }
-        .category-bug { background: #fee2e2; color: #991b1b; }
-        .category-feedback { background: #dbeafe; color: #1e40af; }
-        .category-partnership { background: #e0e7ff; color: #3730a3; }
+        .category-data_deletion { background: #fee2e2; color: #991b1b; }
+        .category-account_access { background: #fef3c7; color: #92400e; }
+        .category-legal_notice { background: #fee2e2; color: #991b1b; }
+        .category-privacy_complaint { background: #fee2e2; color: #991b1b; }
+        .category-security { background: #fee2e2; color: #991b1b; }
+        .category-breach { background: #fee2e2; color: #991b1b; }
         .category-general { background: #f3f4f6; color: #374151; }
         .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; }
         .action-button { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #6366f1; color: white; text-decoration: none; border-radius: 5px; }
