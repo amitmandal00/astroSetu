@@ -310,16 +310,16 @@ async function sendContactNotifications(data: {
   );
   const BRAND_NAME = process.env.BRAND_NAME || "AstroSetu AI";
   
-  // Log routing for legal_notice debugging
-  if (category === "legal_notice") {
-    console.log("[Contact API] Legal notice routing:", {
-      category,
-      complianceEmail,
-      adminEmail: ADMIN_EMAIL,
-      complianceTo: COMPLIANCE_TO,
-      complianceCc: COMPLIANCE_CC,
-    });
-  }
+  // Log routing for all categories to verify email addresses
+  console.log("[Contact API] Email routing configuration:", {
+    category,
+    complianceEmail,
+    adminEmail: ADMIN_EMAIL,
+    complianceTo: COMPLIANCE_TO,
+    complianceCc: COMPLIANCE_CC,
+    privacyEmail: process.env.PRIVACY_EMAIL || "privacy@mindveda.net",
+    legalEmail: process.env.LEGAL_EMAIL || "legal@mindveda.net",
+  });
 
   // Only Resend is supported - check if configured
   if (!RESEND_API_KEY) {
@@ -337,12 +337,14 @@ async function sendContactNotifications(data: {
   }
 
   try {
-    // Format category for display
-    const categoryDisplay = category === "data_deletion" ? "Data Deletion" 
+    // Format category for display - MUST match form labels
+    const categoryDisplay = category === "data_deletion" ? "Data Deletion Request" 
       : category === "privacy_complaint" ? "Privacy Complaint" 
       : category === "legal_notice" ? "Legal Notice" 
-      : category === "account_access" ? "Account Access" 
-      : category;
+      : category === "account_access" ? "Account Access Issue"  // Matches form label
+      : category === "security" ? "Security Notification"
+      : category === "breach" ? "Data Breach Notification"
+      : category.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 
     // PRODUCTION-SAFE EMAIL SENDER IDENTITY (per ChatGPT feedback):
     // Use ONE sender identity everywhere: RESEND_FROM (no-reply@mindveda.net)
@@ -401,66 +403,99 @@ async function sendContactNotifications(data: {
         to: email,
         from: lockedSender,
       });
-      throw emailError; // Re-throw to be caught by outer catch
+      // Don't re-throw - continue to send internal notification even if user email fails
+      console.warn("[Contact API] Continuing to send internal notification despite user email failure");
     }
 
     // Send internal compliance notification to admin - INTERNAL-ONLY, DETAILED
-    const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
-    
-    // Determine CC recipients for internal notification based on category
-    const internalCcRecipients: string[] = [];
-    
-    // For legal_notice, ensure legal email is CC'd
-    if (category === "legal_notice" || category.includes("legal")) {
-      const legalEmail = process.env.LEGAL_EMAIL || "legal@mindveda.net";
-      if (legalEmail && !internalCcRecipients.includes(legalEmail) && legalEmail !== ADMIN_EMAIL) {
-        internalCcRecipients.push(legalEmail);
+    // This is sent in a separate try-catch so it always runs, even if user email failed
+    try {
+      const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
+      
+      // Determine CC recipients for internal notification based on category
+      const internalCcRecipients: string[] = [];
+      
+      // For legal_notice, ensure legal email is CC'd
+      if (category === "legal_notice" || category.includes("legal")) {
+        const legalEmail = process.env.LEGAL_EMAIL || "legal@mindveda.net";
+        if (legalEmail && !internalCcRecipients.includes(legalEmail) && legalEmail !== ADMIN_EMAIL) {
+          internalCcRecipients.push(legalEmail);
+        }
       }
-    }
-    
-    // For privacy-related categories, ensure privacy email is CC'd
-    if (category === "privacy_complaint" || category === "data_deletion" || category === "account_access" || category.includes("privacy")) {
-      const privacyEmail = process.env.PRIVACY_EMAIL || "privacy@mindveda.net";
-      if (privacyEmail && !internalCcRecipients.includes(privacyEmail) && privacyEmail !== ADMIN_EMAIL) {
-        internalCcRecipients.push(privacyEmail);
+      
+      // For privacy-related categories, ensure privacy email is CC'd
+      if (category === "privacy_complaint" || category === "data_deletion" || category === "account_access" || category.includes("privacy")) {
+        const privacyEmail = process.env.PRIVACY_EMAIL || "privacy@mindveda.net";
+        if (privacyEmail && !internalCcRecipients.includes(privacyEmail) && privacyEmail !== ADMIN_EMAIL) {
+          internalCcRecipients.push(privacyEmail);
+        }
       }
+      
+      // For security/breach categories, ensure security email is CC'd
+      if (category === "security" || category === "breach" || category.includes("security") || category.includes("breach")) {
+        const securityEmail = process.env.SECURITY_EMAIL || "security@mindveda.net";
+        if (securityEmail && !internalCcRecipients.includes(securityEmail) && securityEmail !== ADMIN_EMAIL) {
+          internalCcRecipients.push(securityEmail);
+        }
+      }
+      
+      // Add COMPLIANCE_CC if configured and not already in list
+      if (COMPLIANCE_CC && !internalCcRecipients.includes(COMPLIANCE_CC) && COMPLIANCE_CC !== ADMIN_EMAIL) {
+        internalCcRecipients.push(COMPLIANCE_CC);
+      }
+      
+      // IMPORTANT: Always ensure the primary compliance email receives the notification
+      // If ADMIN_EMAIL is the primary recipient, it will receive it in the 'to' field
+      // But we should also ensure it's in CC if there are other recipients
+      // Actually, ADMIN_EMAIL is already the 'to' field, so it will receive it
+      
+      console.log("[Contact API] Sending internal notification email to:", ADMIN_EMAIL);
+      console.log("[Contact API] Internal notification CC recipients:", internalCcRecipients.length > 0 ? internalCcRecipients : "none");
+      console.log("[Contact API] Internal notification sender:", lockedSender);
+      console.log("[Contact API] Internal notification email payload preview:", {
+        to: ADMIN_EMAIL,
+        from: lockedSender,
+        replyTo: email,
+        subject: internalSubject,
+        cc: internalCcRecipients.length > 0 ? internalCcRecipients : "none",
+      });
+      
+      await sendEmail({
+        apiKey: RESEND_API_KEY,
+        to: ADMIN_EMAIL,
+        from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
+        replyTo: email, // Allow admin to reply directly to user
+        subject: internalSubject,
+        html: generateAdminNotificationEmail({
+          submissionId,
+          name,
+          email,
+          phone,
+          subject,
+          message,
+          category,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+        }),
+        cc: internalCcRecipients.length > 0 ? internalCcRecipients : undefined,
+      });
+      console.log("[Contact API] Internal notification email sent successfully", {
+        to: ADMIN_EMAIL,
+        from: lockedSender,
+        replyTo: email,
+        cc: internalCcRecipients.length > 0 ? internalCcRecipients : "none",
+        note: "Internal-only, detailed",
+      });
+    } catch (internalEmailError: any) {
+      console.error("[Contact API] Failed to send internal notification email:", {
+        error: internalEmailError?.message || String(internalEmailError),
+        stack: internalEmailError?.stack,
+        to: ADMIN_EMAIL,
+        from: lockedSender,
+      });
+      // Re-throw internal notification errors - these are critical
+      throw internalEmailError;
     }
-    
-    // Add COMPLIANCE_CC if configured and not already in list
-    if (COMPLIANCE_CC && !internalCcRecipients.includes(COMPLIANCE_CC) && COMPLIANCE_CC !== ADMIN_EMAIL) {
-      internalCcRecipients.push(COMPLIANCE_CC);
-    }
-    
-    console.log("[Contact API] Sending internal notification email to:", ADMIN_EMAIL);
-    console.log("[Contact API] Internal notification CC recipients:", internalCcRecipients.length > 0 ? internalCcRecipients : "none");
-    console.log("[Contact API] Internal notification sender:", lockedSender);
-    
-    await sendEmail({
-      apiKey: RESEND_API_KEY,
-      to: ADMIN_EMAIL,
-      from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
-      replyTo: email, // Allow admin to reply directly to user
-      subject: internalSubject,
-      html: generateAdminNotificationEmail({
-        submissionId,
-        name,
-        email,
-        phone,
-        subject,
-        message,
-        category,
-        ipAddress: data.ipAddress,
-        userAgent: data.userAgent,
-      }),
-      cc: internalCcRecipients.length > 0 ? internalCcRecipients : undefined,
-    });
-    console.log("[Contact API] Internal notification email sent successfully", {
-      to: ADMIN_EMAIL,
-      from: lockedSender,
-      replyTo: email,
-      cc: internalCcRecipients.length > 0 ? internalCcRecipients : "none",
-      note: "Internal-only, detailed",
-    });
 
     console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via Resend, sender: ${lockedSender})`);
   } catch (error: any) {
@@ -669,11 +704,13 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
   const responseMessage = categoryMessages[category] || categoryMessages.general;
   const displayName = name || "User";
   
-  // Format category for display (user-friendly)
+  // Format category for display (user-friendly) - MUST match form labels exactly
   const categoryDisplay = category === "data_deletion" ? "Data Deletion Request"
     : category === "privacy_complaint" ? "Privacy Complaint"
     : category === "legal_notice" ? "Legal Notice"
-    : category === "account_access" ? "Account Access Request"
+    : category === "account_access" ? "Account Access Issue"  // Matches form label
+    : category === "security" ? "Security Notification"
+    : category === "breach" ? "Data Breach Notification"
     : category.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 
   return `
@@ -747,11 +784,13 @@ function generateAdminNotificationEmail(data: {
 }): string {
   const { submissionId, name, email, phone, subject, message, category, ipAddress, userAgent } = data;
   
-  // Format category for display
-  const categoryDisplay = category === "data_deletion" ? "Data Deletion" 
+  // Format category for display - MUST match form labels exactly
+  const categoryDisplay = category === "data_deletion" ? "Data Deletion Request" 
     : category === "privacy_complaint" ? "Privacy Complaint" 
     : category === "legal_notice" ? "Legal Notice" 
-    : category === "account_access" ? "Account Access" 
+    : category === "account_access" ? "Account Access Issue"  // Matches form label
+    : category === "security" ? "Security Notification"
+    : category === "breach" ? "Data Breach Notification"
     : category.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
   
   // Generate Supabase link if submissionId exists
