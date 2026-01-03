@@ -18,7 +18,7 @@ BRAND_NAME=AstroSetu AI
 
 Update `RESEND_API_KEY` with the actual key:
 ```env
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 ```
 
 Replace `your_key` with the actual Resend API key above.
@@ -47,7 +47,7 @@ The code now supports **both** variable names for the from email:
 
 ### Minimum Required (What you have + API key)
 ```env
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 EMAIL_FROM=no-reply@mindveda.net
 COMPLIANCE_TO=privacy@mindveda.net
 COMPLIANCE_CC=legal@mindveda.net
@@ -78,7 +78,7 @@ With your current setup, emails will be sent with:
 
 1. **Update RESEND_API_KEY** in Vercel:
    - Change `RESEND_API_KEY=your_key`
-   - To: `RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3`
+   - To: `RESEND_API_KEY=re_your_api_key_here`
 
 2. **Optional:** Add `RESEND_FROM_NAME` and `RESEND_REPLY_TO` for explicit configuration (but not required)
 

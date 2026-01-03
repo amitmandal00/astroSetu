@@ -324,33 +324,28 @@ async function sendContactNotifications(data: {
       : category === "account_access" ? "Account Access" 
       : category;
 
-    // COMPLIANCE EMAIL SENDER IDENTITY (per ChatGPT feedback):
-    // For regulatory/compliance requests, use compliance@mindveda.net
-    // From: "MindVeda Compliance <compliance@mindveda.net>"
-    // Reply-To: "compliance@mindveda.net"
-    const complianceSender = "MindVeda Compliance <compliance@mindveda.net>";
-    const complianceReplyTo = "compliance@mindveda.net";
-    
-    // Internal notifications still use general sender
-    const lockedSender = RESEND_FROM; // Use RESEND_FROM directly
-    const lockedReplyTo = RESEND_REPLY_TO; // Locked reply-to address
+    // PRODUCTION-SAFE EMAIL SENDER IDENTITY (per ChatGPT feedback):
+    // Use ONE sender identity everywhere: RESEND_FROM (no-reply@mindveda.net)
+    // Move compliance address to replyTo, not from
+    // This prevents Resend from blocking emails due to unverified domain identities
+    const lockedSender = RESEND_FROM; // Use RESEND_FROM for ALL emails: "AstroSetu AI <no-reply@mindveda.net>"
+    const lockedReplyTo = COMPLIANCE_TO || RESEND_REPLY_TO; // Use compliance email for replyTo: "privacy@mindveda.net"
 
     console.log("[Contact API] Starting email sending process:", {
       category,
       to: email,
       adminTo: ADMIN_EMAIL,
-      complianceSender,
-      complianceReplyTo,
-      internalSender: lockedSender,
+      from: lockedSender, // Single sender identity for all emails
+      replyTo: lockedReplyTo, // Compliance address in replyTo
       resendApiKey: RESEND_API_KEY ? "configured" : "missing",
     });
 
-    // Send user acknowledgement email (auto-reply) - USE COMPLIANCE SENDER
+    // Send user acknowledgement email (auto-reply) - USE SINGLE SENDER IDENTITY
     console.log("[Contact API] Sending user acknowledgement email to:", email);
     console.log("[Contact API] Email payload preview:", {
       to: email,
-      from: complianceSender,
-      replyTo: complianceReplyTo,
+      from: lockedSender, // Single sender: "AstroSetu AI <no-reply@mindveda.net>"
+      replyTo: lockedReplyTo, // Compliance address in replyTo: "privacy@mindveda.net"
       subject: `Regulatory Request Received – ${BRAND_NAME}`,
     });
     
@@ -359,9 +354,9 @@ async function sendContactNotifications(data: {
       const autoReplyHtml = generateAutoReplyEmail(name || "User", subject, category);
       console.log("[Contact API] Auto-reply HTML generated, length:", autoReplyHtml.length);
       
-      console.log("[Contact API] Calling sendEmail for user acknowledgement (compliance sender)...");
+      console.log("[Contact API] Calling sendEmail for user acknowledgement...");
       
-      // Determine CC recipients based on category
+      // Determine CC recipients based on category (compliance emails)
       const ccRecipients: string[] = [];
       if (category.includes("legal") || category === "legal_notice") {
         const legalEmail = process.env.LEGAL_EMAIL || "legal@mindveda.net";
@@ -371,19 +366,24 @@ async function sendContactNotifications(data: {
         const privacyEmail = process.env.PRIVACY_EMAIL || "privacy@mindveda.net";
         if (privacyEmail && !ccRecipients.includes(privacyEmail)) ccRecipients.push(privacyEmail);
       }
+      // Always CC the compliance email
+      if (COMPLIANCE_TO && !ccRecipients.includes(COMPLIANCE_TO)) {
+        ccRecipients.push(COMPLIANCE_TO);
+      }
       
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: email,
-        from: complianceSender, // "MindVeda Compliance <compliance@mindveda.net>"
-        replyTo: complianceReplyTo, // compliance@mindveda.net
+        from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
+        replyTo: lockedReplyTo, // Compliance address in replyTo: "privacy@mindveda.net"
         subject: `Regulatory Request Received – ${BRAND_NAME}`,
         html: autoReplyHtml,
         cc: ccRecipients.length > 0 ? ccRecipients : undefined,
       });
       console.log("[Contact API] User acknowledgement email sent successfully", {
         to: email,
-        from: complianceSender,
+        from: lockedSender,
+        replyTo: lockedReplyTo,
         cc: ccRecipients.length > 0 ? ccRecipients : "none",
       });
     } catch (emailError: any) {
@@ -424,7 +424,7 @@ async function sendContactNotifications(data: {
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: COMPLIANCE_CC,
-        from: lockedSender, // "AstroSetu AI" <no-reply@mindveda.net>
+        from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
         replyTo: email, // Allow CC recipient to reply directly to user
         subject: internalSubject,
         html: generateAdminNotificationEmail({
@@ -452,6 +452,7 @@ async function sendContactNotifications(data: {
       resendApiKey: RESEND_API_KEY ? "configured" : "missing",
       resendFrom: RESEND_FROM,
     });
+    console.error("[Contact API] Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     // Re-throw to be caught by outer catch handler
     throw error;
   }
@@ -459,9 +460,10 @@ async function sendContactNotifications(data: {
 
 /**
  * Send email using Resend API (ONLY method - SMTP removed)
- * LOCKED SENDER IDENTITY: All emails use locked sender format
- * From: "AstroSetu AI" <no-reply@mindveda.net>
+ * SINGLE SENDER IDENTITY: All emails use ONE sender identity to prevent Resend blocking
+ * From: "AstroSetu AI <no-reply@mindveda.net>" (RESEND_FROM)
  * Reply-To: privacy@mindveda.net (or custom if provided)
+ * Note: Compliance addresses go in replyTo/cc, NOT in from field
  */
 async function sendEmail(data: {
   apiKey: string;
@@ -491,12 +493,12 @@ async function sendEmail(data: {
     cc?: string | string[];
   } = {
     to: data.to,
-    from: data.from, // Locked: "AstroSetu AI" <no-reply@mindveda.net> or "MindVeda Compliance <compliance@mindveda.net>"
+    from: data.from, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
     subject: data.subject,
     html: data.html,
   };
 
-  // Always set reply_to (locked to privacy@mindveda.net or compliance@mindveda.net)
+  // Always set reply_to (compliance address: privacy@mindveda.net)
   if (data.replyTo) {
     emailPayload.reply_to = data.replyTo;
   }
@@ -507,18 +509,39 @@ async function sendEmail(data: {
   }
 
   console.log("[Contact API] Sending request to Resend API...");
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${data.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(emailPayload),
-  });
+  let response: Response;
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${data.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(emailPayload),
+    });
+    console.log("[Contact API] Resend API response received:", {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+    });
+  } catch (fetchError: any) {
+    console.error("[Contact API] Fetch error (network/timeout):", {
+      error: fetchError?.message || String(fetchError),
+      stack: fetchError?.stack,
+    });
+    throw new Error(`Failed to connect to Resend API: ${fetchError?.message || String(fetchError)}`);
+  }
 
   if (!response.ok) {
-    const errorText = await response.text();
-    let errorDetails;
+    let errorText: string;
+    try {
+      errorText = await response.text();
+    } catch (textError: any) {
+      console.error("[Contact API] Failed to read error response body:", textError);
+      errorText = `HTTP ${response.status} ${response.statusText}`;
+    }
+    
+    let errorDetails: any;
     try {
       errorDetails = JSON.parse(errorText);
     } catch {
@@ -527,17 +550,45 @@ async function sendEmail(data: {
     const errorMessage = typeof errorDetails === 'object' && errorDetails.message 
       ? errorDetails.message 
       : errorText;
-    console.error("[Contact API] Resend API error details:", {
+    
+    console.log("[Contact API] Error response parsed:", {
       status: response.status,
-      statusText: response.statusText,
-      error: errorMessage,
-      payload: { 
-        to: emailPayload.to,
-        from: emailPayload.from,
-        subject: emailPayload.subject,
-        htmlLength: emailPayload.html.length,
-      },
+      errorMessage,
+      errorDetailsType: typeof errorDetails,
     });
+    
+    // Enhanced error logging for domain verification issues
+    const isDomainError = response.status === 403 && (
+      errorMessage.includes("domain is not verified") ||
+      (errorMessage.includes("domain") && errorMessage.includes("verified"))
+    );
+    
+    if (isDomainError) {
+      console.error("[Contact API] ⚠️ DOMAIN VERIFICATION REQUIRED:", {
+        status: response.status,
+        error: errorMessage,
+        from: emailPayload.from,
+        action: "Verify domain in Resend Dashboard → Domains",
+        url: "https://resend.com/domains",
+        payload: { 
+          to: emailPayload.to,
+          from: emailPayload.from,
+          subject: emailPayload.subject,
+        },
+      });
+    } else {
+      console.error("[Contact API] Resend API error details:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorMessage,
+        payload: { 
+          to: emailPayload.to,
+          from: emailPayload.from,
+          subject: emailPayload.subject,
+          htmlLength: emailPayload.html.length,
+        },
+      });
+    }
     throw new Error(`Resend API error: ${response.status} - ${errorMessage}`);
   }
 

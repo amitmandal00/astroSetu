@@ -65,7 +65,7 @@ Create or update `.env.local` in the project root:
 
 ```env
 # Required
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 
 # Optional (uses defaults if not set)
 RESEND_FROM_EMAIL=no-reply@mindveda.net  # Must match verified domain
@@ -78,7 +78,7 @@ Add these variables in Vercel Dashboard → Settings → Environment Variables:
 
 ```env
 # Required
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 
 # Optional (recommended for explicit configuration)
 RESEND_FROM_EMAIL=no-reply@mindveda.net

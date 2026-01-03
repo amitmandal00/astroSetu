@@ -6,7 +6,7 @@ Update your Vercel Dashboard → Settings → Environment Variables with these *
 
 ```env
 # Required - Resend API Key
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 
 # Optional - Email Sender Configuration (uses defaults if not set)
 RESEND_FROM_EMAIL=no-reply@mindveda.net
@@ -42,7 +42,7 @@ ADMIN_EMAIL=privacy@mindveda.net
 
 **Minimum setup (only required variable):**
 ```env
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 ```
 
 All other variables are optional and will use defaults:
@@ -59,7 +59,7 @@ For production, use these values:
 
 ```env
 # Required
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 
 # Recommended (matches defaults but explicit)
 RESEND_FROM_EMAIL=no-reply@mindveda.net

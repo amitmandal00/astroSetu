@@ -39,13 +39,13 @@ const emailPayload = {
 
 ### Recommended (Option A):
 ```env
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 RESEND_FROM=AstroSetu AI <no-reply@mindveda.net>
 ```
 
 ### Alternative (Backwards Compatible):
 ```env
-RESEND_API_KEY=re_Z6kFfP8q_7DZUrvLjpDLjpQzptxPGs8a3
+RESEND_API_KEY=re_your_api_key_here
 RESEND_FROM_EMAIL=no-reply@mindveda.net
 RESEND_FROM_NAME=AstroSetu AI
 # OR
