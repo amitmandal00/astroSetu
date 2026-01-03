@@ -438,26 +438,29 @@ async function sendContactNotifications(data: {
         html: autoReplyHtml,
         // NO CC - internal notifications are sent separately
       });
-      console.log("[Contact API] User acknowledgement email sent successfully", {
+      console.log("[Contact API] ✅ User acknowledgement email sent successfully", {
         to: email,
         from: lockedSender,
         replyTo: lockedReplyTo,
         note: "External-facing, no CC",
       });
+      console.log("[Contact API] ✅ User acknowledgement email completed - proceeding to internal notification");
     } catch (emailError: any) {
-      console.error("[Contact API] Failed to send user acknowledgement email:", {
+      console.error("[Contact API] ❌ Failed to send user acknowledgement email:", {
         error: emailError?.message || String(emailError),
         stack: emailError?.stack,
         to: email,
         from: lockedSender,
       });
       // Don't re-throw - continue to send internal notification even if user email fails
-      console.warn("[Contact API] Continuing to send internal notification despite user email failure");
+      console.warn("[Contact API] ⚠️ Continuing to send internal notification despite user email failure");
     }
 
     // Send internal compliance notification to admin - INTERNAL-ONLY, DETAILED
     // This is sent in a separate try-catch so it always runs, even if user email failed
-    console.log("[Contact API] 📧 Starting internal notification email process...");
+    console.log("[Contact API] ========================================");
+    console.log("[Contact API] 📧 STARTING INTERNAL NOTIFICATION EMAIL");
+    console.log("[Contact API] ========================================");
     try {
       const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
       console.log("[Contact API] Internal notification subject:", internalSubject);
@@ -510,6 +513,15 @@ async function sendContactNotifications(data: {
         cc: internalCcRecipients.length > 0 ? internalCcRecipients : "none",
       });
       
+      console.log("[Contact API] 🔵 About to call sendEmail for internal notification...");
+      console.log("[Contact API] Internal notification details:", {
+        to: ADMIN_EMAIL,
+        from: lockedSender,
+        subject: internalSubject,
+        hasCc: internalCcRecipients.length > 0,
+        ccCount: internalCcRecipients.length,
+      });
+      
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: ADMIN_EMAIL,
@@ -529,6 +541,10 @@ async function sendContactNotifications(data: {
         }),
         cc: internalCcRecipients.length > 0 ? internalCcRecipients : undefined,
       });
+      
+      console.log("[Contact API] ========================================");
+      console.log("[Contact API] ✅ INTERNAL NOTIFICATION EMAIL SENT SUCCESSFULLY");
+      console.log("[Contact API] ========================================");
       console.log("[Contact API] Internal notification email sent successfully", {
         to: ADMIN_EMAIL,
         from: lockedSender,
@@ -537,16 +553,22 @@ async function sendContactNotifications(data: {
         note: "Internal-only, detailed",
       });
     } catch (internalEmailError: any) {
+      console.error("[Contact API] ========================================");
+      console.error("[Contact API] ❌ FAILED TO SEND INTERNAL NOTIFICATION EMAIL");
+      console.error("[Contact API] ========================================");
       console.error("[Contact API] Failed to send internal notification email:", {
         error: internalEmailError?.message || String(internalEmailError),
         stack: internalEmailError?.stack,
         to: ADMIN_EMAIL,
         from: lockedSender,
+        errorType: internalEmailError?.constructor?.name,
+        fullError: JSON.stringify(internalEmailError, Object.getOwnPropertyNames(internalEmailError)),
       });
       // Re-throw internal notification errors - these are critical
       throw internalEmailError;
     }
-
+    
+    console.log("[Contact API] ✅ Both emails (user + internal) completed successfully");
     console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via Resend, sender: ${lockedSender})`);
   } catch (error: any) {
     console.error("[Contact API] Email sending failed in sendContactNotifications:", {
@@ -632,13 +654,15 @@ async function sendEmail(data: {
       },
       body: JSON.stringify(emailPayload),
     });
-    console.log("[Contact API] Resend API response received:", {
+    console.log("[Contact API] 🔵 Resend API response received:", {
       status: response.status,
       statusText: response.statusText,
       ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries()),
     });
+    console.log("[Contact API] 🔵 About to parse response body...");
   } catch (fetchError: any) {
-    console.error("[Contact API] Fetch error (network/timeout):", {
+    console.error("[Contact API] ❌ Fetch error (network/timeout):", {
       error: fetchError?.message || String(fetchError),
       stack: fetchError?.stack,
     });
@@ -705,10 +729,13 @@ async function sendEmail(data: {
     throw new Error(`Resend API error: ${response.status} - ${errorMessage}`);
   }
 
+  // Response is OK - parse the success response
+  console.log("[Contact API] ✅ Response is OK, parsing success response...");
   let result: any;
   try {
     const responseText = await response.text();
-    console.log("[Contact API] Resend API raw response text (first 500 chars):", responseText.substring(0, 500));
+    console.log("[Contact API] 🔵 Response text received, length:", responseText.length);
+    console.log("[Contact API] 🔵 Response text (first 500 chars):", responseText.substring(0, 500));
     try {
       result = JSON.parse(responseText);
       console.log("[Contact API] Resend API response parsed successfully:", {
@@ -749,6 +776,9 @@ async function sendEmail(data: {
     throw new Error(`Resend API error: Email sent but no ID returned. Status: ${response.status}, Response: ${JSON.stringify(result)}`);
   }
 
+  console.log("[Contact API] ========================================");
+  console.log("[Contact API] ✅ EMAIL SENT SUCCESSFULLY TO RESEND");
+  console.log("[Contact API] ========================================");
   console.log("[Contact API] ✅ Email sent successfully to Resend:", {
     id: result.id,
     to: data.to,
