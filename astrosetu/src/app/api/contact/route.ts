@@ -553,7 +553,7 @@ async function sendContactNotifications(data: {
         subject: internalSubject,
       });
       
-      await sendEmail({
+      const internalEmailResult = await sendEmail({
         apiKey: RESEND_API_KEY,
         to: ADMIN_EMAIL,
         from: complianceSender, // Compliance sender identity for internal emails
@@ -578,10 +578,12 @@ async function sendContactNotifications(data: {
       console.log("[Contact API] ========================================");
       console.log("[Contact API] Internal notification email sent successfully", {
         to: ADMIN_EMAIL,
-        from: lockedSender,
+        from: complianceSender,
         replyTo: email,
         cc: internalCcRecipients.length > 0 ? internalCcRecipients : "none",
-        note: "Internal-only, detailed",
+        resendEmailId: internalEmailResult.id,
+        resendEmailUrl: `https://resend.com/emails/${internalEmailResult.id}`,
+        note: "Internal-only, detailed - Check Resend dashboard to verify",
       });
     } catch (internalEmailError: any) {
       console.error("[Contact API] ========================================");
