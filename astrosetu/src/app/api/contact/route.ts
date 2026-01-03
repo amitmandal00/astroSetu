@@ -135,6 +135,8 @@ export async function POST(req: Request) {
       subject: finalSubject,
       message,
       category: autoCategory,
+      ipAddress: clientIP,
+      userAgent: userAgent,
     }).catch((error) => {
       console.error("[Contact API] Email notification failed with error:", error);
       console.error("[Contact API] Error stack:", error?.stack);
@@ -240,6 +242,8 @@ async function sendContactNotifications(data: {
   subject: string;
   message: string;
   category: string;
+  ipAddress?: string;
+  userAgent?: string;
 }): Promise<void> {
   console.log("[Contact API] sendContactNotifications called with category:", data.category);
   const { submissionId, name, email, phone, subject, message, category } = data;
@@ -298,8 +302,24 @@ async function sendContactNotifications(data: {
   const complianceEmail = getComplianceEmail(category);
   const ADMIN_EMAIL = process.env.ADMIN_EMAIL || complianceEmail;
   const COMPLIANCE_TO = process.env.COMPLIANCE_TO || complianceEmail;
-  const COMPLIANCE_CC = process.env.COMPLIANCE_CC || (category.includes("legal") ? process.env.LEGAL_EMAIL : undefined);
+  // For legal_notice, ensure legal email is in CC if not already the primary recipient
+  const COMPLIANCE_CC = process.env.COMPLIANCE_CC || (
+    (category === "legal_notice" || category.includes("legal")) 
+      ? (process.env.LEGAL_EMAIL || "legal@mindveda.net")
+      : undefined
+  );
   const BRAND_NAME = process.env.BRAND_NAME || "AstroSetu AI";
+  
+  // Log routing for legal_notice debugging
+  if (category === "legal_notice") {
+    console.log("[Contact API] Legal notice routing:", {
+      category,
+      complianceEmail,
+      adminEmail: ADMIN_EMAIL,
+      complianceTo: COMPLIANCE_TO,
+      complianceCc: COMPLIANCE_CC,
+    });
+  }
 
   // Only Resend is supported - check if configured
   if (!RESEND_API_KEY) {
@@ -340,51 +360,39 @@ async function sendContactNotifications(data: {
       resendApiKey: RESEND_API_KEY ? "configured" : "missing",
     });
 
-    // Send user acknowledgement email (auto-reply) - USE SINGLE SENDER IDENTITY
+    // Send user acknowledgement email (auto-reply) - EXTERNAL-FACING, MINIMAL
+    // NO CC - this is a separate email from internal notifications
     console.log("[Contact API] Sending user acknowledgement email to:", email);
     console.log("[Contact API] Email payload preview:", {
       to: email,
       from: lockedSender, // Single sender: "AstroSetu AI <no-reply@mindveda.net>"
-      replyTo: lockedReplyTo, // Compliance address in replyTo: "privacy@mindveda.net"
+      replyTo: lockedReplyTo, // Compliance address in replyTo
       subject: `Regulatory Request Received – ${BRAND_NAME}`,
+      note: "No CC - external-facing only",
     });
     
     try {
-      console.log("[Contact API] Generating auto-reply email HTML...");
+      console.log("[Contact API] Generating minimal user acknowledgement email HTML...");
       const autoReplyHtml = generateAutoReplyEmail(name || "User", subject, category);
-      console.log("[Contact API] Auto-reply HTML generated, length:", autoReplyHtml.length);
+      console.log("[Contact API] User acknowledgement HTML generated, length:", autoReplyHtml.length);
       
-      console.log("[Contact API] Calling sendEmail for user acknowledgement...");
+      console.log("[Contact API] Calling sendEmail for user acknowledgement (no CC)...");
       
-      // Determine CC recipients based on category (compliance emails)
-      const ccRecipients: string[] = [];
-      if (category.includes("legal") || category === "legal_notice") {
-        const legalEmail = process.env.LEGAL_EMAIL || "legal@mindveda.net";
-        if (legalEmail) ccRecipients.push(legalEmail);
-      }
-      if (category.includes("privacy") || category === "data_deletion" || category === "account_access" || category === "privacy_complaint") {
-        const privacyEmail = process.env.PRIVACY_EMAIL || "privacy@mindveda.net";
-        if (privacyEmail && !ccRecipients.includes(privacyEmail)) ccRecipients.push(privacyEmail);
-      }
-      // Always CC the compliance email
-      if (COMPLIANCE_TO && !ccRecipients.includes(COMPLIANCE_TO)) {
-        ccRecipients.push(COMPLIANCE_TO);
-      }
-      
+      // User acknowledgement email - NO CC, external-facing only
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: email,
         from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
-        replyTo: lockedReplyTo, // Compliance address in replyTo: "privacy@mindveda.net"
+        replyTo: lockedReplyTo, // Compliance address in replyTo
         subject: `Regulatory Request Received – ${BRAND_NAME}`,
         html: autoReplyHtml,
-        cc: ccRecipients.length > 0 ? ccRecipients : undefined,
+        // NO CC - internal notifications are sent separately
       });
       console.log("[Contact API] User acknowledgement email sent successfully", {
         to: email,
         from: lockedSender,
         replyTo: lockedReplyTo,
-        cc: ccRecipients.length > 0 ? ccRecipients : "none",
+        note: "External-facing, no CC",
       });
     } catch (emailError: any) {
       console.error("[Contact API] Failed to send user acknowledgement email:", {
@@ -396,11 +404,37 @@ async function sendContactNotifications(data: {
       throw emailError; // Re-throw to be caught by outer catch
     }
 
-    // Send internal compliance notification to admin
+    // Send internal compliance notification to admin - INTERNAL-ONLY, DETAILED
     const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
     
+    // Determine CC recipients for internal notification based on category
+    const internalCcRecipients: string[] = [];
+    
+    // For legal_notice, ensure legal email is CC'd
+    if (category === "legal_notice" || category.includes("legal")) {
+      const legalEmail = process.env.LEGAL_EMAIL || "legal@mindveda.net";
+      if (legalEmail && !internalCcRecipients.includes(legalEmail) && legalEmail !== ADMIN_EMAIL) {
+        internalCcRecipients.push(legalEmail);
+      }
+    }
+    
+    // For privacy-related categories, ensure privacy email is CC'd
+    if (category === "privacy_complaint" || category === "data_deletion" || category === "account_access" || category.includes("privacy")) {
+      const privacyEmail = process.env.PRIVACY_EMAIL || "privacy@mindveda.net";
+      if (privacyEmail && !internalCcRecipients.includes(privacyEmail) && privacyEmail !== ADMIN_EMAIL) {
+        internalCcRecipients.push(privacyEmail);
+      }
+    }
+    
+    // Add COMPLIANCE_CC if configured and not already in list
+    if (COMPLIANCE_CC && !internalCcRecipients.includes(COMPLIANCE_CC) && COMPLIANCE_CC !== ADMIN_EMAIL) {
+      internalCcRecipients.push(COMPLIANCE_CC);
+    }
+    
     console.log("[Contact API] Sending internal notification email to:", ADMIN_EMAIL);
+    console.log("[Contact API] Internal notification CC recipients:", internalCcRecipients.length > 0 ? internalCcRecipients : "none");
     console.log("[Contact API] Internal notification sender:", lockedSender);
+    
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: ADMIN_EMAIL,
@@ -415,35 +449,18 @@ async function sendContactNotifications(data: {
         subject,
         message,
         category,
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
       }),
+      cc: internalCcRecipients.length > 0 ? internalCcRecipients : undefined,
     });
     console.log("[Contact API] Internal notification email sent successfully", {
       to: ADMIN_EMAIL,
       from: lockedSender,
       replyTo: email,
+      cc: internalCcRecipients.length > 0 ? internalCcRecipients : "none",
+      note: "Internal-only, detailed",
     });
-
-    // Send CC email if configured
-    if (COMPLIANCE_CC) {
-      console.log("[Contact API] Sending CC email to:", COMPLIANCE_CC);
-      await sendEmail({
-        apiKey: RESEND_API_KEY,
-        to: COMPLIANCE_CC,
-        from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
-        replyTo: email, // Allow CC recipient to reply directly to user
-        subject: internalSubject,
-        html: generateAdminNotificationEmail({
-          submissionId,
-          name,
-          email,
-          phone,
-          subject,
-          message,
-          category,
-        }),
-      });
-      console.log("[Contact API] CC email sent successfully");
-    }
 
     console.log(`[Contact API] Emails sent for submission: ${submissionId || email} (via Resend, sender: ${lockedSender})`);
   } catch (error: any) {
@@ -630,7 +647,8 @@ async function sendEmail(data: {
 }
 
 /**
- * Generate auto-reply email HTML (Compliance-focused, no SLA promises)
+ * Generate auto-reply email HTML (EXTERNAL-FACING, MINIMAL)
+ * This is sent to users - no internal details, minimal information
  */
 function generateAutoReplyEmail(name: string, subject: string, category: string): string {
   // Standard auto-reply message per ChatGPT feedback
@@ -650,6 +668,13 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
 
   const responseMessage = categoryMessages[category] || categoryMessages.general;
   const displayName = name || "User";
+  
+  // Format category for display (user-friendly)
+  const categoryDisplay = category === "data_deletion" ? "Data Deletion Request"
+    : category === "privacy_complaint" ? "Privacy Complaint"
+    : category === "legal_notice" ? "Legal Notice"
+    : category === "account_access" ? "Account Access Request"
+    : category.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 
   return `
     <!DOCTYPE html>
@@ -672,12 +697,19 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
         </div>
         <div class="content">
           <p>Dear ${displayName},</p>
-          <p>Thank you for your compliance request regarding: <strong>${subject}</strong></p>
+          <p>Thank you for your compliance request.</p>
+          <p><strong>Request Type:</strong> ${categoryDisplay}</p>
+          <p><strong>Received:</strong> ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>
           <p>${responseMessage}</p>
           
           <div class="notice">
-            <p><strong>Automated Compliance Mailbox:</strong> This is an automated acknowledgement. AstroSetu AI does not provide live support. Please refer to <a href="https://astrosetu.app/ai-astrology/faq">FAQs</a> and policies for self-service information.</p>
-            <p><strong>No individual response is guaranteed.</strong> Requests are reviewed periodically as required by applicable privacy laws.</p>
+            <p><strong>What happens next:</strong></p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              <li>Your request has been logged and assigned a reference number</li>
+              <li>It will be reviewed as required by applicable privacy and data protection laws</li>
+              <li>No individual response is guaranteed</li>
+            </ul>
+            <p style="margin-top: 10px;"><strong>Note:</strong> AstroSetu AI is a fully automated platform and does not provide live support. For self-service information, please refer to our <a href="https://astrosetu.app/ai-astrology/faq">FAQs</a> and policies.</p>
           </div>
           
           <p>For self-help resources, please visit:</p>
@@ -699,7 +731,8 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
 }
 
 /**
- * Generate admin notification email HTML
+ * Generate admin notification email HTML (INTERNAL-ONLY, DETAILED)
+ * This is sent to compliance team - includes all details for triage
  */
 function generateAdminNotificationEmail(data: {
   submissionId: string | null;
@@ -709,8 +742,22 @@ function generateAdminNotificationEmail(data: {
   subject: string;
   message: string;
   category: string;
+  ipAddress?: string;
+  userAgent?: string;
 }): string {
-  const { submissionId, name, email, phone, subject, message, category } = data;
+  const { submissionId, name, email, phone, subject, message, category, ipAddress, userAgent } = data;
+  
+  // Format category for display
+  const categoryDisplay = category === "data_deletion" ? "Data Deletion" 
+    : category === "privacy_complaint" ? "Privacy Complaint" 
+    : category === "legal_notice" ? "Legal Notice" 
+    : category === "account_access" ? "Account Access" 
+    : category.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+  
+  // Generate Supabase link if submissionId exists
+  const supabaseLink = submissionId 
+    ? `https://supabase.com/dashboard/project/_/editor/table/contact_submissions?filter=id%3Deq%3D${submissionId}`
+    : null;
 
   return `
     <!DOCTYPE html>
@@ -745,7 +792,18 @@ function generateAdminNotificationEmail(data: {
         <div class="content">
           <div class="field">
             <div class="label">Submission ID:</div>
-            <div class="value">${submissionId || "N/A"}</div>
+            <div class="value">
+              ${submissionId || "N/A (Database not configured)"}
+              ${supabaseLink ? ` <a href="${supabaseLink}" style="color: #6366f1; text-decoration: underline;">View in Supabase</a>` : ""}
+            </div>
+          </div>
+          <div class="field">
+            <div class="label">Category:</div>
+            <div class="value"><strong>${categoryDisplay}</strong> (${category})</div>
+          </div>
+          <div class="field">
+            <div class="label">Timestamp:</div>
+            <div class="value">${new Date().toISOString()}</div>
           </div>
           <div class="field">
             <div class="label">Name:</div>
@@ -769,8 +827,29 @@ function generateAdminNotificationEmail(data: {
             <div class="label">Message:</div>
             <div class="message-box">${message}</div>
           </div>
+          ${ipAddress ? `
+          <div class="field">
+            <div class="label">IP Address:</div>
+            <div class="value" style="font-family: monospace; font-size: 12px;">${ipAddress}</div>
+          </div>
+          ` : ""}
+          ${userAgent ? `
+          <div class="field">
+            <div class="label">User Agent:</div>
+            <div class="value" style="font-family: monospace; font-size: 11px; word-break: break-all;">${userAgent}</div>
+          </div>
+          ` : ""}
+          <div style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 5px;">
+            <p style="margin: 0; font-size: 12px; color: #6b7280;">
+              <strong>Quick Actions:</strong><br>
+              <a href="mailto:${email}?subject=Re: ${encodeURIComponent(subject)}" style="color: #6366f1; text-decoration: underline;">Reply to ${name || email}</a> | 
+              ${supabaseLink ? `<a href="${supabaseLink}" style="color: #6366f1; text-decoration: underline;">View in Supabase</a> | ` : ""}
+              <a href="https://resend.com/logs" style="color: #6366f1; text-decoration: underline;">View Resend Logs</a>
+            </p>
+          </div>
           <a href="mailto:${email}?subject=Re: ${encodeURIComponent(subject)}" class="action-button">Reply to ${name || email}</a>
           <div class="footer">
+            <p><strong>Internal Use Only</strong> - This email contains sensitive information for compliance team use.</p>
             <p>This email was automatically generated from the AstroSetu contact form.</p>
             <p>Reply to this email to respond directly to ${name || email}.</p>
           </div>
