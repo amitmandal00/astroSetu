@@ -3,12 +3,27 @@
 @tailwind utilities;
 
 /* Prevent flash of Shell content on AI routes - hide immediately */
+/* Hide Shell component completely on AI routes */
 html[data-ai-route="true"] [data-shell-content] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   height: 0 !important;
   overflow: hidden !important;
+  position: absolute !important;
+  width: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Additional CSS to hide Shell header/footer specifically on AI routes */
+html[data-ai-route="true"] [data-shell-content] header,
+html[data-ai-route="true"] [data-shell-content] footer {
+  display: none !important;
+}
+
+/* Hide Shell wrapper div on AI routes */
+html[data-ai-route="true"] body > [data-shell-content] {
+  display: none !important;
 }
 
 :root {
