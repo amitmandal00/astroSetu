@@ -400,10 +400,11 @@ async function sendContactNotifications(data: {
     const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
     
     console.log("[Contact API] Sending internal notification email to:", ADMIN_EMAIL);
+    console.log("[Contact API] Internal notification sender:", lockedSender);
     await sendEmail({
       apiKey: RESEND_API_KEY,
       to: ADMIN_EMAIL,
-      from: lockedSender, // "AstroSetu AI" <no-reply@mindveda.net>
+      from: lockedSender, // Single sender identity: "AstroSetu AI <no-reply@mindveda.net>"
       replyTo: email, // Allow admin to reply directly to user
       subject: internalSubject,
       html: generateAdminNotificationEmail({
@@ -416,7 +417,11 @@ async function sendContactNotifications(data: {
         category,
       }),
     });
-    console.log("[Contact API] Internal notification email sent successfully");
+    console.log("[Contact API] Internal notification email sent successfully", {
+      to: ADMIN_EMAIL,
+      from: lockedSender,
+      replyTo: email,
+    });
 
     // Send CC email if configured
     if (COMPLIANCE_CC) {
@@ -509,6 +514,12 @@ async function sendEmail(data: {
   }
 
   console.log("[Contact API] Sending request to Resend API...");
+  console.log("[Contact API] Email payload sender verification:", {
+    from: emailPayload.from,
+    to: emailPayload.to,
+    replyTo: emailPayload.reply_to,
+    cc: emailPayload.cc,
+  });
   let response: Response;
   try {
     response = await fetch("https://api.resend.com/emails", {
