@@ -442,7 +442,7 @@ async function sendContactNotifications(data: {
       console.log("[Contact API] Calling sendEmail for user acknowledgement (no CC)...");
       
       // User acknowledgement email - NO CC, external-facing only
-      await sendEmail({
+      const userEmailResult = await sendEmail({
         apiKey: RESEND_API_KEY,
         to: email,
         from: lockedSender, // Single sender identity: "AstroSetu AI <privacy@mindveda.net>"
@@ -455,7 +455,9 @@ async function sendContactNotifications(data: {
         to: email,
         from: lockedSender,
         replyTo: lockedReplyTo,
-        note: "External-facing, no CC",
+        resendEmailId: userEmailResult.id,
+        resendEmailUrl: `https://resend.com/emails/${userEmailResult.id}`,
+        note: "External-facing, no CC - Check Resend dashboard to verify",
       });
       console.log("[Contact API] ✅ User acknowledgement email completed - proceeding to internal notification");
     } catch (emailError: any) {
@@ -631,7 +633,7 @@ async function sendEmail(data: {
   html: string;
   replyTo?: string;
   cc?: string | string[];
-}): Promise<void> {
+}): Promise<{ id: string }> {
   console.log("[Contact API] sendEmail called:", {
     to: data.to,
     from: data.from,
@@ -847,6 +849,9 @@ async function sendEmail(data: {
     subject: data.subject,
     responseStatus: response.status,
   });
+  
+  // Return the email ID for verification
+  return { id: result.id };
 }
 
 /**
