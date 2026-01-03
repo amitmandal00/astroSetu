@@ -419,8 +419,12 @@ async function sendContactNotifications(data: {
 
     console.log("[Contact API] ✅ RESEND_API_KEY is configured, proceeding with email sending");
 
-    // Send user acknowledgement email (auto-reply) - EXTERNAL-FACING, MINIMAL
-    // NO CC - this is a separate email from internal notifications
+    // 1️⃣ User Acknowledgement Email (External-Facing, Minimal)
+    // Purpose: Legal acknowledgement to user
+    // Recipient: User only, NO CC, NO admin addresses
+    console.log("[Contact API] ========================================");
+    console.log("[Contact API] 1️⃣ SENDING USER ACKNOWLEDGEMENT EMAIL");
+    console.log("[Contact API] ========================================");
     console.log("[Contact API] Sending user acknowledgement email to:", email);
     console.log("[Contact API] Email payload preview:", {
       to: email,
@@ -465,13 +469,17 @@ async function sendContactNotifications(data: {
       console.warn("[Contact API] ⚠️ Continuing to send internal notification despite user email failure");
     }
 
-    // Send internal compliance notification to admin - INTERNAL-ONLY, DETAILED
+    // 2️⃣ Internal Compliance Notification Email (Internal-Only, Detailed)
+    // Purpose: Actionable record for compliance team
+    // Recipient: Compliance inbox with CC to relevant teams
     // This is sent in a separate try-catch so it always runs, even if user email failed
     console.log("[Contact API] ========================================");
-    console.log("[Contact API] 📧 STARTING INTERNAL NOTIFICATION EMAIL");
+    console.log("[Contact API] 2️⃣ SENDING INTERNAL COMPLIANCE NOTIFICATION EMAIL");
     console.log("[Contact API] ========================================");
     try {
-      const internalSubject = `New Regulatory Request – ${categoryDisplay}`;
+      // Format category for subject (uppercase with underscores)
+      const categoryForSubject = category.toUpperCase().replace(/_/g, "_");
+      const internalSubject = `[COMPLIANCE][${categoryForSubject}] New Request`;
       console.log("[Contact API] Internal notification subject:", internalSubject);
       
       // Determine CC recipients for internal notification based on category
@@ -531,10 +539,22 @@ async function sendContactNotifications(data: {
         ccCount: internalCcRecipients.length,
       });
       
+      // Internal compliance notification - use compliance sender identity
+      const complianceSender = process.env.COMPLIANCE_SENDER || "AstroSetu Compliance <privacy@mindveda.net>";
+      
+      console.log("[Contact API] 🔵 Sending internal compliance notification email...");
+      console.log("[Contact API] Internal email configuration:", {
+        to: ADMIN_EMAIL,
+        cc: internalCcRecipients.length > 0 ? internalCcRecipients : "none",
+        from: complianceSender,
+        replyTo: email,
+        subject: internalSubject,
+      });
+      
       await sendEmail({
         apiKey: RESEND_API_KEY,
         to: ADMIN_EMAIL,
-        from: lockedSender, // Single sender identity: "AstroSetu AI <privacy@mindveda.net>"
+        from: complianceSender, // Compliance sender identity for internal emails
         replyTo: email, // Allow admin to reply directly to user
         subject: internalSubject,
         html: generateAdminNotificationEmail({
