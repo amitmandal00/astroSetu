@@ -9,41 +9,103 @@ import { Shell } from "./Shell";
  * ConditionalShell
  * Wraps children with Shell component, except for AI astrology routes
  * AI astrology routes have their own header/footer via layout.tsx
- * Uses server-side data attribute + CSS to prevent flash of wrong content
+ * Uses server-side prop + client-side detection to prevent Shell from rendering
  */
-export function ConditionalShell({ children }: { children: ReactNode }) {
+export function ConditionalShell({ 
+  children,
+  isAIRoute: serverIsAI = false 
+}: { 
+  children: ReactNode;
+  isAIRoute?: boolean;
+}) {
   const pathname = usePathname();
   
-  // Check data attribute immediately (set server-side by layout)
-  const [isAIFromAttribute, setIsAIFromAttribute] = useState(() => {
+  // Helper function to check if current pathname is an AI route
+  function checkIfAIRoute(currentPathname: string | null): boolean {
+    if (!currentPathname) return false;
+    const isAIAstrologyRoute = currentPathname.startsWith("/ai-astrology");
+    const isAISectionPage = 
+      currentPathname === "/privacy" || 
+      currentPathname === "/terms" || 
+      currentPathname === "/disclaimer" || 
+      currentPathname === "/refund" || 
+      currentPathname === "/contact" || 
+      currentPathname === "/disputes" || 
+      currentPathname === "/cookies" || 
+      currentPathname === "/data-breach" || 
+      currentPathname === "/compliance";
+    return isAIAstrologyRoute || isAISectionPage;
+  }
+  
+  // Initialize state: prefer server-side prop, fallback to data attribute
+  // Note: pathname check happens in useEffect (usePathname hook not available in useState initializer)
+  const [isAI, setIsAI] = useState(() => {
+    // Server-side prop takes highest priority
+    if (serverIsAI) return true;
+    
+    // Fallback to data attribute (set by server-side layout or inline script)
     if (typeof document !== "undefined") {
-      return document.documentElement.getAttribute("data-ai-route") === "true";
+      const attrValue = document.documentElement.getAttribute("data-ai-route");
+      return attrValue === "true";
     }
+    
     return false;
   });
   
-  // Update on pathname change
+  // Update state when server prop changes
   useEffect(() => {
-    if (typeof document !== "undefined") {
-      setIsAIFromAttribute(document.documentElement.getAttribute("data-ai-route") === "true");
+    if (serverIsAI) {
+      setIsAI(true);
+    }
+  }, [serverIsAI]);
+  
+  // Update state when pathname changes (client-side navigation)
+  // This runs on mount and whenever pathname changes
+  useEffect(() => {
+    if (pathname) {
+      const isAIRouteFromPath = checkIfAIRoute(pathname);
+      if (isAIRouteFromPath) {
+        setIsAI(true);
+        // Also update data attribute for consistency
+        if (typeof document !== "undefined") {
+          document.documentElement.setAttribute("data-ai-route", "true");
+        }
+      } else {
+        // For non-AI routes, set to false and update attribute
+        setIsAI(false);
+        if (typeof document !== "undefined") {
+          document.documentElement.setAttribute("data-ai-route", "false");
+        }
+      }
     }
   }, [pathname]);
   
-  // Check if current route is in AI astrology section
-  const isAIAstrologyRoute = pathname?.startsWith("/ai-astrology");
-  const isAISectionPage = 
-    pathname === "/privacy" || 
-    pathname === "/terms" || 
-    pathname === "/disclaimer" || 
-    pathname === "/refund" || 
-    pathname === "/contact" || 
-    pathname === "/disputes" || 
-    pathname === "/cookies" || 
-    pathname === "/data-breach" || 
-    pathname === "/compliance";
+  // Check data attribute on mount and when it changes
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const checkAttribute = () => {
+        const attrValue = document.documentElement.getAttribute("data-ai-route");
+        if (attrValue === "true") {
+          setIsAI(true);
+        }
+      };
+      
+      checkAttribute();
+      
+      // Watch for attribute changes (in case script sets it later)
+      const observer = new MutationObserver(checkAttribute);
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-ai-route']
+      });
+      
+      return () => observer.disconnect();
+    }
+  }, []);
   
-  // Don't render Shell at all for AI routes (server-side attribute + client-side check)
-  if (isAIFromAttribute || isAIAstrologyRoute || isAISectionPage) {
+  // Don't render Shell at all for AI routes - return children directly
+  // This prevents Shell from rendering even during SSR
+  if (isAI || serverIsAI) {
     return <>{children}</>;
   }
   

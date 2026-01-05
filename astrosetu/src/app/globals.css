@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 /* Prevent flash of Shell content on AI routes - hide immediately */
-/* Hide Shell component completely on AI routes */
-html[data-ai-route="true"] [data-shell-content] {
+/* Aggressive hiding - applies to Shell and all its children */
+html[data-ai-route="true"] [data-shell-content],
+html[data-ai-route="true"] [data-shell-content] * {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
@@ -13,17 +14,33 @@ html[data-ai-route="true"] [data-shell-content] {
   position: absolute !important;
   width: 0 !important;
   pointer-events: none !important;
+  z-index: -9999 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-/* Additional CSS to hide Shell header/footer specifically on AI routes */
+/* Additional specificity for Shell header/footer */
 html[data-ai-route="true"] [data-shell-content] header,
-html[data-ai-route="true"] [data-shell-content] footer {
+html[data-ai-route="true"] [data-shell-content] footer,
+html[data-ai-route="true"] [data-shell-content] nav,
+html[data-ai-route="true"] [data-shell-content] main {
   display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
 }
 
-/* Hide Shell wrapper div on AI routes */
+/* Hide Shell wrapper div on AI routes - highest specificity */
 html[data-ai-route="true"] body > [data-shell-content] {
   display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  width: 0 !important;
+  pointer-events: none !important;
 }
 
 :root {

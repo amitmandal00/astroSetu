@@ -62,6 +62,29 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" className="h-full" suppressHydrationWarning data-ai-route={isAI ? "true" : "false"}>
       <body className="h-full" suppressHydrationWarning>
+        {/* Critical CSS - Must be FIRST in body to load before any React renders */}
+        {/* This prevents Shell from rendering on AI routes during SSR */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              /* Hide Shell immediately for AI routes - applies before any rendering */
+              html[data-ai-route="true"] [data-shell-content],
+              html[data-ai-route="true"] [data-shell-content] * {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                height: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                width: 0 !important;
+                pointer-events: none !important;
+                z-index: -9999 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+            `,
+          }}
+        />
         {/* Critical blocking script - runs synchronously BEFORE React hydration */}
         {/* Must be first element in body to execute immediately */}
         <script
@@ -76,12 +99,29 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   // Set attribute immediately
                   document.documentElement.setAttribute('data-ai-route', isAI ? 'true' : 'false');
                   
-                  // Inject critical CSS immediately if AI route (before any rendering)
+                  // Inject additional critical CSS immediately if AI route (before any rendering)
                   if (isAI) {
-                    var style = document.createElement('style');
-                    style.id = 'ai-route-hide-shell';
-                    style.textContent = '[data-shell-content] { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important; position: absolute !important; width: 0 !important; pointer-events: none !important; z-index: -9999 !important; } [data-shell-content] header, [data-shell-content] footer, [data-shell-content] nav { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; }';
-                    (document.head || document.getElementsByTagName('head')[0]).appendChild(style);
+                    // Remove any existing Shell content
+                    var shellElements = document.querySelectorAll('[data-shell-content]');
+                    shellElements.forEach(function(el) {
+                      el.style.display = 'none';
+                      el.style.visibility = 'hidden';
+                      el.style.opacity = '0';
+                      el.style.height = '0';
+                      el.style.overflow = 'hidden';
+                      el.style.position = 'absolute';
+                      el.style.width = '0';
+                      el.style.pointerEvents = 'none';
+                      el.style.zIndex = '-9999';
+                    });
+                    
+                    // Add style tag if not already added
+                    if (!document.getElementById('ai-route-hide-shell')) {
+                      var style = document.createElement('style');
+                      style.id = 'ai-route-hide-shell';
+                      style.textContent = '[data-shell-content], [data-shell-content] * { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important; position: absolute !important; width: 0 !important; pointer-events: none !important; z-index: -9999 !important; }';
+                      (document.head || document.getElementsByTagName('head')[0]).appendChild(style);
+                    }
                   }
                 } catch(e) {
                   console.error('AI route detection failed:', e);
@@ -92,7 +132,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         />
         <ErrorBoundary>
           <NotificationInitializer />
-          <ConditionalShell>{children}</ConditionalShell>
+          <ConditionalShell isAIRoute={isAI}>{children}</ConditionalShell>
         </ErrorBoundary>
       </body>
     </html>
