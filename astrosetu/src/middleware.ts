@@ -47,6 +47,9 @@ export function middleware(request: NextRequest) {
   
   const response = NextResponse.next();
 
+  // Pass pathname to layout for server-side route detection
+  response.headers.set('x-pathname', pathname);
+
   // Security Headers
   response.headers.set('X-DNS-Prefetch-Control', 'on');
   response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');

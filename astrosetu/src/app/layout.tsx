@@ -5,6 +5,7 @@ import Script from "next/script";
 import { ConditionalShell } from "@/components/layout/ConditionalShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NotificationInitializer } from "@/components/notifications/NotificationInitializer";
+import { headers } from "next/headers";
 
 export const metadata: Metadata = {
   title: "AstroSetu",
@@ -28,55 +29,63 @@ export const viewport: Viewport = {
   themeColor: "#6366f1"
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+// AI routes that should not show Shell component
+const AI_ROUTES = [
+  '/ai-astrology',
+  '/privacy',
+  '/terms',
+  '/disclaimer',
+  '/refund',
+  '/contact',
+  '/disputes',
+  '/cookies',
+  '/data-breach',
+  '/compliance',
+];
+
+function isAIRoute(pathname: string): boolean {
+  return pathname.startsWith('/ai-astrology') || AI_ROUTES.includes(pathname);
+}
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Server-side detection of AI routes using middleware header
+  let isAI = false;
+  try {
+    const headersList = await headers();
+    const pathname = headersList.get('x-pathname') || '';
+    isAI = isAIRoute(pathname);
+  } catch (e) {
+    // Fallback if headers() fails (shouldn't happen, but safety)
+    isAI = false;
+  }
+  
   return (
-    <html lang="en" className="h-full">
-      <body className="h-full">
-        {/* Critical inline styles - must be first in body to prevent flash */}
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-              /* Hide Shell immediately for AI routes - applies before React hydrates */
-              html[data-ai-route="true"] [data-shell-content] {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-                height: 0 !important;
-                overflow: hidden !important;
-                position: absolute !important;
-                width: 0 !important;
-                pointer-events: none !important;
-              }
-              html[data-ai-route="true"] [data-shell-content] header,
-              html[data-ai-route="true"] [data-shell-content] footer {
-                display: none !important;
-              }
-              html[data-ai-route="true"] body > [data-shell-content] {
-                display: none !important;
-              }
-            `,
-          }}
-        />
-        {/* Blocking inline script to set data attribute immediately - runs before React */}
+    <html lang="en" className="h-full" suppressHydrationWarning data-ai-route={isAI ? "true" : "false"}>
+      <body className="h-full" suppressHydrationWarning>
+        {/* Critical blocking script - runs synchronously BEFORE React hydration */}
+        {/* Must be first element in body to execute immediately */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              (function() {
+              !(function() {
                 try {
                   var path = window.location.pathname;
-                  if (path.startsWith('/ai-astrology') || 
-                      path === '/privacy' || 
-                      path === '/terms' || 
-                      path === '/disclaimer' || 
-                      path === '/refund' || 
-                      path === '/contact' || 
-                      path === '/disputes' || 
-                      path === '/cookies' || 
-                      path === '/data-breach' ||
-                      path === '/compliance') {
-                    document.documentElement.setAttribute('data-ai-route', 'true');
+                  var aiRoutes = ['/privacy', '/terms', '/disclaimer', '/refund', '/contact', '/disputes', '/cookies', '/data-breach', '/compliance'];
+                  var isAI = path.startsWith('/ai-astrology') || aiRoutes.indexOf(path) !== -1;
+                  
+                  // Set attribute immediately
+                  document.documentElement.setAttribute('data-ai-route', isAI ? 'true' : 'false');
+                  
+                  // Inject critical CSS immediately if AI route (before any rendering)
+                  if (isAI) {
+                    var style = document.createElement('style');
+                    style.id = 'ai-route-hide-shell';
+                    style.textContent = '[data-shell-content] { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important; position: absolute !important; width: 0 !important; pointer-events: none !important; z-index: -9999 !important; } [data-shell-content] header, [data-shell-content] footer, [data-shell-content] nav { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; }';
+                    (document.head || document.getElementsByTagName('head')[0]).appendChild(style);
                   }
-                } catch(e) {}
+                } catch(e) {
+                  console.error('AI route detection failed:', e);
+                }
               })();
             `,
           }}
