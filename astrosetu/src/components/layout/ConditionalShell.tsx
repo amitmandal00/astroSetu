@@ -23,6 +23,8 @@ export function ConditionalShell({
   // Helper function to check if current pathname is an AI route
   function checkIfAIRoute(currentPathname: string | null): boolean {
     if (!currentPathname) return false;
+    // Root landing page should not show Shell (orange header/footer)
+    if (currentPathname === "/") return true;
     const isAIAstrologyRoute = currentPathname.startsWith("/ai-astrology");
     const isAISectionPage = 
       currentPathname === "/privacy" || 

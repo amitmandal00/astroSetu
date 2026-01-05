@@ -31,6 +31,7 @@ export const viewport: Viewport = {
 
 // AI routes that should not show Shell component
 const AI_ROUTES = [
+  '/',
   '/ai-astrology',
   '/privacy',
   '/terms',
@@ -44,7 +45,7 @@ const AI_ROUTES = [
 ];
 
 function isAIRoute(pathname: string): boolean {
-  return pathname.startsWith('/ai-astrology') || AI_ROUTES.includes(pathname);
+  return pathname === '/' || pathname.startsWith('/ai-astrology') || AI_ROUTES.includes(pathname);
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -93,8 +94,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               !(function() {
                 try {
                   var path = window.location.pathname;
-                  var aiRoutes = ['/privacy', '/terms', '/disclaimer', '/refund', '/contact', '/disputes', '/cookies', '/data-breach', '/compliance'];
-                  var isAI = path.startsWith('/ai-astrology') || aiRoutes.indexOf(path) !== -1;
+                  var aiRoutes = ['/', '/privacy', '/terms', '/disclaimer', '/refund', '/contact', '/disputes', '/cookies', '/data-breach', '/compliance'];
+                  var isAI = path === '/' || path.startsWith('/ai-astrology') || aiRoutes.indexOf(path) !== -1;
                   
                   // Set attribute immediately
                   document.documentElement.setAttribute('data-ai-route', isAI ? 'true' : 'false');
