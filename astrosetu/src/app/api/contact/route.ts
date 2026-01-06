@@ -60,8 +60,12 @@ export async function POST(req: Request) {
       console.log(`[Contact API] Category preserved: ${autoCategory}`);
     }
 
+    // Store submission timestamp (before database insert to ensure consistency)
+    const submissionTimestamp = new Date();
+
     // Store submission in database (if Supabase configured)
     let submissionId: string | null = null;
+    let storedSubmissionTimestamp: Date | null = null;
     if (isSupabaseConfigured()) {
       try {
         const supabase = createServerClient();
@@ -133,6 +137,10 @@ export async function POST(req: Request) {
           // Continue anyway - email will still be sent
         } else {
           submissionId = submission?.id || null;
+          // Use database timestamp if available, otherwise use the one we captured
+          if (submission?.created_at) {
+            storedSubmissionTimestamp = new Date(submission.created_at);
+          }
         }
       } catch (dbError: any) {
         // Check if table doesn't exist
@@ -156,6 +164,9 @@ export async function POST(req: Request) {
       hasResendKey: !!process.env.RESEND_API_KEY,
     });
     
+    // Use database timestamp if available, otherwise use captured timestamp
+    const finalSubmissionTimestamp = storedSubmissionTimestamp || submissionTimestamp;
+
     waitUntil(
       sendContactNotifications({
         submissionId,
@@ -167,6 +178,7 @@ export async function POST(req: Request) {
         category: autoCategory,
         ipAddress: clientIP,
         userAgent: userAgent,
+        submissionTimestamp: finalSubmissionTimestamp,
       })
       .then(() => {
         console.log("[Contact API] ✅ sendContactNotifications completed successfully");
@@ -284,6 +296,7 @@ async function sendContactNotifications(data: {
   category: string;
   ipAddress?: string;
   userAgent?: string;
+  submissionTimestamp?: Date;
 }): Promise<void> {
   console.log("[Contact API] 📧 sendContactNotifications STARTED with category:", data.category);
   const { submissionId, name, email, phone, subject, message, category } = data;
@@ -438,7 +451,7 @@ async function sendContactNotifications(data: {
     
     try {
       console.log("[Contact API] Generating minimal user acknowledgement email HTML...");
-      const autoReplyHtml = generateAutoReplyEmail(name || "User", subject, category);
+      const autoReplyHtml = generateAutoReplyEmail(name || "User", subject, category, data.submissionTimestamp);
       console.log("[Contact API] User acknowledgement HTML generated, length:", autoReplyHtml.length);
       
       console.log("[Contact API] Calling sendEmail for user acknowledgement (no CC)...");
@@ -608,6 +621,7 @@ async function sendContactNotifications(data: {
           category,
           ipAddress: data.ipAddress,
           userAgent: data.userAgent,
+          submissionTimestamp: data.submissionTimestamp,
         }),
         cc: internalCcRecipients.length > 0 ? internalCcRecipients : undefined,
       });
@@ -932,10 +946,46 @@ async function sendEmail(data: {
 }
 
 /**
+ * Format timestamp with proper timezone (IST for India, UTC with indicator as fallback)
+ */
+function formatTimestampWithTimezone(date: Date = new Date()): string {
+  try {
+    // Try IST first (Asia/Kolkata) - default for Indian users
+    const istDate = new Date(date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const utcDate = new Date(date.toUTCString());
+    
+    // Format with IST timezone
+    const formatted = date.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    
+    // Add timezone indicator
+    return `${formatted} IST`;
+  } catch (error) {
+    // Fallback to UTC with timezone indicator
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "UTC",
+    }) + " UTC";
+  }
+}
+
+/**
  * Generate auto-reply email HTML (EXTERNAL-FACING, MINIMAL)
  * This is sent to users - no internal details, minimal information
  */
-function generateAutoReplyEmail(name: string, subject: string, category: string): string {
+function generateAutoReplyEmail(name: string, subject: string, category: string, submissionTimestamp?: Date): string {
   // Get base URL from environment or use default
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
                   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
@@ -991,7 +1041,7 @@ function generateAutoReplyEmail(name: string, subject: string, category: string)
           <p>Dear ${displayName},</p>
           <p>Thank you for your compliance request.</p>
           <p><strong>Request Type:</strong> ${categoryDisplay}</p>
-          <p><strong>Received:</strong> ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>
+          <p><strong>Received:</strong> ${formatTimestampWithTimezone(submissionTimestamp || new Date())}</p>
           <p>${responseMessage}</p>
           
           <div class="notice">
@@ -1036,6 +1086,7 @@ function generateAdminNotificationEmail(data: {
   category: string;
   ipAddress?: string;
   userAgent?: string;
+  submissionTimestamp?: Date;
 }): string {
   // Get base URL from environment or use default
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
@@ -1104,7 +1155,10 @@ function generateAdminNotificationEmail(data: {
           </div>
           <div class="field">
             <div class="label">Timestamp:</div>
-            <div class="value">${new Date().toISOString()}</div>
+            <div class="value">
+              ${formatTimestampWithTimezone(data.submissionTimestamp || new Date())}<br>
+              <span style="font-size: 11px; color: #6b7280;">(UTC: ${(data.submissionTimestamp || new Date()).toISOString()})</span>
+            </div>
           </div>
           <div class="field">
             <div class="label">Name:</div>
