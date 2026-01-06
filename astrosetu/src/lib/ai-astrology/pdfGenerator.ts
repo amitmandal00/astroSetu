@@ -125,6 +125,99 @@ export async function generatePDF(
       yPosition += addBottomSpacing; // Add spacing after text block
     };
 
+    // Helper function to add paragraphs with intelligent spacing and structure
+    const addParagraph = (text: string, fontSize: number = 11, isBold: boolean = false, color: string = "#334155", lineHeight: number = 1.7, addBottomSpacing: number = 8) => {
+      if (!text || text.trim() === "") return;
+      
+      doc.setFontSize(fontSize);
+      doc.setFont("helvetica", isBold ? "bold" : "normal");
+      doc.setTextColor(color);
+      
+      // Split by double newlines for paragraphs (preserve structure)
+      const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+      
+      paragraphs.forEach((paragraph, paraIndex) => {
+        // Add small spacing between paragraphs (except first)
+        if (paraIndex > 0) {
+          yPosition += 4; // Reduced spacing between paragraphs
+        }
+        
+        // Process paragraph - handle both single lines and multi-line content
+        const cleanedParagraph = cleanText(paragraph);
+        
+        // Check if paragraph contains bullets or is structured text
+        const hasBullets = /^[•\-\*]\s/m.test(cleanedParagraph) || /^\d+\.\s/m.test(cleanedParagraph);
+        
+        if (hasBullets) {
+          // Handle structured content with bullets
+          const lines = cleanedParagraph.split(/\n/).filter(l => l.trim());
+          lines.forEach((line) => {
+            const cleanedLine = line.trim();
+            if (!cleanedLine) return;
+            
+            // Check if it's a bullet point or numbered item
+            const isBullet = /^[•\-\*]\s/.test(cleanedLine) || /^\d+\.\s/.test(cleanedLine);
+            
+            if (isBullet) {
+              // Better formatting for bullets
+              const bulletText = cleanedLine.replace(/^[•\-\*]\s/, "").replace(/^\d+\.\s/, "");
+              const bulletLines = doc.splitTextToSize(bulletText, contentWidth - 8); // Indent for bullets
+              const lineSpacing = (fontSize * lineHeight * 0.3528);
+              
+              bulletLines.forEach((bulletLine: string, idx: number) => {
+                if (yPosition + lineSpacing > pageHeight - margin) {
+                  doc.addPage();
+                  yPosition = margin;
+                }
+                doc.setFontSize(fontSize);
+                doc.setFont("helvetica", isBold ? "bold" : "normal");
+                doc.setTextColor(color);
+                doc.text(idx === 0 ? `• ${bulletLine}` : `  ${bulletLine}`, margin + (idx === 0 ? 0 : 8), yPosition);
+                yPosition += lineSpacing;
+              });
+              yPosition += 3; // Space after bullet
+            } else {
+              // Regular line within structured content
+              const wrappedLines = doc.splitTextToSize(cleanedLine, contentWidth);
+              const lineSpacing = (fontSize * lineHeight * 0.3528);
+              
+              wrappedLines.forEach((wrappedLine: string) => {
+                if (yPosition + lineSpacing > pageHeight - margin) {
+                  doc.addPage();
+                  yPosition = margin;
+                }
+                doc.setFontSize(fontSize);
+                doc.setFont("helvetica", isBold ? "bold" : "normal");
+                doc.setTextColor(color);
+                doc.text(wrappedLine, margin, yPosition);
+                yPosition += lineSpacing;
+              });
+              yPosition += 2; // Small space after line
+            }
+          });
+        } else {
+          // Regular paragraph - wrap text intelligently
+          const wrappedLines = doc.splitTextToSize(cleanedParagraph, contentWidth);
+          const lineSpacing = (fontSize * lineHeight * 0.3528);
+          
+          wrappedLines.forEach((wrappedLine: string) => {
+            if (yPosition + lineSpacing > pageHeight - margin) {
+              doc.addPage();
+              yPosition = margin;
+            }
+            doc.setFontSize(fontSize);
+            doc.setFont("helvetica", isBold ? "bold" : "normal");
+            doc.setTextColor(color);
+            doc.text(wrappedLine, margin, yPosition);
+            yPosition += lineSpacing;
+          });
+          yPosition += 3; // Space after paragraph
+        }
+      });
+      
+      yPosition += addBottomSpacing; // Final spacing after all paragraphs
+    };
+
     // ============================================
     // 1. COVER PAGE
     // ============================================
@@ -427,17 +520,17 @@ export async function generatePDF(
     // ============================================
     // 5. EXECUTIVE SUMMARY (1 page max - Summary)
     // ============================================
-    checkPageBreak(40);
+    checkPageBreak(30);
     // Section divider - Matching UI purple-600 theme
     doc.setDrawColor(147, 51, 234); // purple-600 (#9333ea)
     doc.setLineWidth(1);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += 10;
+    yPosition += 8; // Reduced spacing
 
-    addText("Executive Summary", 16, true, "#1e293b", 1.4, 4);
-    addText("Summary for busy users", 10, false, "#64748b", 1.4, 6);
+    addText("Executive Summary", 16, true, "#1e293b", 1.3, 3);
+    addText("Summary for busy users", 10, false, "#64748b", 1.3, 5);
 
-    // Display executive summary or regular summary
+    // Display executive summary or regular summary with intelligent paragraph formatting
     const summaryText = (reportContent.executiveSummary || reportContent.summary || "")
       .split(/\n/)
       .filter(line => 
@@ -448,7 +541,8 @@ export async function generatePDF(
       .join('\n');
     
     if (summaryText.trim()) {
-      addText(summaryText, 11, false, "#334155", 1.6, 6); // Better line height for summary readability
+      // Use paragraph formatter for better structure
+      addParagraph(summaryText, 11, false, "#334155", 1.7, 8);
     }
 
     // Add timing hierarchy disclaimer for Full Life Report
@@ -493,12 +587,12 @@ export async function generatePDF(
     reportContent.sections.forEach((section, sectionIdx) => {
       checkPageBreak(30);
 
-      // Section divider
+      // Section divider - reduced spacing
       if (sectionIdx > 0 || reportContent.summary) {
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.3);
         doc.line(margin, yPosition, pageWidth - margin, yPosition);
-        yPosition += 10;
+        yPosition += 6; // Reduced spacing from 10 to 6
       }
 
       // Section title (clean and format)
@@ -563,7 +657,7 @@ export async function generatePDF(
         
         yPosition = anchorBoxStartY + anchorBoxHeight + 8;
       } else {
-        addText(formattedTitle, 16, true, "#1e293b", 1.4, 4);
+        addText(formattedTitle, 16, true, "#1e293b", 1.3, 3); // Reduced spacing
       }
 
       // Extract and display confidence indicator if present
@@ -612,13 +706,14 @@ export async function generatePDF(
           )
           .join('\n');
         if (cleanContent.trim()) {
+          // Use intelligent paragraph formatting for better structure
           // Special formatting for Year Strategy sections
           const isYearStrategy = formattedTitle.match(/Year Strategy/i);
           if (isYearStrategy && reportType === "year-analysis") {
             // Better spacing for Year Strategy content
-            addText(cleanContent, 11, false, "#334155", 1.7, 8); // Increased line height and spacing
+            addParagraph(cleanContent, 11, false, "#334155", 1.7, 6); // Use paragraph formatter
           } else {
-            addText(cleanContent, 11, false, "#334155", 1.6, 6); // Better line height for readability
+            addParagraph(cleanContent, 11, false, "#334155", 1.7, 6); // Use paragraph formatter with consistent spacing
           }
         }
       }
@@ -678,7 +773,7 @@ export async function generatePDF(
           doc.setTextColor("#334155");
           doc.setFont("helvetica", "normal");
           const cleanedBullet = cleanText(bullet);
-          const bulletLines = doc.splitTextToSize(`• ${cleanedBullet}`, contentWidth - 10);
+          const bulletLines = doc.splitTextToSize(cleanedBullet, contentWidth - 8); // Better width for bullets
           const bulletSpacing = 11 * bulletSpacingMultiplier * 0.3528;
           
           bulletLines.forEach((line: string, idx: number) => {
@@ -686,7 +781,7 @@ export async function generatePDF(
               doc.addPage();
               yPosition = margin;
             }
-            doc.text(line, margin + (idx === 0 ? 0 : 10), yPosition);
+            doc.text(idx === 0 ? `• ${line}` : `  ${line}`, margin, yPosition); // Proper indentation
             yPosition += bulletSpacing;
           });
           yPosition += bulletBottomSpacing; // Space between bullets
@@ -697,31 +792,31 @@ export async function generatePDF(
       if (section.subsections && section.subsections.length > 0) {
         section.subsections.forEach((subsection) => {
           checkPageBreak(20);
-          yPosition += 5;
+          yPosition += 3; // Reduced spacing from 5 to 3
 
           // Subsection title (clean and format)
           const cleanedSubtitle = cleanText(subsection.title);
-          addText(cleanedSubtitle, 14, true, "#475569", 1.4, 4);
+          addText(cleanedSubtitle, 14, true, "#475569", 1.3, 3); // Reduced spacing
 
-          // Subsection content
-          if (subsection.content) {
-            // Better line height for year analysis reports
-            const lineHeightMultiplier = (reportType === "year-analysis") ? 1.7 : 1.6;
-            const bottomSpacing = (reportType === "year-analysis") ? 7 : 5;
-            addText(subsection.content, 11, false, "#334155", lineHeightMultiplier, bottomSpacing);
-          }
+      // Subsection content - use paragraph formatter for better structure
+      if (subsection.content) {
+        // Better line height for year analysis reports
+        const lineHeightMultiplier = (reportType === "year-analysis") ? 1.7 : 1.7;
+        const bottomSpacing = (reportType === "year-analysis") ? 6 : 6;
+        addParagraph(subsection.content, 11, false, "#334155", lineHeightMultiplier, bottomSpacing);
+      }
 
-          // Subsection bullets
+          // Subsection bullets - improved formatting
           if (subsection.bullets && subsection.bullets.length > 0) {
-            const bulletSpacingMultiplier = (reportType === "year-analysis") ? 1.8 : 1.5;
-            const bulletBottomSpacing = (reportType === "year-analysis") ? 5 : 3;
+            const bulletSpacingMultiplier = (reportType === "year-analysis") ? 1.7 : 1.6;
+            const bulletBottomSpacing = (reportType === "year-analysis") ? 4 : 3;
             
             subsection.bullets.forEach((bullet) => {
               doc.setFontSize(11);
               doc.setTextColor("#334155");
               doc.setFont("helvetica", "normal");
               const cleanedBullet = cleanText(bullet);
-              const bulletLines = doc.splitTextToSize(`  • ${cleanedBullet}`, contentWidth - 10);
+              const bulletLines = doc.splitTextToSize(cleanedBullet, contentWidth - 8); // Better width for bullets
               const bulletSpacing = 11 * bulletSpacingMultiplier * 0.3528;
               
               bulletLines.forEach((line: string, idx: number) => {
@@ -729,7 +824,7 @@ export async function generatePDF(
                   doc.addPage();
                   yPosition = margin;
                 }
-                doc.text(line, margin + (idx === 0 ? 0 : 10), yPosition);
+                doc.text(idx === 0 ? `  • ${line}` : `    ${line}`, margin, yPosition); // Proper indentation
                 yPosition += bulletSpacing;
               });
               yPosition += bulletBottomSpacing; // Space between bullets
@@ -738,7 +833,7 @@ export async function generatePDF(
         });
       }
 
-      yPosition += 8; // More space between sections
+      yPosition += 6; // Reduced spacing between sections for better page usage
     });
 
     // Key Insights section (if present)
@@ -796,10 +891,28 @@ export async function generatePDF(
     const footerDateStr = footerDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
     const footerTimeStr = footerDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
     
+    // Check if disclaimer wasn't added to last page content, add it to last page footer
+    const lastPageNeedsDisclaimer = yPosition + 20 < pageHeight - margin - 15;
+    
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(7);
       doc.setTextColor("#94a3b8");
+      
+      const isLastPage = i === totalPages;
+      
+      // Add disclaimer to last page footer if there's space and it wasn't added earlier
+      if (isLastPage && lastPageNeedsDisclaimer && yPosition + 20 < pageHeight - margin - 15) {
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "italic");
+        const footerDisclaimer = "Disclaimer: AI-generated for educational purposes only. Not a substitute for professional advice.";
+        doc.text(
+          footerDisclaimer,
+          pageWidth / 2,
+          pageHeight - 18,
+          { align: "center" }
+        );
+      }
       
       // Page number
       doc.text(
@@ -829,29 +942,31 @@ export async function generatePDF(
       );
     }
 
-    // Compressed Disclaimer (only on last page, shortened)
-    checkPageBreak(25);
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.5);
-    doc.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += 8;
+    // Compressed Disclaimer (only on last page, shortened) - Add only if space available
+    const disclaimerText = "Disclaimer: AI-generated for educational purposes only. Not a substitute for professional advice. " +
+                           "Guidance based on astrological calculations, not guarantees. " +
+                           "No change-of-mind refunds on digital reports (this does not limit rights under Australian Consumer Law).";
+    const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth);
+    const disclaimerSpacing = 8 * 1.3 * 0.3528;
+    const disclaimerHeight = disclaimerLines.length * disclaimerSpacing + 12; // 12mm for divider and spacing
+    
+    // Only add disclaimer if there's enough space on current page, otherwise add to footer area
+    if (yPosition + disclaimerHeight < pageHeight - margin - 15) {
+      // Add disclaimer on same page if space available
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 6; // Reduced spacing
 
-    doc.setFontSize(8);
-    doc.setTextColor("#64748b");
-    doc.setFont("helvetica", "italic");
-    const compressedDisclaimer = "Disclaimer: AI-generated for educational purposes only. Not a substitute for professional advice. " +
-                                 "Guidance based on astrological calculations, not guarantees. " +
-                                 "No change-of-mind refunds on digital reports (this does not limit rights under Australian Consumer Law).";
-    const disclaimerLines = doc.splitTextToSize(compressedDisclaimer, contentWidth);
-    const disclaimerSpacing = 8 * 1.4 * 0.3528;
-    disclaimerLines.forEach((line: string) => {
-      if (yPosition + disclaimerSpacing > pageHeight - margin) {
-        doc.addPage();
-        yPosition = margin;
-      }
-      doc.text(line, margin, yPosition);
-      yPosition += disclaimerSpacing;
-    });
+      doc.setFontSize(8);
+      doc.setTextColor("#64748b");
+      doc.setFont("helvetica", "italic");
+      disclaimerLines.forEach((line: string) => {
+        doc.text(line, margin, yPosition);
+        yPosition += disclaimerSpacing;
+      });
+    }
+    // If not enough space, disclaimer will be in footer area (handled in footer section)
 
     // Generate blob
     const pdfBlob = doc.output("blob");
