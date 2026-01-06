@@ -112,6 +112,8 @@ export async function POST(req: Request) {
             ip_address: clientIP,
             user_agent: userAgent,
             status: "new",
+            email_sent_user: false,  // Will be updated after email is sent
+            email_sent_internal: false,  // Will be updated after email is sent
             metadata: {
               auto_categorized: category !== autoCategory,
               original_category: category,
@@ -459,6 +461,25 @@ async function sendContactNotifications(data: {
         resendEmailUrl: `https://resend.com/emails/${userEmailResult.id}`,
         note: "External-facing, no CC - Check Resend dashboard to verify",
       });
+      
+      // Update database to track email sent status (for audit trail)
+      if (submissionId && isSupabaseConfigured()) {
+        try {
+          const supabase = createServerClient();
+          await supabase
+            .from("contact_submissions")
+            .update({
+              email_sent_user: true,
+              email_sent_user_at: new Date().toISOString(),
+            })
+            .eq("id", submissionId);
+          console.log("[Contact API] ✅ Database updated: email_sent_user = true");
+        } catch (dbUpdateError) {
+          console.error("[Contact API] ⚠️ Failed to update email_sent_user in database:", dbUpdateError);
+          // Don't throw - email was sent successfully, DB update is secondary
+        }
+      }
+      
       console.log("[Contact API] ✅ User acknowledgement email completed - proceeding to internal notification");
     } catch (emailError: any) {
       console.error("[Contact API] ❌ Failed to send user acknowledgement email:", {
@@ -467,6 +488,24 @@ async function sendContactNotifications(data: {
         to: email,
         from: lockedSender,
       });
+      
+      // Update database to track email failure (for audit trail)
+      if (submissionId && isSupabaseConfigured()) {
+        try {
+          const supabase = createServerClient();
+          await supabase
+            .from("contact_submissions")
+            .update({
+              email_sent_user: false,
+              email_error: `User email failed: ${emailError?.message || String(emailError)}`,
+            })
+            .eq("id", submissionId);
+          console.log("[Contact API] ⚠️ Database updated: email_sent_user = false");
+        } catch (dbUpdateError) {
+          console.error("[Contact API] ⚠️ Failed to update email error in database:", dbUpdateError);
+        }
+      }
+      
       // Don't re-throw - continue to send internal notification even if user email fails
       console.warn("[Contact API] ⚠️ Continuing to send internal notification despite user email failure");
     }
@@ -585,6 +624,24 @@ async function sendContactNotifications(data: {
         resendEmailUrl: `https://resend.com/emails/${internalEmailResult.id}`,
         note: "Internal-only, detailed - Check Resend dashboard to verify",
       });
+      
+      // Update database to track internal email sent status (for audit trail)
+      if (submissionId && isSupabaseConfigured()) {
+        try {
+          const supabase = createServerClient();
+          await supabase
+            .from("contact_submissions")
+            .update({
+              email_sent_internal: true,
+              email_sent_internal_at: new Date().toISOString(),
+            })
+            .eq("id", submissionId);
+          console.log("[Contact API] ✅ Database updated: email_sent_internal = true");
+        } catch (dbUpdateError) {
+          console.error("[Contact API] ⚠️ Failed to update email_sent_internal in database:", dbUpdateError);
+          // Don't throw - email was sent successfully, DB update is secondary
+        }
+      }
     } catch (internalEmailError: any) {
       console.error("[Contact API] ========================================");
       console.error("[Contact API] ❌ FAILED TO SEND INTERNAL NOTIFICATION EMAIL");
@@ -597,6 +654,24 @@ async function sendContactNotifications(data: {
         errorType: internalEmailError?.constructor?.name,
         fullError: JSON.stringify(internalEmailError, Object.getOwnPropertyNames(internalEmailError)),
       });
+      
+      // Update database to track internal email failure (for audit trail)
+      if (submissionId && isSupabaseConfigured()) {
+        try {
+          const supabase = createServerClient();
+          await supabase
+            .from("contact_submissions")
+            .update({
+              email_sent_internal: false,
+              email_error: `Internal email failed: ${internalEmailError?.message || String(internalEmailError)}`,
+            })
+            .eq("id", submissionId);
+          console.log("[Contact API] ⚠️ Database updated: email_sent_internal = false");
+        } catch (dbUpdateError) {
+          console.error("[Contact API] ⚠️ Failed to update email error in database:", dbUpdateError);
+        }
+      }
+      
       // Re-throw internal notification errors - these are critical
       throw internalEmailError;
     }

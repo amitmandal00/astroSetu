@@ -26,7 +26,14 @@ create table if not exists contact_submissions (
   user_agent text null,
 
   -- Metadata
-  metadata jsonb not null default '{}'::jsonb
+  metadata jsonb not null default '{}'::jsonb,
+  
+  -- Email Audit Trail (for legal defensibility)
+  email_sent_user boolean not null default false,
+  email_sent_internal boolean not null default false,
+  email_sent_user_at timestamptz null,
+  email_sent_internal_at timestamptz null,
+  email_error text null  -- Store error message if email sending fails
 );
 
 -- Indexes for performance

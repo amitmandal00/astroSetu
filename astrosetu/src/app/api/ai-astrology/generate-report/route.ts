@@ -79,10 +79,13 @@ export async function POST(req: Request) {
   const requestId = generateRequestId();
 
   try {
-    // Rate limiting
+    // Stricter rate limiting for report generation (production-ready)
+    // Per ChatGPT feedback: Add rate limiting to prevent abuse
+    // Uses middleware rate limiting (already configured) with additional check
     const rateLimitResponse = checkRateLimit(req, "/api/ai-astrology/generate-report");
     if (rateLimitResponse) {
       rateLimitResponse.headers.set("X-Request-ID", requestId);
+      rateLimitResponse.headers.set("Retry-After", "60");
       return rateLimitResponse;
     }
 
@@ -180,40 +183,55 @@ export async function POST(req: Request) {
       console.log(`[${mode}] Bypassing payment verification for ${reportType} report`);
     }
 
-    // Generate report based on type
+    // Generate report based on type with hard timeout fallback
+    // Timeout: 60 seconds for report generation (Vercel serverless functions have 10s-60s timeout depending on plan)
+    const REPORT_GENERATION_TIMEOUT = 55000; // 55 seconds (leaves 5s buffer for response)
     let reportContent;
+    
     try {
-      switch (reportType) {
-        case "life-summary":
-          reportContent = await generateLifeSummaryReport(input);
-          break;
-        case "marriage-timing":
-          reportContent = await generateMarriageTimingReport(input);
-          break;
-        case "career-money":
-          reportContent = await generateCareerMoneyReport(input);
-          break;
-        case "full-life":
-          reportContent = await generateFullLifeReport(input);
-          break;
-        case "year-analysis":
-          const targetYear = new Date().getFullYear() + 1; // Default to next year
-          reportContent = await generateYearAnalysisReport(input, targetYear);
-          break;
-        case "major-life-phase":
-          reportContent = await generateMajorLifePhaseReport(input);
-          break;
-        case "decision-support":
-          reportContent = await generateDecisionSupportReport(input, decisionContext);
-          break;
-        default:
-          throw new Error(`Unknown report type: ${reportType}`);
-      }
+      // Create a timeout promise that rejects after REPORT_GENERATION_TIMEOUT
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error("Report generation timed out. Please try again with a simpler request."));
+        }, REPORT_GENERATION_TIMEOUT);
+      });
+
+      // Race between report generation and timeout
+      const reportGenerationPromise = (async () => {
+        switch (reportType) {
+          case "life-summary":
+            return await generateLifeSummaryReport(input);
+          case "marriage-timing":
+            return await generateMarriageTimingReport(input);
+          case "career-money":
+            return await generateCareerMoneyReport(input);
+          case "full-life":
+            return await generateFullLifeReport(input);
+          case "year-analysis":
+            const targetYear = new Date().getFullYear() + 1; // Default to next year
+            return await generateYearAnalysisReport(input, targetYear);
+          case "major-life-phase":
+            return await generateMajorLifePhaseReport(input);
+          case "decision-support":
+            return await generateDecisionSupportReport(input, decisionContext);
+          default:
+            throw new Error(`Unknown report type: ${reportType}`);
+        }
+      })();
+
+      // Race the timeout against report generation
+      reportContent = await Promise.race([reportGenerationPromise, timeoutPromise]);
     } catch (error: any) {
       console.error("[AI Astrology] Report generation error:", error);
       // Provide user-friendly error message without exposing internal details
       const errorMessage = error.message || "Unknown error";
       const errorString = JSON.stringify(error).toLowerCase();
+      
+      // Check if it's a timeout error
+      const isTimeoutError = 
+        errorMessage.includes("timed out") ||
+        errorMessage.includes("timeout") ||
+        errorMessage.includes("Report generation timed out");
       
       // Check for Prokerala API credit exhaustion (403 with "insufficient credit balance")
       const isProkeralaCreditError = 
@@ -260,17 +278,30 @@ export async function POST(req: Request) {
         headers["Retry-After"] = "3600"; // Suggest retry after 1 hour for quota issues
       }
       
+      // Provide specific error message for timeout
+      const finalErrorMessage = isTimeoutError
+        ? "Report generation is taking longer than expected. Please try again with a simpler request, or contact support if the issue persists."
+        : isConfigError
+        ? "Astrology calculation service is temporarily unavailable. Reports may use estimated data. Please try again later."
+        : "Server error. Please try again later.";
+      
+      const finalErrorCode = isTimeoutError
+        ? "TIMEOUT"
+        : isConfigError
+        ? "SERVICE_UNAVAILABLE"
+        : "REPORT_GENERATION_FAILED";
+      
+      const finalStatus = isTimeoutError ? 504 : (isConfigError ? 503 : 500);
+      
       return NextResponse.json(
         { 
           ok: false, 
-          error: isConfigError 
-            ? "Astrology calculation service is temporarily unavailable. Reports may use estimated data. Please try again later."
-            : "Server error. Please try again later.",
-          code: isConfigError ? "SERVICE_UNAVAILABLE" : "REPORT_GENERATION_FAILED",
+          error: finalErrorMessage,
+          code: finalErrorCode,
           requestId 
         },
         { 
-          status: isConfigError ? 503 : 500,
+          status: finalStatus,
           headers
         }
       );
