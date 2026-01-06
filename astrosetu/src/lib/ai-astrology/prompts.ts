@@ -278,7 +278,8 @@ export const AI_PROMPT_TEMPLATES = {
          - Career Momentum Windows: "Confidence: ★★★★☆ (Medium-High)"
          - Money Growth Phases: "Confidence: ★★★☆☆ (Medium)"
          - Financial Cycles: "Confidence: ★★★☆☆ (Medium)"
-      `,
+      `;
+    },
 
     dailyGuidance: (birthDetails: any, planetaryData: any, currentTransits: any) => `
       ${AI_PROMPT_SYSTEM_MESSAGE}
@@ -630,7 +631,8 @@ export const AI_PROMPT_TEMPLATES = {
          "This report provides strategic guidance for ${periodDescription} based on astrological patterns. 
          These are themes and tendencies, not predictions. Use this guidance to plan thoughtfully, 
          not as definitive outcomes. Your actions and circumstances always play a role in outcomes."
-      `,
+      `;
+    },
 
     majorLifePhase: (birthDetails: any, planetaryData: any) => `
       ${AI_PROMPT_SYSTEM_MESSAGE}

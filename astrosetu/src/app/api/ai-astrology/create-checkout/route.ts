@@ -101,7 +101,16 @@ export async function POST(req: Request) {
           const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
           baseUrl = `${protocol}://${hostHeader}`;
         } else {
-          baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          // Use environment variable, throw error if not set in production
+          baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+          if (!baseUrl) {
+            console.error("[Create Checkout] NEXT_PUBLIC_APP_URL not set");
+            // In production, this should be set. For local dev, allow localhost fallback
+            if (process.env.NODE_ENV === 'production') {
+              throw new Error("NEXT_PUBLIC_APP_URL environment variable is required");
+            }
+            baseUrl = "http://localhost:3000";
+          }
         }
       }
       
@@ -229,8 +238,18 @@ export async function POST(req: Request) {
         const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
         baseUrl = `${protocol}://${hostHeader}`;
       } else {
-        baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        // Use environment variable, throw error if not set in production
+        baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+        if (!baseUrl) {
+          console.error("[Create Checkout] NEXT_PUBLIC_APP_URL not set");
+          // In production, this should be set. For local dev, allow localhost fallback
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error("NEXT_PUBLIC_APP_URL environment variable is required");
+          }
+          baseUrl = "http://localhost:3000";
+        }
       }
+        }
     }
     const success = successUrl || `${baseUrl}/ai-astrology/payment/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancel = cancelUrl || `${baseUrl}/ai-astrology/payment/cancel`;

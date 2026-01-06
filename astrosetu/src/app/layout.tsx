@@ -63,69 +63,172 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" className="h-full" suppressHydrationWarning data-ai-route={isAI ? "true" : "false"}>
       <body className="h-full" suppressHydrationWarning>
-        {/* Critical CSS - Must be FIRST in body to load before any React renders */}
-        {/* This prevents Shell from rendering on AI routes during SSR */}
+        {/* CRITICAL: CSS must be FIRST in body to load before React renders */}
+        {/* This prevents Shell from rendering on AI routes during SSR, hydration, loading, and route transitions */}
         <style
           dangerouslySetInnerHTML={{
             __html: `
-              /* Hide Shell immediately for AI routes - applies before any rendering */
+              /* ULTRA-AGGRESSIVE Shell hiding for AI routes - runs BEFORE React hydration */
               html[data-ai-route="true"] [data-shell-content],
-              html[data-ai-route="true"] [data-shell-content] * {
+              html[data-ai-route="true"] [data-shell-content] *,
+              html[data-ai-route="true"] [data-shell-content] *::before,
+              html[data-ai-route="true"] [data-shell-content] *::after,
+              html[data-ai-route="true"] body > div[data-shell-content],
+              html[data-ai-route="true"] body > [data-shell-content],
+              html[data-ai-route="true"] [data-shell-content] header,
+              html[data-ai-route="true"] [data-shell-content] footer,
+              html[data-ai-route="true"] [data-shell-content] nav,
+              html[data-ai-route="true"] [data-shell-content] main,
+              html[data-ai-route="true"] [data-shell-content] div {
                 display: none !important;
                 visibility: hidden !important;
                 opacity: 0 !important;
                 height: 0 !important;
+                min-height: 0 !important;
+                max-height: 0 !important;
                 overflow: hidden !important;
                 position: absolute !important;
                 width: 0 !important;
+                min-width: 0 !important;
+                max-width: 0 !important;
                 pointer-events: none !important;
                 z-index: -9999 !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                color: transparent !important;
+                line-height: 0 !important;
+                font-size: 0 !important;
+                text-indent: -9999px !important;
+              }
+              
+              /* Prevent Shell from flashing during route transitions, loading states, Suspense fallbacks */
+              html[data-ai-route="true"] body > div:first-child[data-shell-content],
+              html[data-ai-route="true"] body > [data-shell-content]:first-child,
+              html[data-ai-route="true"] [data-shell-content][class*="loading"],
+              html[data-ai-route="true"] [data-shell-content][class*="Loading"],
+              html[data-ai-route="true"] [data-shell-content][class*="transition"],
+              html[data-ai-route="true"] [data-shell-content][class*="animate"],
+              html[data-ai-route="true"] [data-shell-content][data-reactroot] {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                min-height: 0 !important;
+                overflow: hidden !important;
+                opacity: 0 !important;
               }
             `,
           }}
         />
-        {/* Critical blocking script - runs synchronously BEFORE React hydration */}
-        {/* Must be first element in body to execute immediately */}
+        {/* CRITICAL: Blocking script - runs synchronously BEFORE React hydration */}
+        {/* Must be first script in body to execute immediately */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               !(function() {
+                'use strict';
                 try {
+                  // Detect AI route IMMEDIATELY (before React, before any rendering)
                   var path = window.location.pathname;
                   var aiRoutes = ['/', '/privacy', '/terms', '/disclaimer', '/refund', '/contact', '/disputes', '/cookies', '/data-breach', '/compliance'];
                   var isAI = path === '/' || path.startsWith('/ai-astrology') || aiRoutes.indexOf(path) !== -1;
                   
-                  // Set attribute immediately
+                  // Set attribute IMMEDIATELY (triggers CSS hiding rules from globals.css and inline style)
                   document.documentElement.setAttribute('data-ai-route', isAI ? 'true' : 'false');
                   
-                  // Inject additional critical CSS immediately if AI route (before any rendering)
+                  // If AI route, hide Shell immediately and continuously watch for it
                   if (isAI) {
-                    // Remove any existing Shell content
-                    var shellElements = document.querySelectorAll('[data-shell-content]');
-                    shellElements.forEach(function(el) {
-                      el.style.display = 'none';
-                      el.style.visibility = 'hidden';
-                      el.style.opacity = '0';
-                      el.style.height = '0';
-                      el.style.overflow = 'hidden';
-                      el.style.position = 'absolute';
-                      el.style.width = '0';
-                      el.style.pointerEvents = 'none';
-                      el.style.zIndex = '-9999';
+                    // Function to aggressively hide ALL Shell elements
+                    function hideShellElements() {
+                      var shellElements = document.querySelectorAll('[data-shell-content]');
+                      for (var i = 0; i < shellElements.length; i++) {
+                        var el = shellElements[i];
+                        // Apply inline styles directly (highest priority)
+                        el.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; min-height: 0 !important; max-height: 0 !important; overflow: hidden !important; position: absolute !important; width: 0 !important; min-width: 0 !important; max-width: 0 !important; pointer-events: none !important; z-index: -9999 !important; margin: 0 !important; padding: 0 !important; border: none !important; background: transparent !important; color: transparent !important;';
+                        // Also hide all children recursively
+                        var children = el.querySelectorAll('*');
+                        for (var j = 0; j < children.length; j++) {
+                          children[j].style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important; position: absolute !important; width: 0 !important; pointer-events: none !important;';
+                        }
+                      }
+                    }
+                    
+                    // Hide immediately - don't wait for DOMContentLoaded
+                    hideShellElements();
+                    
+                    // Hide on DOMContentLoaded (if script runs before DOM ready)
+                    if (document.readyState === 'loading') {
+                      document.addEventListener('DOMContentLoaded', hideShellElements);
+                    }
+                    
+                    // Hide on window load (final safety net)
+                    window.addEventListener('load', hideShellElements);
+                    
+                    // Watch for Shell elements being added dynamically (route transitions, React hydration, Suspense, loading states)
+                    var observer = new MutationObserver(function(mutations) {
+                      hideShellElements(); // Hide immediately when DOM changes
                     });
                     
-                    // Add style tag if not already added
-                    if (!document.getElementById('ai-route-hide-shell')) {
-                      var style = document.createElement('style');
-                      style.id = 'ai-route-hide-shell';
-                      style.textContent = '[data-shell-content], [data-shell-content] * { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important; position: absolute !important; width: 0 !important; pointer-events: none !important; z-index: -9999 !important; }';
-                      (document.head || document.getElementsByTagName('head')[0]).appendChild(style);
+                    // Start observing as soon as body exists (or immediately if it exists)
+                    function startObserving() {
+                      if (document.body) {
+                        observer.observe(document.body, {
+                          childList: true,
+                          subtree: true,
+                          attributes: false,
+                          attributeOldValue: false,
+                          characterData: false
+                        });
+                        hideShellElements(); // Hide any that were added before observer started
+                      } else {
+                        // Body doesn't exist yet, try again
+                        setTimeout(startObserving, 0);
+                      }
                     }
+                    startObserving();
+                    
+                    // Also watch for route changes (Next.js client-side navigation)
+                    var originalPushState = history.pushState;
+                    var originalReplaceState = history.replaceState;
+                    history.pushState = function() {
+                      originalPushState.apply(history, arguments);
+                      // Hide Shell immediately on route change (multiple checks for safety)
+                      setTimeout(hideShellElements, 0);
+                      setTimeout(hideShellElements, 10); // Double-check after a tick
+                      setTimeout(hideShellElements, 50); // Final check
+                    };
+                    history.replaceState = function() {
+                      originalReplaceState.apply(history, arguments);
+                      setTimeout(hideShellElements, 0);
+                      setTimeout(hideShellElements, 10);
+                      setTimeout(hideShellElements, 50);
+                    };
+                    
+                    // Watch for popstate (back/forward navigation)
+                    window.addEventListener('popstate', function() {
+                      setTimeout(hideShellElements, 0);
+                      setTimeout(hideShellElements, 10);
+                      setTimeout(hideShellElements, 50);
+                    });
+                    
+                    // Add permanent style tag to <head> for CSS-level hiding
+                    if (!document.getElementById('ai-route-hide-shell-critical')) {
+                      var style = document.createElement('style');
+                      style.id = 'ai-route-hide-shell-critical';
+                      style.textContent = '[data-shell-content], [data-shell-content] *, [data-shell-content] *::before, [data-shell-content] *::after { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; min-height: 0 !important; max-height: 0 !important; overflow: hidden !important; position: absolute !important; width: 0 !important; min-width: 0 !important; max-width: 0 !important; pointer-events: none !important; z-index: -9999 !important; margin: 0 !important; padding: 0 !important; border: none !important; background: transparent !important; color: transparent !important; line-height: 0 !important; font-size: 0 !important; }';
+                      (document.head || document.getElementsByTagName('head')[0] || document.documentElement).appendChild(style);
+                    }
+                    
+                    // Periodically check and hide (safety net for edge cases during loading/transitions)
+                    setInterval(hideShellElements, 100); // Check every 100ms
+                    
+                    // Hide on focus (in case user switches tabs/windows)
+                    window.addEventListener('focus', hideShellElements);
                   }
                 } catch(e) {
-                  console.error('AI route detection failed:', e);
+                  // Silent fail - don't break page if script fails
                 }
               })();
             `,

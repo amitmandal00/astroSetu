@@ -107,11 +107,29 @@ export function ConditionalShell({
   
   // Don't render Shell at all for AI routes - return children directly
   // This prevents Shell from rendering even during SSR
+  // Double-check data attribute before rendering to prevent any flash
   if (isAI || serverIsAI) {
+    // Additional safeguard: Check data attribute one more time before rendering
+    if (typeof document !== "undefined") {
+      const attrValue = document.documentElement.getAttribute("data-ai-route");
+      if (attrValue === "true") {
+        return <>{children}</>;
+      }
+    }
     return <>{children}</>;
   }
   
   // Wrap all other routes with Shell (generic header/footer)
+  // Only render Shell if we're absolutely sure it's not an AI route
+  // Extra check: Even if state says non-AI, trust data attribute if it says AI
+  if (typeof document !== "undefined") {
+    const attrValue = document.documentElement.getAttribute("data-ai-route");
+    if (attrValue === "true") {
+      // Data attribute says AI route - don't render Shell even if state is inconsistent
+      return <>{children}</>;
+    }
+  }
+  
   return <Shell>{children}</Shell>;
 }
 

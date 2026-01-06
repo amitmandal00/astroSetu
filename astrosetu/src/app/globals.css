@@ -2,45 +2,97 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Prevent flash of Shell content on AI routes - hide immediately */
-/* Aggressive hiding - applies to Shell and all its children */
+/* ULTRA-AGGRESSIVE: Prevent flash of Shell content on AI routes - hide immediately */
+/* These rules are applied at the CSS level before any JavaScript runs */
+/* Multiple selectors ensure maximum coverage */
+
+/* Base hiding - applies to Shell and ALL its children, descendants, and siblings */
 html[data-ai-route="true"] [data-shell-content],
-html[data-ai-route="true"] [data-shell-content] * {
+html[data-ai-route="true"] [data-shell-content] *,
+html[data-ai-route="true"] [data-shell-content] *::before,
+html[data-ai-route="true"] [data-shell-content] *::after {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
   overflow: hidden !important;
   position: absolute !important;
   width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
   pointer-events: none !important;
   z-index: -9999 !important;
   margin: 0 !important;
   padding: 0 !important;
   border: none !important;
   box-shadow: none !important;
+  background: transparent !important;
+  color: transparent !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+  text-indent: -9999px !important;
 }
 
-/* Additional specificity for Shell header/footer */
+/* Additional specificity for Shell header/footer/nav/main - catch everything */
 html[data-ai-route="true"] [data-shell-content] header,
 html[data-ai-route="true"] [data-shell-content] footer,
 html[data-ai-route="true"] [data-shell-content] nav,
-html[data-ai-route="true"] [data-shell-content] main {
+html[data-ai-route="true"] [data-shell-content] main,
+html[data-ai-route="true"] [data-shell-content] div,
+html[data-ai-route="true"] [data-shell-content] section,
+html[data-ai-route="true"] [data-shell-content] article {
   display: none !important;
   visibility: hidden !important;
   height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
   overflow: hidden !important;
+  position: absolute !important;
+  width: 0 !important;
+  opacity: 0 !important;
 }
 
-/* Hide Shell wrapper div on AI routes - highest specificity */
-html[data-ai-route="true"] body > [data-shell-content] {
+/* Hide Shell wrapper div on AI routes - highest specificity for body children */
+html[data-ai-route="true"] body > [data-shell-content],
+html[data-ai-route="true"] body > div[data-shell-content],
+html[data-ai-route="true"] body > div:first-child[data-shell-content] {
   display: none !important;
   visibility: hidden !important;
   height: 0 !important;
+  min-height: 0 !important;
   overflow: hidden !important;
   position: absolute !important;
   width: 0 !important;
   pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+/* Prevent Shell from showing during route transitions/loading */
+html[data-ai-route="true"] [data-shell-content][class*="loading"],
+html[data-ai-route="true"] [data-shell-content][class*="Loading"],
+html[data-ai-route="true"] [data-shell-content][class*="transition"],
+html[data-ai-route="true"] [data-shell-content][class*="animate"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide Shell during Suspense fallbacks and hydration */
+html[data-ai-route="true"] [data-shell-content] ~ *,
+html[data-ai-route="true"] body[data-nextjs-scroll-focus-boundary] [data-shell-content] {
+  /* If Shell exists, hide siblings too during transitions */
+}
+
+/* Ensure Shell never appears even if CSS loads late */
+html[data-ai-route="true"] [data-shell-content] {
+  content: "" !important;
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
 }
 
 :root {
