@@ -57,12 +57,30 @@ export const AI_PROMPT_TEMPLATES = {
       6. Use clear sections and bullet points
       `,
 
-    marriageTiming: (birthDetails: any, planetaryData: any) => `
+    marriageTiming: (birthDetails: any, planetaryData: any, timingWindows?: any) => {
+      const primaryDesc = timingWindows?.primaryDescription || "Late 2026 – Early 2027";
+      const secondaryDesc = timingWindows?.secondaryDescription || "Mid 2028 – Early 2029";
+      const timelineStart = timingWindows?.timelineStart || new Date().getFullYear() - 1;
+      const timelineEnd = timingWindows?.timelineEnd || new Date().getFullYear() + 3;
+      const timelineYears: number[] = [];
+      for (let year = timelineStart; year <= timelineEnd; year++) {
+        timelineYears.push(year);
+      }
+      const timelineVisual = timelineYears.map((year, idx) => {
+        const isPrimary = year >= (timingWindows?.primaryWindowStart || timelineStart) && year <= (timingWindows?.primaryWindowEnd || timelineEnd);
+        const isSecondary = year >= (timingWindows?.secondaryWindowStart || timelineStart + 2) && year <= (timingWindows?.secondaryWindowEnd || timelineEnd);
+        return isPrimary || isSecondary ? `${year} ⭐` : `${year}`;
+      }).join(' ──── ');
+      
+      return `
       ${AI_PROMPT_SYSTEM_MESSAGE}
 
       INPUT:
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
+      Current date context: Analysis is based on timing windows relative to current date (${new Date().toISOString().split('T')[0]})
+      Primary marriage window: ${primaryDesc}
+      Secondary marriage window: ${secondaryDesc}
 
       OUTPUT:
       Generate a "Marriage Timing Report" that provides clear timing guidance with date ranges.
@@ -72,11 +90,11 @@ export const AI_PROMPT_TEMPLATES = {
          Create a prominent box titled "Decision Anchor (Read This First)" with:
          "Based on this report, the most productive focus for you right now is: [Single clear statement about what to prioritize for marriage readiness/timing]"
          This does NOT make predictions - it gives users closure and direction.
-         Example: "Based on this report, the most productive focus for you right now is: Building emotional clarity and readiness, as your strongest marriage windows open in late 2026-2027."
+         Example: "Based on this report, the most productive focus for you right now is: Building emotional clarity and readiness, as your strongest marriage windows open in ${primaryDesc}."
       
       2. YOU MUST PROVIDE DATE RANGES - Never say "cannot determine timing" or "when data becomes available"
-         - Provide primary window (e.g., "Late 2026 – Early 2027")
-         - Provide secondary window (e.g., "Mid 2028 – Early 2029")
+         - Provide primary window: ${primaryDesc}
+         - Provide secondary window: ${secondaryDesc}
          - Always add: "These are favorable periods, not guarantees"
       
       3. PERSONALIZE EVERYTHING - Use the user's birth details throughout:
@@ -104,13 +122,13 @@ export const AI_PROMPT_TEMPLATES = {
             • Delays are more about [explanation] than denial
             • Preparation and clarity now improve outcomes later
          
-         e) "Marriage Timing - Key Insight" section: 1-2 line summary (e.g., "Your strongest marriage window opens after a period of emotional stabilization, with favorable alignment in late 2026–2027.")
+         e) "Marriage Timing - Key Insight" section: 1-2 line summary (e.g., "Your strongest marriage window opens after a period of emotional stabilization, with favorable alignment in ${primaryDesc}.")
          
          f) "Ideal Marriage Windows" section:
-            - Primary window: [date range]
-            - Secondary window: [date range]
+            - Primary window: ${primaryDesc}
+            - Secondary window: ${secondaryDesc}
             - TIMELINE VISUALIZATION (mandatory): Include ASCII-style visual timeline:
-              "Timeline: 2024 ──── 2025 ──── 2026 ⭐ ──── 2027 ⭐ ──── 2028"
+              "Timeline: ${timelineVisual}"
               (Where ⭐ marks the primary/secondary windows)
             - Explanation of why these periods are favorable
          
@@ -152,14 +170,19 @@ export const AI_PROMPT_TEMPLATES = {
          - Use calm, non-absolute language
          - After technical terms, add "What this means in daily life"
          - Compress text - avoid repetition except in Executive Summary and final "What This Means For You"
-      `,
+      `;
+    },
 
-    careerMoney: (birthDetails: any, planetaryData: any) => `
+    careerMoney: (birthDetails: any, planetaryData: any, careerWindows?: any) => {
+      const currentYear = new Date().getFullYear();
+      return `
       ${AI_PROMPT_SYSTEM_MESSAGE}
 
       INPUT:
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
+      Current date context: Analysis uses intelligent date windows relative to current date (${new Date().toISOString().split('T')[0]})
+      Career timing windows: Next 12–18 months (${currentYear}–${currentYear + 1}), Following 2–3 years (${currentYear + 1}–${currentYear + 3})
 
       OUTPUT:
       Generate a "Career & Money Path Report" that provides clear timing guidance and actionable direction.
@@ -176,11 +199,11 @@ export const AI_PROMPT_TEMPLATES = {
          - Use "During your mid-career phase, roles that allow autonomy and learning tend to be more financially rewarding for you"
          - Shift from identity → timing and application
       
-      2. PROVIDE CAREER TIMING WINDOWS - Always include time-based guidance:
+      2. PROVIDE CAREER TIMING WINDOWS - Always include time-based guidance (use relative dates from current date):
          Career Momentum Windows:
-         - Next 12–18 months: [specific focus: skill building, positioning, etc.]
-         - Following 2–3 years: [specific focus: role expansion, transition, etc.]
-         - Long-term: [specific focus: stability, consolidation, etc.]
+         - Next 12–18 months (${currentYear}–${currentYear + 1}): [specific focus: skill building, positioning, etc.]
+         - Following 2–3 years (${currentYear + 1}–${currentYear + 3}): [specific focus: role expansion, transition, etc.]
+         - Long-term (${currentYear + 3}+): [specific focus: stability, consolidation, etc.]
          Always add: "These are favorable phases, not guarantees"
          Never say "when planetary periods are unknown"
       
@@ -209,11 +232,11 @@ export const AI_PROMPT_TEMPLATES = {
             - Emphasize timing and application
          
          d) "Career Momentum Windows" section (MANDATORY):
-            - Growth phase: [date range, e.g., "2025-2027"] - [specific focus: skill building, positioning, etc.]
-            - Consolidation phase: [date range, e.g., "2028"] - [specific focus: stability, mastery, etc.]
-            - Transition phase: [date range if applicable] - [specific focus]
+            - Growth phase: [Use next 12–18 months from current date: ${currentYear}–${currentYear + 1}] - [specific focus: skill building, positioning, etc.]
+            - Consolidation phase: [Use following 2–3 years: ${currentYear + 1}–${currentYear + 3}] - [specific focus: stability, mastery, etc.]
+            - Transition phase: [date range if applicable, relative to current date] - [specific focus]
             - Explanation of why these periods are favorable
-            - Add simple timeline: "Timeline: 2024 ──── 2025 ⭐ ──── 2026 ⭐ ──── 2027 ⭐ ──── 2028"
+            - Add simple timeline relative to current date (${currentYear}): "Timeline: ${currentYear - 1} ──── ${currentYear} ⭐ ──── ${currentYear + 1} ⭐ ──── ${currentYear + 2} ⭐ ──── ${currentYear + 3}"
          
          e) "Money Growth Phases" section (MANDATORY):
             - Growth periods: [date range] - [description: when income growth is favorable]
@@ -450,21 +473,34 @@ export const AI_PROMPT_TEMPLATES = {
           This is a "Full Life Report" - it should feel complete and thorough.
       `,
 
-    yearAnalysis: (birthDetails: any, planetaryData: any, targetYear: number) => `
+    yearAnalysis: (birthDetails: any, planetaryData: any, targetYear: number, startMonth?: number, endYear?: number, endMonth?: number, dateDescription?: string) => {
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      
+      const startMonthName = startMonth ? monthNames[startMonth - 1] : 'January';
+      const endMonthName = endMonth ? monthNames[endMonth - 1] : 'December';
+      const endYearValue = endYear || targetYear;
+      const periodDescription = dateDescription || `${startMonthName} ${targetYear} - ${endMonthName} ${endYearValue}`;
+      
+      return `
       ${AI_PROMPT_SYSTEM_MESSAGE}
 
       INPUT:
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
+      Analysis period: ${periodDescription}
       Target year for analysis: ${targetYear}
+      Analysis window: ${startMonthName} ${targetYear} to ${endMonthName} ${endYearValue}
 
       OUTPUT:
-      Generate a "Year Analysis Report" for ${targetYear} that provides strategic 12-month guidance with quarterly breakdowns.
+      Generate a "Year Analysis Report" for ${periodDescription} that provides strategic 12-month guidance with quarterly breakdowns.
       
       CRITICAL REQUIREMENTS:
       1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
          Create a prominent box titled "Decision Anchor (Read This First)" with:
-         "Based on this report, the most productive focus for you right now is: [Single clear statement about strategic focus for ${targetYear}]"
+         "Based on this report, the most productive focus for you right now is: [Single clear statement about strategic focus for ${periodDescription}]"
          This does NOT make predictions - it gives users closure and direction.
          Example: "Based on this report, the most productive focus for you right now is: Building career momentum in Q2-Q3 while strengthening relationships in Q4."
       
@@ -483,7 +519,7 @@ export const AI_PROMPT_TEMPLATES = {
       4. MANDATORY STRUCTURE (follow exactly):
          
          a) DATA SOURCE LABEL (at the very beginning):
-            "Based on: Ascendant + Moon Sign + Dasha + Transit Analysis for ${targetYear} (strategic year guidance)"
+            "Based on: Ascendant + Moon Sign + Dasha + Transit Analysis for ${periodDescription} (strategic year guidance)"
          
          b) DECISION ANCHOR BOX (immediately after data source - see requirement #1)
          
@@ -502,8 +538,8 @@ export const AI_PROMPT_TEMPLATES = {
          
          e) YEAR THEME:
             Title: "Year Theme"
-            Content: One clear sentence describing the overall theme of ${targetYear}
-            Example: "${targetYear} is a year of consolidation and relationship alignment for you."
+            Content: One clear sentence describing the overall theme of ${periodDescription}
+            Example: "${periodDescription} is a period of consolidation and relationship alignment for you."
             This should be the main strategic theme, not detailed predictions.
          
          f) YEAR-AT-A-GLANCE SUMMARY (MANDATORY - one screen only):
@@ -591,7 +627,7 @@ export const AI_PROMPT_TEMPLATES = {
          - Compress text - avoid repetition except in Executive Summary and final "What This Means For You"
       
       6. DISCLAIMER (include at end):
-         "This report provides strategic guidance for ${targetYear} based on astrological patterns. 
+         "This report provides strategic guidance for ${periodDescription} based on astrological patterns. 
          These are themes and tendencies, not predictions. Use this guidance to plan thoughtfully, 
          not as definitive outcomes. Your actions and circumstances always play a role in outcomes."
       `,
@@ -871,15 +907,15 @@ export function generateLifeSummaryPrompt(birthDetails: any, planetaryData: any)
 /**
  * Generate prompt for Marriage Timing report
  */
-export function generateMarriageTimingPrompt(birthDetails: any, planetaryData: any): string {
-  return AI_PROMPT_TEMPLATES["v1.0"].marriageTiming(birthDetails, planetaryData);
+export function generateMarriageTimingPrompt(birthDetails: any, planetaryData: any, timingWindows?: any): string {
+  return AI_PROMPT_TEMPLATES["v1.0"].marriageTiming(birthDetails, planetaryData, timingWindows);
 }
 
 /**
  * Generate prompt for Career & Money report
  */
-export function generateCareerMoneyPrompt(birthDetails: any, planetaryData: any): string {
-  return AI_PROMPT_TEMPLATES["v1.0"].careerMoney(birthDetails, planetaryData);
+export function generateCareerMoneyPrompt(birthDetails: any, planetaryData: any, careerWindows?: any): string {
+  return AI_PROMPT_TEMPLATES["v1.0"].careerMoney(birthDetails, planetaryData, careerWindows);
 }
 
 /**
@@ -899,11 +935,38 @@ export function generateDailyGuidancePrompt(
 export function generateYearAnalysisPrompt(
   birthDetails: any,
   planetaryData: any,
-  targetYear?: number
+  startYear?: number,
+  startMonth?: number,
+  endYear?: number,
+  endMonth?: number
 ): string {
-  // Default to current year (users want guidance for the current year, not next year)
-  const year = targetYear || new Date().getFullYear();
-  return AI_PROMPT_TEMPLATES["v1.0"].yearAnalysis(birthDetails, planetaryData, year);
+  // Use provided date range or calculate intelligent 12-month window from current date
+  if (!startYear || !startMonth || !endYear || !endMonth) {
+    const { getYearAnalysisDateRange } = require("./dateHelpers");
+    const range = getYearAnalysisDateRange();
+    startYear = range.startYear;
+    startMonth = range.startMonth;
+    endYear = range.endYear;
+    endMonth = range.endMonth;
+  }
+  
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  const dateDescription = `${monthNames[startMonth - 1]} ${startYear} - ${monthNames[endMonth - 1]} ${endYear}`;
+  const targetYear = startYear; // Use start year as primary reference
+  
+  return AI_PROMPT_TEMPLATES["v1.0"].yearAnalysis(
+    birthDetails, 
+    planetaryData, 
+    targetYear,
+    startMonth,
+    endYear,
+    endMonth,
+    dateDescription
+  );
 }
 
 /**

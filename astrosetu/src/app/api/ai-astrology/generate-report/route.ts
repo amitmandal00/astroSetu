@@ -13,6 +13,7 @@ import {
 } from "@/lib/ai-astrology/reportGenerator";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
+import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
 
 /**
  * Check if the user is a production test user (bypasses payment)
@@ -208,9 +209,15 @@ export async function POST(req: Request) {
           case "full-life":
             return await generateFullLifeReport(input);
           case "year-analysis":
-            // Use current year for year analysis (users want guidance for the current year, not next year)
-            const targetYear = new Date().getFullYear();
-            return await generateYearAnalysisReport(input, targetYear);
+            // Use next 12 months from current date (intelligent date window)
+            // This provides guidance for the actual upcoming year period, not just calendar year
+            const yearAnalysisRange = getYearAnalysisDateRange();
+            return await generateYearAnalysisReport(input, {
+              startYear: yearAnalysisRange.startYear,
+              startMonth: yearAnalysisRange.startMonth,
+              endYear: yearAnalysisRange.endYear,
+              endMonth: yearAnalysisRange.endMonth,
+            });
           case "major-life-phase":
             return await generateMajorLifePhaseReport(input);
           case "decision-support":

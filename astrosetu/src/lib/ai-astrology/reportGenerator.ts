@@ -317,6 +317,11 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
     // Get 7th house (marriage house) - simplified, would need chart data
     const seventhHousePlanets = planets.filter(p => p.house === 7).map(p => p.name);
 
+    // Get intelligent date windows for marriage timing (relative to current date)
+    const { getMarriageTimingWindows, getDateContext } = await import("./dateHelpers");
+    const dateContext = getDateContext();
+    const timingWindows = getMarriageTimingWindows();
+    
     // Generate prompt
     const prompt = generateMarriageTimingPrompt(
       {
@@ -355,7 +360,8 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
           ...(doshaAnalysis.manglik?.status === "Manglik" ? ["Manglik"] : []),
           ...(doshaAnalysis.kaalSarp?.present ? ["Kaal Sarp"] : []),
         ] : [],
-      }
+      },
+      timingWindows
     );
 
     // Generate AI content
@@ -401,6 +407,11 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
         house: p.house || 0,
       }));
 
+    // Get intelligent date windows for career timing (relative to current date)
+    const { getCareerTimingWindows, getDateContext } = await import("./dateHelpers");
+    const dateContext = getDateContext();
+    const careerWindows = getCareerTimingWindows();
+    
     // Generate prompt
     const prompt = generateCareerMoneyPrompt(
       {
@@ -425,7 +436,8 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
         currentDasha: kundliResult.chart?.dasha?.current || "Unknown",
         nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
         careerPlanets,
-      }
+      },
+      careerWindows
     );
 
     // Generate AI content
@@ -547,8 +559,12 @@ export async function generateFullLifeReport(input: AIAstrologyInput): Promise<R
 
 /**
  * Generate Year Analysis Report (Paid - 12-month strategic guidance)
+ * Uses intelligent date window: next 12 months from current date
  */
-export async function generateYearAnalysisReport(input: AIAstrologyInput, targetYear?: number): Promise<ReportContent> {
+export async function generateYearAnalysisReport(
+  input: AIAstrologyInput, 
+  dateRange?: { startYear: number; startMonth: number; endYear: number; endMonth: number }
+): Promise<ReportContent> {
   try {
     // Get astrology data from Prokerala API
     const kundliResult = await getKundli({
@@ -581,6 +597,10 @@ export async function generateYearAnalysisReport(input: AIAstrologyInput, target
       nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
     };
 
+    // Use date range if provided, otherwise calculate from current date (intelligent 12-month window)
+    const { getYearAnalysisDateRange } = await import("./dateHelpers");
+    const yearRange = dateRange || getYearAnalysisDateRange();
+    
     // Generate prompt using Year Analysis prompt template
     const prompt = generateYearAnalysisPrompt(
       {
@@ -591,7 +611,10 @@ export async function generateYearAnalysisReport(input: AIAstrologyInput, target
         gender: input.gender,
       },
       planetaryData,
-      targetYear
+      yearRange.startYear,
+      yearRange.startMonth,
+      yearRange.endYear,
+      yearRange.endMonth
     );
 
     // Generate AI content
