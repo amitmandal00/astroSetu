@@ -102,14 +102,16 @@ export async function POST(req: Request) {
           baseUrl = `${protocol}://${hostHeader}`;
         } else {
           // Use environment variable, throw error if not set in production
-          baseUrl = process.env.NEXT_PUBLIC_APP_URL;
-          if (!baseUrl) {
+          const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+          if (!envUrl) {
             console.error("[Create Checkout] NEXT_PUBLIC_APP_URL not set");
             // In production, this should be set. For local dev, allow localhost fallback
             if (process.env.NODE_ENV === 'production') {
               throw new Error("NEXT_PUBLIC_APP_URL environment variable is required");
             }
             baseUrl = "http://localhost:3000";
+          } else {
+            baseUrl = envUrl;
           }
         }
       }
@@ -239,14 +241,16 @@ export async function POST(req: Request) {
         baseUrl = `${protocol}://${hostHeader}`;
       } else {
         // Use environment variable, throw error if not set in production
-        baseUrl = process.env.NEXT_PUBLIC_APP_URL;
-        if (!baseUrl) {
+        const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+        if (!envUrl) {
           console.error("[Create Checkout] NEXT_PUBLIC_APP_URL not set");
           // In production, this should be set. For local dev, allow localhost fallback
           if (process.env.NODE_ENV === 'production') {
             throw new Error("NEXT_PUBLIC_APP_URL environment variable is required");
           }
           baseUrl = "http://localhost:3000";
+        } else {
+          baseUrl = envUrl;
         }
       }
     }
