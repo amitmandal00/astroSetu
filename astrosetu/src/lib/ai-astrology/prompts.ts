@@ -943,13 +943,23 @@ export function generateYearAnalysisPrompt(
   endMonth?: number
 ): string {
   // Use provided date range or calculate intelligent 12-month window from current date
+  let finalStartYear: number;
+  let finalStartMonth: number;
+  let finalEndYear: number;
+  let finalEndMonth: number;
+  
   if (!startYear || !startMonth || !endYear || !endMonth) {
     const { getYearAnalysisDateRange } = require("./dateHelpers");
     const range = getYearAnalysisDateRange();
-    startYear = range.startYear;
-    startMonth = range.startMonth;
-    endYear = range.endYear;
-    endMonth = range.endMonth;
+    finalStartYear = range.startYear;
+    finalStartMonth = range.startMonth;
+    finalEndYear = range.endYear;
+    finalEndMonth = range.endMonth;
+  } else {
+    finalStartYear = startYear;
+    finalStartMonth = startMonth;
+    finalEndYear = endYear;
+    finalEndMonth = endMonth;
   }
   
   const monthNames = [
@@ -957,16 +967,16 @@ export function generateYearAnalysisPrompt(
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
   
-  const dateDescription = `${monthNames[startMonth - 1]} ${startYear} - ${monthNames[endMonth - 1]} ${endYear}`;
-  const targetYear = startYear; // Use start year as primary reference
+  const dateDescription = `${monthNames[finalStartMonth - 1]} ${finalStartYear} - ${monthNames[finalEndMonth - 1]} ${finalEndYear}`;
+  const targetYear = finalStartYear; // Use start year as primary reference
   
   return AI_PROMPT_TEMPLATES["v1.0"].yearAnalysis(
     birthDetails, 
     planetaryData, 
     targetYear,
-    startMonth,
-    endYear,
-    endMonth,
+    finalStartMonth,
+    finalEndYear,
+    finalEndMonth,
     dateDescription
   );
 }
