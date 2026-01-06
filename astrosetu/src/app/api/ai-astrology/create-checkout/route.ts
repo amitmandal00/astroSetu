@@ -249,7 +249,6 @@ export async function POST(req: Request) {
           baseUrl = "http://localhost:3000";
         }
       }
-        }
     }
     const success = successUrl || `${baseUrl}/ai-astrology/payment/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancel = cancelUrl || `${baseUrl}/ai-astrology/payment/cancel`;
