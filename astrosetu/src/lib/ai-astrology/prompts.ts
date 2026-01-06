@@ -901,7 +901,8 @@ export function generateYearAnalysisPrompt(
   planetaryData: any,
   targetYear?: number
 ): string {
-  const year = targetYear || new Date().getFullYear() + 1; // Default to next year
+  // Default to current year (users want guidance for the current year, not next year)
+  const year = targetYear || new Date().getFullYear();
   return AI_PROMPT_TEMPLATES["v1.0"].yearAnalysis(birthDetails, planetaryData, year);
 }
 

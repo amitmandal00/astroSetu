@@ -25,7 +25,7 @@ export default function AIAstrologyLandingPage() {
               Plan Your Next 12 Months with Precision
             </h1>
             <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-6 max-w-3xl mx-auto leading-relaxed">
-              Year Analysis Report: Quarterly guidance, best timing windows, and strategic planning for your year ahead.
+              Year Analysis Report: Quarterly guidance, best timing windows, and strategic planning for the current year.
             </p>
           </div>
 

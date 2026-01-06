@@ -208,7 +208,8 @@ export async function POST(req: Request) {
           case "full-life":
             return await generateFullLifeReport(input);
           case "year-analysis":
-            const targetYear = new Date().getFullYear() + 1; // Default to next year
+            // Use current year for year analysis (users want guidance for the current year, not next year)
+            const targetYear = new Date().getFullYear();
             return await generateYearAnalysisReport(input, targetYear);
           case "major-life-phase":
             return await generateMajorLifePhaseReport(input);
