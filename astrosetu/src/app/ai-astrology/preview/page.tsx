@@ -57,7 +57,7 @@ function PreviewContent() {
     }
   };
 
-  const generateReport = useCallback(async (inputData: AIAstrologyInput, type: ReportType) => {
+  const generateReport = useCallback(async (inputData: AIAstrologyInput, type: ReportType, currentSessionId?: string, currentPaymentIntentId?: string) => {
     setLoading(true);
     setError(null);
 
@@ -78,10 +78,17 @@ function PreviewContent() {
         sessionId = urlParams.get("session_id") || undefined;
       }
       
-      // CRITICAL FIX: Also check URL params for session_id (fallback if sessionStorage lost)
-      if (!sessionId) {
+      // CRITICAL FIX: Use provided parameters as fallback if sessionStorage is empty
+      if (currentSessionId) {
+        sessionId = currentSessionId;
+      } else if (!sessionId) {
+        // Also check URL params for session_id (fallback if sessionStorage lost)
         const urlParams = new URLSearchParams(window.location.search);
         sessionId = urlParams.get("session_id") || undefined;
+      }
+      
+      if (currentPaymentIntentId) {
+        paymentIntentId = currentPaymentIntentId;
       }
       
       const isPaid = type !== "life-summary";
@@ -160,19 +167,40 @@ function PreviewContent() {
     }
   }, []);
 
-  const generateBundleReports = useCallback(async (inputData: AIAstrologyInput, reports: ReportType[]) => {
+  const generateBundleReports = useCallback(async (inputData: AIAstrologyInput, reports: ReportType[], currentSessionId?: string, currentPaymentIntentId?: string) => {
     setBundleGenerating(true);
     setLoading(true);
     setError(null);
     setBundleProgress({ current: 0, total: reports.length, currentReport: getReportName(reports[0]) });
 
     try {
-      // Get payment token for paid reports (handle sessionStorage errors)
+      // Get payment token, session ID, and payment intent ID for paid reports (handle sessionStorage errors)
       let paymentToken: string | undefined;
+      let sessionId: string | undefined;
+      let paymentIntentId: string | undefined;
+      
       try {
         paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
+        sessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId") || undefined;
+        paymentIntentId = sessionStorage.getItem("aiAstrologyPaymentIntentId") || undefined;
       } catch (storageError) {
-        console.error("Failed to read paymentToken from sessionStorage:", storageError);
+        console.error("Failed to read payment data from sessionStorage:", storageError);
+        // Try to get session_id from URL params as fallback
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get("session_id") || undefined;
+      }
+      
+      // CRITICAL FIX: Use provided parameters as fallback if sessionStorage is empty
+      if (currentSessionId) {
+        sessionId = currentSessionId;
+      } else if (!sessionId) {
+        // Also check URL params for session_id (fallback if sessionStorage lost)
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get("session_id") || undefined;
+      }
+      
+      if (currentPaymentIntentId) {
+        paymentIntentId = currentPaymentIntentId;
       }
 
       // Generate all reports in parallel for faster loading
@@ -201,6 +229,8 @@ function PreviewContent() {
             input: inputData,
             reportType: reportType,
             paymentToken: paymentToken,
+            sessionId: sessionId, // For token regeneration fallback
+            paymentIntentId: paymentIntentId, // For manual capture after report generation
           });
 
           if (response.ok && response.data?.content) {
@@ -308,6 +338,7 @@ function PreviewContent() {
                 paid: boolean;
                 paymentToken?: string;
                 reportType?: string;
+                paymentIntentId?: string;
               };
               error?: string;
             }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId)}`);
@@ -320,10 +351,13 @@ function PreviewContent() {
             });
             
             if (verifyResponse.ok && verifyResponse.data?.paid) {
-              // Store regenerated token
+              // Store regenerated token and payment intent ID
               try {
                 if (verifyResponse.data.paymentToken) {
                   sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
+                }
+                if (verifyResponse.data.paymentIntentId) {
+                  sessionStorage.setItem("aiAstrologyPaymentIntentId", verifyResponse.data.paymentIntentId);
                 }
                 sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
                 sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
@@ -333,10 +367,10 @@ function PreviewContent() {
                 }
                 setPaymentVerified(true);
                 setLoading(false);
-                console.log("[Preview] Payment token regenerated successfully");
+                console.log("[Preview] Payment token and intent ID regenerated successfully");
                 
                 // Now trigger report generation with verified payment
-                generateReport(inputData, verifyResponse.data.reportType as ReportType || reportTypeToUse);
+                generateReport(inputData, verifyResponse.data.reportType as ReportType || reportTypeToUse, urlSessionId, verifyResponse.data.paymentIntentId);
                 return;
               } catch (e) {
                 console.error("Failed to store regenerated payment token:", e);
@@ -391,18 +425,25 @@ function PreviewContent() {
       // Auto-generate report if auto_generate=true (after payment success)
       if (autoGenerate && paymentVerified && inputData && reportTypeToUse && !loading) {
         console.log("[Preview] Auto-generating report after payment:", { reportType: reportTypeToUse, hasInput: !!inputData });
+        // Get paymentIntentId from sessionStorage if available
+        let paymentIntentIdFromStorage: string | undefined;
+        try {
+          paymentIntentIdFromStorage = sessionStorage.getItem("aiAstrologyPaymentIntentId") || undefined;
+        } catch (e) {
+          console.error("Failed to read paymentIntentId from sessionStorage:", e);
+        }
         // Small delay to ensure state is set
         setTimeout(() => {
           if (isBundle && savedBundleReports) {
             try {
               const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
-              generateBundleReports(inputData, bundleReportsList, urlSessionId || undefined);
+              generateBundleReports(inputData, bundleReportsList, urlSessionId || undefined, paymentIntentIdFromStorage);
             } catch (e) {
               console.error("Failed to parse bundle reports:", e);
-              generateReport(inputData, reportTypeToUse, urlSessionId || undefined);
+              generateReport(inputData, reportTypeToUse, urlSessionId || undefined, paymentIntentIdFromStorage);
             }
           } else {
-            generateReport(inputData, reportTypeToUse, urlSessionId || undefined);
+            generateReport(inputData, reportTypeToUse, urlSessionId || undefined, paymentIntentIdFromStorage);
           }
         }, 500);
       }
