@@ -211,11 +211,7 @@ export async function POST(req: Request) {
     }
 
     // CRITICAL SECURITY: Verify payment for paid reports
-    // Demo mode: Allow testing without payment (set AI_ASTROLOGY_DEMO_MODE=true in .env.local)
-    const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
-    
-    // Check if user is a production test user (bypasses payment)
-    const isTestUser = checkIfTestUser(input);
+    // Note: isDemoMode and isTestUser are already defined above (lines 114-115)
     
     if (isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
       // CRITICAL FIX: If paymentToken is missing, try to verify using session_id from query params
@@ -238,8 +234,6 @@ export async function POST(req: Request) {
               const session = await stripe.checkout.sessions.retrieve(sessionId);
               
               if (session && session.payment_status === "paid") {
-                const sessionReportType = session.metadata?.reportType;
-                
                 // Verify report type matches (check both report_type and reportType in metadata)
                 const sessionReportType = session.metadata?.reportType || session.metadata?.report_type;
                 
