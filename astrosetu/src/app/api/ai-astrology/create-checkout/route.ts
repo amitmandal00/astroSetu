@@ -338,7 +338,24 @@ export async function POST(req: Request) {
         },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
+    // COMPREHENSIVE ERROR LOGGING for checkout creation
+    const checkoutErrorContext = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      reportType: json?.reportType || "N/A",
+      isSubscription: json?.subscription || false,
+      hasInput: !!json?.input,
+      inputName: json?.input?.name || "N/A",
+      isDemoMode,
+      isTestUser,
+      errorType: error.constructor?.name || "Unknown",
+      errorMessage: error.message || "Unknown error",
+      errorStack: error.stack || "No stack trace",
+    };
+    
+    console.error("[CHECKOUT CREATION ERROR]", JSON.stringify(checkoutErrorContext, null, 2));
+    
     const errorResponse = handleApiError(error);
     errorResponse.headers.set("X-Request-ID", requestId);
     return errorResponse;

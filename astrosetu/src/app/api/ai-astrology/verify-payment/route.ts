@@ -123,14 +123,54 @@ export async function GET(req: Request) {
     const stripe = new Stripe(secretKey);
 
     // Retrieve session
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    let session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch (stripeError: any) {
+      const stripeRetrieveError = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId.substring(0, 20) + "...",
+        errorType: stripeError.constructor?.name || "Unknown",
+        errorMessage: stripeError.message || "Unknown error",
+        errorCode: stripeError.code || "N/A",
+        stripeErrorType: stripeError.type || "N/A",
+      };
+      console.error("[STRIPE SESSION RETRIEVE ERROR]", JSON.stringify(stripeRetrieveError, null, 2));
+      
+      return NextResponse.json(
+        { ok: false, error: "Failed to retrieve payment session. Please contact support." },
+        { status: 500 }
+      );
+    }
 
     if (!session) {
+      const sessionNotFoundError = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId.substring(0, 20) + "...",
+        error: "Session not found in Stripe",
+      };
+      console.error("[SESSION NOT FOUND]", JSON.stringify(sessionNotFoundError, null, 2));
+      
       return NextResponse.json(
         { ok: false, error: "Session not found" },
         { status: 404 }
       );
     }
+    
+    // Log successful session retrieval
+    const sessionRetrieved = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      sessionId: session.id.substring(0, 20) + "...",
+      paymentStatus: session.payment_status,
+      mode: session.mode,
+      reportType: session.metadata?.reportType || "N/A",
+      amountTotal: session.amount_total,
+      currency: session.currency,
+    };
+    console.log("[PAYMENT SESSION RETRIEVED]", JSON.stringify(sessionRetrieved, null, 2));
 
     // Check payment status
     const isPaid = session.payment_status === "paid";
@@ -167,7 +207,19 @@ export async function GET(req: Request) {
         },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
+    // COMPREHENSIVE ERROR LOGGING for payment verification
+    const verifyErrorContext = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      sessionId: new URL(req.url).searchParams.get("session_id")?.substring(0, 20) + "..." || "N/A",
+      errorType: error.constructor?.name || "Unknown",
+      errorMessage: error.message || "Unknown error",
+      errorStack: error.stack || "No stack trace",
+    };
+    
+    console.error("[PAYMENT VERIFICATION ERROR]", JSON.stringify(verifyErrorContext, null, 2));
+    
     const errorResponse = handleApiError(error);
     errorResponse.headers.set("X-Request-ID", requestId);
     return errorResponse;

@@ -123,13 +123,33 @@ function PreviewContent() {
       });
 
       if (!response.ok) {
+        // CLIENT-SIDE ERROR LOGGING
+        const clientErrorContext = {
+          timestamp: new Date().toISOString(),
+          reportType: type,
+          error: response.error || "Unknown error",
+          hasToken: !!paymentToken,
+          hasSessionId: !!sessionId,
+          apiUrl: apiUrl.substring(0, 80) + "...",
+        };
+        console.error("[CLIENT REPORT GENERATION ERROR]", JSON.stringify(clientErrorContext, null, 2));
+        
         // The API already returns user-friendly error messages
         throw new Error(response.error || "Failed to generate report. Please try again.");
       }
 
       setReportContent(response.data?.content || null);
     } catch (e: any) {
-      console.error("Report generation error:", e);
+      // CLIENT-SIDE EXCEPTION LOGGING
+      const exceptionContext = {
+        timestamp: new Date().toISOString(),
+        reportType: type,
+        errorType: e.constructor?.name || "Unknown",
+        errorMessage: e.message || "Unknown error",
+        errorStack: e.stack || "No stack trace",
+      };
+      console.error("[CLIENT REPORT GENERATION EXCEPTION]", JSON.stringify(exceptionContext, null, 2));
+      
       setError(e.message || "Failed to generate report. Please try again.");
     } finally {
       setLoading(false);

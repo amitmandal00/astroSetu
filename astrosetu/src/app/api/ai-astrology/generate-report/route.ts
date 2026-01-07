@@ -183,12 +183,28 @@ export async function POST(req: Request) {
                   paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
                   paymentVerified = true;
                   
-                  console.log(`[generate-report] Regenerated payment token from session_id: ${sessionId.substring(0, 20)}...`);
+                  const tokenRegenSuccess = {
+                    requestId,
+                    timestamp: new Date().toISOString(),
+                    reportType,
+                    sessionId: sessionId.substring(0, 20) + "...",
+                    action: "Payment token regenerated from session_id",
+                  };
+                  console.log("[TOKEN REGENERATION SUCCESS]", JSON.stringify(tokenRegenSuccess, null, 2));
                 }
               }
             }
           } catch (sessionVerifyError: any) {
-            console.error("[generate-report] Failed to verify payment via session_id:", sessionVerifyError);
+            const sessionVerifyErrorLog = {
+              requestId,
+              timestamp: new Date().toISOString(),
+              reportType,
+              sessionId: sessionId?.substring(0, 20) + "..." || "N/A",
+              errorType: sessionVerifyError.constructor?.name || "Unknown",
+              errorMessage: sessionVerifyError.message || "Unknown error",
+              errorStack: sessionVerifyError.stack || "No stack trace",
+            };
+            console.error("[SESSION VERIFICATION ERROR]", JSON.stringify(sessionVerifyErrorLog, null, 2));
             // Continue to check paymentToken below
           }
         }
@@ -196,12 +212,21 @@ export async function POST(req: Request) {
       
       // If still no valid token, return error with helpful message
       if (!paymentTokenToVerify && !paymentVerified) {
-        console.error(`[generate-report] Payment verification failed for ${reportType}:`, {
-          hasToken: !!paymentToken,
-          hasSessionId: !!new URL(req.url).searchParams.get("session_id"),
+        const paymentErrorContext = {
+          requestId,
+          timestamp: new Date().toISOString(),
           reportType,
-          requestId
-        });
+          hasToken: !!paymentToken,
+          tokenLength: paymentToken?.length || 0,
+          tokenPrefix: paymentToken ? `${paymentToken.substring(0, 10)}...` : "N/A",
+          hasSessionId: !!new URL(req.url).searchParams.get("session_id"),
+          sessionId: new URL(req.url).searchParams.get("session_id")?.substring(0, 20) + "..." || "N/A",
+          isDemoMode,
+          isTestUser,
+          error: "Payment verification failed - no valid token or session_id",
+        };
+        
+        console.error("[PAYMENT VERIFICATION ERROR]", JSON.stringify(paymentErrorContext, null, 2));
         
         return NextResponse.json(
           { 
@@ -242,6 +267,17 @@ export async function POST(req: Request) {
           }
           
           if (!paymentVerified) {
+            const invalidTokenError = {
+              requestId,
+              timestamp: new Date().toISOString(),
+              reportType,
+              hasToken: !!paymentTokenToVerify,
+              tokenLength: paymentTokenToVerify?.length || 0,
+              hasSessionId: !!sessionId,
+              error: "Invalid or expired payment token",
+            };
+            console.error("[INVALID PAYMENT TOKEN]", JSON.stringify(invalidTokenError, null, 2));
+            
             return NextResponse.json(
               { ok: false, error: "Invalid or expired payment token. Please complete payment again or contact support with your payment receipt." },
               { status: 403 }
@@ -262,7 +298,26 @@ export async function POST(req: Request) {
     // Log demo mode or test user usage
     if ((isDemoMode || isTestUser) && isPaidReportType(reportType)) {
       const mode = isDemoMode ? "DEMO MODE" : "TEST USER";
-      console.log(`[${mode}] Bypassing payment verification for ${reportType} report`);
+      const bypassLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        mode,
+        reportType,
+        reason: isDemoMode ? "Demo mode enabled" : "Test user detected",
+      };
+      console.log(`[PAYMENT BYPASS]`, JSON.stringify(bypassLog, null, 2));
+    }
+    
+    // Log successful payment verification for paid reports
+    if (isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+      const paymentVerifiedLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        reportType,
+        hasToken: !!paymentToken,
+        tokenRegenerated: !paymentToken && !!new URL(req.url).searchParams.get("session_id"),
+      };
+      console.log("[PAYMENT VERIFIED]", JSON.stringify(paymentVerifiedLog, null, 2));
     }
 
     // Generate report based on type with hard timeout fallback
@@ -310,17 +365,46 @@ export async function POST(req: Request) {
 
       // Race the timeout against report generation
       reportContent = await Promise.race([reportGenerationPromise, timeoutPromise]);
-    } catch (error: any) {
-      console.error("[AI Astrology] Report generation error:", error);
-      // Provide user-friendly error message without exposing internal details
-      const errorMessage = error.message || "Unknown error";
-      const errorString = JSON.stringify(error).toLowerCase();
+  } catch (error: any) {
+    // COMPREHENSIVE ERROR LOGGING for production debugging
+    const errorContext = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      reportType,
+      hasInput: !!input,
+      inputName: input?.name || "N/A", // Name only, no sensitive data
+      inputDOB: input?.dob ? `${input.dob.substring(0, 4)}-XX-XX` : "N/A", // Year only for privacy
+      isPaidReport: isPaidReportType(reportType),
+      isDemoMode,
+      isTestUser,
+      errorType: error.constructor?.name || "Unknown",
+      errorMessage: error.message || "Unknown error",
+      errorStack: error.stack || "No stack trace",
+    };
+    
+    console.error("[REPORT GENERATION ERROR]", JSON.stringify(errorContext, null, 2));
+    
+    // Provide user-friendly error message without exposing internal details
+    const errorMessage = error.message || "Unknown error";
+    const errorString = JSON.stringify(error).toLowerCase();
       
       // Check if it's a timeout error
       const isTimeoutError = 
         errorMessage.includes("timed out") ||
         errorMessage.includes("timeout") ||
         errorMessage.includes("Report generation timed out");
+      
+      // Log timeout errors with additional context
+      if (isTimeoutError) {
+        const timeoutErrorContext = {
+          requestId,
+          timestamp: new Date().toISOString(),
+          reportType,
+          timeoutMs: REPORT_GENERATION_TIMEOUT,
+          errorType: "TIMEOUT",
+        };
+        console.error("[REPORT GENERATION TIMEOUT]", JSON.stringify(timeoutErrorContext, null, 2));
+      }
       
       // Check for Prokerala API credit exhaustion (403 with "insufficient credit balance")
       const isProkeralaCreditError = 
