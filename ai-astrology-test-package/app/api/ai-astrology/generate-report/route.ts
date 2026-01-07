@@ -13,7 +13,6 @@ import {
 } from "@/lib/ai-astrology/reportGenerator";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
-import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
 
 /**
  * Check if the user is a production test user (bypasses payment)
@@ -80,13 +79,10 @@ export async function POST(req: Request) {
   const requestId = generateRequestId();
 
   try {
-    // Stricter rate limiting for report generation (production-ready)
-    // Per ChatGPT feedback: Add rate limiting to prevent abuse
-    // Uses middleware rate limiting (already configured) with additional check
+    // Rate limiting
     const rateLimitResponse = checkRateLimit(req, "/api/ai-astrology/generate-report");
     if (rateLimitResponse) {
       rateLimitResponse.headers.set("X-Request-ID", requestId);
-      rateLimitResponse.headers.set("Retry-After", "60");
       return rateLimitResponse;
     }
 
@@ -154,108 +150,27 @@ export async function POST(req: Request) {
     const isTestUser = checkIfTestUser(input);
     
     if (isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
-      // CRITICAL FIX: If paymentToken is missing, try to verify using session_id from query params
-      let paymentTokenToVerify = paymentToken;
-      let paymentVerified = false;
-      
-      if (!paymentTokenToVerify) {
-        // Try to get session_id from request URL and verify payment
-        const { searchParams } = new URL(req.url);
-        const sessionId = searchParams.get("session_id");
-        
-        if (sessionId) {
-          try {
-            // Verify payment using session_id via Stripe API
-            const Stripe = (await import("stripe")).default;
-            const secretKey = process.env.STRIPE_SECRET_KEY;
-            
-            if (secretKey && !secretKey.startsWith("pk_")) {
-              const stripe = new Stripe(secretKey);
-              const session = await stripe.checkout.sessions.retrieve(sessionId);
-              
-              if (session && session.payment_status === "paid") {
-                const sessionReportType = session.metadata?.reportType;
-                
-                // Verify report type matches
-                if (sessionReportType === reportType) {
-                  // Generate new token from verified session
-                  const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
-                  paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
-                  paymentVerified = true;
-                  
-                  console.log(`[generate-report] Regenerated payment token from session_id: ${sessionId.substring(0, 20)}...`);
-                }
-              }
-            }
-          } catch (sessionVerifyError: any) {
-            console.error("[generate-report] Failed to verify payment via session_id:", sessionVerifyError);
-            // Continue to check paymentToken below
-          }
-        }
-      }
-      
-      // If still no valid token, return error with helpful message
-      if (!paymentTokenToVerify && !paymentVerified) {
-        console.error(`[generate-report] Payment verification failed for ${reportType}:`, {
-          hasToken: !!paymentToken,
-          hasSessionId: !!new URL(req.url).searchParams.get("session_id"),
-          reportType,
-          requestId
-        });
-        
+      if (!paymentToken) {
         return NextResponse.json(
-          { 
-            ok: false, 
-            error: "Payment verification required for paid reports. If you've already paid, please try clicking 'View My Report Now' from the payment success page, or contact support with your payment receipt.",
-            code: "PAYMENT_VERIFICATION_REQUIRED"
-          },
+          { ok: false, error: "Payment verification required for paid reports. Please complete payment first." },
           { status: 403 }
         );
       }
 
-      // Verify token if we have one
-      if (paymentTokenToVerify && !paymentVerified) {
-        const tokenData = verifyPaymentToken(paymentTokenToVerify);
-        if (!tokenData) {
-          // Try session_id fallback before giving up
-          const { searchParams } = new URL(req.url);
-          const sessionId = searchParams.get("session_id");
-          
-          if (sessionId) {
-            try {
-              const Stripe = (await import("stripe")).default;
-              const secretKey = process.env.STRIPE_SECRET_KEY;
-              
-              if (secretKey && !secretKey.startsWith("pk_")) {
-                const stripe = new Stripe(secretKey);
-                const session = await stripe.checkout.sessions.retrieve(sessionId);
-                
-                if (session && session.payment_status === "paid" && session.metadata?.reportType === reportType) {
-                  const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
-                  paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
-                  paymentVerified = true;
-                }
-              }
-            } catch (e) {
-              // Fall through to error below
-            }
-          }
-          
-          if (!paymentVerified) {
-            return NextResponse.json(
-              { ok: false, error: "Invalid or expired payment token. Please complete payment again or contact support with your payment receipt." },
-              { status: 403 }
-            );
-          }
-        } else {
-          // Verify the token matches the requested report type
-          if (tokenData.reportType !== reportType) {
-            return NextResponse.json(
-              { ok: false, error: "Payment token does not match requested report type." },
-              { status: 403 }
-            );
-          }
-        }
+      const tokenData = verifyPaymentToken(paymentToken);
+      if (!tokenData) {
+        return NextResponse.json(
+          { ok: false, error: "Invalid or expired payment token. Please complete payment again." },
+          { status: 403 }
+        );
+      }
+
+      // Verify the token matches the requested report type
+      if (tokenData.reportType !== reportType) {
+        return NextResponse.json(
+          { ok: false, error: "Payment token does not match requested report type." },
+          { status: 403 }
+        );
       }
     }
     
@@ -265,62 +180,40 @@ export async function POST(req: Request) {
       console.log(`[${mode}] Bypassing payment verification for ${reportType} report`);
     }
 
-    // Generate report based on type with hard timeout fallback
-    // Timeout: 60 seconds for report generation (Vercel serverless functions have 10s-60s timeout depending on plan)
-    const REPORT_GENERATION_TIMEOUT = 55000; // 55 seconds (leaves 5s buffer for response)
+    // Generate report based on type
     let reportContent;
-    
     try {
-      // Create a timeout promise that rejects after REPORT_GENERATION_TIMEOUT
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error("Report generation timed out. Please try again with a simpler request."));
-        }, REPORT_GENERATION_TIMEOUT);
-      });
-
-      // Race between report generation and timeout
-      const reportGenerationPromise = (async () => {
-        switch (reportType) {
-          case "life-summary":
-            return await generateLifeSummaryReport(input);
-          case "marriage-timing":
-            return await generateMarriageTimingReport(input);
-          case "career-money":
-            return await generateCareerMoneyReport(input);
-          case "full-life":
-            return await generateFullLifeReport(input);
-          case "year-analysis":
-            // Use next 12 months from current date (intelligent date window)
-            // This provides guidance for the actual upcoming year period, not just calendar year
-            const yearAnalysisRange = getYearAnalysisDateRange();
-            return await generateYearAnalysisReport(input, {
-              startYear: yearAnalysisRange.startYear,
-              startMonth: yearAnalysisRange.startMonth,
-              endYear: yearAnalysisRange.endYear,
-              endMonth: yearAnalysisRange.endMonth,
-            });
-          case "major-life-phase":
-            return await generateMajorLifePhaseReport(input);
-          case "decision-support":
-            return await generateDecisionSupportReport(input, decisionContext);
-          default:
-            throw new Error(`Unknown report type: ${reportType}`);
-        }
-      })();
-
-      // Race the timeout against report generation
-      reportContent = await Promise.race([reportGenerationPromise, timeoutPromise]);
+      switch (reportType) {
+        case "life-summary":
+          reportContent = await generateLifeSummaryReport(input);
+          break;
+        case "marriage-timing":
+          reportContent = await generateMarriageTimingReport(input);
+          break;
+        case "career-money":
+          reportContent = await generateCareerMoneyReport(input);
+          break;
+        case "full-life":
+          reportContent = await generateFullLifeReport(input);
+          break;
+        case "year-analysis":
+          const targetYear = new Date().getFullYear() + 1; // Default to next year
+          reportContent = await generateYearAnalysisReport(input, targetYear);
+          break;
+        case "major-life-phase":
+          reportContent = await generateMajorLifePhaseReport(input);
+          break;
+        case "decision-support":
+          reportContent = await generateDecisionSupportReport(input, decisionContext);
+          break;
+        default:
+          throw new Error(`Unknown report type: ${reportType}`);
+      }
     } catch (error: any) {
       console.error("[AI Astrology] Report generation error:", error);
       // Provide user-friendly error message without exposing internal details
       const errorMessage = error.message || "Unknown error";
       const errorString = JSON.stringify(error).toLowerCase();
-      
-      // Check if it's a timeout error
-      const isTimeoutError = 
-        errorMessage.includes("timed out") ||
-        errorMessage.includes("timeout") ||
-        errorMessage.includes("Report generation timed out");
       
       // Check for Prokerala API credit exhaustion (403 with "insufficient credit balance")
       const isProkeralaCreditError = 
@@ -367,30 +260,17 @@ export async function POST(req: Request) {
         headers["Retry-After"] = "3600"; // Suggest retry after 1 hour for quota issues
       }
       
-      // Provide specific error message for timeout
-      const finalErrorMessage = isTimeoutError
-        ? "Report generation is taking longer than expected. Please try again with a simpler request, or contact support if the issue persists."
-        : isConfigError
-        ? "Astrology calculation service is temporarily unavailable. Reports may use estimated data. Please try again later."
-        : "Server error. Please try again later.";
-      
-      const finalErrorCode = isTimeoutError
-        ? "TIMEOUT"
-        : isConfigError
-        ? "SERVICE_UNAVAILABLE"
-        : "REPORT_GENERATION_FAILED";
-      
-      const finalStatus = isTimeoutError ? 504 : (isConfigError ? 503 : 500);
-      
       return NextResponse.json(
         { 
           ok: false, 
-          error: finalErrorMessage,
-          code: finalErrorCode,
+          error: isConfigError 
+            ? "Astrology calculation service is temporarily unavailable. Reports may use estimated data. Please try again later."
+            : "Server error. Please try again later.",
+          code: isConfigError ? "SERVICE_UNAVAILABLE" : "REPORT_GENERATION_FAILED",
           requestId 
         },
         { 
-          status: finalStatus,
+          status: isConfigError ? 503 : 500,
           headers
         }
       );

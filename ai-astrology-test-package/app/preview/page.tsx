@@ -64,48 +64,17 @@ function PreviewContent() {
     try {
       // Get payment token for paid reports (handle sessionStorage errors)
       let paymentToken: string | undefined;
-      let sessionId: string | undefined;
-      
       try {
         paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
-        sessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId") || undefined;
       } catch (storageError) {
         console.error("Failed to read paymentToken from sessionStorage:", storageError);
-        // Try to get session_id from URL params as fallback
-        const urlParams = new URLSearchParams(window.location.search);
-        sessionId = urlParams.get("session_id") || undefined;
+        // Continue without token - API will return appropriate error
       }
-      
-      // CRITICAL FIX: Also check URL params for session_id (fallback if sessionStorage lost)
-      if (!sessionId) {
-        const urlParams = new URLSearchParams(window.location.search);
-        sessionId = urlParams.get("session_id") || undefined;
-      }
-      
       const isPaid = type !== "life-summary";
       
       // Note: Payment verification is handled server-side
       // In demo mode (development), payment token is not required
       // The API will return appropriate error if payment is required in production
-      // CRITICAL FIX: API can now accept session_id as fallback if token is missing
-
-      // Build API URL with session_id if available and token is missing
-      // CRITICAL: Always include session_id if available, even if we have token (as backup)
-      let apiUrl = "/api/ai-astrology/generate-report";
-      if (sessionId && isPaid) {
-        apiUrl = `/api/ai-astrology/generate-report?session_id=${encodeURIComponent(sessionId)}`;
-      }
-
-      // DEBUG: Log payment verification details (help diagnose issues)
-      if (isPaid) {
-        console.log("[Report Generation] Payment verification:", {
-          hasToken: !!paymentToken,
-          hasSessionId: !!sessionId,
-          sessionId: sessionId?.substring(0, 20) + "...",
-          reportType: type,
-          apiUrl: apiUrl.substring(0, 80) + "..."
-        });
-      }
 
       const response = await apiPost<{
         ok: boolean;
@@ -116,7 +85,7 @@ function PreviewContent() {
           generatedAt: string;
         };
         error?: string;
-      }>(apiUrl, {
+      }>("/api/ai-astrology/generate-report", {
         input: inputData,
         reportType: type,
         paymentToken: isPaid ? paymentToken : undefined, // Only include for paid reports
@@ -244,9 +213,6 @@ function PreviewContent() {
     if (typeof window === "undefined") return;
     
     try {
-      // CRITICAL FIX: Get session_id from URL params first (fallback if sessionStorage is lost)
-      const urlSessionId = searchParams.get("session_id");
-      
       // Get input from sessionStorage
       const savedInput = sessionStorage.getItem("aiAstrologyInput");
       const savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType;
@@ -266,74 +232,7 @@ function PreviewContent() {
       
       setInput(inputData);
       setReportType(reportTypeToUse);
-      
-      // CRITICAL FIX: If payment verified flag is missing but session_id exists, try to re-verify
-      // IMPORTANT: Wait for verification before allowing report generation
-      if (!paymentVerified && urlSessionId) {
-        // Attempt to regenerate payment token from session_id - MUST WAIT for this
-        setLoading(true); // Show loading while verifying
-        
-        (async () => {
-          try {
-            console.log("[Preview] Attempting to regenerate payment token from session_id:", urlSessionId.substring(0, 20) + "...");
-            
-            const verifyResponse = await apiGet<{
-              ok: boolean;
-              data?: {
-                paid: boolean;
-                paymentToken?: string;
-                reportType?: string;
-              };
-              error?: string;
-            }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId)}`);
-            
-            console.log("[Preview] Payment verification response:", {
-              ok: verifyResponse.ok,
-              paid: verifyResponse.data?.paid,
-              hasToken: !!verifyResponse.data?.paymentToken,
-              error: verifyResponse.error
-            });
-            
-            if (verifyResponse.ok && verifyResponse.data?.paid) {
-              // Store regenerated token
-              try {
-                if (verifyResponse.data.paymentToken) {
-                  sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
-                }
-                sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
-                sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
-                if (verifyResponse.data.reportType) {
-                  sessionStorage.setItem("aiAstrologyReportType", verifyResponse.data.reportType);
-                  setReportType(verifyResponse.data.reportType as ReportType);
-                }
-                setPaymentVerified(true);
-                setLoading(false);
-                console.log("[Preview] Payment token regenerated successfully");
-                
-                // Now trigger report generation with verified payment
-                generateReport(inputData, verifyResponse.data.reportType as ReportType || reportTypeToUse);
-                return;
-              } catch (e) {
-                console.error("Failed to store regenerated payment token:", e);
-                setLoading(false);
-              }
-            } else {
-              console.error("[Preview] Payment verification failed:", verifyResponse.error);
-              setError(`Payment verification failed: ${verifyResponse.error || "Please complete payment again."}`);
-              setLoading(false);
-            }
-          } catch (e: any) {
-            console.error("Failed to regenerate payment token from session_id:", e);
-            setError(`Failed to verify payment: ${e.message || "Please try again or contact support."}`);
-            setLoading(false);
-          }
-        })();
-        
-        // Don't proceed with report generation yet - wait for verification
-        return;
-      } else {
-        setPaymentVerified(paymentVerified);
-      }
+      setPaymentVerified(paymentVerified);
       
       // Parse bundle information
       if (savedBundleType && savedBundleReports) {
@@ -350,16 +249,9 @@ function PreviewContent() {
       const isPaidReport = reportTypeToUse !== "life-summary";
       const isBundle = savedBundleType && savedBundleReports;
       
-      // CRITICAL FIX: If paid report and no payment verified, but we have session_id, try verification first
-      if (isPaidReport && !paymentVerified && !urlSessionId) {
-        // No payment and no session_id - show payment prompt
+      if (isPaidReport && !paymentVerified) {
+        // Don't generate report, show payment prompt instead
         setLoading(false);
-        return;
-      }
-      
-      // If we have session_id but payment not verified yet, the verification will trigger report generation
-      if (isPaidReport && !paymentVerified && urlSessionId) {
-        // Verification is in progress (handled above), don't proceed yet
         return;
       }
       
@@ -497,13 +389,6 @@ function PreviewContent() {
   }
 
   if (error) {
-    // Check if error is payment-related and we might be able to recover
-    const isPaymentError = error.toLowerCase().includes("payment") || 
-                          error.toLowerCase().includes("permission") ||
-                          error.toLowerCase().includes("verification");
-    const urlSessionId = searchParams.get("session_id");
-    const canRecover = isPaymentError && urlSessionId;
-    
     return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
       <div className="container mx-auto px-4 max-w-2xl">
@@ -512,95 +397,12 @@ function PreviewContent() {
               <div className="text-5xl mb-4">⚠️</div>
               <h2 className="text-2xl font-bold mb-4 text-red-700">Error Generating Report</h2>
               <p className="text-slate-600 mb-6">{error}</p>
-              
-              {canRecover && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-                  <p className="text-sm text-blue-800 font-semibold mb-2">💡 Recovery Option Available:</p>
-                  <p className="text-sm text-blue-700 mb-3">
-                    We detected a payment verification issue. If you've already completed payment, 
-                    you can recover your access by clicking the button below.
-                  </p>
-                  <Button 
-                    onClick={async () => {
-                      setLoading(true);
-                      setError(null);
-                      try {
-                        // Attempt to verify payment and regenerate token
-                        const verifyResponse = await apiGet<{
-                          ok: boolean;
-                          data?: {
-                            paid: boolean;
-                            paymentToken?: string;
-                            reportType?: string;
-                          };
-                        }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId!)}`);
-                        
-                        if (verifyResponse.ok && verifyResponse.data?.paid && input) {
-                          try {
-                            if (verifyResponse.data.paymentToken) {
-                              sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
-                            }
-                            sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
-                            sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId!);
-                            if (verifyResponse.data.reportType) {
-                              sessionStorage.setItem("aiAstrologyReportType", verifyResponse.data.reportType);
-                            }
-                            
-                            // Retry report generation
-                            const reportTypeToGenerate = verifyResponse.data.reportType || reportType || "life-summary";
-                            await generateReport(input, reportTypeToGenerate as ReportType);
-                          } catch (e) {
-                            console.error("Failed to store token:", e);
-                            setError("Failed to recover payment verification. Please contact support with your payment receipt.");
-                          }
-                        } else {
-                          setError("Payment verification failed. Please contact support with your payment receipt if you've already paid.");
-                        }
-                      } catch (e: any) {
-                        console.error("Recovery failed:", e);
-                        setError(`Recovery failed: ${e.message || "Please contact support with your payment receipt."}`);
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-3"
-                  >
-                    🔄 Recover My Report Access
-                  </Button>
-                </div>
-              )}
-              
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button onClick={() => {
-                  setError(null);
-                  if (input && reportType) {
-                    generateReport(input, reportType);
-                  } else {
-                    window.location.reload();
-                  }
-                }}>
-                  Try Again
-                </Button>
-                {canRecover && (
-                  <Link href={`/ai-astrology/payment/success?session_id=${encodeURIComponent(urlSessionId!)}`}>
-                    <Button className="bg-purple-600 hover:bg-purple-700">
-                      Return to Payment Success
-                    </Button>
-                  </Link>
-                )}
+              <div className="flex gap-4 justify-center">
+                <Button onClick={() => window.location.reload()}>Try Again</Button>
                 <Link href="/ai-astrology/input">
                   <Button className="cosmic-button-secondary">Start Over</Button>
                 </Link>
               </div>
-              
-              {isPaymentError && (
-                <div className="mt-6 pt-6 border-t border-slate-200">
-                  <p className="text-xs text-slate-500 mb-2">Need Help?</p>
-                  <p className="text-xs text-slate-600">
-                    If you've completed payment but still see this error, please contact support with your payment receipt.
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>

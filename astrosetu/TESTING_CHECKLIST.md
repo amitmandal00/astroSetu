@@ -1,234 +1,299 @@
-# AstroSetu - Comprehensive Testing Checklist
+# 🧪 Production Testing Checklist
 
-## ✅ Build Status
-- [x] Build successful with no errors
-- [x] All TypeScript types valid
-- [x] No linter errors
-- [x] All pages compile correctly
+**Date**: January 6, 2026  
+**Status**: Ready for End-to-End Testing  
+**Prerequisites**: ✅ Environment fixes done, ✅ Supabase migration complete
 
-## 🏠 Home Page (/)
-- [x] Hero section displays correctly
-- [x] All CTA buttons work (Generate Kundli, Match Kundli, Chat with Astrologer)
-- [x] Feature cards are clickable
-- [x] Navigation links work
-- [x] Trust indicators display
-- [x] Mobile responsive layout
+---
 
-## 🔮 Kundli Generation (/kundli)
-- [x] Form inputs work (Name, Gender, Date, Time, Place)
-- [x] Autocomplete for place of birth works
-- [x] "Set Current Time & Location" button works
-- [x] "Advanced Settings" toggle works
-- [x] Form validation (disabled button when invalid)
-- [x] Submit button works and shows loading state
-- [x] Results display correctly
-- [x] Error messages display on failure
-- [x] Mobile responsive form layout
+## ✅ **PREREQUISITES COMPLETE**
 
-## 💑 Match Compatibility (/match)
-- [x] Both person A and B forms work
-- [x] Date/time/place inputs functional
-- [x] "Match Now" button works
-- [x] Results display with compatibility score
-- [x] PDF download button works
-- [x] Dosha analysis displays
-- [x] Mobile responsive layout
+- [x] Environment variables fixed (`NEXT_PUBLIC_APP_URL`, Stripe live keys)
+- [x] Vercel redeployment complete
+- [x] Supabase table migration complete (5 new columns added)
 
-## 📅 Horoscope (/horoscope)
-- [x] Tab switching works (Daily/Weekly/Monthly/Yearly)
-- [x] Sign selection dropdown works
-- [x] Date/month/year inputs work
-- [x] "Get Horoscope" button works
-- [x] Results display for each mode
-- [x] Mobile responsive tabs
+---
 
-## 📿 Panchang (/panchang)
-- [x] Date input works
-- [x] Place input works
-- [x] "Get Panchang" button works
-- [x] Results display correctly
-- [x] All timing cards display
-- [x] Mobile responsive
+## 🎯 **TESTING CHECKLIST**
 
-## ⏰ Muhurat (/muhurat)
-- [x] Event type selection works
-- [x] Date input works
-- [x] "Find Muhurat" button works
-- [x] Auspicious timings display
-- [x] Avoid timings display
-- [x] Mobile responsive
+### **⚠️ NOTE: Test on Preview First, Then Production**
 
-## 🔢 Numerology (/numerology)
-- [x] Name input works
-- [x] "Calculate" button works
-- [x] All numbers display (Life Path, Destiny, Soul, Personality)
-- [x] Analysis text displays
-- [x] Lucky elements display
-- [x] Mobile responsive
+**Preview URL**: `https://astrosetu-ogd5xl4i0-amits-projects-a49d49fa.vercel.app`  
+**Production URL**: `https://astrosetu-app.vercel.app`
 
-## 💎 Remedies (/remedies)
-- [x] Planet selection works
-- [x] Issue input works
-- [x] "Get Remedies" button works
-- [x] Remedy cards display with images
-- [x] Mobile responsive grid
+**Recommendation**: Test on preview first, then promote and test production.
 
-## 🕉️ Puja Services (/puja)
-- [x] Category filter buttons work
-- [x] All puja cards display
-- [x] "Book Puja" buttons work (show alert)
-- [x] Images load correctly
-- [x] Mobile responsive grid
+---
 
-## 👨‍🏫 Astrologers (/astrologers)
-- [x] Filter tabs work (All, Daily, Expert, Love, Career)
-- [x] Astrologer cards display
-- [x] "Chat" buttons work
-- [x] Mobile bottom action buttons work
-- [x] Profile links work
+### **Test 1: Contact Form - End-to-End** (10 minutes) 🔴 **CRITICAL**
 
-## 👨‍🏫 Astrologer Profile (/astrologers/[id])
-- [x] Profile loads correctly
-- [x] Consultation type buttons work (Chat/Call/Video)
-- [x] Payment method buttons work (Wallet/Gateway)
-- [x] Name input works
-- [x] "Start Consultation" button works
-- [x] Redirects to chat page for chat type
-- [x] Mobile responsive
+**Steps**:
+1. Go to: `{PREVIEW_OR_PRODUCTION_URL}/contact`
+   - Preview: `https://astrosetu-ogd5xl4i0-amits-projects-a49d49fa.vercel.app/contact`
+   - Production: `https://astrosetu-app.vercel.app/contact`
+2. Fill out the contact form:
+   - Name: `Test User`
+   - Email: `your-test-email@example.com` (use a real email you can check)
+   - Phone: `1234567890`
+   - Subject: `Test Submission - Production`
+   - Message: `This is a test submission to verify email delivery and database logging.`
+   - Category: Select any
+3. Click **"Submit"**
 
-## 💬 Chat Session (/chat/[sessionId])
-- [x] Session loads
-- [x] Messages display
-- [x] Message input works
-- [x] "Send" button works
-- [x] Real-time polling works
-- [x] "Back" button works
-- [x] "End session" button works
-- [x] Mobile responsive chat interface
+**Verify**:
+- [ ] ✅ Form submits successfully (no errors)
+- [ ] ✅ Success message appears
+- [ ] ✅ Receive acknowledgment email (check inbox)
+  - [ ] Email has correct timestamp in IST format
+  - [ ] Email includes submission details
+- [ ] ✅ Internal notification email sent (check compliance email)
+- [ ] ✅ Database record created in Supabase:
+  - [ ] Go to Supabase Dashboard → Table Editor → `contact_submissions`
+  - [ ] Find your test submission
+  - [ ] Verify these columns exist and have values:
+    - [ ] `email_sent_user` = `true`
+    - [ ] `email_sent_internal` = `true`
+    - [ ] `email_sent_user_at` = timestamp
+    - [ ] `email_sent_internal_at` = timestamp
+    - [ ] `email_error` = `NULL` (or empty if no errors)
 
-## 🎥 Live Sessions (/sessions)
-- [x] Filter tabs work (All, Webinar, Class, Workshop)
-- [x] Session cards display
-- [x] "Join" buttons work
-- [x] Date formatting works
-- [x] Mobile responsive
+**Expected Result**: ✅ All emails sent, database logged correctly
 
-## 💬 Community (/community)
-- [x] Search input works
-- [x] "Post Question" button works
-- [x] Posts display
-- [x] Filter categories work
-- [x] Mobile responsive
+---
 
-## 📚 Learn (/learn)
-- [x] Course cards display
-- [x] "Enroll Now" buttons work
-- [x] "View All Courses" button works
-- [x] Article cards display
-- [x] Quick links work
-- [x] Mobile responsive
+### **Test 2: AI Section - Purchase Flow** (15 minutes) 🔴 **CRITICAL**
 
-## 💰 Wallet (/wallet)
-- [x] Balance displays
-- [x] "Add Money" button works
-- [x] "Send Money" button works
-- [x] Transaction history displays
-- [x] Payment methods display
-- [x] Mobile responsive
+**Steps**:
+1. Go to: `https://astrosetu-app.vercel.app/ai-astrology`
+2. Select a report type (e.g., **"Year Analysis Report"**)
+3. Fill out birth details:
+   - Name: `Test User`
+   - Date of Birth: `1990-01-15`
+   - Time of Birth: `10:30`
+   - Place of Birth: `Mumbai, Maharashtra, India`
+   - Gender: Select appropriate
+4. Click **"Generate Report"**
+5. Complete Stripe checkout:
+   - Use a **test card** (or small real amount):
+     - Card: `4242 4242 4242 4242`
+     - Expiry: Any future date (e.g., `12/25`)
+     - CVC: Any 3 digits (e.g., `123`)
+     - Name: Any name
+   - Complete payment
 
-## 👤 Profile (/profile)
-- [x] Profile loads
-- [x] "Edit Profile" button works
-- [x] Form inputs work
-- [x] "Save Changes" button works
-- [x] "Cancel" button works
-- [x] Birth details form works
-- [x] "Save Birth Details" button works
-- [x] Mobile responsive
+**Verify**:
+- [ ] ✅ Stripe checkout loads (should use live keys - no test mode indicators if using real card)
+- [ ] ✅ Payment processes successfully
+- [ ] ✅ Redirect to success page works: `/ai-astrology/payment/success`
+  - [ ] **CRITICAL**: No 404 error (this tests `NEXT_PUBLIC_APP_URL` fix)
+  - [ ] Success page displays correctly
+- [ ] ✅ Report generates and displays:
+  - [ ] Report content loads
+  - [ ] Report shows **current year (2026)** analysis, not next year
+  - [ ] All sections render correctly
+- [ ] ✅ PDF download works:
+  - [ ] Click "Download PDF"
+  - [ ] PDF generates successfully
+  - [ ] PDF formatting is clean (no excessive blank spaces)
+  - [ ] Paragraphs are properly formatted
 
-## 🔐 Login (/login)
-- [x] Email input works
-- [x] Name input (register mode) works
-- [x] Phone input (register mode) works
-- [x] Toggle between login/register works
-- [x] Submit button works and validates
-- [x] Error messages display
-- [x] Mobile responsive
+**Expected Result**: ✅ Complete purchase flow works end-to-end
 
-## 🤖 AI Chatbot
-- [x] Chatbot button appears
-- [x] Opens/closes correctly
-- [x] Message input works
-- [x] Send button works
-- [x] Enter key sends message
-- [x] AI responses display
-- [x] Loading state works
-- [x] Mobile responsive (adjusts size)
+---
 
-## 🧭 Navigation
-- [x] Header navigation links work (desktop)
-- [x] Mobile menu works
-- [x] Bottom navigation works (mobile)
-- [x] Logo link works
-- [x] Language switcher works
-- [x] Wallet link works
-- [x] Profile link works
-- [x] Footer links work
+### **Test 3: URL Redirects & Links** (5 minutes)
 
-## 📱 Mobile Responsiveness
-- [x] All pages responsive
-- [x] Bottom navigation visible on mobile
-- [x] Forms stack correctly on mobile
-- [x] Cards stack correctly on mobile
-- [x] Buttons are touch-friendly (min 44px)
-- [x] Text is readable on mobile
-- [x] Images scale correctly
-- [x] Safe area insets work (iOS)
+**Steps**:
+1. After completing Test 2 (payment), verify:
+   - [ ] ✅ Success page URL is correct: `https://astrosetu-app.vercel.app/ai-astrology/payment/success?session_id=...`
+   - [ ] ✅ No 404 errors
+   - [ ] ✅ All internal links work (footer, header if visible)
+   - [ ] ✅ Navigation works (back button, direct links)
 
-## 🔄 API Endpoints
-- [x] /api/astrology/kundli - Works
-- [x] /api/astrology/match - Works
-- [x] /api/astrology/horoscope - Works
-- [x] /api/astrology/panchang - Works
-- [x] /api/astrology/muhurat - Works
-- [x] /api/astrology/numerology - Works
-- [x] /api/astrology/remedies - Works
-- [x] /api/astrologers - Works
-- [x] /api/astrologers/[id] - Works
-- [x] /api/chat/sessions - Works
-- [x] /api/chat/sessions/[id] - Works
-- [x] /api/chat/sessions/[id]/messages - Works
-- [x] /api/auth/login - Works
-- [x] /api/auth/register - Works
-- [x] /api/users/profile - Works
+**Verify**:
+- [ ] ✅ All URLs use correct base URL (no `/NEXT_PUBLIC_APP_URL` path)
+- [ ] ✅ Email links (if any) work correctly
+- [ ] ✅ Deep links work (e.g., direct report URLs)
 
-## ⚠️ Error Handling
-- [x] Invalid form inputs show validation
-- [x] API errors display user-friendly messages
-- [x] Network errors handled gracefully
-- [x] Loading states show during API calls
-- [x] Disabled buttons prevent double submission
+**Expected Result**: ✅ All redirects and links work correctly
 
-## 🎨 UI/UX
-- [x] All buttons have hover states
-- [x] All buttons have active/pressed states
-- [x] Loading indicators work
-- [x] Transitions are smooth
-- [x] Colors match theme (saffron/amber/orange)
-- [x] Images load with fallbacks
-- [x] Icons display correctly
+---
 
-## ✅ Testing Summary
-All major features tested and working:
-- ✅ 18 pages functional
-- ✅ 15+ API endpoints working
-- ✅ All buttons have handlers
-- ✅ All forms validate
-- ✅ Mobile responsive
-- ✅ Error handling in place
-- ✅ Loading states work
-- ✅ Navigation works
+### **Test 4: Header/Footer Flash** (2 minutes)
 
-## 🚀 Ready for Production
-The app is fully functional with all features working correctly for both web and mobile.
+**Steps**:
+1. Open in incognito/private window
+2. Visit: `https://astrosetu-app.vercel.app/` (base URL)
+3. Visit: `https://astrosetu-app.vercel.app/ai-astrology`
+4. Refresh page multiple times
 
+**Verify**:
+- [ ] ✅ No flash of old orange header/footer
+- [ ] ✅ AI section has correct header/footer
+- [ ] ✅ Base URL landing page shows correct layout
+- [ ] ✅ No visual glitches on page load
+
+**Expected Result**: ✅ No flash of incorrect UI elements
+
+---
+
+### **Test 5: Stripe Live Mode Verification** (5 minutes)
+
+**Steps**:
+1. Go to Stripe Dashboard: https://dashboard.stripe.com
+2. Check top right corner:
+   - [ ] ✅ **Test mode is OFF** (should say "Live mode" or no toggle visible)
+3. Go to **Payments**:
+   - [ ] ✅ See your test payment from Test 2 (if you used a real card)
+   - [ ] ✅ Payment status is "Succeeded"
+   - [ ] ✅ Payment amount is correct
+4. Go to **Developers** → **API keys**:
+   - [ ] ✅ Secret key starts with `sk_live_...` (not `sk_test_...`)
+   - [ ] ✅ Publishable key starts with `pk_live_...` (not `pk_test_...`)
+
+**Expected Result**: ✅ Stripe is in live mode and processing payments
+
+---
+
+### **Test 6: Report Date Logic** (5 minutes)
+
+**Steps**:
+1. Generate a **"Year Analysis Report"** (from Test 2)
+2. Review report content
+
+**Verify**:
+- [ ] ✅ Report mentions **2026** (current year), not 2027
+- [ ] ✅ Date ranges are appropriate (12-month window from current date)
+- [ ] ✅ Report content is relevant to current year
+- [ ] ✅ No references to "next year" or future years incorrectly
+
+**Generate other reports to verify**:
+- [ ] ✅ Major Life Phase Report - date ranges are current year forward
+- [ ] ✅ Marriage Timing Report - date ranges are current year forward
+- [ ] ✅ Career/Money Report - date ranges are current year forward
+
+**Expected Result**: ✅ All reports use current date logic correctly
+
+---
+
+### **Test 7: Error Handling** (5 minutes)
+
+**Steps**:
+1. Submit contact form with invalid data (e.g., invalid email)
+2. Try to generate report without payment
+3. Test invalid payment scenarios
+
+**Verify**:
+- [ ] ✅ Error messages display correctly
+- [ ] ✅ No console errors (F12 → Console)
+- [ ] ✅ Error states are user-friendly
+- [ ] ✅ Failed payments don't break the flow
+
+**Expected Result**: ✅ Error handling works gracefully
+
+---
+
+## 📊 **TEST RESULTS SUMMARY**
+
+### **Critical Tests** (Must Pass):
+- [ ] Test 1: Contact Form - End-to-End
+- [ ] Test 2: AI Section - Purchase Flow
+- [ ] Test 3: URL Redirects & Links
+- [ ] Test 5: Stripe Live Mode Verification
+
+### **Important Tests** (Should Pass):
+- [ ] Test 4: Header/Footer Flash
+- [ ] Test 6: Report Date Logic
+- [ ] Test 7: Error Handling
+
+---
+
+## ✅ **IF ALL TESTS PASS**
+
+### **You're Ready to Go Live!** 🚀
+
+**Final Steps**:
+1. ✅ All tests passing
+2. ✅ No critical errors
+3. ✅ Monitor first few real transactions
+4. ✅ Watch Vercel logs for any issues
+5. ✅ Check email delivery rates
+6. ✅ Verify database logging continues to work
+
+---
+
+## ⚠️ **IF TESTS FAIL**
+
+### **Common Issues & Fixes**:
+
+**Contact Form Fails**:
+- Check Supabase migration completed correctly
+- Verify `contact_submissions` table has 5 new columns
+- Check Resend API key is valid
+- Verify email addresses are correct
+
+**Payment Flow Fails**:
+- Verify Stripe keys are live (not test)
+- Check Stripe account is activated
+- Verify bank account connected in Stripe
+- Check `NEXT_PUBLIC_APP_URL` is correct (no path)
+
+**URL Redirects Fail**:
+- Double-check `NEXT_PUBLIC_APP_URL` in Vercel
+- Should be: `https://astrosetu-app.vercel.app` (no path)
+- Redeploy if changed
+
+**Report Generation Fails**:
+- Check OpenAI API key is valid
+- Verify Prokerala API credentials
+- Check Vercel logs for API errors
+- Verify payment verification endpoint works
+
+---
+
+## 🎯 **QUICK REFERENCE**
+
+### **Test URLs**:
+- Production: `https://astrosetu-app.vercel.app`
+- Contact Form: `https://astrosetu-app.vercel.app/contact`
+- AI Section: `https://astrosetu-app.vercel.app/ai-astrology`
+
+### **Dashboards**:
+- Vercel: https://vercel.com/dashboard
+- Stripe: https://dashboard.stripe.com
+- Supabase: https://app.supabase.com
+- Resend: https://resend.com/emails
+
+### **Key Files**:
+- This checklist: `TESTING_CHECKLIST.md`
+- E2E Test Guide: `AI_SECTION_E2E_TEST_GUIDE.md`
+- Next Steps: `NEXT_STEPS_AFTER_ENV_FIX.md`
+
+---
+
+## 📝 **TEST EXECUTION LOG**
+
+**Date**: _______________  
+**Tester**: _______________  
+**Environment**: Production
+
+**Results**:
+- Test 1: Contact Form - [ ] Pass / [ ] Fail
+- Test 2: AI Section Purchase - [ ] Pass / [ ] Fail
+- Test 3: URL Redirects - [ ] Pass / [ ] Fail
+- Test 4: Header/Footer Flash - [ ] Pass / [ ] Fail
+- Test 5: Stripe Live Mode - [ ] Pass / [ ] Fail
+- Test 6: Report Date Logic - [ ] Pass / [ ] Fail
+- Test 7: Error Handling - [ ] Pass / [ ] Fail
+
+**Issues Found**:
+- _________________________________
+- _________________________________
+- _________________________________
+
+**Overall Status**: [ ] ✅ Ready for Production / [ ] ⚠️ Issues to Fix
+
+---
+
+**Last Updated**: January 6, 2026  
+**Status**: Ready for Testing
