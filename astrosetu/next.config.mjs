@@ -45,6 +45,25 @@ const nextConfig = {
   // Security: Enhanced security headers for production
   async headers() {
     return [
+      // Cache-control headers for AI astrology routes - prevent caching
+      {
+        source: '/ai-astrology/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate, max-age=0',
+          },
+        ],
+      },
+      {
+        source: '/',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate, max-age=0',
+          },
+        ],
+      },
       {
         source: '/:path*',
         headers: [

@@ -11,6 +11,11 @@ import { AstroImage } from "@/components/ui/AstroImage";
 import { ASTRO_IMAGES } from "@/lib/astroImages";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 
+// Force dynamic rendering - prevent static generation and caching
+// Ensures changes are reflected immediately after deployment
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default function AIAstrologyLandingPage() {
   return (
     <div className="cosmic-bg">
