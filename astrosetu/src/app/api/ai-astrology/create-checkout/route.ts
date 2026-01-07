@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { checkRateLimit, handleApiError, parseJsonBody } from "@/lib/apiHelpers";
 import { generateRequestId } from "@/lib/requestId";
 import { REPORT_PRICES, SUBSCRIPTION_PRICE, isStripeConfigured } from "@/lib/ai-astrology/payments";
+import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 
 /**
  * Check if the user is a production test user (bypasses payment)
@@ -73,6 +74,31 @@ export async function POST(req: Request) {
     const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     const isTestUser = checkIfTestUser(input);
     const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
+
+    // CRITICAL: Access restriction for production testing
+    // Prevent unauthorized users from creating payment sessions
+    // Only allow Amit Kumar Mandal and Ankita Surabhi until testing is complete
+    const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
+    if (restrictAccess && input && !isAllowedUser(input)) {
+      const restrictionError = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        reportType: reportType || "subscription",
+        userName: input.name || "N/A",
+        userDOB: input.dob || "N/A",
+        error: "Access restricted for production testing - payment creation blocked",
+      };
+      console.error("[ACCESS RESTRICTION - PAYMENT CREATION]", JSON.stringify(restrictionError, null, 2));
+      
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: getRestrictionMessage() + " Payment sessions cannot be created for unauthorized users.",
+          code: "ACCESS_RESTRICTED"
+        },
+        { status: 403 }
+      );
+    }
 
     // Validate inputs before creating mock session
     if (!subscription && !reportType) {
