@@ -264,6 +264,17 @@ export async function POST(req: Request) {
     const currency = "aud";
     const amount = priceData.amount; // Already in cents
     
+    // Log checkout creation attempt
+    const checkoutLog = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      reportType: reportType || "subscription",
+      amount,
+      currency,
+      isSubscription: subscription,
+    };
+    console.log("[CHECKOUT CREATION]", JSON.stringify(checkoutLog, null, 2));
+    
     // Format description: "AstroSetu AI – {Report Name}"
     const productDescription = `AstroSetu AI – ${reportDisplayName}`;
 
@@ -291,6 +302,12 @@ export async function POST(req: Request) {
         success_url: success,
         cancel_url: cancel,
         metadata, // Includes: report_type, user_id, timestamp, requestId
+        // Enable 3D Secure authentication when required (fixes pat-missing-auth error)
+        payment_method_options: {
+          card: {
+            request_three_d_secure: "automatic", // Automatically request 3D Secure when required
+          },
+        },
         payment_intent_data: {
           statement_descriptor: "ASTROSETU AI",
         },
@@ -316,6 +333,12 @@ export async function POST(req: Request) {
         success_url: success,
         cancel_url: cancel,
         metadata, // Includes: report_type, user_id, timestamp, requestId
+        // Enable 3D Secure authentication when required (fixes pat-missing-auth error)
+        payment_method_options: {
+          card: {
+            request_three_d_secure: "automatic", // Automatically request 3D Secure when required
+          },
+        },
         payment_intent_data: {
           statement_descriptor: "ASTROSETU AI",
         },
