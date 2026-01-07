@@ -159,12 +159,36 @@ export async function GET(req: Request) {
       );
     }
     
+    // Get payment intent ID from session (for manual capture) - check this first
+    let paymentIntentId: string | undefined;
+    let paymentIntentStatus: string | undefined;
+    if (session.payment_intent) {
+      if (typeof session.payment_intent === "string") {
+        paymentIntentId = session.payment_intent;
+      } else {
+        paymentIntentId = session.payment_intent.id;
+      }
+      
+      // For manual capture, check the payment intent status
+      // If we have a payment intent, retrieve it to check actual status
+      if (paymentIntentId) {
+        try {
+          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+          paymentIntentStatus = paymentIntent.status;
+        } catch (piError: any) {
+          console.warn(`[verify-payment] Could not retrieve payment intent ${paymentIntentId}:`, piError.message);
+          // Continue - we'll use session status as fallback
+        }
+      }
+    }
+
     // Log successful session retrieval
     const sessionRetrieved = {
       requestId,
       timestamp: new Date().toISOString(),
       sessionId: session.id.substring(0, 20) + "...",
       paymentStatus: session.payment_status,
+      paymentIntentStatus: paymentIntentStatus || "N/A",
       mode: session.mode,
       reportType: session.metadata?.reportType || "N/A",
       amountTotal: session.amount_total,
@@ -173,24 +197,20 @@ export async function GET(req: Request) {
     console.log("[PAYMENT SESSION RETRIEVED]", JSON.stringify(sessionRetrieved, null, 2));
 
     // Check payment status
-    const isPaid = session.payment_status === "paid";
+    // CRITICAL: For manual capture, payment_status might be "unpaid" even if payment is authorized
+    // We need to check both session.payment_status AND payment intent status
+    const isPaid = 
+      session.payment_status === "paid" || 
+      paymentIntentStatus === "requires_capture" || // Manual capture - payment authorized but not captured yet
+      paymentIntentStatus === "succeeded"; // Payment already captured
+    
     const isSubscription = session.mode === "subscription";
     const reportType = session.metadata?.reportType;
 
-    // Generate payment token if payment is successful and it's a paid report
+    // Generate payment token if payment is successful/authorized and it's a paid report
     let paymentToken: string | undefined;
     if (isPaid && reportType && reportType !== "subscription") {
       paymentToken = generatePaymentToken(reportType, session.id);
-    }
-
-    // Get payment intent ID from session (for manual capture)
-    let paymentIntentId: string | undefined;
-    if (session.payment_intent) {
-      if (typeof session.payment_intent === "string") {
-        paymentIntentId = session.payment_intent;
-      } else {
-        paymentIntentId = session.payment_intent.id;
-      }
     }
 
     return NextResponse.json(
@@ -200,6 +220,7 @@ export async function GET(req: Request) {
           sessionId: session.id,
           paid: isPaid,
           paymentStatus: session.payment_status,
+          paymentIntentStatus: paymentIntentStatus, // Include payment intent status for manual capture
           subscription: isSubscription,
           reportType,
           paymentToken, // Include token for client to store
