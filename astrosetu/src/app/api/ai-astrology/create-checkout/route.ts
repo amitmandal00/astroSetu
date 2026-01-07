@@ -48,6 +48,18 @@ function checkIfTestUser(input?: any): boolean {
  */
 export async function POST(req: Request) {
   const requestId = generateRequestId();
+  
+  // Declare variables outside try block so they're accessible in catch block
+  let json: {
+    reportType?: "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "major-life-phase" | "decision-support";
+    subscription?: boolean;
+    input?: any;
+    successUrl?: string;
+    cancelUrl?: string;
+    decisionContext?: string;
+  } | null = null;
+  let isDemoMode = false;
+  let isTestUser = false;
 
   try {
     // Rate limiting
@@ -58,7 +70,7 @@ export async function POST(req: Request) {
     }
 
     // Parse request body early to check for test user
-    const json = await parseJsonBody<{
+    json = await parseJsonBody<{
       reportType?: "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "major-life-phase" | "decision-support";
       subscription?: boolean;
       input?: any;
@@ -71,8 +83,8 @@ export async function POST(req: Request) {
 
     // Check for demo mode or test user FIRST - always bypass Stripe for these
     // Also allow test mode if using Stripe test keys (for production-like testing)
-    const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
-    const isTestUser = checkIfTestUser(input);
+    isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
+    isTestUser = checkIfTestUser(input);
     const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
 
     // CRITICAL: Access restriction for production testing
@@ -401,8 +413,8 @@ export async function POST(req: Request) {
       isSubscription: json?.subscription || false,
       hasInput: !!json?.input,
       inputName: json?.input?.name || "N/A",
-      isDemoMode,
-      isTestUser,
+      isDemoMode: isDemoMode,
+      isTestUser: isTestUser,
       errorType: error.constructor?.name || "Unknown",
       errorMessage: error.message || "Unknown error",
       errorStack: error.stack || "No stack trace",
