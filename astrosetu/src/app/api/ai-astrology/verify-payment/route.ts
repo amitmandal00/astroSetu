@@ -201,8 +201,8 @@ export async function GET(req: Request) {
     // We need to check both session.payment_status AND payment intent status
     const isPaid = 
       session.payment_status === "paid" || 
-      paymentIntentStatus === "requires_capture" || // Manual capture - payment authorized but not captured yet
-      paymentIntentStatus === "succeeded"; // Payment already captured
+      (paymentIntentStatus !== undefined && paymentIntentStatus === "requires_capture") || // Manual capture - payment authorized but not captured yet
+      (paymentIntentStatus !== undefined && paymentIntentStatus === "succeeded"); // Payment already captured
     
     const isSubscription = session.mode === "subscription";
     const reportType = session.metadata?.reportType;
