@@ -69,8 +69,10 @@ export async function POST(req: Request) {
     const { reportType, subscription = false, input, successUrl, cancelUrl } = json;
 
     // Check for demo mode or test user FIRST - always bypass Stripe for these
+    // Also allow test mode if using Stripe test keys (for production-like testing)
     const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     const isTestUser = checkIfTestUser(input);
+    const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
 
     // Validate inputs before creating mock session
     if (!subscription && !reportType) {
@@ -311,6 +313,7 @@ export async function POST(req: Request) {
         },
         payment_intent_data: {
           statement_descriptor: "ASTROSETU AI",
+          capture_method: "manual", // CRITICAL: Don't capture payment until report is generated
         },
       });
     } else {
@@ -342,6 +345,7 @@ export async function POST(req: Request) {
         },
         payment_intent_data: {
           statement_descriptor: "ASTROSETU AI",
+          capture_method: "manual", // CRITICAL: Don't capture payment until report is generated
         },
       });
     }

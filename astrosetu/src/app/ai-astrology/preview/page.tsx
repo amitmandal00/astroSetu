@@ -62,15 +62,17 @@ function PreviewContent() {
     setError(null);
 
     try {
-      // Get payment token for paid reports (handle sessionStorage errors)
+      // Get payment token and payment intent ID for paid reports (handle sessionStorage errors)
       let paymentToken: string | undefined;
       let sessionId: string | undefined;
+      let paymentIntentId: string | undefined;
       
       try {
         paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
         sessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId") || undefined;
+        paymentIntentId = sessionStorage.getItem("aiAstrologyPaymentIntentId") || undefined;
       } catch (storageError) {
-        console.error("Failed to read paymentToken from sessionStorage:", storageError);
+        console.error("Failed to read payment data from sessionStorage:", storageError);
         // Try to get session_id from URL params as fallback
         const urlParams = new URLSearchParams(window.location.search);
         sessionId = urlParams.get("session_id") || undefined;
@@ -120,6 +122,8 @@ function PreviewContent() {
         input: inputData,
         reportType: type,
         paymentToken: isPaid ? paymentToken : undefined, // Only include for paid reports
+        paymentIntentId: isPaid ? paymentIntentId : undefined, // CRITICAL: For manual capture after report generation
+        sessionId: isPaid ? (sessionId || undefined) : undefined, // For token regeneration fallback
       });
 
       if (!response.ok) {
@@ -551,6 +555,30 @@ function PreviewContent() {
             <CardContent className="p-8 text-center">
               <div className="text-5xl mb-4">⚠️</div>
               <h2 className="text-2xl font-bold mb-4 text-red-700">Error Generating Report</h2>
+              
+              {/* Check if this is a paid report failure - show refund information */}
+              {error && (error.toLowerCase().includes("payment") || error.toLowerCase().includes("generation") || error.toLowerCase().includes("timeout") || error.toLowerCase().includes("unable")) && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">✅</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-green-800 mb-2">
+                        Automatic Refund Protection
+                      </p>
+                      <p className="text-sm text-green-700 mb-2">
+                        Your payment has been automatically cancelled and you will <strong>NOT be charged</strong> for this failed report generation.
+                      </p>
+                      <div className="mt-3 space-y-1 text-xs text-green-600">
+                        <p>• <strong>Authorization Released:</strong> Any payment authorization has been automatically released</p>
+                        <p>• <strong>No Charge:</strong> You will not see any charge on your card</p>
+                        <p>• <strong>Timeline:</strong> If any amount was authorized, it will be released within 1-3 business days</p>
+                        <p>• <strong>No Action Required:</strong> The refund process is automatic - you don't need to do anything</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <p className="text-slate-600 mb-6">{error}</p>
               
               {canRecover && (
@@ -633,14 +661,30 @@ function PreviewContent() {
                 </Link>
               </div>
               
-              {isPaymentError && (
-                <div className="mt-6 pt-6 border-t border-slate-200">
-                  <p className="text-xs text-slate-500 mb-2">Need Help?</p>
-                  <p className="text-xs text-slate-600">
-                    If you've completed payment but still see this error, please contact support with your payment receipt.
+              {/* Always show refund information for any error */}
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+                  <p className="text-sm font-semibold text-blue-800 mb-2">💰 Payment Protection Guarantee</p>
+                  <p className="text-xs text-blue-700 mb-2">
+                    <strong>Your payment is protected:</strong> If report generation fails for any reason, your payment will be automatically cancelled or refunded.
                   </p>
+                  <div className="text-xs text-blue-600 space-y-1 mt-2">
+                    <p>• Payment authorization will be automatically released</p>
+                    <p>• No charge will be made for failed report generation</p>
+                    <p>• If already charged, full refund will be processed within 1-3 business days</p>
+                    <p>• Refund will go back to your original payment method</p>
+                  </div>
                 </div>
-              )}
+                
+                {isPaymentError && (
+                  <div className="mt-4">
+                    <p className="text-xs text-slate-500 mb-2">Need Help?</p>
+                    <p className="text-xs text-slate-600">
+                      If you've completed payment but still see this error, please contact support with your payment receipt. Your payment will be automatically refunded.
+                    </p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

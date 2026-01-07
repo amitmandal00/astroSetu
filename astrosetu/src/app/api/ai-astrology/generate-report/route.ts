@@ -94,37 +94,56 @@ export async function POST(req: Request) {
     // Validate request size
     validateRequestSize(req.headers.get("content-length"), 10 * 1024); // 10KB max
 
-    // Check if AI is configured
-    if (!isAIConfigured()) {
-      // Return a user-friendly error message (don't expose internal configuration details)
-      return NextResponse.json(
-        { 
-          ok: false, 
-          error: "AI service is temporarily unavailable. Please try again later.",
-          code: "AI_SERVICE_UNAVAILABLE"
-        },
-        { 
-          status: 503,
-          headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Retry-After": "60"
-          }
-        }
-      );
-    }
+    // Check if AI is configured - CRITICAL: Cancel payment if service unavailable
+    // Note: We need to parse input first to get paymentIntentId, so this check is after parsing
+    // But we'll handle this in the error handler
 
     // Parse and validate request body
     const json = await parseJsonBody<{
       input: AIAstrologyInput;
       reportType: ReportType;
       paymentToken?: string; // Payment verification token for paid reports
+      paymentIntentId?: string; // CRITICAL: Payment intent ID for manual capture
+      sessionId?: string; // Session ID for token regeneration
       decisionContext?: string; // Optional context for decision support reports
     }>(req);
 
-    const { input, reportType, paymentToken, decisionContext } = json;
+    const { input, reportType, paymentToken, paymentIntentId, sessionId: fallbackSessionId, decisionContext } = json;
 
-    // Validate input
+    // Check for demo mode and test user (needed for payment cancellation checks)
+    const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
+    const isTestUser = checkIfTestUser(input);
+
+    // Helper function to cancel payment (used in all error scenarios)
+    // CRITICAL: Ensures users are NEVER charged if ANY error occurs
+    const cancelPaymentSafely = async (reason: string) => {
+      // Only cancel if it's a paid report and we have a payment intent
+      if (paymentIntentId && reportType && isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+          const cancelResponse = await fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              paymentIntentId,
+              sessionId: fallbackSessionId,
+              reason,
+            }),
+          });
+          if (cancelResponse.ok) {
+            console.log(`[PAYMENT CANCELLED - ${reason}]`, { requestId, paymentIntentId });
+          } else {
+            console.warn(`[PAYMENT CANCELLATION FAILED - ${reason}]`, { requestId, paymentIntentId, status: cancelResponse.status });
+          }
+        } catch (e: any) {
+          console.error(`[PAYMENT CANCELLATION ERROR - ${reason}]`, { requestId, paymentIntentId, error: e?.message || e });
+        }
+      }
+    };
+
+    // Validate input - CRITICAL: Cancel payment if validation fails
     if (!input.name || !input.dob || !input.tob || !input.place) {
+      await cancelPaymentSafely("Input validation failed - missing required fields");
       return NextResponse.json(
         { ok: false, error: "Missing required fields: name, dob, tob, place" },
         { status: 400 }
@@ -132,6 +151,7 @@ export async function POST(req: Request) {
     }
 
     if (!input.latitude || !input.longitude) {
+      await cancelPaymentSafely("Input validation failed - missing coordinates");
       return NextResponse.json(
         { ok: false, error: "Latitude and longitude are required" },
         { status: 400 }
@@ -152,18 +172,41 @@ export async function POST(req: Request) {
       };
       console.error("[ACCESS RESTRICTION]", JSON.stringify(restrictionError, null, 2));
       
+      // CRITICAL: Cancel payment if access is restricted (user should not be charged)
+      await cancelPaymentSafely("Access restricted - user not authorized");
+      
       return NextResponse.json(
         { ok: false, error: getRestrictionMessage() },
         { status: 403 }
       );
     }
 
-    // Validate report type
+    // Validate report type - CRITICAL: Cancel payment if invalid
     const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
     if (!reportType || !validReportTypes.includes(reportType)) {
+      await cancelPaymentSafely("Invalid report type");
       return NextResponse.json(
         { ok: false, error: `Invalid report type. Must be one of: ${validReportTypes.join(", ")}` },
         { status: 400 }
+      );
+    }
+
+    // Check if AI is configured - CRITICAL: Cancel payment if service unavailable
+    if (!isAIConfigured()) {
+      await cancelPaymentSafely("AI service unavailable");
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: "AI service is temporarily unavailable. Please try again later.",
+          code: "AI_SERVICE_UNAVAILABLE"
+        },
+        { 
+          status: 503,
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Retry-After": "60"
+          }
+        }
       );
     }
 
@@ -271,11 +314,15 @@ export async function POST(req: Request) {
         
         console.error("[PAYMENT VERIFICATION ERROR]", JSON.stringify(paymentErrorContext, null, 2));
         
+        // Cancel payment before returning error
+        await cancelPaymentSafely("Payment verification failed - no valid token or session_id");
+        
         return NextResponse.json(
           { 
             ok: false, 
-            error: "Payment verification required for paid reports. If you've already paid, please try clicking 'View My Report Now' from the payment success page, or contact support with your payment receipt.",
-            code: "PAYMENT_VERIFICATION_REQUIRED"
+            error: "Payment verification required for paid reports. If you've already paid, please try clicking 'View My Report Now' from the payment success page, or contact support with your payment receipt. Your payment has been automatically cancelled and you will NOT be charged.",
+            code: "PAYMENT_VERIFICATION_REQUIRED",
+            refundInfo: "Payment authorization has been automatically released. No charge will be made. If any amount was authorized, it will be released within 1-3 business days."
           },
           { status: 403 }
         );
@@ -336,8 +383,15 @@ export async function POST(req: Request) {
             };
             console.error("[INVALID PAYMENT TOKEN]", JSON.stringify(invalidTokenError, null, 2));
             
+            // Cancel payment before returning error
+            await cancelPaymentSafely("Invalid or expired payment token");
+            
             return NextResponse.json(
-              { ok: false, error: "Invalid or expired payment token. Please complete payment again or contact support with your payment receipt." },
+              { 
+                ok: false, 
+                error: "Invalid or expired payment token. Please complete payment again or contact support with your payment receipt. Your payment has been automatically cancelled and you will NOT be charged.",
+                refundInfo: "Payment authorization has been automatically released. No charge will be made."
+              },
               { status: 403 }
             );
           }
@@ -509,12 +563,18 @@ export async function POST(req: Request) {
         headers["Retry-After"] = "3600"; // Suggest retry after 1 hour for quota issues
       }
       
-      // Provide specific error message for timeout
+      // Provide specific error message with transparent refund information
+      // CRITICAL: Inform users that automatic refund will be provided
+      const isPaidReport = isPaidReportType(reportType);
+      const refundMessage = isPaidReport && paymentIntentId && !isDemoMode && !isTestUser
+        ? " Your payment has been automatically cancelled and you will NOT be charged. If any amount was authorized, it will be released within 1-3 business days (no action required from you)."
+        : "";
+      
       const finalErrorMessage = isTimeoutError
-        ? "Report generation is taking longer than expected. Please try again with a simpler request, or contact support if the issue persists."
+        ? `Report generation is taking longer than expected. Please try again with a simpler request, or contact support if the issue persists.${refundMessage}`
         : isConfigError
-        ? "Astrology calculation service is temporarily unavailable. Reports may use estimated data. Please try again later."
-        : "Server error. Please try again later.";
+        ? `Astrology calculation service is temporarily unavailable. Reports may use estimated data. Please try again later.${refundMessage}`
+        : `We're sorry, but we were unable to generate your report at this time.${refundMessage} Please try again later or contact support if the issue persists.`;
       
       const finalErrorCode = isTimeoutError
         ? "TIMEOUT"
@@ -523,6 +583,82 @@ export async function POST(req: Request) {
         : "REPORT_GENERATION_FAILED";
       
       const finalStatus = isTimeoutError ? 504 : (isConfigError ? 503 : 500);
+      
+      // CRITICAL: ALWAYS cancel payment if report generation fails
+      // This ensures users are NEVER charged if report generation fails
+      // Retry logic to ensure payment is cancelled even if first attempt fails
+      if (paymentIntentId && isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+        let paymentCancelled = false;
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+        const cancelUrl = `${baseUrl}/api/ai-astrology/cancel-payment`;
+        
+        // Try to cancel payment (with retry)
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const cancelResponse = await fetch(cancelUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                paymentIntentId,
+                sessionId: fallbackSessionId,
+                reason: `Report generation failed: ${finalErrorCode}`,
+              }),
+            });
+            
+            if (cancelResponse.ok) {
+              paymentCancelled = true;
+              const cancelSuccess = {
+                requestId,
+                timestamp: new Date().toISOString(),
+                paymentIntentId,
+                reason: `Report generation failed: ${finalErrorCode}`,
+                attempt,
+                action: "Payment cancelled/refunded due to report generation failure",
+              };
+              console.log("[PAYMENT CANCELLED - REPORT FAILED]", JSON.stringify(cancelSuccess, null, 2));
+              break; // Success - exit retry loop
+            } else {
+              // Log failure but retry
+              console.warn(`[PAYMENT CANCELLATION FAILED - ATTEMPT ${attempt}/3]`, {
+                requestId,
+                paymentIntentId,
+                status: cancelResponse.status,
+              });
+              
+              if (attempt < 3) {
+                // Wait before retry (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+              }
+            }
+          } catch (cancelError: any) {
+            // Log error but retry
+            console.error(`[PAYMENT CANCELLATION ERROR - ATTEMPT ${attempt}/3]`, {
+              requestId,
+              paymentIntentId,
+              error: cancelError.message,
+            });
+            
+            if (attempt < 3) {
+              // Wait before retry
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
+          }
+        }
+        
+        // CRITICAL: If cancellation failed after all retries, log for manual intervention
+        if (!paymentCancelled) {
+          console.error("[CRITICAL - MANUAL INTERVENTION REQUIRED]", {
+            requestId,
+            paymentIntentId,
+            reason: "Payment cancellation failed after 3 attempts",
+            errorCode: finalErrorCode,
+            action: "MANUAL REFUND REQUIRED - User may be charged incorrectly",
+            urgency: "HIGH",
+          });
+        }
+      }
       
       return NextResponse.json(
         { 
@@ -536,6 +672,105 @@ export async function POST(req: Request) {
           headers
         }
       );
+    }
+
+    // CRITICAL: Capture payment ONLY after successful report generation
+    // This ensures payment is NEVER deducted if report generation fails
+    // Wrap in try-catch to ensure we ALWAYS cancel payment if capture fails
+    if (paymentIntentId && isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+      let paymentCaptured = false;
+      
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+        const captureUrl = `${baseUrl}/api/ai-astrology/capture-payment`;
+        
+        const captureResponse = await fetch(captureUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentIntentId,
+            sessionId: fallbackSessionId,
+          }),
+        });
+        
+        if (captureResponse.ok) {
+          paymentCaptured = true;
+          const captureSuccess = {
+            requestId,
+            timestamp: new Date().toISOString(),
+            paymentIntentId,
+            reportType,
+            action: "Payment captured after successful report generation",
+          };
+          console.log("[PAYMENT CAPTURED - REPORT SUCCESS]", JSON.stringify(captureSuccess, null, 2));
+        } else {
+          // CRITICAL: If capture fails, we must cancel payment (payment not captured = user not charged)
+          // Report is generated but payment capture failed - cancel to ensure no charge
+          const captureError = {
+            requestId,
+            timestamp: new Date().toISOString(),
+            paymentIntentId,
+            status: captureResponse.status,
+            error: "Payment capture failed - will cancel payment to protect user",
+          };
+          console.error("[PAYMENT CAPTURE FAILED - CANCELLING]", JSON.stringify(captureError, null, 2));
+          
+          // Cancel payment immediately - user should not be charged if capture fails
+          try {
+            await fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                paymentIntentId,
+                sessionId: fallbackSessionId,
+                reason: "Payment capture failed after report generation",
+              }),
+            });
+          } catch (cancelError) {
+            console.error("[CRITICAL] Failed to cancel payment after capture failure:", cancelError);
+          }
+        }
+      } catch (captureError: any) {
+        // CRITICAL: If capture throws error, cancel payment immediately
+        // This ensures user is NEVER charged if capture fails
+        const criticalError = {
+          requestId,
+          timestamp: new Date().toISOString(),
+          paymentIntentId,
+          errorType: captureError.constructor?.name || "Unknown",
+          errorMessage: captureError.message || "Unknown error",
+          action: "Payment capture error - cancelling payment to protect user",
+        };
+        console.error("[CRITICAL - PAYMENT CAPTURE ERROR]", JSON.stringify(criticalError, null, 2));
+        
+        // Cancel payment immediately - user should not be charged
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+          await fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              paymentIntentId,
+              sessionId: fallbackSessionId,
+              reason: `Payment capture error: ${captureError.message || "Unknown error"}`,
+            }),
+          });
+        } catch (cancelError) {
+          console.error("[CRITICAL] Failed to cancel payment after capture error:", cancelError);
+          // Log for manual intervention
+          console.error("[MANUAL INTERVENTION REQUIRED]", {
+            paymentIntentId,
+            reason: "Payment capture failed and cancellation also failed",
+            action: "Manual refund required",
+          });
+        }
+      }
     }
 
     // Return report

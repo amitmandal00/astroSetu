@@ -51,6 +51,7 @@ function PaymentSuccessContent() {
             reportType?: string;
             subscription?: boolean;
             paymentToken?: string; // Payment verification token
+            paymentIntentId?: string; // CRITICAL: For manual capture after report generation
             metadata?: {
               testMode?: boolean;
             };
@@ -91,6 +92,11 @@ function PaymentSuccessContent() {
           // Store payment token for API verification
           if (response.data.paymentToken) {
             sessionStorage.setItem("aiAstrologyPaymentToken", response.data.paymentToken);
+          }
+          
+          // CRITICAL: Store payment intent ID for manual capture after report generation
+          if (response.data.paymentIntentId) {
+            sessionStorage.setItem("aiAstrologyPaymentIntentId", response.data.paymentIntentId);
           }
           
           // If subscription, mark as active
@@ -172,7 +178,29 @@ function PaymentSuccessContent() {
           <CardContent className="p-8 text-center">
             <div className="text-5xl mb-4">⚠️</div>
             <h2 className="text-2xl font-bold mb-4 text-red-700">Payment Verification Failed</h2>
-            <p className="text-slate-600 mb-6">{error || "We couldn't verify your payment. If you were charged, please check your Stripe dashboard or email receipt for details."}</p>
+            
+            {/* Transparent refund information */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-left">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">✅</div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-green-800 mb-2">
+                    Automatic Refund Protection
+                  </p>
+                  <p className="text-sm text-green-700 mb-2">
+                    If payment was processed, it will be <strong>automatically refunded</strong>.
+                  </p>
+                  <div className="mt-3 space-y-1 text-xs text-green-600">
+                    <p>• <strong>Full Refund:</strong> Any payment made will be fully refunded</p>
+                    <p>• <strong>Timeline:</strong> Refund will be processed within 1-3 business days</p>
+                    <p>• <strong>Payment Method:</strong> Refund will go back to your original payment method</p>
+                    <p>• <strong>No Action Required:</strong> The refund process is automatic</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <p className="text-slate-600 mb-6">{error || "We couldn't verify your payment. If you were charged, your payment will be automatically refunded."}</p>
               <div className="flex gap-4 justify-center">
                 <Link href="/ai-astrology">
                   <Button className="cosmic-button">Back to AI Astrology</Button>

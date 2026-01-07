@@ -183,6 +183,16 @@ export async function GET(req: Request) {
       paymentToken = generatePaymentToken(reportType, session.id);
     }
 
+    // Get payment intent ID from session (for manual capture)
+    let paymentIntentId: string | undefined;
+    if (session.payment_intent) {
+      if (typeof session.payment_intent === "string") {
+        paymentIntentId = session.payment_intent;
+      } else {
+        paymentIntentId = session.payment_intent.id;
+      }
+    }
+
     return NextResponse.json(
       {
         ok: true,
@@ -193,6 +203,7 @@ export async function GET(req: Request) {
           subscription: isSubscription,
           reportType,
           paymentToken, // Include token for client to store
+          paymentIntentId, // CRITICAL: For manual capture after report generation
           customerEmail: session.customer_email,
           amountTotal: session.amount_total,
           currency: session.currency,
