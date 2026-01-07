@@ -154,27 +154,97 @@ export async function POST(req: Request) {
     const isTestUser = checkIfTestUser(input);
     
     if (isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
-      if (!paymentToken) {
+      // CRITICAL FIX: If paymentToken is missing, try to verify using session_id from query params
+      let paymentTokenToVerify = paymentToken;
+      let paymentVerified = false;
+      
+      if (!paymentTokenToVerify) {
+        // Try to get session_id from request URL and verify payment
+        const { searchParams } = new URL(req.url);
+        const sessionId = searchParams.get("session_id");
+        
+        if (sessionId) {
+          try {
+            // Verify payment using session_id via Stripe API
+            const Stripe = (await import("stripe")).default;
+            const secretKey = process.env.STRIPE_SECRET_KEY;
+            
+            if (secretKey && !secretKey.startsWith("pk_")) {
+              const stripe = new Stripe(secretKey);
+              const session = await stripe.checkout.sessions.retrieve(sessionId);
+              
+              if (session && session.payment_status === "paid") {
+                const sessionReportType = session.metadata?.reportType;
+                
+                // Verify report type matches
+                if (sessionReportType === reportType) {
+                  // Generate new token from verified session
+                  const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
+                  paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
+                  paymentVerified = true;
+                  
+                  console.log(`[generate-report] Regenerated payment token from session_id: ${sessionId.substring(0, 20)}...`);
+                }
+              }
+            }
+          } catch (sessionVerifyError: any) {
+            console.error("[generate-report] Failed to verify payment via session_id:", sessionVerifyError);
+            // Continue to check paymentToken below
+          }
+        }
+      }
+      
+      // If still no valid token, return error
+      if (!paymentTokenToVerify && !paymentVerified) {
         return NextResponse.json(
-          { ok: false, error: "Payment verification required for paid reports. Please complete payment first." },
+          { ok: false, error: "Payment verification required for paid reports. Please complete payment first or contact support if you've already paid." },
           { status: 403 }
         );
       }
 
-      const tokenData = verifyPaymentToken(paymentToken);
-      if (!tokenData) {
-        return NextResponse.json(
-          { ok: false, error: "Invalid or expired payment token. Please complete payment again." },
-          { status: 403 }
-        );
-      }
-
-      // Verify the token matches the requested report type
-      if (tokenData.reportType !== reportType) {
-        return NextResponse.json(
-          { ok: false, error: "Payment token does not match requested report type." },
-          { status: 403 }
-        );
+      // Verify token if we have one
+      if (paymentTokenToVerify && !paymentVerified) {
+        const tokenData = verifyPaymentToken(paymentTokenToVerify);
+        if (!tokenData) {
+          // Try session_id fallback before giving up
+          const { searchParams } = new URL(req.url);
+          const sessionId = searchParams.get("session_id");
+          
+          if (sessionId) {
+            try {
+              const Stripe = (await import("stripe")).default;
+              const secretKey = process.env.STRIPE_SECRET_KEY;
+              
+              if (secretKey && !secretKey.startsWith("pk_")) {
+                const stripe = new Stripe(secretKey);
+                const session = await stripe.checkout.sessions.retrieve(sessionId);
+                
+                if (session && session.payment_status === "paid" && session.metadata?.reportType === reportType) {
+                  const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
+                  paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
+                  paymentVerified = true;
+                }
+              }
+            } catch (e) {
+              // Fall through to error below
+            }
+          }
+          
+          if (!paymentVerified) {
+            return NextResponse.json(
+              { ok: false, error: "Invalid or expired payment token. Please complete payment again or contact support with your payment receipt." },
+              { status: 403 }
+            );
+          }
+        } else {
+          // Verify the token matches the requested report type
+          if (tokenData.reportType !== reportType) {
+            return NextResponse.json(
+              { ok: false, error: "Payment token does not match requested report type." },
+              { status: 403 }
+            );
+          }
+        }
       }
     }
     

@@ -64,17 +64,36 @@ function PreviewContent() {
     try {
       // Get payment token for paid reports (handle sessionStorage errors)
       let paymentToken: string | undefined;
+      let sessionId: string | undefined;
+      
       try {
         paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
+        sessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId") || undefined;
       } catch (storageError) {
         console.error("Failed to read paymentToken from sessionStorage:", storageError);
-        // Continue without token - API will return appropriate error
+        // Try to get session_id from URL params as fallback
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get("session_id") || undefined;
       }
+      
+      // CRITICAL FIX: Also check URL params for session_id (fallback if sessionStorage lost)
+      if (!sessionId) {
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get("session_id") || undefined;
+      }
+      
       const isPaid = type !== "life-summary";
       
       // Note: Payment verification is handled server-side
       // In demo mode (development), payment token is not required
       // The API will return appropriate error if payment is required in production
+      // CRITICAL FIX: API can now accept session_id as fallback if token is missing
+
+      // Build API URL with session_id if available and token is missing
+      let apiUrl = "/api/ai-astrology/generate-report";
+      if (!paymentToken && sessionId && isPaid) {
+        apiUrl = `/api/ai-astrology/generate-report?session_id=${encodeURIComponent(sessionId)}`;
+      }
 
       const response = await apiPost<{
         ok: boolean;
@@ -85,7 +104,7 @@ function PreviewContent() {
           generatedAt: string;
         };
         error?: string;
-      }>("/api/ai-astrology/generate-report", {
+      }>(apiUrl, {
         input: inputData,
         reportType: type,
         paymentToken: isPaid ? paymentToken : undefined, // Only include for paid reports
@@ -213,6 +232,9 @@ function PreviewContent() {
     if (typeof window === "undefined") return;
     
     try {
+      // CRITICAL FIX: Get session_id from URL params first (fallback if sessionStorage is lost)
+      const urlSessionId = searchParams.get("session_id");
+      
       // Get input from sessionStorage
       const savedInput = sessionStorage.getItem("aiAstrologyInput");
       const savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType;
@@ -232,7 +254,43 @@ function PreviewContent() {
       
       setInput(inputData);
       setReportType(reportTypeToUse);
-      setPaymentVerified(paymentVerified);
+      
+      // CRITICAL FIX: If payment verified flag is missing but session_id exists, try to re-verify
+      if (!paymentVerified && urlSessionId) {
+        // Attempt to regenerate payment token from session_id
+        (async () => {
+          try {
+            const verifyResponse = await apiGet<{
+              ok: boolean;
+              data?: {
+                paid: boolean;
+                paymentToken?: string;
+                reportType?: string;
+              };
+            }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId)}`);
+            
+            if (verifyResponse.ok && verifyResponse.data?.paid && verifyResponse.data.paymentToken) {
+              // Store regenerated token
+              try {
+                sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
+                sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+                sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
+                if (verifyResponse.data.reportType) {
+                  sessionStorage.setItem("aiAstrologyReportType", verifyResponse.data.reportType);
+                  setReportType(verifyResponse.data.reportType as ReportType);
+                }
+                setPaymentVerified(true);
+              } catch (e) {
+                console.error("Failed to store regenerated payment token:", e);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to regenerate payment token from session_id:", e);
+          }
+        })();
+      } else {
+        setPaymentVerified(paymentVerified);
+      }
       
       // Parse bundle information
       if (savedBundleType && savedBundleReports) {
