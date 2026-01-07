@@ -105,11 +105,13 @@ function PaymentSuccessContent() {
 
           // Auto-redirect to preview page for non-subscription reports
           // CRITICAL FIX: Include session_id in URL to allow token regeneration if sessionStorage is lost
+          // Also trigger auto-generation by passing auto_generate=true
           if (!subscription && paymentReportType && paymentReportType !== "subscription") {
             // Small delay to show success message, then redirect
             // Pass session_id as URL param so it can be used to regenerate token if sessionStorage fails
+            // Pass auto_generate=true to trigger automatic report generation
             setTimeout(() => {
-              router.push(`/ai-astrology/preview?session_id=${encodeURIComponent(sid)}`);
+              router.push(`/ai-astrology/preview?session_id=${encodeURIComponent(sid)}&auto_generate=true`);
             }, 2000);
           }
         } else {

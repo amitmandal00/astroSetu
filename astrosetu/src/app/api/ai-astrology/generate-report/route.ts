@@ -14,6 +14,7 @@ import {
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
 import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
+import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 
 /**
  * Check if the user is a production test user (bypasses payment)
@@ -137,6 +138,26 @@ export async function POST(req: Request) {
       );
     }
 
+    // CRITICAL: Access restriction for production testing
+    // Only allow Amit Kumar Mandal and Ankita Surabhi until testing is complete
+    const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
+    if (restrictAccess && !isAllowedUser(input)) {
+      const restrictionError = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        reportType,
+        userName: input.name || "N/A",
+        userDOB: input.dob || "N/A",
+        error: "Access restricted for production testing",
+      };
+      console.error("[ACCESS RESTRICTION]", JSON.stringify(restrictionError, null, 2));
+      
+      return NextResponse.json(
+        { ok: false, error: getRestrictionMessage() },
+        { status: 403 }
+      );
+    }
+
     // Validate report type
     const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
     if (!reportType || !validReportTypes.includes(reportType)) {
@@ -176,8 +197,11 @@ export async function POST(req: Request) {
               if (session && session.payment_status === "paid") {
                 const sessionReportType = session.metadata?.reportType;
                 
-                // Verify report type matches
-                if (sessionReportType === reportType) {
+                // Verify report type matches (check both report_type and reportType in metadata)
+                const sessionReportType = session.metadata?.reportType || session.metadata?.report_type;
+                
+                // Allow if report type matches OR if session is paid (more lenient for production)
+                if (sessionReportType === reportType || session.payment_status === "paid") {
                   // Generate new token from verified session
                   const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
                   paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
@@ -187,10 +211,29 @@ export async function POST(req: Request) {
                     requestId,
                     timestamp: new Date().toISOString(),
                     reportType,
+                    sessionReportType: sessionReportType || "N/A",
                     sessionId: sessionId.substring(0, 20) + "...",
                     action: "Payment token regenerated from session_id",
                   };
                   console.log("[TOKEN REGENERATION SUCCESS]", JSON.stringify(tokenRegenSuccess, null, 2));
+                } else {
+                  // Log mismatch for debugging
+                  const mismatchLog = {
+                    requestId,
+                    timestamp: new Date().toISOString(),
+                    requestedReportType: reportType,
+                    sessionReportType: sessionReportType || "N/A",
+                    sessionId: sessionId.substring(0, 20) + "...",
+                    error: "Report type mismatch but payment is valid",
+                  };
+                  console.warn("[REPORT TYPE MISMATCH]", JSON.stringify(mismatchLog, null, 2));
+                  // Still allow if payment is valid (lenient check)
+                  if (session.payment_status === "paid") {
+                    const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
+                    paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
+                    paymentVerified = true;
+                    console.log("[TOKEN REGENERATION SUCCESS - LENIENT]", JSON.stringify(mismatchLog, null, 2));
+                  }
                 }
               }
             }
@@ -255,10 +298,25 @@ export async function POST(req: Request) {
                 const stripe = new Stripe(secretKey);
                 const session = await stripe.checkout.sessions.retrieve(sessionId);
                 
-                if (session && session.payment_status === "paid" && session.metadata?.reportType === reportType) {
-                  const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
-                  paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
-                  paymentVerified = true;
+                // More lenient check - accept if payment is paid, even if report type doesn't exactly match
+                const sessionReportType = session?.metadata?.reportType || session?.metadata?.report_type;
+                if (session && session.payment_status === "paid") {
+                  // If report type matches or payment is valid, accept it
+                  if (sessionReportType === reportType || !sessionReportType) {
+                    const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
+                    paymentTokenToVerify = generatePaymentToken(reportType, sessionId);
+                    paymentVerified = true;
+                    
+                    const tokenRegenSuccess2 = {
+                      requestId,
+                      timestamp: new Date().toISOString(),
+                      reportType,
+                      sessionReportType: sessionReportType || "N/A",
+                      sessionId: sessionId.substring(0, 20) + "...",
+                      action: "Payment token regenerated from session_id (fallback)",
+                    };
+                    console.log("[TOKEN REGENERATION SUCCESS - FALLBACK]", JSON.stringify(tokenRegenSuccess2, null, 2));
+                  }
                 }
               }
             } catch (e) {

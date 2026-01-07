@@ -266,6 +266,7 @@ function PreviewContent() {
     try {
       // CRITICAL FIX: Get session_id from URL params first (fallback if sessionStorage is lost)
       const urlSessionId = searchParams.get("session_id");
+      const autoGenerate = searchParams.get("auto_generate") === "true"; // Trigger auto-generation after payment
       
       // Get input from sessionStorage
       const savedInput = sessionStorage.getItem("aiAstrologyInput");
@@ -381,6 +382,25 @@ function PreviewContent() {
       if (isPaidReport && !paymentVerified && urlSessionId) {
         // Verification is in progress (handled above), don't proceed yet
         return;
+      }
+
+      // Auto-generate report if auto_generate=true (after payment success)
+      if (autoGenerate && paymentVerified && inputData && reportTypeToUse && !loading) {
+        console.log("[Preview] Auto-generating report after payment:", { reportType: reportTypeToUse, hasInput: !!inputData });
+        // Small delay to ensure state is set
+        setTimeout(() => {
+          if (isBundle && savedBundleReports) {
+            try {
+              const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
+              generateBundleReports(inputData, bundleReportsList, urlSessionId || undefined);
+            } catch (e) {
+              console.error("Failed to parse bundle reports:", e);
+              generateReport(inputData, reportTypeToUse, urlSessionId || undefined);
+            }
+          } else {
+            generateReport(inputData, reportTypeToUse, urlSessionId || undefined);
+          }
+        }, 500);
       }
       
       // Generate bundle reports or single report

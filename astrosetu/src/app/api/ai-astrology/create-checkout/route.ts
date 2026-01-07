@@ -202,6 +202,7 @@ export async function POST(req: Request) {
       priceData = reportPrice;
       reportDisplayName = reportPrice.displayName;
       metadata.report_type = reportType;
+      metadata.reportType = reportType; // Also store as camelCase for compatibility
     }
 
     // Add user_id if available (from session or input)
