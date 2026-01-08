@@ -23,7 +23,8 @@ function isAIConfigured(): boolean {
  */
 async function generateAIContent(prompt: string): Promise<string> {
   if (OPENAI_API_KEY) {
-    return generateWithOpenAI(prompt);
+    // Increase max retries to 5 for better resilience against rate limits
+    return generateWithOpenAI(prompt, 0, 5);
   } else if (ANTHROPIC_API_KEY) {
     return generateWithAnthropic(prompt);
   } else {
@@ -31,7 +32,7 @@ async function generateAIContent(prompt: string): Promise<string> {
   }
 }
 
-async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 3): Promise<string> {
+async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 5): Promise<string> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -69,7 +70,7 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
     if (response.status === 429 || errorData?.error?.code === "rate_limit_exceeded") {
       if (retryCount < maxRetries) {
         // Extract retry-after from error message or header
-        let waitTime = 2000; // Default 2 seconds
+        let waitTime = 5000; // Increased default wait: 5 seconds (more conservative for rate limits)
         
         // Try to parse retry-after from error message
         const errorMessage = errorData?.error?.message || "";
@@ -85,28 +86,40 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
           // Check Retry-After header
           const retryAfterHeader = response.headers.get("retry-after");
           if (retryAfterHeader) {
-            waitTime = parseInt(retryAfterHeader) * 1000; // Convert seconds to milliseconds
+            const retryAfterSeconds = parseInt(retryAfterHeader);
+            waitTime = retryAfterSeconds * 1000; // Convert seconds to milliseconds
+            // Add small buffer to retry-after header value (10% extra)
+            waitTime = Math.round(waitTime * 1.1);
           } else {
-            // Exponential backoff: 2s, 4s, 8s
-            waitTime = Math.min(2000 * Math.pow(2, retryCount), 10000); // Cap at 10 seconds
+            // Enhanced exponential backoff: 5s, 10s, 20s, 40s, 60s (with cap at 60s)
+            waitTime = Math.min(5000 * Math.pow(2, retryCount), 60000); // Cap at 60 seconds
           }
         }
 
-        // Add jitter (random 0-500ms) to avoid thundering herd
-        const jitter = Math.random() * 500;
-        const totalWait = Math.min(waitTime + jitter, 15000); // Cap at 15 seconds total
+        // Add jitter (random 0-1000ms) to avoid thundering herd
+        const jitter = Math.random() * 1000;
+        const totalWait = Math.min(waitTime + jitter, 90000); // Cap at 90 seconds total for very aggressive rate limits
 
-        console.log(`[OpenAI] Rate limit hit, retrying after ${Math.round(totalWait)}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        console.log(`[OpenAI] Rate limit hit for daily-guidance, retrying after ${Math.round(totalWait)}ms (attempt ${retryCount + 1}/${maxRetries})`);
         
         await new Promise(resolve => setTimeout(resolve, totalWait));
         return generateWithOpenAI(prompt, retryCount + 1, maxRetries);
       } else {
-        throw new Error(`OpenAI rate limit exceeded. Maximum retries (${maxRetries}) reached. Please try again in a few minutes.`);
+        const finalError = `OpenAI rate limit exceeded. Maximum retries (${maxRetries}) reached after ${maxRetries} attempts. Please try again in a few minutes.`;
+        console.error(`[OpenAI] ${finalError} (daily-guidance)`);
+        throw new Error(finalError);
       }
     }
 
     // Handle other errors
     throw new Error(`OpenAI API error: ${errorText}`);
+  }
+
+  // Log successful request (only on first attempt to reduce noise)
+  if (retryCount === 0) {
+    console.log(`[OpenAI] Successfully generated daily guidance content`);
+  } else {
+    console.log(`[OpenAI] Successfully generated daily guidance content after ${retryCount} retries`);
   }
 
   const data = await response.json();
