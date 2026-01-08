@@ -180,10 +180,40 @@ function PreviewContent() {
       // CRITICAL: If report is completed and we have redirectUrl or reportId, navigate immediately
       // This prevents the UI from staying stuck on "Generating..." screen
       if (response.data?.status === "completed" && (response.data?.redirectUrl || response.data?.reportId)) {
+        // Store the content in sessionStorage before navigating (so it's available on the new page)
+        if (response.data?.content) {
+          try {
+            const reportId = response.data.reportId || `RPT-${Date.now()}`;
+            sessionStorage.setItem(`aiAstrologyReport_${reportId}`, JSON.stringify({
+              content: response.data.content,
+              reportType: response.data.reportType,
+              input: response.data.input,
+              generatedAt: response.data.generatedAt,
+            }));
+            console.log("[CLIENT] Stored report content in sessionStorage for reportId:", reportId);
+          } catch (storageError) {
+            console.warn("[CLIENT] Failed to store report in sessionStorage:", storageError);
+          }
+        }
+        
         const redirectTo = response.data.redirectUrl || `/ai-astrology/preview?reportId=${encodeURIComponent(response.data.reportId!)}&reportType=${encodeURIComponent(type)}`;
         console.log("[CLIENT] Report generation completed, navigating to:", redirectTo);
+        
+        // Set content in state first (in case navigation is slow or fails)
+        setReportContent(response.data?.content || null);
+        
+        // Navigate immediately - this will cause a re-render with the new URL
         router.replace(redirectTo);
-        // Don't set state here - the new page will load with the reportId and fetch the content
+        
+        // Show upsell for paid reports after a delay (30 seconds)
+        const currentReportType = response.data?.reportType || type;
+        if (currentReportType !== "life-summary" && !upsellShown) {
+          setTimeout(() => {
+            setShowUpsell(true);
+            setUpsellShown(true);
+          }, 30000); // 30 seconds after report generation
+        }
+        
         return;
       }
 
