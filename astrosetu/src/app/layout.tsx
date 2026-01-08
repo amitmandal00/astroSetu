@@ -5,11 +5,72 @@ import Script from "next/script";
 import { ConditionalShell } from "@/components/layout/ConditionalShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NotificationInitializer } from "@/components/notifications/NotificationInitializer";
+import { OrganizationSchema, WebsiteSchema } from "@/components/seo/StructuredData";
 import { headers } from "next/headers";
 
 export const metadata: Metadata = {
-  title: "AstroSetu",
-  description: "Bridging humans with cosmic guidance",
+  metadataBase: new URL('https://www.mindveda.net'),
+  title: {
+    default: "AstroSetu - AI-Powered Astrology Reports & Horoscope",
+    template: "%s | AstroSetu"
+  },
+  description: "Get personalized AI-powered astrology reports, horoscope, kundli, marriage timing, career guidance, and life predictions. Automated astrology platform with instant insights.",
+  keywords: [
+    "astrology",
+    "horoscope",
+    "kundli",
+    "birth chart",
+    "AI astrology",
+    "online astrology",
+    "marriage timing",
+    "career astrology",
+    "astrology reports",
+    "free horoscope",
+    "daily horoscope",
+    "astrology predictions"
+  ],
+  authors: [{ name: "AstroSetu" }],
+  creator: "AstroSetu",
+  publisher: "AstroSetu",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://www.mindveda.net",
+    siteName: "AstroSetu",
+    title: "AstroSetu - AI-Powered Astrology Reports & Horoscope",
+    description: "Get personalized AI-powered astrology reports, horoscope, kundli, marriage timing, career guidance, and life predictions. Automated astrology platform with instant insights.",
+    images: [
+      {
+        url: "/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "AstroSetu - AI Astrology Platform",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AstroSetu - AI-Powered Astrology Reports & Horoscope",
+    description: "Get personalized AI-powered astrology reports, horoscope, kundli, marriage timing, career guidance, and life predictions.",
+    images: ["/icon-512.png"],
+    creator: "@astrosetu",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -63,6 +124,29 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" className="h-full" suppressHydrationWarning data-ai-route={isAI ? "true" : "false"}>
       <body className="h-full" suppressHydrationWarning>
+        {/* Structured Data for SEO */}
+        <OrganizationSchema />
+        <WebsiteSchema />
+        
+        {/* Google Analytics */}
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
+                  page_path: window.location.pathname,
+                });
+              `}
+            </Script>
+          </>
+        )}
         {/* CRITICAL: CSS must be FIRST in body to load before React renders */}
         {/* This prevents Shell from rendering on AI routes during SSR, hydration, loading, and route transitions */}
         <style

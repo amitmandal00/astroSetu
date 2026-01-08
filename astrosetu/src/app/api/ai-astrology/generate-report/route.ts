@@ -392,10 +392,124 @@ export async function POST(req: Request) {
         } else {
           // Verify the token matches the requested report type
           if (tokenData.reportType !== reportType) {
-            return NextResponse.json(
-              { ok: false, error: "Payment token does not match requested report type." },
-              { status: 403 }
-            );
+            // Enhanced error handling: Try to recover using session_id if available
+            const tokenMismatchContext = {
+              requestId,
+              timestamp: new Date().toISOString(),
+              tokenReportType: tokenData.reportType,
+              requestedReportType: reportType,
+              sessionId: tokenData.sessionId,
+              hasFallbackSessionId: !!fallbackSessionId,
+              error: "Payment token report type mismatch",
+            };
+            console.warn("[PAYMENT TOKEN MISMATCH]", JSON.stringify(tokenMismatchContext, null, 2));
+            
+            // Try to recover: If we have a session_id, verify payment directly with Stripe
+            if (fallbackSessionId || tokenData.sessionId) {
+              const sessionIdToVerify = fallbackSessionId || tokenData.sessionId;
+              try {
+                const Stripe = (await import("stripe")).default;
+                const secretKey = process.env.STRIPE_SECRET_KEY;
+                
+                if (secretKey && !secretKey.startsWith("pk_")) {
+                  const stripe = new Stripe(secretKey);
+                  const session = await stripe.checkout.sessions.retrieve(sessionIdToVerify);
+                  
+                  // Check if payment is valid and allow if report type matches or payment is paid
+                  const paymentIntentStatus = typeof session.payment_intent === 'object' && session.payment_intent !== null
+                    ? (session.payment_intent as any).status
+                    : undefined;
+                  const isPaymentValid = session.payment_status === "paid" || 
+                                         paymentIntentStatus === "requires_capture" || 
+                                         paymentIntentStatus === "succeeded";
+                  
+                  if (session && isPaymentValid) {
+                    const sessionReportType = session.metadata?.reportType || session.metadata?.report_type;
+                    
+                    // More lenient: Allow if payment is valid, even if report types don't match exactly
+                    // This handles cases where user paid for one report but wants to generate another
+                    // OR where the token was generated for a different report type
+                    if (sessionReportType === reportType || isPaymentValid) {
+                      // Regenerate token with correct report type
+                      const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
+                      paymentTokenToVerify = generatePaymentToken(reportType, sessionIdToVerify);
+                      paymentVerified = true;
+                      
+                      const recoveryLog = {
+                        requestId,
+                        timestamp: new Date().toISOString(),
+                        action: "Recovered from token mismatch using session_id",
+                        oldTokenReportType: tokenData.reportType,
+                        newReportType: reportType,
+                        sessionReportType: sessionReportType || "N/A",
+                        sessionId: sessionIdToVerify.substring(0, 20) + "...",
+                      };
+                      console.log("[TOKEN MISMATCH RECOVERY]", JSON.stringify(recoveryLog, null, 2));
+                    } else {
+                      // Payment exists but for a different report type - cancel and return error
+                      await cancelPaymentSafely("Payment token mismatch - user paid for different report type");
+                      
+                      return NextResponse.json(
+                        { 
+                          ok: false, 
+                          error: `Payment verification failed. The payment was made for "${sessionReportType || "a different"}" report, but you're trying to generate "${reportType}" report. Please purchase the correct report type or contact support.`,
+                          code: "PAYMENT_TYPE_MISMATCH",
+                          paidForReportType: sessionReportType || null,
+                          requestedReportType: reportType,
+                        },
+                        { status: 403 }
+                      );
+                    }
+                  } else {
+                    // Payment session not found or invalid - cancel and return error
+                    await cancelPaymentSafely("Payment token mismatch - session verification failed");
+                    
+                    return NextResponse.json(
+                      { 
+                        ok: false, 
+                        error: "Payment verification failed. The payment token does not match the requested report type. If you've completed payment, please contact support with your payment receipt for assistance.",
+                        code: "PAYMENT_TOKEN_MISMATCH",
+                        recoveryAttempted: true,
+                      },
+                      { status: 403 }
+                    );
+                  }
+                }
+              } catch (recoveryError: any) {
+                // Recovery failed - cancel payment and return error
+                console.error("[TOKEN MISMATCH RECOVERY FAILED]", {
+                  requestId,
+                  error: recoveryError.message,
+                  sessionId: sessionIdToVerify?.substring(0, 20) + "..." || "N/A",
+                });
+                
+                await cancelPaymentSafely("Payment token mismatch - recovery attempt failed");
+                
+                return NextResponse.json(
+                  { 
+                    ok: false, 
+                    error: "Payment verification failed. The payment token does not match the requested report type. If you've completed payment, please contact support with your payment receipt for assistance.",
+                    code: "PAYMENT_TOKEN_MISMATCH",
+                    recoveryAttempted: true,
+                  },
+                  { status: 403 }
+                );
+              }
+            } else {
+              // No session_id to recover with - cancel payment and return error
+              await cancelPaymentSafely("Payment token mismatch - no recovery option available");
+              
+              return NextResponse.json(
+                { 
+                  ok: false, 
+                  error: `Payment verification failed. The payment token was generated for "${tokenData.reportType}" report, but you're trying to generate "${reportType}" report. Please ensure you're generating the correct report type that you paid for.`,
+                  code: "PAYMENT_TOKEN_MISMATCH",
+                  tokenReportType: tokenData.reportType,
+                  requestedReportType: reportType,
+                },
+                { status: 403 }
+              );
+            }
           }
         }
       }

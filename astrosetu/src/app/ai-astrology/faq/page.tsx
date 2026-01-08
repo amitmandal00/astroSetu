@@ -3,9 +3,25 @@
  * Auto-generated frequently asked questions for autonomous platform
  */
 
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { generateSEOMetadata, ASTROLOGY_KEYWORDS } from "@/lib/seo";
+import { FAQSchema } from "@/components/seo/StructuredData";
+
+export const metadata: Metadata = generateSEOMetadata({
+  title: "FAQ - Frequently Asked Questions About AI Astrology Reports",
+  description: "Find answers to common questions about AI-powered astrology reports, accuracy, birth time requirements, refunds, and how the automated platform works.",
+  keywords: [
+    ...ASTROLOGY_KEYWORDS,
+    "FAQ",
+    "frequently asked questions",
+    "astrology help",
+    "how does astrology work",
+  ],
+  url: "/ai-astrology/faq",
+});
 
 const FAQ_ITEMS = [
   {
@@ -232,8 +248,38 @@ const FAQ_ITEMS = [
 ];
 
 export default function AIAstrologyFAQPage() {
+  // Prepare FAQ data for structured data
+  // Note: Simplified answers for structured data (full answers available on page)
+  const faqDataForSchema = FAQ_ITEMS.map(item => {
+    // Extract text summary from answers for structured data
+    let answerText = "See FAQ page for full answer.";
+    if (typeof item.answer === 'string') {
+      answerText = item.answer;
+    } else if (item.answer && typeof item.answer === 'object') {
+      // Try to extract meaningful text from JSX
+      const props = (item.answer as any).props;
+      if (props?.children) {
+        const extractText = (node: any): string => {
+          if (typeof node === 'string') return node;
+          if (Array.isArray(node)) return node.map(extractText).join(' ');
+          if (node?.props?.children) return extractText(node.props.children);
+          return '';
+        };
+        answerText = extractText(props.children).replace(/\s+/g, ' ').trim().substring(0, 200);
+      }
+    }
+    
+    return {
+      question: item.question,
+      answer: answerText || "See FAQ page for details.",
+    };
+  });
+
   return (
     <div className="cosmic-bg py-8">
+      {/* FAQ Structured Data for Rich Snippets */}
+      <FAQSchema faqs={faqDataForSchema} />
+      
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">

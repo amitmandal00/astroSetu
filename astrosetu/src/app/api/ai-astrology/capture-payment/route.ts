@@ -79,6 +79,41 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check if payment intent is already captured (succeeded)
+    // If already succeeded, treat as success since payment has been taken
+    if (paymentIntent.status === "succeeded") {
+      const alreadyCapturedSuccess = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        paymentIntentId,
+        status: paymentIntent.status,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        note: "Payment intent was already captured",
+      };
+      console.log("[PAYMENT ALREADY CAPTURED]", JSON.stringify(alreadyCapturedSuccess, null, 2));
+
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            paymentIntentId,
+            status: paymentIntent.status,
+            amount: paymentIntent.amount,
+            currency: paymentIntent.currency,
+            alreadyCaptured: true,
+          },
+          requestId,
+        },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache",
+          },
+        }
+      );
+    }
+
     // Check if payment intent is in correct state for capture
     if (paymentIntent.status !== "requires_capture") {
       const statusError = {
@@ -130,6 +165,52 @@ export async function POST(req: Request) {
         }
       );
     } catch (error: any) {
+      // Handle case where payment is already captured (Stripe returns an error)
+      if (error.message && (
+        error.message.includes("already captured") || 
+        error.message.includes("already succeeded") ||
+        error.code === "payment_intent_unexpected_state"
+      )) {
+        // Payment already captured - retrieve current status and return success
+        try {
+          const currentPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+          if (currentPaymentIntent.status === "succeeded") {
+            const alreadyCapturedFromError = {
+              requestId,
+              timestamp: new Date().toISOString(),
+              paymentIntentId,
+              status: currentPaymentIntent.status,
+              amount: currentPaymentIntent.amount,
+              currency: currentPaymentIntent.currency,
+              note: "Payment intent was already captured (caught from Stripe error)",
+            };
+            console.log("[PAYMENT ALREADY CAPTURED - FROM ERROR]", JSON.stringify(alreadyCapturedFromError, null, 2));
+
+            return NextResponse.json(
+              {
+                ok: true,
+                data: {
+                  paymentIntentId,
+                  status: currentPaymentIntent.status,
+                  amount: currentPaymentIntent.amount,
+                  currency: currentPaymentIntent.currency,
+                  alreadyCaptured: true,
+                },
+                requestId,
+              },
+              {
+                headers: {
+                  "X-Request-ID": requestId,
+                  "Cache-Control": "no-cache",
+                },
+              }
+            );
+          }
+        } catch (retrieveError) {
+          // Fall through to error handling below
+        }
+      }
+
       const captureError = {
         requestId,
         timestamp: new Date().toISOString(),

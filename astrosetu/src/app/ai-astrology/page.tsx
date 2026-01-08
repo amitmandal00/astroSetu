@@ -3,6 +3,7 @@
  * Light, ethereal cosmic theme with celestial imagery
  */
 
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -10,11 +11,29 @@ import { Badge } from "@/components/ui/Badge";
 import { AstroImage } from "@/components/ui/AstroImage";
 import { ASTRO_IMAGES } from "@/lib/astroImages";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
+import { generateSEOMetadata, ASTROLOGY_KEYWORDS } from "@/lib/seo";
+import { ServiceSchema } from "@/components/seo/StructuredData";
 
 // Force dynamic rendering - prevent static generation and caching
 // Ensures changes are reflected immediately after deployment
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+export const metadata: Metadata = generateSEOMetadata({
+  title: "AI-Powered Astrology Reports - Marriage Timing, Career & Life Predictions",
+  description: "Get instant AI-powered astrology reports including marriage timing, career guidance, full life predictions, year analysis, and more. Personalized horoscope and kundli insights with automated accuracy.",
+  keywords: [
+    ...ASTROLOGY_KEYWORDS,
+    "marriage timing astrology",
+    "career astrology report",
+    "life predictions",
+    "year analysis",
+    "AI horoscope",
+    "automated astrology",
+  ],
+  url: "/ai-astrology",
+  type: "website",
+});
 
 export default function AIAstrologyLandingPage() {
   return (

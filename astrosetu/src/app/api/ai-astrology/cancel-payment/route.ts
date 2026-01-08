@@ -113,6 +113,38 @@ export async function POST(req: Request) {
           }
         );
       } catch (error: any) {
+        // Handle case where payment intent is already cancelled
+        if (error.message && (error.message.includes("already canceled") || error.message.includes("already cancelled"))) {
+          const alreadyCancelledSuccess = {
+            requestId,
+            timestamp: new Date().toISOString(),
+            paymentIntentId,
+            status: "canceled",
+            reason: reason || "Report generation failed",
+            note: "Payment intent was already cancelled (caught from Stripe error)",
+          };
+          console.log("[PAYMENT ALREADY CANCELLED]", JSON.stringify(alreadyCancelledSuccess, null, 2));
+
+          return NextResponse.json(
+            {
+              ok: true,
+              data: {
+                paymentIntentId,
+                status: "canceled",
+                cancelled: true,
+                alreadyCancelled: true,
+              },
+              requestId,
+            },
+            {
+              headers: {
+                "X-Request-ID": requestId,
+                "Cache-Control": "no-cache",
+              },
+            }
+          );
+        }
+
         const cancelError = {
           requestId,
           timestamp: new Date().toISOString(),
@@ -139,7 +171,52 @@ export async function POST(req: Request) {
         if (charges.data.length > 0) {
           const charge = charges.data[0];
           
-          // Create refund
+          // Check if charge has already been refunded
+          if (charge.refunded) {
+            // Charge already refunded - check for existing refunds
+            const refunds = await stripe.refunds.list({
+              charge: charge.id,
+              limit: 1,
+            });
+
+            const existingRefund = refunds.data[0];
+            const alreadyRefundedSuccess = {
+              requestId,
+              timestamp: new Date().toISOString(),
+              paymentIntentId,
+              chargeId: charge.id,
+              refundId: existingRefund?.id || "N/A",
+              amount: existingRefund?.amount || charge.amount_refunded || 0,
+              status: existingRefund?.status || "succeeded",
+              reason: reason || "Report generation failed",
+              note: "Charge was already refunded",
+            };
+            console.log("[PAYMENT ALREADY REFUNDED]", JSON.stringify(alreadyRefundedSuccess, null, 2));
+
+            // Return success since payment is already refunded
+            return NextResponse.json(
+              {
+                ok: true,
+                data: {
+                  paymentIntentId,
+                  refundId: existingRefund?.id || "existing_refund",
+                  amount: existingRefund?.amount || charge.amount_refunded || 0,
+                  status: existingRefund?.status || "succeeded",
+                  refunded: true,
+                  alreadyRefunded: true,
+                },
+                requestId,
+              },
+              {
+                headers: {
+                  "X-Request-ID": requestId,
+                  "Cache-Control": "no-cache",
+                },
+              }
+            );
+          }
+          
+          // Create refund only if not already refunded
           const refund = await stripe.refunds.create({
             charge: charge.id,
             reason: "requested_by_customer",
@@ -187,6 +264,38 @@ export async function POST(req: Request) {
           );
         }
       } catch (error: any) {
+        // Handle case where refund already exists (Stripe returns an error)
+        if (error.message && error.message.includes("already been refunded")) {
+          // Charge already refunded - treat as success
+          const alreadyRefundedInfo = {
+            requestId,
+            timestamp: new Date().toISOString(),
+            paymentIntentId,
+            errorMessage: error.message,
+            note: "Charge was already refunded (caught from Stripe error)",
+          };
+          console.log("[PAYMENT ALREADY REFUNDED - FROM ERROR]", JSON.stringify(alreadyRefundedInfo, null, 2));
+
+          return NextResponse.json(
+            {
+              ok: true,
+              data: {
+                paymentIntentId,
+                refundId: "existing_refund",
+                refunded: true,
+                alreadyRefunded: true,
+              },
+              requestId,
+            },
+            {
+              headers: {
+                "X-Request-ID": requestId,
+                "Cache-Control": "no-cache",
+              },
+            }
+          );
+        }
+
         const refundError = {
           requestId,
           timestamp: new Date().toISOString(),
@@ -201,6 +310,36 @@ export async function POST(req: Request) {
           { status: 500 }
         );
       }
+    } else if (paymentIntent.status === "canceled") {
+      // Payment already cancelled - treat as success
+      const alreadyCancelledSuccess = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        paymentIntentId,
+        status: paymentIntent.status,
+        reason: reason || "Report generation failed",
+        note: "Payment intent was already cancelled",
+      };
+      console.log("[PAYMENT ALREADY CANCELLED]", JSON.stringify(alreadyCancelledSuccess, null, 2));
+
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            paymentIntentId,
+            status: paymentIntent.status,
+            cancelled: true,
+            alreadyCancelled: true,
+          },
+          requestId,
+        },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache",
+          },
+        }
+      );
     } else {
       // Payment in unexpected state
       return NextResponse.json(

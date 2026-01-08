@@ -26,12 +26,12 @@ export async function apiGet<T>(url: string): Promise<T> {
           errorMessage = parsedMessage.trim();
           parsedError = true; // Mark that we successfully parsed an error message
           // Debug: Log when we successfully parse an error (can be removed after testing)
-          console.log("[HTTP ERROR PARSED - apiGet]", { status: res.status, url: url.substring(0, 50), parsedMessage: errorMessage.substring(0, 100) });
+          console.log("[HTTP ERROR PARSED - apiGet]", { status: res.status, url: url?.substring?.(0, 50) || url, parsedMessage: errorMessage?.substring?.(0, 100) || errorMessage });
         }
       } catch (e) {
         // Not JSON, will use errorText or generic message below
         parsedError = false;
-        console.warn("[HTTP ERROR PARSE FAILED - apiGet]", { status: res.status, url: url.substring(0, 50), errorText: errorText.substring(0, 200) });
+        console.warn("[HTTP ERROR PARSE FAILED - apiGet]", { status: res.status, url: url?.substring?.(0, 50) || url, errorText: errorText?.substring?.(0, 200) || errorText });
       }
       
       // Provide user-friendly error messages
@@ -108,12 +108,12 @@ export async function apiPost<T>(url: string, body: unknown): Promise<T> {
           errorMessage = parsedMessage.trim();
           parsedError = true; // Mark that we successfully parsed an error message
           // Debug: Log when we successfully parse an error (can be removed after testing)
-          console.log("[HTTP ERROR PARSED - apiPost]", { status: res.status, url: url.substring(0, 50), parsedMessage: errorMessage.substring(0, 100) });
+          console.log("[HTTP ERROR PARSED - apiPost]", { status: res.status, url: url?.substring?.(0, 50) || url, parsedMessage: errorMessage?.substring?.(0, 100) || errorMessage });
         }
       } catch (e) {
         // Not JSON, will use errorText or generic message below
         parsedError = false;
-        console.warn("[HTTP ERROR PARSE FAILED - apiPost]", { status: res.status, url: url.substring(0, 50), errorText: errorText.substring(0, 200) });
+        console.warn("[HTTP ERROR PARSE FAILED - apiPost]", { status: res.status, url: url?.substring?.(0, 50) || url, errorText: errorText?.substring?.(0, 200) || errorText });
       }
       
       // Provide user-friendly error messages
