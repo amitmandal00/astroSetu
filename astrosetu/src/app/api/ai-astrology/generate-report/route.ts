@@ -876,6 +876,7 @@ export async function POST(req: Request) {
     // CRITICAL: Capture payment ONLY after successful report generation
     // This ensures payment is NEVER deducted if report generation fails
     // Wrap in try-catch to ensure we ALWAYS cancel payment if capture fails
+    // Use Promise.race with timeout to prevent hanging
     if (paymentIntentId && isPaidReportType(reportType) && !shouldSkipPayment) {
       let paymentCaptured = false;
       
@@ -883,7 +884,12 @@ export async function POST(req: Request) {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
         const captureUrl = `${baseUrl}/api/ai-astrology/capture-payment`;
         
-        const captureResponse = await fetch(captureUrl, {
+        // Add timeout for payment capture to prevent hanging (5 seconds max)
+        const captureTimeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Payment capture timeout")), 5000);
+        });
+        
+        const captureFetch = fetch(captureUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -893,6 +899,8 @@ export async function POST(req: Request) {
             sessionId: fallbackSessionId,
           }),
         });
+        
+        const captureResponse = await Promise.race([captureFetch, captureTimeout]);
         
         if (captureResponse.ok) {
           paymentCaptured = true;
@@ -917,8 +925,12 @@ export async function POST(req: Request) {
           console.error("[PAYMENT CAPTURE FAILED - CANCELLING]", JSON.stringify(captureError, null, 2));
           
           // Cancel payment immediately - user should not be charged if capture fails
+          // Use timeout to prevent hanging (fire and forget with 3s timeout)
           try {
-            await fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
+            const cancelTimeout = new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error("Cancel timeout")), 3000);
+            });
+            const cancelFetch = fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -928,6 +940,10 @@ export async function POST(req: Request) {
                 sessionId: fallbackSessionId,
                 reason: "Payment capture failed after report generation",
               }),
+            });
+            await Promise.race([cancelFetch, cancelTimeout]).catch(() => {
+              // Ignore timeout - log for manual intervention
+              console.warn("[PAYMENT] Cancel request timed out - will retry in background");
             });
           } catch (cancelError) {
             console.error("[CRITICAL] Failed to cancel payment after capture failure:", cancelError);
@@ -947,9 +963,13 @@ export async function POST(req: Request) {
         console.error("[CRITICAL - PAYMENT CAPTURE ERROR]", JSON.stringify(criticalError, null, 2));
         
         // Cancel payment immediately - user should not be charged
+        // Use timeout to prevent hanging (fire and forget with 3s timeout)
         try {
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
-          await fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
+          const cancelTimeout = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Cancel timeout")), 3000);
+          });
+          const cancelFetch = fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -959,6 +979,10 @@ export async function POST(req: Request) {
               sessionId: fallbackSessionId,
               reason: `Payment capture error: ${captureError.message || "Unknown error"}`,
             }),
+          });
+          await Promise.race([cancelFetch, cancelTimeout]).catch(() => {
+            // Ignore timeout - log for manual intervention
+            console.warn("[PAYMENT] Cancel request timed out - will retry in background");
           });
         } catch (cancelError) {
           console.error("[CRITICAL] Failed to cancel payment after capture error:", cancelError);

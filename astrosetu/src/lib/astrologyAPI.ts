@@ -377,9 +377,11 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
           const endpointName = isPanchangEndpoint ? "PANCHANG" : isKundliEndpoint ? "KUNDLI" : isDoshaEndpoint ? "DOSHA" : isHoroscopeEndpoint ? "HOROSCOPE" : isMuhuratEndpoint ? "MUHURAT" : isChoghadiyaEndpoint ? "CHOGHADIYA" : "UNKNOWN";
           
           // For 404s on endpoints that may not exist, suppress verbose logs (silent fallback)
-          if (response.status === 404 && (isMuhuratEndpoint || isHoroscopeEndpoint)) {
+          if (response.status === 404 && (isMuhuratEndpoint || isHoroscopeEndpoint || isDoshaEndpoint)) {
             // These endpoints are not available in Prokerala - fallback will handle it silently
             // Don't log verbose debug info for expected 404s
+            // Throw clean error to trigger immediate fallback
+            throw new Error(`PROKERALA_ENDPOINT_NOT_AVAILABLE: ${endpointName} endpoint returned 404`);
           } else {
             // For other errors, include debug info
             const debugInfo = `[${endpointName}_DEBUG: originalMethod=${method}, enforcedMethod=${actualMethod}, fetchMethod=${fetchMethod}, fetchOptionsMethod=${fetchOptions.method}, url=${url.substring(0, 200)}, hasBody=${!!fetchOptions.body}, status=${response.status}]`;
@@ -539,12 +541,16 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
         };
         try {
           // Try dosha endpoint (may not exist - returns 404)
-          const doshaResponse = await prokeralaRequest("/dosha", doshaParams, 1, "GET" as const);
+          // Use 0 retries to fail fast and use fallback immediately (saves 6-9 seconds)
+          const doshaResponse = await prokeralaRequest("/dosha", doshaParams, 0, "GET" as const);
           dosha = transformDoshaResponse(doshaResponse, kundli.planets);
           console.log("[AstroSetu] Retrieved dosha from standalone endpoint");
         } catch (doshaError: any) {
-          // If dosha endpoint fails (404), use mock dosha
-          console.warn("[AstroSetu] Dosha endpoint not available (404), using mock dosha");
+          // If dosha endpoint fails (404), use mock dosha immediately
+          // Suppress verbose error logs for expected 404s
+          if (!doshaError.message?.includes("404") && !doshaError.message?.includes("No route found")) {
+            console.warn("[AstroSetu] Dosha endpoint error:", doshaError?.message?.substring(0, 100));
+          }
           dosha = generateDoshaAnalysis(input, kundli.planets);
         }
       }
