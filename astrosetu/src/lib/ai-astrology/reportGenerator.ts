@@ -105,7 +105,7 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
         console.log(`[OpenAI] Rate limit hit, retrying after ${Math.round(totalWait)}ms (attempt ${retryCount + 1}/${maxRetries})`);
         
         await new Promise(resolve => setTimeout(resolve, totalWait));
-        return generateWithOpenAI(prompt, retryCount + 1, maxRetries);
+        return generateWithOpenAI(prompt, retryCount + 1, maxRetries, reportType);
       } else {
         throw new Error(`OpenAI rate limit exceeded. Maximum retries (${maxRetries}) reached. Please try again in a few minutes.`);
       }
