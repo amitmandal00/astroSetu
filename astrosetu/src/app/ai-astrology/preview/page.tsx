@@ -137,8 +137,9 @@ function PreviewContent() {
       }
 
       // Calculate timeout based on report type (match server-side timeout + buffer)
+      // Server timeout: 90s (regular) or 120s (complex), so client should be slightly longer
       const isComplexReport = type === "full-life" || type === "major-life-phase";
-      const clientTimeout = isComplexReport ? 95000 : 60000; // 95s for complex (server: 85s), 60s for others (server: 55s)
+      const clientTimeout = isComplexReport ? 130000 : 100000; // 130s for complex (server: 120s), 100s for regular (server: 90s)
       
       const response = await apiPost<{
         ok: boolean;
@@ -315,9 +316,9 @@ function PreviewContent() {
       };
 
       // Individual timeout for each report (match server timeout + buffer)
-      // Complex reports: 95s (server: 85s), Others: 60s (server: 55s)
-      // For bundles, use the longer timeout to be safe
-      const INDIVIDUAL_REPORT_TIMEOUT = 95000;
+      // Server timeout: 90s (regular) or 120s (complex), use the longer one for bundles to be safe
+      // Client timeout should be slightly longer to account for network overhead
+      const INDIVIDUAL_REPORT_TIMEOUT = 130000; // 130s - slightly longer than server max (120s)
 
       const reportPromises = reports.map(async (reportType) => {
         const reportName = getReportName(reportType);

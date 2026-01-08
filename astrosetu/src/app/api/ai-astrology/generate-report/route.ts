@@ -609,10 +609,11 @@ export async function POST(req: Request) {
     }
 
     // Generate report based on type with hard timeout fallback
-    // Timeout: 60 seconds for report generation (Vercel serverless functions have 10s-60s timeout depending on plan)
-    // Complex reports (full-life, major-life-phase) need more time, so use longer timeout
+    // Timeout accounts for normal generation + potential rate limit retries
+    // Retry logic now uses smarter waits (10-60s, trusting OpenAI's Retry-After header)
+    // So timeout can be more reasonable: 90s for regular, 120s for complex reports
     const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
-    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 85000 : 55000; // 85s for complex reports, 55s for others (leaves buffer for response)
+    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 120000 : 90000; // 120s for complex, 90s for regular (allows retries without being excessive)
     let reportContent;
     
     try {
