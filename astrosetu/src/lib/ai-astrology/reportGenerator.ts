@@ -661,7 +661,9 @@ export async function generateYearAnalysisReport(
   dateRange?: { startYear: number; startMonth: number; endYear: number; endMonth: number }
 ): Promise<ReportContent> {
   try {
+    console.log(`[generateYearAnalysisReport] Starting report generation for ${input.name}`);
     // Get astrology data from Prokerala API
+    console.log(`[generateYearAnalysisReport] Calling getKundli...`);
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -672,6 +674,7 @@ export async function generateYearAnalysisReport(
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
+    console.log(`[generateYearAnalysisReport] getKundli completed, extracting planetary data...`);
 
     // Extract planetary data (handle missing planets array)
     const planets = (kundliResult.planets || []).map(p => ({

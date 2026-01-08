@@ -616,9 +616,12 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
     
     // Always fallback to mock/engine-generated data for credit errors or circuit breaker
     // This allows the service to continue working even when API credits are exhausted
+    console.log("[AstroSetu] Generating fallback kundli data...");
     const kundli = generateKundli(input);
+    console.log("[AstroSetu] Fallback kundli generated, creating dosha and chart...");
     const dosha = generateDoshaAnalysis(input, kundli.planets);
     const chart = generateKundliChart(input);
+    console.log("[AstroSetu] Fallback data complete, returning kundli result");
     return { ...kundli, dosha, chart };
   }
 }
