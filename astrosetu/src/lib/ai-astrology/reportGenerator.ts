@@ -319,7 +319,9 @@ function getReportTitle(reportType: ReportType): string {
  */
 export async function generateLifeSummaryReport(input: AIAstrologyInput): Promise<ReportContent> {
   try {
+    console.log(`[generateYearAnalysisReport] Starting report generation for ${input.name}`);
     // Get astrology data from Prokerala API
+    console.log(`[generateYearAnalysisReport] Calling getKundli...`);
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -330,6 +332,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
+    console.log(`[generateYearAnalysisReport] getKundli completed, extracting planetary data...`);
 
     // Extract planetary data (handle missing planets array)
     const planets = (kundliResult.planets || []).map(p => ({
@@ -338,6 +341,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
       house: p.house || 0,
       degrees: p.degree || 0,
     }));
+    console.log(`[generateYearAnalysisReport] Planetary data extracted (${planets.length} planets)`);
 
     // Generate prompt
     const prompt = generateLifeSummaryPrompt(
@@ -700,6 +704,7 @@ export async function generateYearAnalysisReport(
     const yearRange = dateRange || getYearAnalysisDateRange();
     
     // Generate prompt using Year Analysis prompt template
+    console.log(`[generateYearAnalysisReport] Generating prompt...`);
     const prompt = generateYearAnalysisPrompt(
       {
         name: input.name,
@@ -716,10 +721,14 @@ export async function generateYearAnalysisReport(
     );
 
     // Generate AI content (pass reportType for proper retry handling and logging)
+    console.log(`[generateYearAnalysisReport] Calling generateAIContent...`);
     const aiResponse = await generateAIContent(prompt, "year-analysis");
+    console.log(`[generateYearAnalysisReport] AI content generated, parsing response...`);
     
     // Parse and return
-    return parseAIResponse(aiResponse, "year-analysis");
+    const parsed = parseAIResponse(aiResponse, "year-analysis");
+    console.log(`[generateYearAnalysisReport] Report generation complete`);
+    return parsed;
   } catch (error: any) {
     console.error("[generateYearAnalysisReport] Error:", error);
     throw error; // Re-throw to be handled by API route
