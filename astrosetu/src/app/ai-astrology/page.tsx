@@ -75,9 +75,12 @@ export default function AIAstrologyLandingPage() {
                     </div>
                     <Link href="/ai-astrology/input?reportType=year-analysis" className="w-full sm:w-auto">
                       <Button className="cosmic-button w-full sm:px-8 py-4 sm:py-5 text-base sm:text-lg font-bold bg-purple-600 hover:bg-purple-700 min-h-[52px]">
-                        Get My Year Analysis →
+                        See My 2026 Timing Windows →
                       </Button>
                     </Link>
+                    <div className="mt-2 text-xs sm:text-sm text-amber-700 font-semibold text-center lg:text-left">
+                      ⚡ Introductory pricing for early users – will increase soon
+                    </div>
                   </div>
                 </div>
               </div>
@@ -180,7 +183,11 @@ export default function AIAstrologyLandingPage() {
       {/* Value Proposition */}
       <section id="features" className="relative z-10 py-16 px-4 scroll-mt-20">
         <div className="max-w-5xl mx-auto text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800 mb-4">Why AI-First Astrology?</h2>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800 mb-4">
+            <Link href="/ai-astrology#features" className="hover:text-purple-600 transition-colors">
+              Why AI-First Astrology?
+            </Link>
+          </h2>
           <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto mb-4">
             Leveraging advanced AI and authentic Vedic principles, we provide unbiased, instant, 
             and deeply personalized astrological reports.
@@ -209,10 +216,12 @@ export default function AIAstrologyLandingPage() {
       </section>
 
       {/* Report Accuracy Ladder */}
-      <section className="relative z-10 py-16 px-4 bg-gradient-to-br from-slate-50 to-blue-50/30">
+      <section id="accuracy" className="relative z-10 py-16 px-4 bg-gradient-to-br from-slate-50 to-blue-50/30">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">
-            How Accurate Are These Reports?
+            <Link href="/ai-astrology#accuracy" className="hover:text-purple-600 transition-colors">
+              How Accurate Are These Reports?
+            </Link>
           </h2>
           <p className="text-center text-base sm:text-lg text-slate-600 mb-12 max-w-2xl mx-auto">
             The more specific your question, the higher the precision. Our reports follow a clear accuracy hierarchy.
@@ -278,13 +287,17 @@ export default function AIAstrologyLandingPage() {
       </section>
 
       {/* Bundle Pricing Section - Moved to Top */}
-      <section className="relative z-10 py-16 px-4 bg-gradient-to-br from-slate-50 to-blue-50/30">
+      <section id="bundles" className="relative z-10 py-16 px-4 bg-gradient-to-br from-slate-50 to-blue-50/30">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
             <Badge className="bg-purple-700 text-white text-sm font-extrabold px-4 py-2 border-2 border-purple-800 shadow-lg uppercase tracking-wide mb-4">
               MOST CHOSEN BY USERS
             </Badge>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800 mb-4">Complete Life Decision Pack</h2>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800 mb-4">
+              <Link href="/ai-astrology#bundles" className="hover:text-purple-600 transition-colors">
+                Complete Life Decision Pack
+              </Link>
+            </h2>
             <p className="text-center text-base sm:text-lg text-slate-600 mb-12 max-w-2xl mx-auto">
               Get comprehensive insights with our most popular bundle. Save 25% when you buy together.
             </p>
@@ -331,9 +344,12 @@ export default function AIAstrologyLandingPage() {
               </div>
               <Link href="/ai-astrology/bundle?type=life-decision-pack" className="block">
                 <Button className="cosmic-button w-full bg-purple-600 hover:bg-purple-700 py-5 text-lg sm:text-xl font-bold min-h-[56px]">
-                  Get Complete Life Decision Pack →
+                  Get My Decision Windows Now →
                 </Button>
               </Link>
+              <div className="mt-2 text-xs sm:text-sm text-amber-700 font-semibold text-center">
+                ⚡ Beta pricing – will increase soon
+              </div>
             </div>
 
             {/* All 3 Reports Bundle */}
@@ -417,9 +433,13 @@ export default function AIAstrologyLandingPage() {
       </section>
 
       {/* Trust Ladder Section - Why Reports Feel Accurate */}
-      <section className="relative z-10 py-16 px-4 bg-white">
+      <section id="why-accurate" className="relative z-10 py-16 px-4 bg-white">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">Why Our Reports Feel Accurate</h2>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">
+            <Link href="/ai-astrology#why-accurate" className="hover:text-purple-600 transition-colors">
+              Why Our Reports Feel Accurate
+            </Link>
+          </h2>
           <p className="text-center text-base sm:text-lg text-slate-600 mb-12 max-w-2xl mx-auto">
             Our AI combines authentic Vedic astrology principles with modern analysis to provide insights that resonate.
           </p>
@@ -547,9 +567,13 @@ export default function AIAstrologyLandingPage() {
       </section>
 
       {/* Individual Report Offerings */}
-      <section className="relative z-10 py-16 px-4">
+      <section id="reports" className="relative z-10 py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">Individual Reports</h2>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-4">
+            <Link href="/ai-astrology#reports" className="hover:text-purple-600 transition-colors">
+              Individual Reports
+            </Link>
+          </h2>
           <p className="text-center text-base sm:text-lg text-slate-600 mb-12 max-w-2xl mx-auto">
             Choose a specific report if you want to focus on one area of your life.
           </p>
@@ -585,7 +609,10 @@ export default function AIAstrologyLandingPage() {
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Marriage Timing Report</h3>
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   Uncover ideal marriage windows, potential delays, compatibility indicators, 
-                  and personalized remedies.
+                  and personalized remedies.{" "}
+                  <Link href="/ai-astrology#reports" className="text-pink-600 hover:text-pink-700 underline text-xs">
+                    View all reports →
+                  </Link>
                 </p>
                 {/* Report Scope Box */}
                 <div className="bg-pink-50 border border-pink-200 rounded-lg p-3 mb-4">
@@ -604,7 +631,7 @@ export default function AIAstrologyLandingPage() {
                 </div>
                 <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
-                  <Button className="cosmic-button w-full">Order Now</Button>
+                  <Button className="cosmic-button w-full">See My Marriage Timing Windows →</Button>
                 </Link>
               </div>
             </div>
@@ -638,7 +665,7 @@ export default function AIAstrologyLandingPage() {
                 </div>
                 <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=career-money" className="block">
-                  <Button className="cosmic-button w-full">Order Now</Button>
+                  <Button className="cosmic-button w-full">Get My Career Decision Windows →</Button>
                 </Link>
               </div>
             </div>
@@ -672,7 +699,7 @@ export default function AIAstrologyLandingPage() {
                 </div>
                 <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=full-life" className="block">
-                  <Button className="cosmic-button w-full bg-purple-600 hover:bg-purple-700">Order Now</Button>
+                  <Button className="cosmic-button w-full bg-purple-600 hover:bg-purple-700">Get My Complete Life Insights →</Button>
                 </Link>
               </div>
             </div>
@@ -687,9 +714,16 @@ export default function AIAstrologyLandingPage() {
                   <Badge className="bg-purple-700 text-white text-sm font-extrabold px-4 py-1.5 border-2 border-purple-800 shadow-lg uppercase tracking-wide">PREMIUM</Badge>
                   <span className="text-3xl">📅</span>
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-3">Year Analysis Report</h3>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">
+              <Link href="/ai-astrology/year-analysis-2026" className="hover:text-purple-600 transition-colors">
+                Year Analysis Report
+              </Link>
+            </h3>
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
-                  12-month strategic guidance with quarterly breakdown, best periods, and year scorecard.
+                  12-month strategic guidance with quarterly breakdown, best periods, and year scorecard.{" "}
+                  <Link href="/ai-astrology/year-analysis-2026" className="text-purple-600 hover:text-purple-700 underline text-xs">
+                    Learn more about Year Analysis →
+                  </Link>
                 </p>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
                   <p className="text-xs font-semibold text-purple-900 mb-2">What&apos;s Included:</p>
@@ -707,7 +741,7 @@ export default function AIAstrologyLandingPage() {
                 </div>
                 <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=year-analysis" className="block">
-                  <Button className="cosmic-button w-full">Order Now</Button>
+                  <Button className="cosmic-button w-full">Avoid Costly Mistakes This Year →</Button>
                 </Link>
               </div>
             </div>
@@ -739,7 +773,7 @@ export default function AIAstrologyLandingPage() {
                 </div>
                 <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=major-life-phase" className="block">
-                  <Button className="cosmic-button w-full">Order Now</Button>
+                  <Button className="cosmic-button w-full">Plan My Next 3-5 Years →</Button>
                 </Link>
               </div>
             </div>
@@ -771,7 +805,7 @@ export default function AIAstrologyLandingPage() {
                 </div>
                 <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
                 <Link href="/ai-astrology/input?reportType=decision-support" className="block">
-                  <Button className="cosmic-button w-full">Order Now</Button>
+                  <Button className="cosmic-button w-full">Get My Decision Timing Now →</Button>
                 </Link>
               </div>
             </div>
@@ -781,9 +815,13 @@ export default function AIAstrologyLandingPage() {
 
 
       {/* How It Works */}
-      <section className="relative z-10 py-16 px-4">
+      <section id="how-it-works" className="relative z-10 py-16 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">How It Works</h2>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center text-slate-800 mb-12">
+            <Link href="/ai-astrology#how-it-works" className="hover:text-purple-600 transition-colors">
+              How It Works
+            </Link>
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             <div className="cosmic-card rounded-xl p-8 text-center">
               <div className="text-5xl mb-4">1️⃣</div>
