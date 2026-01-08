@@ -31,7 +31,7 @@ async function generateAIContent(prompt: string): Promise<string> {
   }
 }
 
-async function generateWithOpenAI(prompt: string): Promise<string> {
+async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 3): Promise<string> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -56,8 +56,57 @@ async function generateWithOpenAI(prompt: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI API error: ${error}`);
+    const errorText = await response.text();
+    let errorData: any;
+    
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      throw new Error(`OpenAI API error: ${errorText}`);
+    }
+
+    // Handle rate limit errors with retry
+    if (response.status === 429 || errorData?.error?.code === "rate_limit_exceeded") {
+      if (retryCount < maxRetries) {
+        // Extract retry-after from error message or header
+        let waitTime = 2000; // Default 2 seconds
+        
+        // Try to parse retry-after from error message
+        const errorMessage = errorData?.error?.message || "";
+        const retryAfterMatch = errorMessage.match(/try again in (\d+)ms/i) || errorMessage.match(/retry after (\d+) seconds/i);
+        if (retryAfterMatch) {
+          const retryValue = parseInt(retryAfterMatch[1]);
+          if (retryValue < 60000) {
+            waitTime = retryValue; // Use milliseconds
+          } else {
+            waitTime = retryValue * 1000; // Convert seconds to milliseconds
+          }
+        } else {
+          // Check Retry-After header
+          const retryAfterHeader = response.headers.get("retry-after");
+          if (retryAfterHeader) {
+            waitTime = parseInt(retryAfterHeader) * 1000; // Convert seconds to milliseconds
+          } else {
+            // Exponential backoff: 2s, 4s, 8s
+            waitTime = Math.min(2000 * Math.pow(2, retryCount), 10000); // Cap at 10 seconds
+          }
+        }
+
+        // Add jitter (random 0-500ms) to avoid thundering herd
+        const jitter = Math.random() * 500;
+        const totalWait = Math.min(waitTime + jitter, 15000); // Cap at 15 seconds total
+
+        console.log(`[OpenAI] Rate limit hit, retrying after ${Math.round(totalWait)}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        
+        await new Promise(resolve => setTimeout(resolve, totalWait));
+        return generateWithOpenAI(prompt, retryCount + 1, maxRetries);
+      } else {
+        throw new Error(`OpenAI rate limit exceeded. Maximum retries (${maxRetries}) reached. Please try again in a few minutes.`);
+      }
+    }
+
+    // Handle other errors
+    throw new Error(`OpenAI API error: ${errorText}`);
   }
 
   const data = await response.json();
