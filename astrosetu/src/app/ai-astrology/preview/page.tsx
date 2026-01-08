@@ -512,6 +512,26 @@ function PreviewContent() {
     if (typeof window === "undefined") return;
     
     try {
+      // CRITICAL: Check for reportId in URL - if present, try to load from sessionStorage
+      const reportId = searchParams.get("reportId");
+      if (reportId && !reportContent) {
+        try {
+          const storedReport = sessionStorage.getItem(`aiAstrologyReport_${reportId}`);
+          if (storedReport) {
+            const parsed = JSON.parse(storedReport);
+            console.log("[CLIENT] Loaded report from sessionStorage for reportId:", reportId);
+            setReportContent(parsed.content);
+            setReportType(parsed.reportType || (searchParams.get("reportType") as ReportType) || "life-summary");
+            setInput(parsed.input);
+            setLoading(false);
+            // Don't continue with auto-generation if we already have content
+            return;
+          }
+        } catch (error) {
+          console.warn("[CLIENT] Failed to load report from sessionStorage:", error);
+        }
+      }
+      
       // CRITICAL FIX: Get session_id from URL params first (fallback if sessionStorage is lost)
       const urlSessionId = searchParams.get("session_id");
       const autoGenerate = searchParams.get("auto_generate") === "true"; // Trigger auto-generation after payment
