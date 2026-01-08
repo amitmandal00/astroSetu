@@ -33,7 +33,11 @@ async function generateAIContent(prompt: string): Promise<string> {
  * Generate content using OpenAI GPT-4
  * Includes retry logic with exponential backoff for rate limits
  */
-async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 3): Promise<string> {
+async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 3, reportType?: string): Promise<string> {
+  // Complex reports (full-life, major-life-phase) need more tokens and may take longer
+  const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
+  const maxTokens = isComplexReport ? 4000 : 2000; // More tokens for comprehensive reports
+  
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -53,7 +57,7 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
         },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -572,8 +576,8 @@ export async function generateFullLifeReport(input: AIAstrologyInput): Promise<R
       comprehensivePlanetaryData
     );
 
-    // Generate AI content
-    const aiResponse = await generateAIContent(prompt);
+    // Generate AI content (pass reportType for complex report handling)
+    const aiResponse = await generateAIContent(prompt, "full-life");
     
     // Parse and return
     return parseAIResponse(aiResponse, "full-life");

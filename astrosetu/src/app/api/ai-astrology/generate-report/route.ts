@@ -610,7 +610,9 @@ export async function POST(req: Request) {
 
     // Generate report based on type with hard timeout fallback
     // Timeout: 60 seconds for report generation (Vercel serverless functions have 10s-60s timeout depending on plan)
-    const REPORT_GENERATION_TIMEOUT = 55000; // 55 seconds (leaves 5s buffer for response)
+    // Complex reports (full-life, major-life-phase) need more time, so use longer timeout
+    const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
+    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 85000 : 55000; // 85s for complex reports, 55s for others (leaves buffer for response)
     let reportContent;
     
     try {
