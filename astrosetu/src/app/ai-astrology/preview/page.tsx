@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
@@ -41,6 +41,10 @@ function PreviewContent() {
   const [bundleContents, setBundleContents] = useState<Map<ReportType, ReportContent>>(new Map());
   const [bundleGenerating, setBundleGenerating] = useState(false);
   const [bundleProgress, setBundleProgress] = useState<{ current: number; total: number; currentReport: string } | null>(null);
+  
+  // Request lock to prevent concurrent report generation
+  const isGeneratingRef = useRef(false);
+  const generationAttemptRef = useRef(0);
 
   const getReportName = (type: ReportType | null) => {
     switch (type) {
@@ -62,6 +66,17 @@ function PreviewContent() {
   };
 
   const generateReport = useCallback(async (inputData: AIAstrologyInput, type: ReportType, currentSessionId?: string, currentPaymentIntentId?: string) => {
+    // Prevent concurrent requests - if already generating, ignore this call
+    if (isGeneratingRef.current) {
+      console.warn("[Report Generation] Request ignored - already generating a report");
+      return;
+    }
+    
+    // Set lock immediately
+    isGeneratingRef.current = true;
+    generationAttemptRef.current += 1;
+    const currentAttempt = generationAttemptRef.current;
+    
     setLoading(true);
     setLoadingStage("generating"); // Ensure stage is set when generating
     setError(null);
@@ -121,6 +136,10 @@ function PreviewContent() {
         });
       }
 
+      // Calculate timeout based on report type (match server-side timeout + buffer)
+      const isComplexReport = type === "full-life" || type === "major-life-phase";
+      const clientTimeout = isComplexReport ? 95000 : 60000; // 95s for complex (server: 85s), 60s for others (server: 55s)
+      
       const response = await apiPost<{
         ok: boolean;
         data?: {
@@ -136,7 +155,7 @@ function PreviewContent() {
         paymentToken: isPaid ? paymentToken : undefined, // Only include for paid reports
         paymentIntentId: isPaid ? paymentIntentId : undefined, // CRITICAL: For manual capture after report generation
         sessionId: isPaid ? (sessionId || undefined) : undefined, // For token regeneration fallback
-      });
+      }, { timeout: clientTimeout });
 
       if (!response.ok) {
         // CLIENT-SIDE ERROR LOGGING
@@ -175,14 +194,34 @@ function PreviewContent() {
       };
       console.error("[CLIENT REPORT GENERATION EXCEPTION]", JSON.stringify(exceptionContext, null, 2));
       
-      setError(e.message || "Failed to generate report. Please try again.");
+      // Improved error message for rate limits
+      if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit"))) {
+        setError("Our AI service is temporarily busy due to high demand. Please wait 1-2 minutes and try again. We're working to process your request as quickly as possible.");
+      } else {
+        setError(e.message || "Failed to generate report. Please try again.");
+      }
     } finally {
+      // Only clear lock if this is still the current attempt (prevent race conditions)
+      if (currentAttempt === generationAttemptRef.current) {
+        isGeneratingRef.current = false;
+      }
       setLoading(false);
       setLoadingStage(null);
     }
   }, [upsellShown]);
 
   const generateBundleReports = useCallback(async (inputData: AIAstrologyInput, reports: ReportType[], currentSessionId?: string, currentPaymentIntentId?: string) => {
+    // Prevent concurrent requests
+    if (isGeneratingRef.current || bundleGenerating) {
+      console.warn("[Bundle Generation] Request ignored - already generating reports");
+      return;
+    }
+    
+    // Set lock
+    isGeneratingRef.current = true;
+    generationAttemptRef.current += 1;
+    const currentAttempt = generationAttemptRef.current;
+    
     setBundleGenerating(true);
     setLoading(true);
     setError(null);
@@ -231,8 +270,10 @@ function PreviewContent() {
         console.log(`[BUNDLE PROGRESS] ${completedReports.size}/${reports.length} reports completed (${success ? 'success' : 'failed'}): ${getReportName(reportType)}`);
       };
 
-      // Individual timeout for each report (65 seconds - slightly longer than API timeout)
-      const INDIVIDUAL_REPORT_TIMEOUT = 65000;
+      // Individual timeout for each report (match server timeout + buffer)
+      // Complex reports: 95s (server: 85s), Others: 60s (server: 55s)
+      // For bundles, use the longer timeout to be safe
+      const INDIVIDUAL_REPORT_TIMEOUT = 95000;
 
       const reportPromises = reports.map(async (reportType) => {
         const reportName = getReportName(reportType);
@@ -403,9 +444,18 @@ function PreviewContent() {
       }
     } catch (e: any) {
       console.error("Bundle generation error:", e);
-      setError(e.message || "Failed to generate bundle reports. Please try again.");
+      // Improved error message for rate limits
+      if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit"))) {
+        setError("Our AI service is temporarily busy due to high demand. Please wait 1-2 minutes and try again. We're working to process your request as quickly as possible.");
+      } else {
+        setError(e.message || "Failed to generate bundle reports. Please try again.");
+      }
       setBundleProgress(null);
     } finally {
+      // Only clear lock if this is still the current attempt
+      if (currentAttempt === generationAttemptRef.current) {
+        isGeneratingRef.current = false;
+      }
       setBundleGenerating(false);
       setLoading(false);
       setLoadingStage(null);
@@ -782,8 +832,12 @@ function PreviewContent() {
             ) : (
               <div className="space-y-4">
                 <p className="text-slate-600 mb-4">
-                  Our AI is analyzing your birth chart and generating personalized insights.
-                  This typically takes 30-60 seconds.
+                  Our AI is analyzing your birth chart and generating personalized insights. 
+                  {reportType === "life-summary" 
+                    ? " This typically takes 20-40 seconds." 
+                    : reportType === "full-life" || reportType === "major-life-phase"
+                    ? " This typically takes 45-70 seconds for comprehensive analysis."
+                    : " This typically takes 30-50 seconds."}
                 </p>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-left">
                   <div className="flex items-start gap-3">
@@ -796,12 +850,19 @@ function PreviewContent() {
                         Your personalized AI astrology report is being created. This includes:
                       </p>
                       <ul className="text-xs text-purple-600 space-y-1 ml-4 list-disc">
-                        <li>Analyzing your birth chart data</li>
-                        <li>Generating personalized insights</li>
-                        <li>Preparing your complete report</li>
+                        <li>Fetching your birth chart data from NASA calculations</li>
+                        <li>Analyzing planetary positions and aspects</li>
+                        <li>Generating personalized AI insights</li>
+                        <li>Structuring your complete report</li>
                       </ul>
                       <p className="text-xs text-purple-600 mt-2 font-medium">
-                        ⏱️ Estimated time: 30-60 seconds
+                        ⏱️ Estimated time: {
+                          reportType === "life-summary" 
+                            ? "20-40 seconds" 
+                            : reportType === "full-life" || reportType === "major-life-phase"
+                            ? "45-70 seconds"
+                            : "30-50 seconds"
+                        }
                       </p>
                     </div>
                   </div>

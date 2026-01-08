@@ -69,7 +69,12 @@ export async function apiGet<T>(url: string): Promise<T> {
     return res.json() as Promise<T>;
   } catch (e: any) {
     if (e.name === 'AbortError') {
-      throw new Error("Request timed out. Please check your internet connection and try again.");
+      // Check if this is a report generation request (longer timeout)
+      const isReportGeneration = url.includes('/generate-report');
+      const timeoutMessage = isReportGeneration 
+        ? "Report generation is taking longer than expected. This can happen with complex reports. Please try again or contact support if the issue persists."
+        : "Request timed out. Please check your internet connection and try again.";
+      throw new Error(timeoutMessage);
     }
     if (e.message === "fetch failed" || e.message.includes("Failed to fetch") || e.message.includes("NetworkError")) {
       throw new Error("Network error: Unable to connect to server. Please check your internet connection and ensure the server is running.");
@@ -78,10 +83,12 @@ export async function apiGet<T>(url: string): Promise<T> {
   }
 }
 
-export async function apiPost<T>(url: string, body: unknown): Promise<T> {
+export async function apiPost<T>(url: string, body: unknown, options?: { timeout?: number }): Promise<T> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    // Default timeout is 30 seconds, but report generation needs more time (up to 90 seconds)
+    const timeout = options?.timeout || 30000;
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
     
     const res = await fetch(url, {
       method: "POST",
@@ -151,7 +158,12 @@ export async function apiPost<T>(url: string, body: unknown): Promise<T> {
     return res.json() as Promise<T>;
   } catch (e: any) {
     if (e.name === 'AbortError') {
-      throw new Error("Request timed out. Please check your internet connection and try again.");
+      // Check if this is a report generation request (longer timeout)
+      const isReportGeneration = url.includes('/generate-report');
+      const timeoutMessage = isReportGeneration 
+        ? "Report generation is taking longer than expected. This can happen with complex reports. Please try again or contact support if the issue persists."
+        : "Request timed out. Please check your internet connection and try again.";
+      throw new Error(timeoutMessage);
     }
     if (e.message === "fetch failed" || e.message.includes("Failed to fetch") || e.message.includes("NetworkError")) {
       throw new Error("Network error: Unable to connect to server. Please check your internet connection and ensure the server is running.");

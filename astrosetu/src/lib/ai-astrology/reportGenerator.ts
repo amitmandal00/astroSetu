@@ -35,9 +35,13 @@ async function generateAIContent(prompt: string, reportType?: string): Promise<s
  * Includes retry logic with exponential backoff for rate limits
  */
 async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 5, reportType?: string): Promise<string> {
-  // Complex reports (full-life, major-life-phase) need more tokens and may take longer
+  // Optimize token counts for faster generation while maintaining quality
+  // Free reports: 1500 tokens (faster, still comprehensive)
+  // Regular paid reports: 2000 tokens (good balance)
+  // Complex reports: 4000 tokens (comprehensive analysis)
   const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
-  const maxTokens = isComplexReport ? 4000 : 2000; // More tokens for comprehensive reports
+  const isFreeReport = reportType === "life-summary";
+  const maxTokens = isComplexReport ? 4000 : (isFreeReport ? 1500 : 2000); // Optimized: 1500 for free, 2000 for paid, 4000 for complex
   
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
