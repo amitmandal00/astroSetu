@@ -569,7 +569,7 @@ function PreviewContent() {
             {isVerifying ? (
               <div className="space-y-4">
                 <p className="text-slate-600 mb-4">
-                  We're confirming your payment was successful. This usually takes just a few seconds...
+                  We&apos;re confirming your payment was successful. This usually takes just a few seconds...
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
                   <div className="flex items-start gap-3">
@@ -672,7 +672,7 @@ function PreviewContent() {
                         <p>• <strong>Authorization Released:</strong> Any payment authorization has been automatically released</p>
                         <p>• <strong>No Charge:</strong> You will not see any charge on your card</p>
                         <p>• <strong>Timeline:</strong> If any amount was authorized, it will be released within 1-3 business days</p>
-                        <p>• <strong>No Action Required:</strong> The refund process is automatic - you don't need to do anything</p>
+                        <p>• <strong>No Action Required:</strong> The refund process is automatic - you don&apos;t need to do anything</p>
                       </div>
                     </div>
                   </div>
@@ -685,7 +685,7 @@ function PreviewContent() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
                   <p className="text-sm text-blue-800 font-semibold mb-2">💡 Recovery Option Available:</p>
                   <p className="text-sm text-blue-700 mb-3">
-                    We detected a payment verification issue. If you've already completed payment, 
+                    We detected a payment verification issue. If you&apos;ve already completed payment, 
                     you can recover your access by clicking the button below.
                   </p>
                   <Button 
@@ -780,7 +780,7 @@ function PreviewContent() {
                   <div className="mt-4">
                     <p className="text-xs text-slate-500 mb-2">Need Help?</p>
                     <p className="text-xs text-slate-600">
-                      If you've completed payment but still see this error, please contact support with your payment receipt. Your payment will be automatically refunded.
+                      If you&apos;ve completed payment but still see this error, please contact support with your payment receipt. Your payment will be automatically refunded.
                     </p>
                   </div>
                 )}

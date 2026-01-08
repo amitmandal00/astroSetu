@@ -81,11 +81,13 @@ export async function POST(req: Request) {
 
     const { reportType, subscription = false, input, successUrl, cancelUrl } = json;
 
-    // Check for demo mode or test user FIRST - always bypass Stripe for these
-    // Also allow test mode if using Stripe test keys (for production-like testing)
+    // Check for demo mode or test user (for logging only)
+    // NOTE: We still allow test users to go through Stripe for payment testing
+    // Set BYPASS_PAYMENT_FOR_TEST_USERS=false to force test users through Stripe
     isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     isTestUser = checkIfTestUser(input);
     const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
+    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS !== "false"; // Default true for backward compatibility
 
     // CRITICAL: Access restriction for production testing
     // Prevent unauthorized users from creating payment sessions
@@ -120,10 +122,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // PRIORITY: If demo mode OR test user, ALWAYS return mock session (bypass Stripe entirely)
+    // PRIORITY: If demo mode OR (test user AND bypass enabled), return mock session (bypass Stripe)
+    // Set BYPASS_PAYMENT_FOR_TEST_USERS=false to allow test users through Stripe for payment testing
     // This allows testing with $0.01 amounts without Stripe's $0.50 minimum requirement
-    if (isDemoMode || isTestUser) {
-      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}) - Bypassing Stripe`);
+    const shouldBypassPayment = isDemoMode || (isTestUser && bypassPaymentForTestUsers);
+    if (shouldBypassPayment) {
+      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}, bypassPaymentForTestUsers: ${bypassPaymentForTestUsers}) - Bypassing Stripe`);
       
       // Use request URL to support preview deployments (derive from actual request)
       // This ensures we use the correct deployment URL (preview or production)

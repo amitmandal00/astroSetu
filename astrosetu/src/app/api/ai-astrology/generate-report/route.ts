@@ -111,14 +111,18 @@ export async function POST(req: Request) {
     const { input, reportType, paymentToken, paymentIntentId, sessionId: fallbackSessionId, decisionContext } = json;
 
     // Check for demo mode and test user (needed for payment cancellation checks)
+    // NOTE: Set BYPASS_PAYMENT_FOR_TEST_USERS=false to allow test users through Stripe payment flow
     const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     const isTestUser = checkIfTestUser(input);
+    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS !== "false"; // Default true for backward compatibility
+    // Skip payment verification/capture/cancellation if demo mode OR (test user AND payment bypass enabled)
+    const shouldSkipPayment = isDemoMode || (isTestUser && bypassPaymentForTestUsers);
 
     // Helper function to cancel payment (used in all error scenarios)
     // CRITICAL: Ensures users are NEVER charged if ANY error occurs
     const cancelPaymentSafely = async (reason: string) => {
       // Only cancel if it's a paid report and we have a payment intent
-      if (paymentIntentId && reportType && isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+      if (paymentIntentId && reportType && isPaidReportType(reportType) && !shouldSkipPayment) {
         try {
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
           const cancelResponse = await fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
@@ -211,9 +215,8 @@ export async function POST(req: Request) {
     }
 
     // CRITICAL SECURITY: Verify payment for paid reports
-    // Note: isDemoMode and isTestUser are already defined above (lines 114-115)
-    
-    if (isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+    // Skip payment verification if demo mode OR (test user AND payment bypass enabled)
+    if (isPaidReportType(reportType) && !shouldSkipPayment) {
       // CRITICAL FIX: If paymentToken is missing, try to verify using session_id from query params
       let paymentTokenToVerify = paymentToken;
       let paymentVerified = false;
@@ -515,7 +518,7 @@ export async function POST(req: Request) {
       }
     }
     
-    // Log demo mode or test user usage
+    // Log demo mode or test user usage (with payment bypass status)
     if ((isDemoMode || isTestUser) && isPaidReportType(reportType)) {
       const mode = isDemoMode ? "DEMO MODE" : "TEST USER";
       const bypassLog = {
@@ -523,13 +526,14 @@ export async function POST(req: Request) {
         timestamp: new Date().toISOString(),
         mode,
         reportType,
-        reason: isDemoMode ? "Demo mode enabled" : "Test user detected",
+        bypassPaymentForTestUsers,
+        reason: isDemoMode ? "Demo mode enabled" : (bypassPaymentForTestUsers ? "Test user - payment bypassed" : "Test user - payment required"),
       };
-      console.log(`[PAYMENT BYPASS]`, JSON.stringify(bypassLog, null, 2));
+      console.log(`[PAYMENT BYPASS STATUS]`, JSON.stringify(bypassLog, null, 2));
     }
     
     // Log successful payment verification for paid reports
-    if (isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+    if (isPaidReportType(reportType) && !shouldSkipPayment) {
       const paymentVerifiedLog = {
         requestId,
         timestamp: new Date().toISOString(),
@@ -674,7 +678,7 @@ export async function POST(req: Request) {
       // Provide specific error message with transparent refund information
       // CRITICAL: Inform users that automatic refund will be provided
       const isPaidReport = isPaidReportType(reportType);
-      const refundMessage = isPaidReport && paymentIntentId && !isDemoMode && !isTestUser
+      const refundMessage = isPaidReport && paymentIntentId && !shouldSkipPayment
         ? " Your payment has been automatically cancelled and you will NOT be charged. If any amount was authorized, it will be released within 1-3 business days (no action required from you)."
         : "";
       
@@ -695,7 +699,7 @@ export async function POST(req: Request) {
       // CRITICAL: ALWAYS cancel payment if report generation fails
       // This ensures users are NEVER charged if report generation fails
       // Retry logic to ensure payment is cancelled even if first attempt fails
-      if (paymentIntentId && isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+      if (paymentIntentId && isPaidReportType(reportType) && !shouldSkipPayment) {
         let paymentCancelled = false;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
         const cancelUrl = `${baseUrl}/api/ai-astrology/cancel-payment`;
@@ -785,7 +789,7 @@ export async function POST(req: Request) {
     // CRITICAL: Capture payment ONLY after successful report generation
     // This ensures payment is NEVER deducted if report generation fails
     // Wrap in try-catch to ensure we ALWAYS cancel payment if capture fails
-    if (paymentIntentId && isPaidReportType(reportType) && !isDemoMode && !isTestUser) {
+    if (paymentIntentId && isPaidReportType(reportType) && !shouldSkipPayment) {
       let paymentCaptured = false;
       
       try {
