@@ -460,7 +460,7 @@ function PreviewContent() {
       setLoading(false);
       setLoadingStage(null);
     }
-  }, []);
+  }, [bundleGenerating]);
 
   useEffect(() => {
     // Check if sessionStorage is available

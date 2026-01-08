@@ -185,12 +185,17 @@ function InputFormContent() {
   };
 
   const getReportTitle = () => {
+    // Handle bundles first
     if (bundleParam === "any-2" && bundleReports.length === 2) {
       return "Any 2 Reports Bundle";
     }
     if (bundleParam === "all-3") {
       return "All 3 Reports Bundle";
     }
+    if (bundleParam === "life-decision-pack") {
+      return "Complete Life Decision Pack";
+    }
+    // Handle single report types
     switch (reportType) {
       case "marriage-timing":
         return "Marriage Timing Report";
@@ -381,7 +386,7 @@ function InputFormContent() {
                       Processing...
                     </span>
                   ) : bundleParam ? (
-                    // Bundle selected - show purchase action
+                    // Bundle selected - always show purchase action (bundles are always paid)
                     `Purchase ${getReportTitle()}`
                   ) : reportType ? (
                     // Single report selected - check if it's paid or free
