@@ -998,17 +998,20 @@ export async function POST(req: Request) {
     }
 
     // Return report
-    return NextResponse.json(
-      {
-        ok: true,
-        data: {
-          reportType,
-          input,
-          content: reportContent,
-          generatedAt: new Date().toISOString(),
-        },
-        requestId,
+    console.log(`[REPORT GENERATION] Returning response for reportType=${reportType}, requestId=${requestId}`);
+    const responseData = {
+      ok: true,
+      data: {
+        reportType,
+        input,
+        content: reportContent,
+        generatedAt: new Date().toISOString(),
       },
+      requestId,
+    };
+    console.log(`[REPORT GENERATION] Response prepared, sending...`);
+    return NextResponse.json(
+      responseData,
       {
         headers: {
           "X-Request-ID": requestId,
