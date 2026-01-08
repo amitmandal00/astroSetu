@@ -19,9 +19,9 @@ export function isAIConfigured(): boolean {
 /**
  * Generate AI report using OpenAI or Anthropic
  */
-async function generateAIContent(prompt: string): Promise<string> {
+async function generateAIContent(prompt: string, reportType?: string): Promise<string> {
   if (OPENAI_API_KEY) {
-    return generateWithOpenAI(prompt);
+    return generateWithOpenAI(prompt, 0, 3, reportType);
   } else if (ANTHROPIC_API_KEY) {
     return generateWithAnthropic(prompt);
   } else {
@@ -729,8 +729,8 @@ export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Pro
       planetaryData
     );
 
-    // Generate AI content
-    const aiResponse = await generateAIContent(prompt);
+    // Generate AI content (pass reportType for complex report handling)
+    const aiResponse = await generateAIContent(prompt, "major-life-phase");
     
     // Parse and return
     return parseAIResponse(aiResponse, "major-life-phase");
