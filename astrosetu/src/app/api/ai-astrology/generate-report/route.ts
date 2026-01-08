@@ -999,17 +999,36 @@ export async function POST(req: Request) {
 
     // Return report
     console.log(`[REPORT GENERATION] Returning response for reportType=${reportType}, requestId=${requestId}`);
+    
+    // Generate reportId from requestId for tracking
+    const reportId = `RPT-${Date.now()}-${requestId.split('-').pop()?.substring(0, 8).toUpperCase() || 'UNKNOWN'}`;
+    
+    // Get base URL (ensure it's domain only, no path)
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0]).replace(/\/$/, ''); // Remove trailing slash
+    
+    // Create redirect URLs
+    const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(reportId)}&reportType=${encodeURIComponent(reportType)}`;
+    const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+    
     const responseData = {
       ok: true,
       data: {
+        status: "completed" as const,
+        reportId,
         reportType,
         input,
         content: reportContent,
         generatedAt: new Date().toISOString(),
+        redirectUrl,
+        fullRedirectUrl,
       },
       requestId,
     };
-    console.log(`[REPORT GENERATION] Response prepared, sending...`);
+    console.log(`[REPORT GENERATION] Response prepared, sending...`, {
+      reportId,
+      redirectUrl,
+      status: "completed",
+    });
     return NextResponse.json(
       responseData,
       {

@@ -143,10 +143,14 @@ function PreviewContent() {
       const response = await apiPost<{
         ok: boolean;
         data?: {
+          status?: "completed" | "pending" | "failed";
+          reportId?: string;
           reportType: ReportType;
           input: AIAstrologyInput;
           content: ReportContent;
           generatedAt: string;
+          redirectUrl?: string;
+          fullRedirectUrl?: string;
         };
         error?: string;
       }>(apiUrl, {
@@ -173,6 +177,17 @@ function PreviewContent() {
         throw new Error(response.error || "Failed to generate report. Please try again.");
       }
 
+      // CRITICAL: If report is completed and we have redirectUrl or reportId, navigate immediately
+      // This prevents the UI from staying stuck on "Generating..." screen
+      if (response.data?.status === "completed" && (response.data?.redirectUrl || response.data?.reportId)) {
+        const redirectTo = response.data.redirectUrl || `/ai-astrology/preview?reportId=${encodeURIComponent(response.data.reportId!)}&reportType=${encodeURIComponent(type)}`;
+        console.log("[CLIENT] Report generation completed, navigating to:", redirectTo);
+        router.replace(redirectTo);
+        // Don't set state here - the new page will load with the reportId and fetch the content
+        return;
+      }
+
+      // If no redirect (older API versions), use existing behavior
       setReportContent(response.data?.content || null);
       
       // Show upsell for paid reports after a delay (30 seconds)
