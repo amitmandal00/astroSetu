@@ -141,8 +141,23 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
     console.log(`[OpenAI] Successfully generated content after ${retryCount} retries (reportType=${reportType || "unknown"})`);
   }
 
-  const data = await response.json();
-  return data.choices[0]?.message?.content || "";
+  // Parse response with error handling and timeout protection
+  try {
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content || "";
+    if (!content) {
+      console.warn(`[OpenAI] Empty content in response for reportType=${reportType || "unknown"}`);
+    }
+    console.log(`[OpenAI] Response parsed successfully, content length: ${content.length} chars`);
+    return content;
+  } catch (parseError: any) {
+    console.error(`[OpenAI] Failed to parse response JSON for reportType=${reportType || "unknown"}`, {
+      error: parseError.message,
+      status: response.status,
+      statusText: response.statusText,
+    });
+    throw new Error(`Failed to parse AI response: ${parseError.message}`);
+  }
 }
 
 /**

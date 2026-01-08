@@ -655,6 +655,9 @@ export async function POST(req: Request) {
 
       // Race the timeout against report generation
       reportContent = await Promise.race([reportGenerationPromise, timeoutPromise]);
+      
+      // Log successful completion
+      console.log(`[REPORT GENERATION] Successfully completed for reportType=${reportType}, content length: ${reportContent ? JSON.stringify(reportContent).length : 0}`);
   } catch (error: any) {
     // COMPREHENSIVE ERROR LOGGING for production debugging
     const errorContext = {
