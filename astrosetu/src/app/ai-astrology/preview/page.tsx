@@ -16,6 +16,7 @@ import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import type { ReportContent } from "@/lib/ai-astrology/types";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
+import { PostPurchaseUpsell } from "@/components/ai-astrology/PostPurchaseUpsell";
 
 function PreviewContent() {
   const router = useRouter();
@@ -28,6 +29,8 @@ function PreviewContent() {
   const [error, setError] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [showUpsell, setShowUpsell] = useState(false);
+  const [upsellShown, setUpsellShown] = useState(false);
   const [refundAcknowledged, setRefundAcknowledged] = useState(false);
   const [emailCopySuccess, setEmailCopySuccess] = useState(false);
   const [loadingStage, setLoadingStage] = useState<"verifying" | "generating" | null>(null); // Track loading stage for better UX
@@ -152,6 +155,15 @@ function PreviewContent() {
       }
 
       setReportContent(response.data?.content || null);
+      
+      // Show upsell for paid reports after a delay (30 seconds)
+      const currentReportType = response.data?.reportType || type;
+      if (currentReportType !== "life-summary" && !upsellShown) {
+        setTimeout(() => {
+          setShowUpsell(true);
+          setUpsellShown(true);
+        }, 30000); // 30 seconds after report generation
+      }
     } catch (e: any) {
       // CLIENT-SIDE EXCEPTION LOGGING
       const exceptionContext = {
@@ -1710,6 +1722,14 @@ function PreviewContent() {
           </div>
         </div>
       </div>
+      
+      {/* Post-Purchase Upsell Modal - Show after 30 seconds for paid reports */}
+      {showUpsell && reportType !== "life-summary" && reportType !== "daily-guidance" && !loading && !error && (
+        <PostPurchaseUpsell
+          currentReport={reportType as "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "major-life-phase" | "decision-support"}
+          onClose={() => setShowUpsell(false)}
+        />
+      )}
     </div>
     );
   }
