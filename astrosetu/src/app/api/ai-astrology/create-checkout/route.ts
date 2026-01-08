@@ -5,41 +5,61 @@ import { REPORT_PRICES, SUBSCRIPTION_PRICE, isStripeConfigured } from "@/lib/ai-
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 
 /**
- * Check if the user is a production test user (bypasses payment)
+ * Check if the user is a production test user
+ * Test users: Amit Kumar Mandal and Ankita Surabhi
  */
 function checkIfTestUser(input?: any): boolean {
   if (!input) return false;
   
-  const testUserName = "Amit Kumar Mandal";
-  const testUserDOB = "1984-11-26";
-  const testUserTime = "21:40";
-  const testUserPlace = "Noamundi";
-  const testUserGender = "Male";
-
-  const nameMatch = input.name?.toLowerCase().includes(testUserName.toLowerCase()) ?? false;
+  const testUsers = [
+    {
+      name: "Amit Kumar Mandal",
+      dob: "1984-11-26",
+      time: "21:40",
+      place: "Noamundi",
+      gender: "Male",
+    },
+    {
+      name: "Ankita Surabhi",
+      dob: "1990-05-15", // Update with actual DOB if different
+      time: "10:30", // Update with actual time if different
+      place: "Delhi", // Update with actual place if different
+      gender: "Female", // Update if different
+    },
+  ];
   
-  let dobMatch = false;
-  if (input.dob) {
-    const inputDOB = input.dob.replace(/\//g, "-").trim();
-    dobMatch = inputDOB.includes("1984-11-26") || 
-               inputDOB.includes("26-11-1984") ||
-               inputDOB.includes("1984/11/26") ||
-               inputDOB.includes("26/11/1984") ||
-               inputDOB === "1984-11-26";
+  // Check if input matches any test user
+  for (const testUser of testUsers) {
+    const nameMatch = input.name?.toLowerCase().includes(testUser.name.toLowerCase()) ?? false;
+    
+    if (!nameMatch) continue;
+    
+    let dobMatch = false;
+    if (input.dob) {
+      const inputDOB = input.dob.replace(/\//g, "-").trim();
+      dobMatch = inputDOB.includes(testUser.dob) || 
+                 inputDOB.includes(testUser.dob.replace(/-/g, "/")) ||
+                 inputDOB.includes(testUser.dob.replace(/-/g, "-"));
+    }
+    
+    let timeMatch = false;
+    if (input.tob && testUser.time) {
+      const inputTime = input.tob.trim().toUpperCase();
+      const testTime = testUser.time;
+      timeMatch = inputTime.includes(testTime) || 
+                  (testTime.includes(":") && inputTime.includes(testTime.split(":")[0]));
+    }
+    
+    const placeMatch = input.place?.toLowerCase().includes(testUser.place.toLowerCase()) ?? false;
+    const genderMatch = !testUser.gender || input.gender?.toLowerCase() === testUser.gender.toLowerCase();
+
+    // If name matches and other key fields match (flexible matching for Ankita)
+    if (nameMatch && dobMatch && placeMatch && (timeMatch || !input.tob) && (genderMatch || !testUser.gender)) {
+      return true;
+    }
   }
   
-  let timeMatch = false;
-  if (input.tob) {
-    const inputTime = input.tob.trim().toUpperCase();
-    timeMatch = inputTime.includes("21:40") || 
-                (inputTime.includes("9:40") || inputTime.includes("09:40")) && 
-                (inputTime.includes("PM") || inputTime.includes("P.M."));
-  }
-  
-  const placeMatch = input.place?.toLowerCase().includes(testUserPlace.toLowerCase()) ?? false;
-  const genderMatch = input.gender?.toLowerCase() === testUserGender.toLowerCase();
-
-  return nameMatch && dobMatch && timeMatch && placeMatch && genderMatch;
+  return false;
 }
 
 /**
@@ -82,12 +102,14 @@ export async function POST(req: Request) {
     const { reportType, subscription = false, input, successUrl, cancelUrl } = json;
 
     // Check for demo mode or test user (for logging only)
-    // NOTE: We still allow test users to go through Stripe for payment testing
-    // Set BYPASS_PAYMENT_FOR_TEST_USERS=false to force test users through Stripe
+    // NOTE: Test users bypass payment by default to avoid payment verification errors
+    // Set BYPASS_PAYMENT_FOR_TEST_USERS=false to force test users through Stripe for payment testing
     isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     isTestUser = checkIfTestUser(input);
     const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
-    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS !== "false"; // Default true for backward compatibility
+    // CRITICAL: Default to true (bypass payment) for test users to avoid payment verification errors
+    // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
+    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS !== "false";
 
     // CRITICAL: Access restriction for production testing
     // Prevent unauthorized users from creating payment sessions

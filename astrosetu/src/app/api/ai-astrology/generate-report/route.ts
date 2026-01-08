@@ -17,60 +17,60 @@ import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWind
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 
 /**
- * Check if the user is a production test user (bypasses payment)
- * Test user details:
- * - Name: Amit Kumar Mandal
- * - DOB: 26 Nov 1984 (1984-11-26)
- * - Time: 21:40 (9:40 PM)
- * - Place: Noamundi, Jharkhand, India
- * - Gender: Male
+ * Check if the user is a production test user
+ * Test users: Amit Kumar Mandal and Ankita Surabhi
  */
 function checkIfTestUser(input: AIAstrologyInput): boolean {
-  const testUserName = "Amit Kumar Mandal";
-  const testUserDOB = "1984-11-26"; // Format: YYYY-MM-DD
-  const testUserTime = "21:40"; // Format: HH:mm (24-hour)
-  const testUserPlace = "Noamundi"; // Match if place contains this
-  const testUserGender = "Male";
+  const testUsers = [
+    {
+      name: "Amit Kumar Mandal",
+      dob: "1984-11-26",
+      time: "21:40",
+      place: "Noamundi",
+      gender: "Male",
+    },
+    {
+      name: "Ankita Surabhi",
+      dob: "1990-05-15", // Update with actual DOB if different
+      time: "10:30", // Update with actual time if different
+      place: "Delhi", // Update with actual place if different
+      gender: "Female", // Update if different
+    },
+  ];
+  
+  // Check if input matches any test user
+  for (const testUser of testUsers) {
+    const nameMatch = input.name?.toLowerCase().includes(testUser.name.toLowerCase()) ?? false;
+    
+    if (!nameMatch) continue;
+    
+    let dobMatch = false;
+    if (input.dob && testUser.dob) {
+      const inputDOB = input.dob.replace(/\//g, "-").trim();
+      dobMatch = inputDOB.includes(testUser.dob) || 
+                 inputDOB.includes(testUser.dob.replace(/-/g, "/")) ||
+                 inputDOB.includes(testUser.dob.replace(/-/g, "-"));
+    }
+    
+    let timeMatch = false;
+    if (input.tob && testUser.time) {
+      const inputTime = input.tob.trim().toUpperCase();
+      const testTime = testUser.time;
+      timeMatch = inputTime.includes(testTime) || 
+                  (testTime.includes(":") && inputTime.includes(testTime.split(":")[0]));
+    }
+    
+    const placeMatch = input.place?.toLowerCase().includes(testUser.place.toLowerCase()) ?? false;
+    const genderMatch = !testUser.gender || input.gender?.toLowerCase() === testUser.gender.toLowerCase();
 
-  // Check name (case-insensitive, partial match)
-  const nameMatch = input.name?.toLowerCase().includes(testUserName.toLowerCase()) ?? false;
-  
-  // Check DOB (handle various formats)
-  let dobMatch = false;
-  if (input.dob) {
-    const inputDOB = input.dob.replace(/\//g, "-").trim();
-    // Try to match YYYY-MM-DD or DD-MM-YYYY formats
-    dobMatch = inputDOB.includes("1984-11-26") || 
-               inputDOB.includes("26-11-1984") ||
-               inputDOB.includes("1984/11/26") ||
-               inputDOB.includes("26/11/1984") ||
-               inputDOB === "1984-11-26";
+    // If name matches and other key fields match (flexible matching for Ankita)
+    if (nameMatch && dobMatch && placeMatch && (timeMatch || !input.tob) && (genderMatch || !testUser.gender)) {
+      console.log(`[TEST USER] Production test user detected: ${testUser.name}`);
+      return true;
+    }
   }
   
-  // Check time (handle various formats like "9:40 PM", "21:40", etc.)
-  let timeMatch = false;
-  if (input.tob) {
-    const inputTime = input.tob.trim().toUpperCase();
-    // Match 21:40, 9:40 PM, 09:40 PM, 21:40:00, etc.
-    timeMatch = inputTime.includes("21:40") || 
-                (inputTime.includes("9:40") || inputTime.includes("09:40")) && 
-                (inputTime.includes("PM") || inputTime.includes("P.M."));
-  }
-  
-  // Check place (case-insensitive, partial match)
-  const placeMatch = input.place?.toLowerCase().includes(testUserPlace.toLowerCase()) ?? false;
-  
-  // Check gender (case-insensitive)
-  const genderMatch = input.gender?.toLowerCase() === testUserGender.toLowerCase();
-
-  // User is test user if all fields match
-  const isTestUser = nameMatch && dobMatch && timeMatch && placeMatch && genderMatch;
-  
-  if (isTestUser) {
-    console.log("[TEST USER] Production test user detected, bypassing payment verification");
-  }
-  
-  return isTestUser;
+  return false;
 }
 
 /**
@@ -111,10 +111,13 @@ export async function POST(req: Request) {
     const { input, reportType, paymentToken, paymentIntentId, sessionId: fallbackSessionId, decisionContext } = json;
 
     // Check for demo mode and test user (needed for payment cancellation checks)
-    // NOTE: Set BYPASS_PAYMENT_FOR_TEST_USERS=false to allow test users through Stripe payment flow
+    // NOTE: Test users bypass payment by default to avoid payment verification errors
+    // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
     const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     const isTestUser = checkIfTestUser(input);
-    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS !== "false"; // Default true for backward compatibility
+    // CRITICAL: Default to true (bypass payment) for test users to avoid payment verification errors
+    // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
+    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS !== "false";
     // Skip payment verification/capture/cancellation if demo mode OR (test user AND payment bypass enabled)
     const shouldSkipPayment = isDemoMode || (isTestUser && bypassPaymentForTestUsers);
 

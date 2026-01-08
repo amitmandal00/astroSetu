@@ -180,7 +180,7 @@ function PreviewContent() {
       setLoading(false);
       setLoadingStage(null);
     }
-  }, []);
+  }, [upsellShown]);
 
   const generateBundleReports = useCallback(async (inputData: AIAstrologyInput, reports: ReportType[], currentSessionId?: string, currentPaymentIntentId?: string) => {
     setBundleGenerating(true);
@@ -219,6 +219,7 @@ function PreviewContent() {
       }
 
       // Generate all reports in parallel for faster loading
+      // Use Promise.allSettled to handle partial failures gracefully
       const completedReports = new Set<ReportType>();
       const updateProgress = (reportType: ReportType) => {
         completedReports.add(reportType);
@@ -253,49 +254,102 @@ function PreviewContent() {
             return { reportType, content: response.data.content, success: true };
           } else {
             console.error(`Failed to generate ${reportType}:`, response.error);
+            const errorMessage = response.error || "Failed to generate report";
+            // Make timeout errors more user-friendly
+            const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out")
+              ? "This report is taking longer than expected. It may time out - try generating it individually for better results."
+              : errorMessage;
+            
             return { 
               reportType, 
               content: null, 
               success: false, 
-              error: response.error || "Failed to generate report" 
+              error: friendlyError
             };
           }
         } catch (e: any) {
           console.error(`Error generating ${reportType}:`, e);
+          const errorMessage = e.message || "Failed to generate report";
+          // Make timeout errors more user-friendly
+          const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out")
+            ? "Request timed out. This report is taking longer than expected. Please try generating it individually."
+            : errorMessage;
+          
           return { 
             reportType, 
             content: null, 
             success: false, 
-            error: e.message || "Failed to generate report" 
+            error: friendlyError
           };
         }
       });
 
-      // Wait for all reports to complete
-      const results = await Promise.all(reportPromises);
+      // Use Promise.allSettled to wait for all reports (success or failure)
+      const results = await Promise.allSettled(reportPromises);
       
-      // Check for failures
-      const failures = results.filter(r => !r.success);
-      if (failures.length > 0) {
-        const failedReport = failures[0];
-        setError(`Failed to generate ${getReportName(failedReport.reportType)}. ${failedReport.error || "Please try again."}`);
-        setBundleProgress(null);
-        return;
-      }
-
-      // All reports generated successfully
-      const bundleContentsMap = new Map<ReportType, ReportContent>();
-      results.forEach(result => {
-        if (result.content) {
-          bundleContentsMap.set(result.reportType, result.content);
+      // Extract results from settled promises
+      const reportResults = results.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return result.value;
+        } else {
+          // Promise was rejected (shouldn't happen with our error handling, but handle it)
+          return {
+            reportType: reports[index],
+            content: null,
+            success: false,
+            error: result.reason?.message || "Unexpected error occurred"
+          };
         }
       });
+      
+      // Separate successful and failed reports
+      const successes = reportResults.filter(r => r.success);
+      const failures = reportResults.filter(r => !r.success);
+      
+      // If we have at least one successful report, show partial success
+      if (successes.length > 0) {
+        const bundleContentsMap = new Map<ReportType, ReportContent>();
+        successes.forEach(result => {
+          if (result.content) {
+            bundleContentsMap.set(result.reportType, result.content);
+          }
+        });
 
-      if (bundleContentsMap.size === reports.length) {
+        // Set bundle contents with successful reports
         setBundleContents(bundleContentsMap);
-        // Set the first report as the primary report for display purposes
-        setReportContent(bundleContentsMap.get(reports[0]) || null);
-        setReportType(reports[0]);
+        // Set the first successful report as the primary report for display
+        setReportContent(bundleContentsMap.get(reports[0]) || bundleContentsMap.values().next().value || null);
+        setReportType(successes[0].reportType);
+        setBundleProgress(null);
+
+        // If there were failures, show a warning but don't block the user
+        if (failures.length > 0) {
+          const failedNames = failures.map(f => getReportName(f.reportType)).join(", ");
+          const successCount = successes.length;
+          const totalCount = reports.length;
+          
+          // Show partial success message
+          const partialSuccessMessage = `Successfully generated ${successCount} of ${totalCount} reports. ${failedNames} ${failures.length === 1 ? 'failed' : 'failed'} to generate. ${failures.some(f => f.error?.includes('timeout')) ? 'The failed reports timed out - you can try generating them individually later.' : 'You can try generating the failed reports individually.'}`;
+          
+          // Set as a non-blocking warning (user can still view successful reports)
+          console.warn("[BUNDLE PARTIAL SUCCESS]", partialSuccessMessage);
+          
+          // Show error but allow user to continue with successful reports
+          setError(partialSuccessMessage);
+          
+          // Auto-clear error after 10 seconds so user can view reports
+          setTimeout(() => {
+            setError(null);
+          }, 10000);
+        }
+      } else {
+        // All reports failed
+        const failedReport = failures[0];
+        const errorDetails = failures.length > 1 
+          ? `All ${failures.length} reports failed to generate. ${failures[0].error || "Please try again."}`
+          : `Failed to generate ${getReportName(failedReport.reportType)}. ${failedReport.error || "Please try again."}`;
+        
+        setError(errorDetails);
         setBundleProgress(null);
       }
     } catch (e: any) {
@@ -469,10 +523,11 @@ function PreviewContent() {
             generateReport(inputData, reportTypeToUse, urlSessionId || undefined, paymentIntentIdFromStorage);
           }
         }, 300);
+        return; // Exit early to avoid duplicate generation
       }
       
-      // Generate bundle reports or single report
-      if (isBundle && savedBundleReports) {
+      // Generate bundle reports or single report (only if not auto-generating)
+      if (isBundle && savedBundleReports && !autoGenerate) {
         try {
           const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
           generateBundleReports(inputData, bundleReportsList);
@@ -480,7 +535,7 @@ function PreviewContent() {
           console.error("Failed to parse bundle reports:", e);
           generateReport(inputData, reportTypeToUse);
         }
-      } else {
+      } else if (!autoGenerate) {
         // Auto-generate single report
         generateReport(inputData, reportTypeToUse);
       }
@@ -489,7 +544,8 @@ function PreviewContent() {
       console.error("Error accessing sessionStorage or parsing saved input:", e);
       router.push("/ai-astrology/input");
     }
-  }, [router, generateReport, generateBundleReports]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, generateReport, generateBundleReports, searchParams.toString(), loading]);
 
   const isPaidReport = reportType !== "life-summary";
   const needsPayment = isPaidReport && !paymentVerified;
@@ -549,9 +605,42 @@ function PreviewContent() {
 
     setDownloadingPDF(true);
     try {
-      const success = await downloadPDF(reportContent, input, reportType || "life-summary");
-      if (!success) {
-        setError("Failed to generate PDF. Please try again.");
+      // Check if this is a bundle download
+      const isBundle = bundleType && bundleReports.length > 0 && bundleContents.size > 0;
+      
+      if (isBundle) {
+        // Download bundle PDF with all reports
+        const bundleContentsMap = new Map<string, ReportContent>();
+        bundleReports.forEach(reportType => {
+          const content = bundleContents.get(reportType);
+          if (content) {
+            bundleContentsMap.set(reportType, content);
+          }
+        });
+        
+        // Ensure we have all bundle contents before downloading
+        if (bundleContentsMap.size === bundleReports.length) {
+          const success = await downloadPDF(
+            reportContent, // Still needed for function signature but bundle data is used
+            input,
+            reportType || "life-summary",
+            undefined, // filename
+            bundleContentsMap,
+            bundleReports,
+            bundleType
+          );
+          if (!success) {
+            setError("Failed to generate bundle PDF. Please try again.");
+          }
+        } else {
+          setError("Not all bundle reports are available. Please wait for all reports to generate.");
+        }
+      } else {
+        // Download single report PDF
+        const success = await downloadPDF(reportContent, input, reportType || "life-summary");
+        if (!success) {
+          setError("Failed to generate PDF. Please try again.");
+        }
       }
     } catch (e: any) {
       console.error("PDF download error:", e);
@@ -600,22 +689,46 @@ function PreviewContent() {
             ) : isBundleLoading && bundleProgress ? (
               <div className="space-y-4">
                 <p className="text-slate-600 mb-4">
-                  Generating {bundleProgress.total} reports in parallel for faster loading...
+                  Our AI is analyzing your birth chart and generating your personalized bundle reports.
+                  This typically takes 1-2 minutes for {bundleProgress.total} comprehensive reports.
                 </p>
-                <div className="bg-slate-100 rounded-full h-3 mb-2">
-                  <div 
-                    className="bg-purple-600 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${(bundleProgress.current / bundleProgress.total) * 100}%` }}
-                  ></div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="text-xl">✨</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-purple-800 mb-1">
+                        Bundle Generation in Progress
+                      </p>
+                      <p className="text-xs text-purple-700 mb-3">
+                        Creating {bundleProgress.total} comprehensive reports for you:
+                      </p>
+                      <div className="mb-3">
+                        <div className="bg-slate-100 rounded-full h-2.5 mb-2">
+                          <div 
+                            className="bg-purple-600 h-2.5 rounded-full transition-all duration-300"
+                            style={{ width: `${(bundleProgress.current / bundleProgress.total) * 100}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-purple-600 font-medium">
+                          {bundleProgress.current} of {bundleProgress.total} reports completed
+                        </p>
+                        {bundleProgress.currentReport && bundleProgress.current > 0 && (
+                          <p className="text-xs text-purple-500 mt-1 italic">
+                            ✓ Latest: {bundleProgress.currentReport}
+                          </p>
+                        )}
+                      </div>
+                      <ul className="text-xs text-purple-600 space-y-1 ml-4 list-disc">
+                        <li>Analyzing your birth chart data</li>
+                        <li>Generating personalized insights for each report</li>
+                        <li>Preparing your complete bundle package</li>
+                      </ul>
+                      <p className="text-xs text-purple-600 mt-3 font-medium">
+                        ⏱️ Estimated time: 1-2 minutes for all reports
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-600">
-                  {bundleProgress.current} of {bundleProgress.total} reports completed
-                </p>
-                {bundleProgress.currentReport && bundleProgress.current > 0 && (
-                  <p className="text-xs text-slate-500 italic">
-                    Latest completed: {bundleProgress.currentReport}
-                  </p>
-                )}
               </div>
             ) : (
               <div className="space-y-4">

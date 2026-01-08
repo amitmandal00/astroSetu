@@ -3,7 +3,7 @@
  * Generates branded, professional PDF reports
  */
 
-import type { ReportContent, AIAstrologyInput } from "./types";
+import type { ReportContent, AIAstrologyInput, ReportType } from "./types";
 
 // Dynamically import jsPDF to avoid SSR issues
 let jsPDF: any = null;
@@ -719,7 +719,8 @@ export async function generatePDF(
       }
 
       // Extract and display "Why timing differs" explanation box if present
-      const timingDiffMatch = section.content?.match(/Why this timing may differ.*?(?:\n\n|\n[A-Z]|$)/is);
+      // Use [\s\S] instead of . with 's' flag for ES2017 compatibility
+      const timingDiffMatch = section.content?.match(/Why this timing may differ[\s\S]*?(?:\n\n|\n[A-Z]|$)/i);
       if (timingDiffMatch) {
         const timingBoxPadding = 2;
         const timingBoxStartY = yPosition;
@@ -978,28 +979,697 @@ export async function generatePDF(
 }
 
 /**
+ * Helper to get report name from report type
+ */
+function getReportNameFromType(reportType: string): string {
+  const names: Record<string, string> = {
+    "life-summary": "Life Summary",
+    "marriage-timing": "Marriage Timing Report",
+    "career-money": "Career & Money Path Report",
+    "full-life": "Full Life Report",
+    "year-analysis": "Year Analysis Report",
+    "major-life-phase": "3-5 Year Strategic Life Phase Report",
+    "decision-support": "Decision Support Report",
+  };
+  return names[reportType] || reportType;
+}
+
+/**
+ * Generate PDF for bundle (multiple reports)
+ */
+export async function generateBundlePDF(
+  bundleContents: Map<string, ReportContent>,
+  bundleReports: string[],
+  input: AIAstrologyInput,
+  bundleType: string
+): Promise<Blob | null> {
+  if (typeof window === "undefined") {
+    console.error("PDF generation must be done client-side");
+    return null;
+  }
+
+  try {
+    const PDF = await loadPDFLibraries();
+    if (!PDF) {
+      throw new Error("Failed to load PDF library");
+    }
+
+    const doc = new PDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentWidth = pageWidth - 2 * margin;
+    let yPosition = margin;
+
+    // Helper functions (reuse from generatePDF)
+    const checkPageBreak = (requiredSpace: number = 20) => {
+      if (yPosition + requiredSpace > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+        return true;
+      }
+      return false;
+    };
+
+    const cleanText = (text: string): string => {
+      if (!text) return "";
+      return text
+        .replace(/★/g, "*")
+        .replace(/☆/g, "o")
+        .replace(/⭐/g, "*")
+        .replace(/✨/g, "*")
+        .replace(/─/g, "-")
+        .replace(/━/g, "=")
+        .replace(/═/g, "=")
+        .replace(/—/g, "-")
+        .replace(/–/g, "-")
+        .replace(/"/g, '"')
+        .replace(/"/g, '"')
+        .replace(/'/g, "'")
+        .replace(/'/g, "'")
+        .replace(/…/g, "...")
+        .replace(/&/g, "and")
+        .replace(/&amp;/g, "and")
+        .replace(/&nbsp;/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
+    const addText = (text: string, fontSize: number = 12, isBold: boolean = false, color: string = "#000000", lineHeight: number = 1.5, addBottomSpacing: number = 6) => {
+      if (!text || text.trim() === "") return;
+      
+      const cleanedText = cleanText(text);
+      doc.setFontSize(fontSize);
+      doc.setFont("helvetica", isBold ? "bold" : "normal");
+      doc.setTextColor(color);
+
+      const lines = doc.splitTextToSize(cleanedText, contentWidth);
+      const lineSpacing = (fontSize * lineHeight * 0.3528);
+      const totalHeight = lines.length * lineSpacing + addBottomSpacing;
+      
+      if (yPosition + totalHeight > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+      }
+
+      lines.forEach((line: string) => {
+        if (yPosition + lineSpacing > pageHeight - margin) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        doc.text(line, margin, yPosition);
+        yPosition += lineSpacing;
+      });
+
+      yPosition += addBottomSpacing;
+    };
+
+    const addParagraph = (text: string, fontSize: number = 11, isBold: boolean = false, color: string = "#334155", lineHeight: number = 1.7, addBottomSpacing: number = 8) => {
+      if (!text || text.trim() === "") return;
+      
+      doc.setFontSize(fontSize);
+      doc.setFont("helvetica", isBold ? "bold" : "normal");
+      doc.setTextColor(color);
+      
+      const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+      
+      paragraphs.forEach((paragraph) => {
+        const cleanedParagraph = cleanText(paragraph);
+        const hasBullets = /^[•\-\*]\s/m.test(cleanedParagraph) || /^\d+\.\s/m.test(cleanedParagraph);
+        
+        if (hasBullets) {
+          const lines = cleanedParagraph.split(/\n/).filter(l => l.trim());
+          lines.forEach((line) => {
+            const cleanedLine = line.trim();
+            if (!cleanedLine) return;
+            
+            const isBullet = /^[•\-\*]\s/.test(cleanedLine) || /^\d+\.\s/.test(cleanedLine);
+            
+            if (isBullet) {
+              const bulletText = cleanedLine.replace(/^[•\-\*]\s/, "").replace(/^\d+\.\s/, "");
+              const bulletLines = doc.splitTextToSize(bulletText, contentWidth - 8);
+              const lineSpacing = (fontSize * lineHeight * 0.3528);
+              
+              bulletLines.forEach((bulletLine: string, idx: number) => {
+                if (yPosition + lineSpacing > pageHeight - margin) {
+                  doc.addPage();
+                  yPosition = margin;
+                }
+                doc.setFontSize(fontSize);
+                doc.setFont("helvetica", isBold ? "bold" : "normal");
+                doc.setTextColor(color);
+                doc.text(idx === 0 ? `• ${bulletLine}` : `  ${bulletLine}`, margin + (idx === 0 ? 0 : 8), yPosition);
+                yPosition += lineSpacing;
+              });
+              yPosition += 3;
+            } else {
+              const wrappedLines = doc.splitTextToSize(cleanedLine, contentWidth);
+              const lineSpacing = (fontSize * lineHeight * 0.3528);
+              
+              wrappedLines.forEach((wrappedLine: string) => {
+                if (yPosition + lineSpacing > pageHeight - margin) {
+                  doc.addPage();
+                  yPosition = margin;
+                }
+                doc.setFontSize(fontSize);
+                doc.setFont("helvetica", isBold ? "bold" : "normal");
+                doc.setTextColor(color);
+                doc.text(wrappedLine, margin, yPosition);
+                yPosition += lineSpacing;
+              });
+              yPosition += 2;
+            }
+          });
+        } else {
+          const wrappedLines = doc.splitTextToSize(cleanedParagraph, contentWidth);
+          const lineSpacing = (fontSize * lineHeight * 0.3528);
+          
+          wrappedLines.forEach((wrappedLine: string) => {
+            if (yPosition + lineSpacing > pageHeight - margin) {
+              doc.addPage();
+              yPosition = margin;
+            }
+            doc.setFontSize(fontSize);
+            doc.setFont("helvetica", isBold ? "bold" : "normal");
+            doc.setTextColor(color);
+            doc.text(wrappedLine, margin, yPosition);
+            yPosition += lineSpacing;
+          });
+          yPosition += 3;
+        }
+      });
+      
+      yPosition += addBottomSpacing;
+    };
+
+    // Bundle Cover Page
+    doc.setFillColor(147, 51, 234); // purple-600
+    doc.rect(0, 0, pageWidth, 40, "F");
+    
+    doc.setTextColor("#FFFFFF");
+    doc.setFontSize(28);
+    doc.setFont("helvetica", "bold");
+    doc.text("AstroSetu", margin, 25);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("AI-Powered Astrology Reports", margin, 33);
+    
+    yPosition = 55;
+
+    // Bundle Title
+    const bundleTitleMap: Record<string, string> = {
+      "life-decision-pack": "Complete Life Decision Pack",
+      "all-3": "All 3 Reports Bundle",
+      "any-2": "Any 2 Reports Bundle",
+    };
+    const bundleTitle = bundleTitleMap[bundleType] || "Bundle Reports";
+
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#1e293b");
+    const titleLines = doc.splitTextToSize(bundleTitle, contentWidth);
+    checkPageBreak(titleLines.length * 24 * 1.3 * 0.3528 + 15);
+    
+    titleLines.forEach((line: string) => {
+      if (yPosition + 24 * 1.3 * 0.3528 > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      doc.text(line, pageWidth / 2, yPosition, { align: "center" });
+      yPosition += 24 * 1.3 * 0.3528;
+    });
+    yPosition += 10;
+
+    addText(`Generated for: ${input.name}`, 12, false, "#475569", 1.5, 4);
+    
+    const generatedDate = new Date();
+    const dateStr = generatedDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const timeStr = generatedDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    addText(`Generated on: ${dateStr} at ${timeStr}`, 11, false, "#64748b", 1.5, 8);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor("#64748b");
+    checkPageBreak(12);
+    doc.text("AI-Generated Astrological Guidance (Educational Only)", pageWidth / 2, yPosition, { align: "center" });
+    yPosition += 15;
+
+    // Bundle Contents List
+    addText("Bundle Contents:", 14, true, "#1e293b", 1.3, 5);
+    bundleReports.forEach((reportType, idx) => {
+      const reportContent = bundleContents.get(reportType);
+      const reportTitle = reportContent?.title || getReportNameFromType(reportType);
+      addText(`${idx + 1}. ${cleanText(reportTitle)}`, 11, false, "#475569", 1.5, 3);
+    });
+
+    yPosition += 10;
+    doc.addPage();
+    yPosition = margin;
+
+    // Add "How to Read This Report" section (once for bundle)
+    const boxPadding = 3;
+    const boxStartY = yPosition;
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    const headerHeight = 14 * 1.4 * 0.3528;
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const lineSpacing = 10 * 1.4 * 0.3528;
+    const howToReadLines = [
+      "• This report provides guidance, not guarantees.",
+      "• Astrology highlights favorable and challenging periods, not fixed outcomes.",
+      "• Use this report for planning and awareness, not absolute prediction.",
+    ];
+    const totalTextHeight = headerHeight + (howToReadLines.length * lineSpacing) + 8;
+    const boxHeight = totalTextHeight + (boxPadding * 2);
+    
+    checkPageBreak(boxHeight + 10);
+    
+    doc.setFillColor(255, 251, 235); // amber-50
+    doc.rect(margin, boxStartY, contentWidth, boxHeight, "F");
+    doc.setDrawColor(245, 158, 11); // amber-500
+    doc.setLineWidth(1);
+    doc.rect(margin, boxStartY, contentWidth, boxHeight, "S");
+    
+    yPosition = boxStartY + boxPadding;
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#78350f");
+    doc.text("How to Read This Report", margin + boxPadding, yPosition + (14 * 0.3528));
+    yPosition += headerHeight + 4;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#92400e");
+    howToReadLines.forEach((line: string) => {
+      doc.text(line, margin + boxPadding + 2, yPosition);
+      yPosition += lineSpacing;
+    });
+    yPosition = boxStartY + boxHeight + 8;
+
+    // Add "Data and Method Used" section (once for bundle)
+    checkPageBreak(40);
+    doc.setDrawColor(147, 51, 234);
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 8;
+
+    addText("Data and Method Used", 14, true, "#1e293b");
+    yPosition += 2;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#334155");
+
+    addText("Birth Data Used:", 10, true, "#475569", 1.4, 4);
+    addText(`• Name: ${input.name}`, 10, false, "#64748b", 1.4, 3);
+    addText(`• Date of Birth: ${input.dob}`, 10, false, "#64748b", 1.4, 3);
+    addText(`• Time of Birth: ${input.tob}`, 10, false, "#64748b", 1.4, 3);
+    addText(`• Place: ${input.place}`, 10, false, "#64748b", 1.4, 4);
+
+    addText("Astrological System Used:", 10, true, "#475569", 1.4, 4);
+    addText("• Ascendant analysis", 10, false, "#64748b", 1.4, 3);
+    addText("• Planetary transits", 10, false, "#64748b", 1.4, 3);
+    addText("• Dasha phase analysis", 10, false, "#64748b", 1.4, 3);
+    addText("• AI interpretation layer", 10, false, "#64748b", 1.4, 4);
+
+    addText("Note: No human astrologer edits or reviews this report. This is 100% AI-generated.", 9, false, "#64748b", 1.4, 15);
+
+    doc.addPage();
+    yPosition = margin;
+
+    // Generate each report in the bundle
+    bundleReports.forEach((reportType, reportIdx) => {
+      const reportContent = bundleContents.get(reportType);
+      if (!reportContent) return;
+
+      // Report Separator Page
+      if (reportIdx > 0) {
+        doc.addPage();
+        yPosition = margin;
+
+        // Divider
+        doc.setDrawColor(147, 51, 234);
+        doc.setLineWidth(2);
+        doc.line(margin, pageHeight / 2 - 20, pageWidth - margin, pageHeight / 2 - 20);
+        
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#9333ea");
+        const separatorText = `Report ${reportIdx + 1} of ${bundleReports.length}`;
+        doc.text(separatorText, pageWidth / 2, pageHeight / 2, { align: "center" });
+        
+        const reportTitleText = cleanText(reportContent.title);
+        doc.setFontSize(16);
+        doc.setTextColor("#1e293b");
+        const reportTitleLines = doc.splitTextToSize(reportTitleText, contentWidth);
+        let titleY = pageHeight / 2 + 15;
+        reportTitleLines.forEach((line: string) => {
+          doc.text(line, pageWidth / 2, titleY, { align: "center" });
+          titleY += 16 * 1.3 * 0.3528;
+        });
+
+        doc.addPage();
+        yPosition = margin;
+      }
+
+      // Generate this report's content (reuse single report PDF generation logic)
+      // Cover page for this report
+      doc.setFillColor(147, 51, 234);
+      doc.rect(0, 0, pageWidth, 40, "F");
+      
+      doc.setTextColor("#FFFFFF");
+      doc.setFontSize(28);
+      doc.setFont("helvetica", "bold");
+      doc.text("AstroSetu", margin, 25);
+      
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text("AI-Powered Astrology Reports", margin, 33);
+      
+      yPosition = 55;
+
+      // Report Title
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#1e293b");
+      const cleanedTitle = cleanText(reportContent.title);
+      const titleLines = doc.splitTextToSize(cleanedTitle, contentWidth);
+      const titleSpacing = 20 * 1.3 * 0.3528;
+      checkPageBreak(titleLines.length * titleSpacing + 15);
+      
+      titleLines.forEach((line: string) => {
+        if (yPosition + titleSpacing > pageHeight - margin) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        doc.text(line, pageWidth / 2, yPosition, { align: "center" });
+        yPosition += titleSpacing;
+      });
+      yPosition += 10;
+
+      addText(`Generated for: ${input.name}`, 12, false, "#475569", 1.5, 4);
+      
+      const reportDate = new Date(reportContent.generatedAt || new Date().toISOString());
+      const reportDateStr = reportDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const reportTimeStr = reportDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      addText(`Generated on: ${reportDateStr} at ${reportTimeStr}`, 11, false, "#64748b", 1.5, 8);
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor("#64748b");
+      checkPageBreak(12);
+      doc.text("AI-Generated Astrological Guidance (Educational Only)", pageWidth / 2, yPosition, { align: "center" });
+      yPosition += 15;
+
+      if (reportContent.reportId) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#94a3b8");
+        doc.text(`Report ID: ${reportContent.reportId}`, pageWidth / 2, yPosition, { align: "center" });
+        yPosition += 5;
+      }
+
+      // Bundle indicator
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#9333ea");
+      checkPageBreak(12);
+      doc.text(`Part ${reportIdx + 1} of ${bundleReports.length} in ${bundleTitle}`, pageWidth / 2, yPosition, { align: "center" });
+      yPosition += 10;
+
+      doc.addPage();
+      yPosition = margin;
+
+      // Executive Summary
+      const summaryText = (reportContent.executiveSummary || reportContent.summary || "")
+        .split(/\n/)
+        .filter(line => 
+          !line.match(/^Based on:/i) && 
+          !line.match(/^Confidence:/i) &&
+          !line.match(/^Data Source:/i)
+        )
+        .join('\n');
+      
+      if (summaryText.trim()) {
+        checkPageBreak(30);
+        doc.setDrawColor(147, 51, 234);
+        doc.setLineWidth(1);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+
+        addText("Executive Summary", 16, true, "#1e293b", 1.3, 3);
+        addText("Summary for busy users", 10, false, "#64748b", 1.3, 5);
+        addParagraph(summaryText, 11, false, "#334155", 1.7, 8);
+      }
+
+      // Sections
+      reportContent.sections.forEach((section, sectionIdx) => {
+        checkPageBreak(30);
+
+        if (sectionIdx > 0 || reportContent.summary) {
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.3);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 6;
+        }
+
+        const cleanedTitle = cleanText(section.title);
+        const formattedTitle = cleanedTitle.replace(/\s*-\s*Key\s+Insight\s*$/i, "").trim();
+        addText(formattedTitle, 16, true, "#1e293b", 1.3, 3);
+
+        if (section.content) {
+          const cleanContent = section.content
+            .split(/\n/)
+            .filter(line => 
+              !line.match(/^Confidence:/i) && 
+              !line.match(/^Timeline:/) &&
+              !line.match(/^Based on:/i)
+            )
+            .join('\n');
+          if (cleanContent.trim()) {
+            addParagraph(cleanContent, 11, false, "#334155", 1.7, 6);
+          }
+        }
+
+        if (section.bullets && section.bullets.length > 0) {
+          section.bullets.forEach((bullet) => {
+            doc.setFontSize(11);
+            doc.setTextColor("#334155");
+            doc.setFont("helvetica", "normal");
+            const cleanedBullet = cleanText(bullet);
+            const bulletLines = doc.splitTextToSize(cleanedBullet, contentWidth - 8);
+            const bulletSpacing = 11 * 1.5 * 0.3528;
+            
+            bulletLines.forEach((line: string, idx: number) => {
+              if (yPosition + bulletSpacing > pageHeight - margin) {
+                doc.addPage();
+                yPosition = margin;
+              }
+              doc.text(idx === 0 ? `• ${line}` : `  ${line}`, margin, yPosition);
+              yPosition += bulletSpacing;
+            });
+            yPosition += 3;
+          });
+        }
+
+        if (section.subsections && section.subsections.length > 0) {
+          section.subsections.forEach((subsection) => {
+            checkPageBreak(20);
+            yPosition += 3;
+
+            const cleanedSubtitle = cleanText(subsection.title);
+            addText(cleanedSubtitle, 14, true, "#475569", 1.3, 3);
+
+            if (subsection.content) {
+              addParagraph(subsection.content, 11, false, "#334155", 1.7, 6);
+            }
+
+            if (subsection.bullets && subsection.bullets.length > 0) {
+              subsection.bullets.forEach((bullet) => {
+                doc.setFontSize(11);
+                doc.setTextColor("#334155");
+                doc.setFont("helvetica", "normal");
+                const cleanedBullet = cleanText(bullet);
+                const bulletLines = doc.splitTextToSize(cleanedBullet, contentWidth - 8);
+                const bulletSpacing = 11 * 1.6 * 0.3528;
+                
+                bulletLines.forEach((line: string, idx: number) => {
+                  if (yPosition + bulletSpacing > pageHeight - margin) {
+                    doc.addPage();
+                    yPosition = margin;
+                  }
+                  doc.text(idx === 0 ? `  • ${line}` : `    ${line}`, margin, yPosition);
+                  yPosition += bulletSpacing;
+                });
+                yPosition += 3;
+              });
+            }
+          });
+        }
+
+        yPosition += 6;
+      });
+
+      // Key Insights
+      if (reportContent.keyInsights && reportContent.keyInsights.length > 0) {
+        checkPageBreak(30);
+
+        doc.setDrawColor(245, 158, 11);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 10;
+
+        addText("Key Insights", 16, true, "#92400e", 1.3, 5);
+
+        reportContent.keyInsights.forEach((insight) => {
+          doc.setFontSize(11);
+          doc.setTextColor("#78350f");
+          doc.setFont("helvetica", "normal");
+          const cleanedInsight = cleanText(insight);
+          const insightLines = doc.splitTextToSize(`* ${cleanedInsight}`, contentWidth - 10);
+          const insightSpacing = 11 * 1.5 * 0.3528;
+          
+          insightLines.forEach((line: string, idx: number) => {
+            if (yPosition + insightSpacing > pageHeight - margin) {
+              doc.addPage();
+              yPosition = margin;
+            }
+            doc.text(line, margin + (idx === 0 ? 0 : 10), yPosition);
+            yPosition += insightSpacing;
+          });
+          yPosition += 4;
+        });
+      }
+    });
+
+    // Footer on all pages
+    const totalPages = doc.internal.pages.length - 1;
+    const footerDate = new Date();
+    const footerDateStr = footerDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const footerTimeStr = footerDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor("#94a3b8");
+      
+      doc.text(
+        `Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 12,
+        { align: "center" }
+      );
+      
+      doc.text(
+        `Generated: ${footerDateStr} ${footerTimeStr} | ${bundleTitle}`,
+        pageWidth / 2,
+        pageHeight - 8,
+        { align: "center" }
+      );
+      
+      doc.text(
+        "AstroSetu AI - Automated Astrology Reports",
+        pageWidth / 2,
+        pageHeight - 4,
+        { align: "center" }
+      );
+    }
+
+    // Disclaimer on last page
+    if (yPosition + 30 < pageHeight - margin - 15) {
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 6;
+
+      doc.setFontSize(8);
+      doc.setTextColor("#64748b");
+      doc.setFont("helvetica", "italic");
+      const disclaimerText = "Disclaimer: AI-generated for educational purposes only. Not a substitute for professional advice. " +
+                             "Guidance based on astrological calculations, not guarantees. " +
+                             "No change-of-mind refunds on digital reports (this does not limit rights under Australian Consumer Law).";
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth);
+      const disclaimerSpacing = 8 * 1.3 * 0.3528;
+      
+      disclaimerLines.forEach((line: string) => {
+        doc.text(line, margin, yPosition);
+        yPosition += disclaimerSpacing;
+      });
+    }
+
+    const pdfBlob = doc.output("blob");
+    return pdfBlob;
+  } catch (error) {
+    console.error("Error generating bundle PDF:", error);
+    return null;
+  }
+}
+
+/**
  * Download PDF (client-side only)
+ * Supports both single reports and bundles
  */
 export async function downloadPDF(
   reportContent: ReportContent,
   input: AIAstrologyInput,
   reportType: string,
-  filename?: string
+  filename?: string,
+  bundleContents?: Map<string, ReportContent>,
+  bundleReports?: string[],
+  bundleType?: string
 ): Promise<boolean> {
   try {
-    const blob = await generatePDF(reportContent, input, reportType);
-    if (!blob) {
-      return false;
-    }
+    let blob: Blob | null = null;
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename || `${reportType}-${input.name}-${new Date().toISOString().split("T")[0]}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Check if this is a bundle
+    if (bundleContents && bundleReports && bundleReports.length > 0 && bundleType) {
+      // Generate bundle PDF with all reports
+      blob = await generateBundlePDF(bundleContents, bundleReports, input, bundleType);
+      if (!blob) {
+        return false;
+      }
+      
+      const bundleTitleMap: Record<string, string> = {
+        "life-decision-pack": "life-decision-pack",
+        "all-3": "all-3-reports",
+        "any-2": "any-2-reports",
+      };
+      const bundleFilename = bundleTitleMap[bundleType] || "bundle";
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || `${bundleFilename}-${input.name}-${new Date().toISOString().split("T")[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      // Single report PDF
+      blob = await generatePDF(reportContent, input, reportType);
+      if (!blob) {
+        return false;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || `${reportType}-${input.name}-${new Date().toISOString().split("T")[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
 
     return true;
   } catch (error) {
