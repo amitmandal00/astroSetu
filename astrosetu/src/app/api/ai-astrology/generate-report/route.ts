@@ -1000,11 +1000,32 @@ export async function POST(req: Request) {
     // Return report
     console.log(`[REPORT GENERATION] Returning response for reportType=${reportType}, requestId=${requestId}`);
     
-    // Generate reportId from requestId for tracking
+    // Generate canonical reportId from requestId for tracking
+    // CRITICAL: This is the ONLY reportId - content should NOT have its own reportId
     const reportId = `RPT-${Date.now()}-${requestId.split('-').pop()?.substring(0, 8).toUpperCase() || 'UNKNOWN'}`;
     
-    // Get base URL (ensure it's domain only, no path)
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0]).replace(/\/$/, ''); // Remove trailing slash
+    // Ensure content doesn't have its own reportId (remove if present to avoid duplication)
+    // Canonical reportId is stored in data.reportId, not in content.reportId
+    const contentWithoutReportId = { ...reportContent };
+    if ('reportId' in contentWithoutReportId) {
+      delete contentWithoutReportId.reportId;
+    }
+    
+    // Get base URL (ensure it's domain only, no path, no trailing slash)
+    // NEXT_PUBLIC_APP_URL should be like: https://www.mindveda.net (domain only)
+    const baseUrlFromEnv = process.env.NEXT_PUBLIC_APP_URL || "";
+    const baseUrlFromRequest = req.url.split('/api')[0];
+    let baseUrl = baseUrlFromEnv || baseUrlFromRequest;
+    // Remove trailing slash and any path after domain (e.g., remove /ai-astrology if present)
+    baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    // Extract just the domain (protocol + hostname + port if any)
+    try {
+      const url = new URL(baseUrl);
+      baseUrl = `${url.protocol}//${url.host}`;
+    } catch {
+      // If URL parsing fails, just remove paths manually
+      baseUrl = baseUrl.replace(/\/ai-astrology.*$/i, '').replace(/\/[^\/]+$/, '');
+    }
     
     // Create redirect URLs
     const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(reportId)}&reportType=${encodeURIComponent(reportType)}`;
@@ -1014,10 +1035,10 @@ export async function POST(req: Request) {
       ok: true,
       data: {
         status: "completed" as const,
-        reportId,
+        reportId, // Canonical reportId - single source of truth
         reportType,
         input,
-        content: reportContent,
+        content: contentWithoutReportId, // Content without reportId to avoid duplication
         generatedAt: new Date().toISOString(),
         redirectUrl,
         fullRedirectUrl,

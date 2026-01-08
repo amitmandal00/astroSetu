@@ -177,18 +177,20 @@ function PreviewContent() {
         throw new Error(response.error || "Failed to generate report. Please try again.");
       }
 
-      // CRITICAL: If report is completed and we have redirectUrl or reportId, navigate immediately
+      // CRITICAL: If report is completed and we have redirectUrl, navigate immediately
       // This prevents the UI from staying stuck on "Generating..." screen
-      if (response.data?.status === "completed" && (response.data?.redirectUrl || response.data?.reportId)) {
+      // Stop any polling/retry loops - we have the content, just navigate
+      if (response.data?.status === "completed" && response.data?.redirectUrl) {
         // Store the content in sessionStorage before navigating (so it's available on the new page)
-        if (response.data?.content) {
+        if (response.data?.content && response.data?.reportId) {
           try {
-            const reportId = response.data.reportId || `RPT-${Date.now()}`;
+            const reportId = response.data.reportId;
             sessionStorage.setItem(`aiAstrologyReport_${reportId}`, JSON.stringify({
               content: response.data.content,
               reportType: response.data.reportType,
               input: response.data.input,
               generatedAt: response.data.generatedAt,
+              reportId, // Store canonical reportId for consistency
             }));
             console.log("[CLIENT] Stored report content in sessionStorage for reportId:", reportId);
           } catch (storageError) {
@@ -196,14 +198,10 @@ function PreviewContent() {
           }
         }
         
-        const redirectTo = response.data.redirectUrl || `/ai-astrology/preview?reportId=${encodeURIComponent(response.data.reportId!)}&reportType=${encodeURIComponent(type)}`;
-        console.log("[CLIENT] Report generation completed, navigating to:", redirectTo);
-        
-        // Set content in state first (in case navigation is slow or fails)
-        setReportContent(response.data?.content || null);
-        
-        // Navigate immediately - this will cause a re-render with the new URL
-        router.replace(redirectTo);
+        // Navigate immediately using redirectUrl from API response
+        // This is the single source of truth - don't construct URLs manually
+        console.log("[CLIENT] Report generation completed, navigating to:", response.data.redirectUrl);
+        router.replace(response.data.redirectUrl);
         
         // Show upsell for paid reports after a delay (30 seconds)
         const currentReportType = response.data?.reportType || type;
@@ -214,6 +212,7 @@ function PreviewContent() {
           }, 30000); // 30 seconds after report generation
         }
         
+        // CRITICAL: Return immediately - stop any further processing/polling
         return;
       }
 
@@ -253,7 +252,7 @@ function PreviewContent() {
       setLoading(false);
       setLoadingStage(null);
     }
-  }, [upsellShown]);
+  }, [upsellShown, router]);
 
   const generateBundleReports = useCallback(async (inputData: AIAstrologyInput, reports: ReportType[], currentSessionId?: string, currentPaymentIntentId?: string) => {
     // Prevent concurrent requests
