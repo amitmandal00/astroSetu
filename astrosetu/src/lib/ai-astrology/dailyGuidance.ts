@@ -70,37 +70,46 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
     if (response.status === 429 || errorData?.error?.code === "rate_limit_exceeded") {
       if (retryCount < maxRetries) {
         // Extract retry-after from error message or header
-        let waitTime = 5000; // Increased default wait: 5 seconds (more conservative for rate limits)
+        // CRITICAL: Default to 60 seconds minimum for rate limits (OpenAI rate limits are typically per-minute)
+        let waitTime = 60000; // Default to 60 seconds (more conservative for rate limits)
         
-        // Try to parse retry-after from error message
+        // Try to parse retry-after from error message first
         const errorMessage = errorData?.error?.message || "";
-        const retryAfterMatch = errorMessage.match(/try again in (\d+)ms/i) || errorMessage.match(/retry after (\d+) seconds/i);
+        const retryAfterMatch = errorMessage.match(/try again in (\d+)\s*(ms|seconds?|s)/i) || 
+                                errorMessage.match(/retry after (\d+)\s*(ms|seconds?|s)/i);
         if (retryAfterMatch) {
           const retryValue = parseInt(retryAfterMatch[1]);
-          if (retryValue < 60000) {
-            waitTime = retryValue; // Use milliseconds
+          const unit = retryAfterMatch[2]?.toLowerCase() || "seconds";
+          if (unit.includes("ms") || unit.includes("millisecond")) {
+            waitTime = Math.max(retryValue, 60000); // Minimum 60 seconds even if header says less
           } else {
-            waitTime = retryValue * 1000; // Convert seconds to milliseconds
+            // Seconds
+            waitTime = Math.max(retryValue * 1000, 60000); // Minimum 60 seconds
           }
         } else {
-          // Check Retry-After header
+          // Check Retry-After header (this is the most reliable source)
           const retryAfterHeader = response.headers.get("retry-after");
           if (retryAfterHeader) {
             const retryAfterSeconds = parseInt(retryAfterHeader);
-            waitTime = retryAfterSeconds * 1000; // Convert seconds to milliseconds
-            // Add small buffer to retry-after header value (10% extra)
-            waitTime = Math.round(waitTime * 1.1);
+            if (!isNaN(retryAfterSeconds)) {
+              waitTime = retryAfterSeconds * 1000; // Convert seconds to milliseconds
+              // Ensure minimum 60 seconds for rate limits
+              waitTime = Math.max(waitTime, 60000);
+              // Add buffer (20% extra) to retry-after header value
+              waitTime = Math.round(waitTime * 1.2);
+            }
           } else {
-            // Enhanced exponential backoff: 5s, 10s, 20s, 40s, 60s (with cap at 60s)
-            waitTime = Math.min(5000 * Math.pow(2, retryCount), 60000); // Cap at 60 seconds
+            // No Retry-After header - use aggressive exponential backoff with 60s minimum
+            // Enhanced exponential backoff: 60s, 90s, 120s (minimum 60 seconds)
+            waitTime = Math.max(60000 + (retryCount * 30000), 60000); // 60s, 90s, 120s, 150s, 180s
           }
         }
 
-        // Add jitter (random 0-1000ms) to avoid thundering herd
-        const jitter = Math.random() * 1000;
-        const totalWait = Math.min(waitTime + jitter, 90000); // Cap at 90 seconds total for very aggressive rate limits
+        // Add jitter (random 0-5 seconds) to avoid thundering herd
+        const jitter = Math.random() * 5000;
+        const totalWait = Math.min(waitTime + jitter, 180000); // Cap at 3 minutes total
 
-        console.log(`[OpenAI] Rate limit hit for daily-guidance, retrying after ${Math.round(totalWait)}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        console.log(`[OpenAI] Rate limit hit for daily-guidance, retrying after ${Math.round(totalWait / 1000)}s (attempt ${retryCount + 1}/${maxRetries})`);
         
         await new Promise(resolve => setTimeout(resolve, totalWait));
         return generateWithOpenAI(prompt, retryCount + 1, maxRetries);
