@@ -195,8 +195,8 @@ function PreviewContent() {
       console.error("[CLIENT REPORT GENERATION EXCEPTION]", JSON.stringify(exceptionContext, null, 2));
       
       // Improved error message for rate limits
-      if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit"))) {
-        setError("Our AI service is temporarily busy due to high demand. Please wait 1-2 minutes and try again. We're working to process your request as quickly as possible.");
+      if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit") || e.message.includes("high demand"))) {
+        setError("Our AI service is experiencing high demand right now. Please wait 2-3 minutes and try again. Your request will be processed as soon as capacity is available. If you've paid, your payment has been automatically cancelled and you will NOT be charged.");
       } else {
         setError(e.message || "Failed to generate report. Please try again.");
       }
@@ -445,8 +445,8 @@ function PreviewContent() {
     } catch (e: any) {
       console.error("Bundle generation error:", e);
       // Improved error message for rate limits
-      if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit"))) {
-        setError("Our AI service is temporarily busy due to high demand. Please wait 1-2 minutes and try again. We're working to process your request as quickly as possible.");
+      if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit") || e.message.includes("high demand"))) {
+        setError("Our AI service is experiencing high demand right now. Please wait 2-3 minutes and try again. Your request will be processed as soon as capacity is available. If you've paid, your payment has been automatically cancelled and you will NOT be charged.");
       } else {
         setError(e.message || "Failed to generate bundle reports. Please try again.");
       }

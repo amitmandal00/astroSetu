@@ -707,6 +707,15 @@ export async function POST(req: Request) {
         errorString.includes("sufficient credit") ||
         (errorMessage.includes("403") && (errorString.includes("credit") || errorString.includes("balance")));
       
+      // Check for rate limit errors specifically
+      const isRateLimitError = 
+        errorMessage.includes("rate limit") || 
+        errorMessage.includes("rate_limit") ||
+        errorMessage.includes("Rate limit") ||
+        errorMessage.includes("429") ||
+        errorString.includes("rate_limit_exceeded") ||
+        errorString.includes("rate limit");
+      
       // Check for various configuration and quota errors
       const isConfigError = 
         errorMessage.includes("API key") || 
@@ -736,8 +745,10 @@ export async function POST(req: Request) {
         "Cache-Control": "no-cache, no-store, must-revalidate",
       };
       
-      // Add Retry-After header for quota/config errors
-      if (isConfigError) {
+      // Add Retry-After header for rate limit and quota/config errors
+      if (isRateLimitError) {
+        headers["Retry-After"] = "120"; // Suggest retry after 2 minutes for rate limits
+      } else if (isConfigError) {
         headers["Retry-After"] = "3600"; // Suggest retry after 1 hour for quota issues
       }
       
@@ -748,19 +759,29 @@ export async function POST(req: Request) {
         ? " Your payment has been automatically cancelled and you will NOT be charged. If any amount was authorized, it will be released within 1-3 business days (no action required from you)."
         : "";
       
-      const finalErrorMessage = isTimeoutError
+      const finalErrorMessage = isRateLimitError
+        ? `Our AI service is experiencing high demand right now. Please wait 2-3 minutes and try again. Your request will be processed as soon as capacity is available.${refundMessage}`
+        : isTimeoutError
         ? `Report generation is taking longer than expected. Please try again with a simpler request, or contact support if the issue persists.${refundMessage}`
         : isConfigError
         ? `Astrology calculation service is temporarily unavailable. Reports may use estimated data. Please try again later.${refundMessage}`
         : `We're sorry, but we were unable to generate your report at this time.${refundMessage} Please try again later or contact support if the issue persists.`;
       
-      const finalErrorCode = isTimeoutError
+      const finalErrorCode = isRateLimitError
+        ? "RATE_LIMIT_EXCEEDED"
+        : isTimeoutError
         ? "TIMEOUT"
         : isConfigError
         ? "SERVICE_UNAVAILABLE"
         : "REPORT_GENERATION_FAILED";
       
-      const finalStatus = isTimeoutError ? 504 : (isConfigError ? 503 : 500);
+      const finalStatus = isRateLimitError 
+        ? 429 // Rate limit status code
+        : isTimeoutError 
+        ? 504 
+        : isConfigError 
+        ? 503 
+        : 500;
       
       // CRITICAL: ALWAYS cancel payment if report generation fails
       // This ensures users are NEVER charged if report generation fails
