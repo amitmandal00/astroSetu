@@ -875,57 +875,16 @@ export async function POST(req: Request) {
 
     // CRITICAL: Capture payment ONLY after successful report generation
     // This ensures payment is NEVER deducted if report generation fails
-    // Wrap in try-catch to ensure we ALWAYS cancel payment if capture fails
-    // Use Promise.race with timeout to prevent hanging
+    // IMPORTANT: Payment operations must NEVER block the response return
+    // Use fire-and-forget pattern with timeout protection
     if (paymentIntentId && isPaidReportType(reportType) && !shouldSkipPayment) {
-      let paymentCaptured = false;
+      // Fire-and-forget payment capture - don't block response return
+      // If capture fails, we'll cancel in background (user won't be charged)
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
       
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
-        const captureUrl = `${baseUrl}/api/ai-astrology/capture-payment`;
-        
-        // Add timeout for payment capture to prevent hanging (5 seconds max)
-        const captureTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Payment capture timeout")), 5000);
-        });
-        
-        const captureFetch = fetch(captureUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            paymentIntentId,
-            sessionId: fallbackSessionId,
-          }),
-        });
-        
-        const captureResponse = await Promise.race([captureFetch, captureTimeout]);
-        
-        if (captureResponse.ok) {
-          paymentCaptured = true;
-          const captureSuccess = {
-            requestId,
-            timestamp: new Date().toISOString(),
-            paymentIntentId,
-            reportType,
-            action: "Payment captured after successful report generation",
-          };
-          console.log("[PAYMENT CAPTURED - REPORT SUCCESS]", JSON.stringify(captureSuccess, null, 2));
-        } else {
-          // CRITICAL: If capture fails, we must cancel payment (payment not captured = user not charged)
-          // Report is generated but payment capture failed - cancel to ensure no charge
-          const captureError = {
-            requestId,
-            timestamp: new Date().toISOString(),
-            paymentIntentId,
-            status: captureResponse.status,
-            error: "Payment capture failed - will cancel payment to protect user",
-          };
-          console.error("[PAYMENT CAPTURE FAILED - CANCELLING]", JSON.stringify(captureError, null, 2));
-          
-          // Cancel payment immediately - user should not be charged if capture fails
-          // Use timeout to prevent hanging (fire and forget with 3s timeout)
+      // Helper function to cancel payment in background (fire-and-forget)
+      function cancelPaymentInBackground(paymentIntentId: string, sessionId: string, reason: string) {
+        (async () => {
           try {
             const cancelTimeout = new Promise<never>((_, reject) => {
               setTimeout(() => reject(new Error("Cancel timeout")), 3000);
@@ -937,63 +896,102 @@ export async function POST(req: Request) {
               },
               body: JSON.stringify({
                 paymentIntentId,
-                sessionId: fallbackSessionId,
-                reason: "Payment capture failed after report generation",
+                sessionId,
+                reason,
               }),
             });
             await Promise.race([cancelFetch, cancelTimeout]).catch(() => {
-              // Ignore timeout - log for manual intervention
               console.warn("[PAYMENT] Cancel request timed out - will retry in background");
             });
           } catch (cancelError) {
-            console.error("[CRITICAL] Failed to cancel payment after capture failure:", cancelError);
+            console.error("[CRITICAL] Failed to cancel payment:", cancelError);
+            console.error("[MANUAL INTERVENTION REQUIRED]", {
+              paymentIntentId,
+              reason: "Payment capture failed and cancellation also failed",
+              action: "Manual refund required",
+            });
           }
-        }
-      } catch (captureError: any) {
-        // CRITICAL: If capture throws error, cancel payment immediately
-        // This ensures user is NEVER charged if capture fails
-        const criticalError = {
-          requestId,
-          timestamp: new Date().toISOString(),
-          paymentIntentId,
-          errorType: captureError.constructor?.name || "Unknown",
-          errorMessage: captureError.message || "Unknown error",
-          action: "Payment capture error - cancelling payment to protect user",
-        };
-        console.error("[CRITICAL - PAYMENT CAPTURE ERROR]", JSON.stringify(criticalError, null, 2));
-        
-        // Cancel payment immediately - user should not be charged
-        // Use timeout to prevent hanging (fire and forget with 3s timeout)
+        })().catch(() => {
+          // Ignore any errors - already logged
+        });
+      }
+      
+      (async () => {
         try {
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
-          const cancelTimeout = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error("Cancel timeout")), 3000);
+          const captureUrl = `${baseUrl}/api/ai-astrology/capture-payment`;
+          
+          // Add timeout for payment capture to prevent hanging (5 seconds max)
+          const captureTimeout = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Payment capture timeout")), 5000);
           });
-          const cancelFetch = fetch(`${baseUrl}/api/ai-astrology/cancel-payment`, {
+          
+          const captureFetch = fetch(captureUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               paymentIntentId,
-              sessionId: fallbackSessionId,
-              reason: `Payment capture error: ${captureError.message || "Unknown error"}`,
+              sessionId: fallbackSessionId || "",
             }),
           });
-          await Promise.race([cancelFetch, cancelTimeout]).catch(() => {
-            // Ignore timeout - log for manual intervention
-            console.warn("[PAYMENT] Cancel request timed out - will retry in background");
-          });
-        } catch (cancelError) {
-          console.error("[CRITICAL] Failed to cancel payment after capture error:", cancelError);
-          // Log for manual intervention
-          console.error("[MANUAL INTERVENTION REQUIRED]", {
+          
+          try {
+            const captureResponse = await Promise.race([captureFetch, captureTimeout]);
+            
+            if (captureResponse.ok) {
+              const captureSuccess = {
+                requestId,
+                timestamp: new Date().toISOString(),
+                paymentIntentId,
+                reportType,
+                action: "Payment captured after successful report generation",
+              };
+              console.log("[PAYMENT CAPTURED - REPORT SUCCESS]", JSON.stringify(captureSuccess, null, 2));
+            } else {
+              // CRITICAL: If capture fails, we must cancel payment (payment not captured = user not charged)
+              console.error("[PAYMENT CAPTURE FAILED - CANCELLING]", JSON.stringify({
+                requestId,
+                timestamp: new Date().toISOString(),
+                paymentIntentId,
+                status: captureResponse.status,
+                error: "Payment capture failed - will cancel payment to protect user",
+              }, null, 2));
+              
+              // Cancel payment in background (fire-and-forget)
+              cancelPaymentInBackground(paymentIntentId, fallbackSessionId || "", "Payment capture failed after report generation");
+            }
+          } catch (timeoutError: any) {
+            // Timeout or fetch error - cancel payment in background
+            console.error("[PAYMENT CAPTURE TIMEOUT/ERROR]", JSON.stringify({
+              requestId,
+              timestamp: new Date().toISOString(),
+              paymentIntentId,
+              errorType: timeoutError.constructor?.name || "Unknown",
+              errorMessage: timeoutError.message || "Unknown error",
+              action: "Payment capture timed out/failed - cancelling payment to protect user",
+            }, null, 2));
+            
+            // Cancel payment in background (fire-and-forget)
+            cancelPaymentInBackground(paymentIntentId, fallbackSessionId || "", `Payment capture error: ${timeoutError.message || "Timeout"}`);
+          }
+        } catch (captureError: any) {
+          // Any other error - cancel payment in background
+          console.error("[CRITICAL - PAYMENT CAPTURE ERROR]", JSON.stringify({
+            requestId,
+            timestamp: new Date().toISOString(),
             paymentIntentId,
-            reason: "Payment capture failed and cancellation also failed",
-            action: "Manual refund required",
-          });
+            errorType: captureError.constructor?.name || "Unknown",
+            errorMessage: captureError.message || "Unknown error",
+            action: "Payment capture error - cancelling payment to protect user",
+          }, null, 2));
+          
+          cancelPaymentInBackground(paymentIntentId, fallbackSessionId || "", `Payment capture error: ${captureError.message || "Unknown error"}`);
         }
-      }
+      })().catch((backgroundError) => {
+        // Ignore any errors from background payment operations
+        console.error("[BACKGROUND PAYMENT ERROR]", backgroundError);
+      });
     }
 
     // Return report
