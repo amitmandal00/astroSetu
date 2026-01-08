@@ -229,7 +229,41 @@ export async function POST(req: Request) {
         const { searchParams } = new URL(req.url);
         const sessionId = searchParams.get("session_id");
         
-        if (sessionId) {
+        // CRITICAL: Check if this is a test session BEFORE trying Stripe verification
+        // Test sessions start with "test_session_" and should NEVER be verified with Stripe
+        if (sessionId && sessionId.startsWith("test_session_")) {
+          console.log(`[TEST SESSION] Detected test session: ${sessionId.substring(0, 30)}... - Skipping Stripe verification`);
+          
+          // For test sessions, generate a payment token directly (bypass Stripe)
+          // Extract reportType from session ID (format: test_session_{reportType}_{requestId})
+          const sessionPrefix = "test_session_";
+          const afterPrefix = sessionId.substring(sessionPrefix.length);
+          // Find the last underscore to separate reportType from requestId
+          const lastUnderscoreIndex = afterPrefix.lastIndexOf("_");
+          let extractedReportType = reportType; // Default to requested reportType
+          
+          if (lastUnderscoreIndex > 0) {
+            extractedReportType = afterPrefix.substring(0, lastUnderscoreIndex) as ReportType;
+          }
+          
+          // Verify report type matches (or use extracted one if it's valid)
+          const validReportType = extractedReportType === reportType ? reportType : extractedReportType;
+          
+          // Generate payment token for test session
+          const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
+          paymentTokenToVerify = generatePaymentToken(validReportType, sessionId);
+          paymentVerified = true;
+          
+          const testSessionVerified = {
+            requestId,
+            timestamp: new Date().toISOString(),
+            reportType: validReportType,
+            sessionId: sessionId.substring(0, 20) + "...",
+            action: "Test session verified - payment bypassed",
+          };
+          console.log("[TEST SESSION VERIFIED]", JSON.stringify(testSessionVerified, null, 2));
+        } else if (sessionId) {
+          // Only try Stripe verification for real (non-test) session IDs
           try {
             // Verify payment using session_id via Stripe API
             const Stripe = (await import("stripe")).default;
@@ -336,7 +370,34 @@ export async function POST(req: Request) {
           const { searchParams } = new URL(req.url);
           const sessionId = searchParams.get("session_id");
           
-          if (sessionId) {
+          // CRITICAL: Check if this is a test session BEFORE trying Stripe verification
+          if (sessionId && sessionId.startsWith("test_session_")) {
+            console.log(`[TEST SESSION] Detected test session in token fallback: ${sessionId.substring(0, 30)}... - Skipping Stripe verification`);
+            
+            // Extract reportType from test session ID
+            const sessionPrefix = "test_session_";
+            const afterPrefix = sessionId.substring(sessionPrefix.length);
+            const lastUnderscoreIndex = afterPrefix.lastIndexOf("_");
+            let extractedReportType = reportType;
+            
+            if (lastUnderscoreIndex > 0) {
+              extractedReportType = afterPrefix.substring(0, lastUnderscoreIndex) as ReportType;
+            }
+            
+            const validReportType = extractedReportType === reportType ? reportType : extractedReportType;
+            
+            // Generate payment token for test session
+            const { generatePaymentToken } = await import("@/lib/ai-astrology/paymentToken");
+            paymentTokenToVerify = generatePaymentToken(validReportType, sessionId);
+            paymentVerified = true;
+            
+            console.log("[TEST SESSION VERIFIED - TOKEN FALLBACK]", JSON.stringify({
+              requestId,
+              reportType: validReportType,
+              sessionId: sessionId.substring(0, 20) + "...",
+            }, null, 2));
+          } else if (sessionId) {
+            // Only try Stripe verification for real (non-test) session IDs
             try {
               const Stripe = (await import("stripe")).default;
               const secretKey = process.env.STRIPE_SECRET_KEY;
