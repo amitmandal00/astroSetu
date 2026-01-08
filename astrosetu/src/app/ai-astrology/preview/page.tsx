@@ -221,40 +221,82 @@ function PreviewContent() {
       // Generate all reports in parallel for faster loading
       // Use Promise.allSettled to handle partial failures gracefully
       const completedReports = new Set<ReportType>();
-      const updateProgress = (reportType: ReportType) => {
+      const updateProgress = (reportType: ReportType, success: boolean) => {
         completedReports.add(reportType);
         setBundleProgress({ 
           current: completedReports.size, 
           total: reports.length, 
           currentReport: getReportName(reportType) 
         });
+        console.log(`[BUNDLE PROGRESS] ${completedReports.size}/${reports.length} reports completed (${success ? 'success' : 'failed'}): ${getReportName(reportType)}`);
       };
 
+      // Individual timeout for each report (65 seconds - slightly longer than API timeout)
+      const INDIVIDUAL_REPORT_TIMEOUT = 65000;
+
       const reportPromises = reports.map(async (reportType) => {
+        const reportName = getReportName(reportType);
+        console.log(`[BUNDLE] Starting generation: ${reportName}`);
+        
+        // Create abort controller for timeout
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+          abortController.abort();
+        }, INDIVIDUAL_REPORT_TIMEOUT);
+
         try {
-          const response = await apiPost<{
-            ok: boolean;
-            data?: {
-              reportType: ReportType;
-              input: AIAstrologyInput;
-              content: ReportContent;
-              generatedAt: string;
-            };
-            error?: string;
-          }>("/api/ai-astrology/generate-report", {
-            input: inputData,
-            reportType: reportType,
-            paymentToken: paymentToken,
-            sessionId: sessionId, // For token regeneration fallback
-            paymentIntentId: paymentIntentId, // For manual capture after report generation
+          // Build API URL with session_id as query param (for test session detection)
+          let apiUrl = "/api/ai-astrology/generate-report";
+          if (sessionId) {
+            apiUrl += `?session_id=${encodeURIComponent(sessionId)}`;
+          }
+
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              input: inputData,
+              reportType: reportType,
+              paymentToken: paymentToken,
+              sessionId: sessionId, // For token regeneration fallback
+              paymentIntentId: paymentIntentId, // For manual capture after report generation
+            }),
+            signal: abortController.signal,
           });
 
-          if (response.ok && response.data?.content) {
-            updateProgress(reportType);
-            return { reportType, content: response.data.content, success: true };
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+            console.error(`[BUNDLE] Failed to generate ${reportName}:`, errorData.error || response.statusText);
+            const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+            
+            updateProgress(reportType, false);
+            
+            // Make timeout errors more user-friendly
+            const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out") || errorMessage.includes("aborted")
+              ? "This report is taking longer than expected. It may time out - try generating it individually for better results."
+              : errorMessage;
+            
+            return { 
+              reportType, 
+              content: null, 
+              success: false, 
+              error: friendlyError
+            };
+          }
+
+          const data = await response.json();
+          
+          if (data.ok && data.data?.content) {
+            console.log(`[BUNDLE] Successfully generated: ${reportName}`);
+            updateProgress(reportType, true);
+            return { reportType, content: data.data.content, success: true };
           } else {
-            console.error(`Failed to generate ${reportType}:`, response.error);
-            const errorMessage = response.error || "Failed to generate report";
+            console.error(`[BUNDLE] Failed to generate ${reportName}:`, data.error || "Unknown error");
+            const errorMessage = data.error || "Failed to generate report";
+            updateProgress(reportType, false);
+            
             // Make timeout errors more user-friendly
             const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out")
               ? "This report is taking longer than expected. It may time out - try generating it individually for better results."
@@ -268,10 +310,17 @@ function PreviewContent() {
             };
           }
         } catch (e: any) {
-          console.error(`Error generating ${reportType}:`, e);
-          const errorMessage = e.message || "Failed to generate report";
+          clearTimeout(timeoutId);
+          console.error(`[BUNDLE] Error generating ${reportName}:`, e);
+          
+          const errorMessage = e.name === 'AbortError' 
+            ? "Request timed out. This report is taking longer than expected. Please try generating it individually."
+            : e.message || "Failed to generate report";
+          
+          updateProgress(reportType, false);
+          
           // Make timeout errors more user-friendly
-          const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out")
+          const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out") || errorMessage.includes("aborted")
             ? "Request timed out. This report is taking longer than expected. Please try generating it individually."
             : errorMessage;
           
