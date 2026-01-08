@@ -380,9 +380,16 @@ function InputFormContent() {
                       <span className="animate-spin">🌙</span>
                       Processing...
                     </span>
+                  ) : bundleParam ? (
+                    // Bundle selected - show purchase action
+                    `Purchase ${getReportTitle()}`
                   ) : reportType ? (
-                    `Generate ${getReportTitle()}`
+                    // Single report selected - check if it's paid or free
+                    reportType === "life-summary" 
+                      ? `Get ${getReportTitle()}`
+                      : `Purchase ${getReportTitle()}`
                   ) : (
+                    // No selection - default to free summary
                     "Get Free Life Summary"
                   )}
                 </Button>

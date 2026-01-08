@@ -30,6 +30,7 @@ function PreviewContent() {
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [refundAcknowledged, setRefundAcknowledged] = useState(false);
   const [emailCopySuccess, setEmailCopySuccess] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<"verifying" | "generating" | null>(null); // Track loading stage for better UX
   
   // Bundle state
   const [bundleType, setBundleType] = useState<string | null>(null);
@@ -59,6 +60,7 @@ function PreviewContent() {
 
   const generateReport = useCallback(async (inputData: AIAstrologyInput, type: ReportType, currentSessionId?: string, currentPaymentIntentId?: string) => {
     setLoading(true);
+    setLoadingStage("generating"); // Ensure stage is set when generating
     setError(null);
 
     try {
@@ -164,6 +166,7 @@ function PreviewContent() {
       setError(e.message || "Failed to generate report. Please try again.");
     } finally {
       setLoading(false);
+      setLoadingStage(null);
     }
   }, []);
 
@@ -290,6 +293,7 @@ function PreviewContent() {
     } finally {
       setBundleGenerating(false);
       setLoading(false);
+      setLoadingStage(null);
     }
   }, []);
 
@@ -327,6 +331,7 @@ function PreviewContent() {
       if (!paymentVerified && urlSessionId) {
         // Attempt to regenerate payment token from session_id - MUST WAIT for this
         setLoading(true); // Show loading while verifying
+        setLoadingStage("verifying"); // Show payment verification stage
         
         (async () => {
           try {
@@ -366,25 +371,28 @@ function PreviewContent() {
                   setReportType(verifyResponse.data.reportType as ReportType);
                 }
                 setPaymentVerified(true);
-                setLoading(false);
                 console.log("[Preview] Payment token and intent ID regenerated successfully");
                 
                 // Now trigger report generation with verified payment
+                setLoadingStage("generating"); // Switch to report generation stage
                 generateReport(inputData, verifyResponse.data.reportType as ReportType || reportTypeToUse, urlSessionId, verifyResponse.data.paymentIntentId);
                 return;
               } catch (e) {
                 console.error("Failed to store regenerated payment token:", e);
                 setLoading(false);
+                setLoadingStage(null);
               }
             } else {
               console.error("[Preview] Payment verification failed:", verifyResponse.error);
               setError(`Payment verification failed: ${verifyResponse.error || "Please complete payment again."}`);
               setLoading(false);
+              setLoadingStage(null);
             }
           } catch (e: any) {
             console.error("Failed to regenerate payment token from session_id:", e);
             setError(`Failed to verify payment: ${e.message || "Please try again or contact support."}`);
             setLoading(false);
+            setLoadingStage(null);
           }
         })();
         
@@ -432,6 +440,9 @@ function PreviewContent() {
         } catch (e) {
           console.error("Failed to read paymentIntentId from sessionStorage:", e);
         }
+        // Show loading immediately and set stage to generating
+        setLoading(true);
+        setLoadingStage("generating");
         // Small delay to ensure state is set
         setTimeout(() => {
           if (isBundle && savedBundleReports) {
@@ -445,7 +456,7 @@ function PreviewContent() {
           } else {
             generateReport(inputData, reportTypeToUse, urlSessionId || undefined, paymentIntentIdFromStorage);
           }
-        }, 500);
+        }, 300);
       }
       
       // Generate bundle reports or single report
@@ -540,6 +551,7 @@ function PreviewContent() {
 
   if (loading) {
     const isBundleLoading = bundleType && bundleReports.length > 0;
+    const isVerifying = loadingStage === "verifying";
     
     return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
@@ -547,9 +559,33 @@ function PreviewContent() {
           <CardContent className="p-12 text-center">
             <div className="animate-spin text-6xl mb-6">🌙</div>
             <h2 className="text-2xl font-bold mb-4">
-              {isBundleLoading ? "Generating Your Bundle Reports..." : "Generating Your Report..."}
+              {isVerifying 
+                ? "Verifying Your Payment..." 
+                : isBundleLoading 
+                ? "Generating Your Bundle Reports..." 
+                : "Generating Your Report..."}
             </h2>
-            {isBundleLoading && bundleProgress ? (
+            
+            {isVerifying ? (
+              <div className="space-y-4">
+                <p className="text-slate-600 mb-4">
+                  We're confirming your payment was successful. This usually takes just a few seconds...
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="text-xl">💳</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-blue-800 mb-1">
+                        Payment Verification in Progress
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        Please wait while we verify your payment. Your report will start generating automatically once verification is complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : isBundleLoading && bundleProgress ? (
               <div className="space-y-4">
                 <p className="text-slate-600 mb-4">
                   Generating {bundleProgress.total} reports in parallel for faster loading...
@@ -570,10 +606,33 @@ function PreviewContent() {
                 )}
               </div>
             ) : (
-              <p className="text-slate-600">
-                Our AI is analyzing your birth chart and generating personalized insights.
-                This may take a moment.
-              </p>
+              <div className="space-y-4">
+                <p className="text-slate-600 mb-4">
+                  Our AI is analyzing your birth chart and generating personalized insights.
+                  This typically takes 30-60 seconds.
+                </p>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="text-xl">✨</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-purple-800 mb-1">
+                        Report Generation in Progress
+                      </p>
+                      <p className="text-xs text-purple-700 mb-2">
+                        Your personalized AI astrology report is being created. This includes:
+                      </p>
+                      <ul className="text-xs text-purple-600 space-y-1 ml-4 list-disc">
+                        <li>Analyzing your birth chart data</li>
+                        <li>Generating personalized insights</li>
+                        <li>Preparing your complete report</li>
+                      </ul>
+                      <p className="text-xs text-purple-600 mt-2 font-medium">
+                        ⏱️ Estimated time: 30-60 seconds
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

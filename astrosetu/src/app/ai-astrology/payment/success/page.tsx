@@ -25,6 +25,7 @@ function PaymentSuccessContent() {
   const [isSubscription, setIsSubscription] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTestSession, setIsTestSession] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
 
   useEffect(() => {
     // Validate session_id parameter
@@ -113,12 +114,20 @@ function PaymentSuccessContent() {
           // CRITICAL FIX: Include session_id in URL to allow token regeneration if sessionStorage is lost
           // Also trigger auto-generation by passing auto_generate=true
           if (!subscription && paymentReportType && paymentReportType !== "subscription") {
-            // Small delay to show success message, then redirect
+            // Start countdown and redirect after 3 seconds
             // Pass session_id as URL param so it can be used to regenerate token if sessionStorage fails
             // Pass auto_generate=true to trigger automatic report generation
-            setTimeout(() => {
-              router.push(`/ai-astrology/preview?session_id=${encodeURIComponent(sid)}&auto_generate=true`);
-            }, 2000);
+            let countdown = 3;
+            setRedirectCountdown(countdown);
+            
+            const countdownInterval = setInterval(() => {
+              countdown--;
+              setRedirectCountdown(countdown);
+              if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                router.push(`/ai-astrology/preview?session_id=${encodeURIComponent(sid)}&auto_generate=true`);
+              }
+            }, 1000);
           }
         } else {
           setError("Payment not completed");
@@ -250,8 +259,29 @@ function PaymentSuccessContent() {
                 <p className="text-slate-700 mb-4">
                   Your {getReportName(reportType, isSubscription)} is now unlocked! Your report is being generated automatically.
                 </p>
+                
+                {/* Redirect countdown indicator */}
+                {redirectCountdown > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="animate-spin text-xl">⏳</div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-blue-800 mb-1">
+                          Preparing Your Report...
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          Redirecting to your report in <strong>{redirectCountdown}</strong> second{redirectCountdown !== 1 ? 's' : ''}...
+                        </p>
+                        <p className="text-xs text-blue-600 mt-2">
+                          Your report will start generating automatically - please wait, this may take 30-60 seconds.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Link href="/ai-astrology/preview" className="flex-1">
+                  <Link href={`/ai-astrology/preview?session_id=${encodeURIComponent(sessionId || '')}&auto_generate=true`} className="flex-1">
                     <Button className="w-full cosmic-button text-lg py-6">
                       View My Report Now →
                     </Button>
