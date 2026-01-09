@@ -176,12 +176,16 @@ function InputFormContent() {
       }
 
       // Redirect to preview page
-      router.push("/ai-astrology/preview");
+      // CRITICAL: Don't reset loading state on successful navigation to prevent flickering
+      // The loading state will be cleared when the component unmounts during navigation
+      await router.push("/ai-astrology/preview");
+      // Note: If navigation fails, we'll catch it below
     } catch (e: any) {
       setError(e.message || "Something went wrong. Please check your inputs.");
-    } finally {
+      // Only reset loading state on error (when navigation doesn't happen)
       setLoading(false);
     }
+    // Removed finally block - loading state persists during navigation to prevent flicker
   };
 
   const getReportTitle = () => {
