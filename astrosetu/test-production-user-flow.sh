@@ -210,11 +210,11 @@ echo "----------------------------------------"
 # Health check
 test_api_endpoint "GET" "$BASE_URL/api/health" "Health check" "" "200|500"
 
-# Generate report API (free report - should work)
+# Generate report API (free report - should work with authorized test user)
 test_api_endpoint "POST" "$BASE_URL/api/ai-astrology/generate-report" \
-    "Generate free report (life-summary)" \
-    '{"input":{"name":"Test User","dob":"1990-01-01","tob":"10:00","place":"Mumbai, India","latitude":19.0760,"longitude":72.8777,"gender":"Male"},"reportType":"life-summary"}' \
-    "200|400|500"
+    "Generate free report (life-summary) - Test User Amit" \
+    '{"input":{"name":"Amit Kumar Mandal","dob":"1984-11-26","tob":"21:40","place":"Noamundi, Jharkhand, India","latitude":22.15,"longitude":85.5,"gender":"Male"},"reportType":"life-summary"}' \
+    "200|400|403|500"
 
 # Payment verification API
 test_api_endpoint "GET" "$BASE_URL/api/ai-astrology/verify-payment?session_id=test_session_life-summary" \

@@ -15,6 +15,7 @@ import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
 import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
+import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing } from "@/lib/ai-astrology/reportCache";
 
 /**
  * Check if the user is a production test user
@@ -148,12 +149,15 @@ export async function POST(req: Request) {
       }
     };
 
-    // Validate input - CRITICAL: Cancel payment if validation fails
+    // CRITICAL: Fail fast - validate everything BEFORE any OpenAI calls
+    // Order: 1) Input validation, 2) Access restriction, 3) Report type, 4) Idempotency check, 5) Payment verification, 6) Only then call OpenAI
+    
+    // 1. Validate input - CRITICAL: Cancel payment if validation fails
     if (!input.name || !input.dob || !input.tob || !input.place) {
       await cancelPaymentSafely("Input validation failed - missing required fields");
       return NextResponse.json(
         { ok: false, error: "Missing required fields: name, dob, tob, place" },
-        { status: 400 }
+        { status: 400, headers: { "X-Request-ID": requestId } }
       );
     }
 
@@ -161,11 +165,11 @@ export async function POST(req: Request) {
       await cancelPaymentSafely("Input validation failed - missing coordinates");
       return NextResponse.json(
         { ok: false, error: "Latitude and longitude are required" },
-        { status: 400 }
+        { status: 400, headers: { "X-Request-ID": requestId } }
       );
     }
 
-    // CRITICAL: Access restriction for production testing
+    // 2. CRITICAL: Access restriction for production testing
     // Only allow Amit Kumar Mandal and Ankita Surabhi until testing is complete
     const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
     if (restrictAccess && !isAllowedUser(input)) {
@@ -184,35 +188,89 @@ export async function POST(req: Request) {
       
       return NextResponse.json(
         { ok: false, error: getRestrictionMessage() },
-        { status: 403 }
+        { status: 403, headers: { "X-Request-ID": requestId } }
       );
     }
 
-    // Validate report type - CRITICAL: Cancel payment if invalid
+    // 3. Validate report type - CRITICAL: Cancel payment if invalid
     const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
     if (!reportType || !validReportTypes.includes(reportType)) {
       await cancelPaymentSafely("Invalid report type");
       return NextResponse.json(
         { ok: false, error: `Invalid report type. Must be one of: ${validReportTypes.join(", ")}` },
-        { status: 400 }
+        { status: 400, headers: { "X-Request-ID": requestId } }
       );
     }
 
-    // Check if AI is configured - CRITICAL: Cancel payment if service unavailable
-    if (!isAIConfigured()) {
-      await cancelPaymentSafely("AI service unavailable");
+    // 4. CRITICAL: Check idempotency cache BEFORE any OpenAI calls
+    // This prevents duplicate API calls for the same request
+    const idempotencyKey = generateIdempotencyKey(input, reportType, fallbackSessionId);
+    const cachedReport = getCachedReport(idempotencyKey);
+    
+    if (cachedReport) {
+      // Report already exists - return cached version (NO OpenAI call)
+      console.log(`[IDEMPOTENCY] Returning cached report for key: ${idempotencyKey.substring(0, 30)}...`, {
+        requestId,
+        reportId: cachedReport.reportId,
+        status: cachedReport.status,
+      });
+      
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+      const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(cachedReport.reportId)}&reportType=${encodeURIComponent(reportType)}`;
+      const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+      
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: "AI service is temporarily unavailable. Please try again later.",
-          code: "AI_SERVICE_UNAVAILABLE"
+        {
+          ok: true,
+          data: {
+            status: "completed" as const,
+            reportId: cachedReport.reportId,
+            reportType: cachedReport.reportType,
+            input: cachedReport.input,
+            content: cachedReport.content,
+            generatedAt: cachedReport.generatedAt,
+            redirectUrl,
+            fullRedirectUrl,
+            fromCache: true, // Indicate this is from cache
+          },
+          requestId,
         },
-        { 
-          status: 503,
+        {
           headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Retry-After": "60"
-          }
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache", // Don't cache AI-generated content
+          },
+        }
+      );
+    }
+    
+    // Check if report is already processing (prevent concurrent duplicate requests)
+    const reportId = `RPT-${Date.now()}-${requestId.substring(0, 8).toUpperCase()}`;
+    const isProcessing = markReportProcessing(idempotencyKey, reportId);
+    
+    if (!isProcessing) {
+      // Another request is already processing this report - return processing status
+      console.log(`[IDEMPOTENCY] Report already processing for key: ${idempotencyKey.substring(0, 30)}...`, {
+        requestId,
+        reportId,
+      });
+      
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "processing" as const,
+            reportId,
+            message: "Report generation already in progress. Please wait.",
+          },
+          requestId,
+        },
+        {
+          status: 202, // Accepted - processing
+          headers: {
+            "X-Request-ID": requestId,
+            "Retry-After": "10", // Suggest retrying in 10 seconds
+          },
         }
       );
     }
@@ -659,6 +717,13 @@ export async function POST(req: Request) {
       
       // Log successful completion
       console.log(`[REPORT GENERATION] Successfully completed for reportType=${reportType}, content length: ${reportContent ? JSON.stringify(reportContent).length : 0}`);
+      
+      // CRITICAL: Cache the generated report to prevent duplicate OpenAI calls
+      cacheReport(idempotencyKey, reportId, reportContent, reportType, input);
+      console.log(`[IDEMPOTENCY] Cached report for key: ${idempotencyKey.substring(0, 30)}...`, {
+        requestId,
+        reportId,
+      });
   } catch (error: any) {
     // COMPREHENSIVE ERROR LOGGING for production debugging
     const errorContext = {
@@ -999,13 +1064,10 @@ export async function POST(req: Request) {
     }
 
     // Return report
-    console.log(`[REPORT GENERATION] Returning response for reportType=${reportType}, requestId=${requestId}`);
-    
-    // Generate canonical reportId from requestId for tracking
-    // CRITICAL: This is the ONLY reportId - content should NOT have its own reportId
-    const reportId = `RPT-${Date.now()}-${requestId.split('-').pop()?.substring(0, 8).toUpperCase() || 'UNKNOWN'}`;
+    console.log(`[REPORT GENERATION] Returning response for reportType=${reportType}, requestId=${requestId}, reportId=${reportId}`);
     
     // Ensure content doesn't have its own reportId (remove if present to avoid duplication)
+    // reportId was already generated above for idempotency check
     // Canonical reportId is stored in data.reportId, not in content.reportId
     const contentWithoutReportId = { ...reportContent };
     if ('reportId' in contentWithoutReportId) {

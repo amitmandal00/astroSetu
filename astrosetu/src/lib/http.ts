@@ -83,11 +83,12 @@ export async function apiGet<T>(url: string): Promise<T> {
   }
 }
 
-export async function apiPost<T>(url: string, body: unknown, options?: { timeout?: number }): Promise<T> {
+export async function apiPost<T>(url: string, body: unknown, options?: { timeout?: number; timeoutMs?: number }): Promise<T> {
   try {
     const controller = new AbortController();
-    // Default timeout is 30 seconds, but report generation needs more time (up to 90 seconds)
-    const timeout = options?.timeout || 30000;
+    // Default timeout is 30 seconds, but report generation needs more time (up to 120 seconds)
+    // Support both 'timeout' and 'timeoutMs' for compatibility
+    const timeout = options?.timeoutMs ?? options?.timeout ?? 30000;
     const timeoutId = setTimeout(() => controller.abort(), timeout);
     
     const res = await fetch(url, {
