@@ -881,6 +881,82 @@ function PreviewContent() {
     }
   }, [loading, loadingStartTime, loadingStage, reportType]);
 
+  // AUTO-RECOVERY: If stuck on "Preparing Your Report..." screen with session_id, auto-trigger recovery
+  const urlSessionIdForRecovery = searchParams.get("session_id");
+  const autoGenerateForRecovery = searchParams.get("auto_generate") === "true";
+  const hasSessionIdForRecovery = !!urlSessionIdForRecovery;
+  
+  useEffect(() => {
+    // Only trigger if we're stuck (no content, no input, not loading, not showing error, but have session_id)
+    if ((hasSessionIdForRecovery || autoGenerateForRecovery) && !loading && !reportContent && !input && !error) {
+      // Wait a moment to ensure state is set, then auto-trigger recovery
+      const timer = setTimeout(() => {
+        console.log("[AUTO-RECOVERY] Detected stuck state with session_id, auto-triggering recovery...");
+        
+        // Try to get input from sessionStorage
+        try {
+          const savedInput = sessionStorage.getItem("aiAstrologyInput");
+          const savedReportType = sessionStorage.getItem("aiAstrologyReportType");
+          
+          if (savedInput && savedReportType && urlSessionIdForRecovery) {
+            setLoading(true);
+            setLoadingStage("generating");
+            setLoadingStartTime(Date.now());
+            setError(null);
+            
+            // Trigger recovery automatically
+            (async () => {
+              try {
+                const inputData = JSON.parse(savedInput);
+                const reportTypeToUse = savedReportType as ReportType;
+                
+                // Verify payment first
+                const verifyResponse = await apiGet<{
+                  ok: boolean;
+                  data?: {
+                    paid: boolean;
+                    paymentToken?: string;
+                    reportType?: string;
+                    paymentIntentId?: string;
+                  };
+                }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionIdForRecovery)}`);
+                
+                if (verifyResponse.ok && verifyResponse.data?.paid) {
+                  // Store payment data
+                  if (verifyResponse.data.paymentToken) {
+                    sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
+                  }
+                  if (verifyResponse.data.paymentIntentId) {
+                    sessionStorage.setItem("aiAstrologyPaymentIntentId", verifyResponse.data.paymentIntentId);
+                  }
+                  sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+                  setPaymentVerified(true);
+                  setInput(inputData);
+                  setReportType(reportTypeToUse);
+                  
+                  // Regenerate report
+                  await generateReport(inputData, reportTypeToUse, urlSessionIdForRecovery, verifyResponse.data.paymentIntentId);
+                } else {
+                  throw new Error("Payment verification failed. Please complete payment again.");
+                }
+              } catch (e: any) {
+                console.error("[AUTO-RECOVERY] Failed:", e);
+                setError(e.message || "Failed to recover report. Please use the manual recovery button below.");
+                setLoading(false);
+                setLoadingStage(null);
+                setLoadingStartTime(null);
+              }
+            })();
+          }
+        } catch (e) {
+          console.error("[AUTO-RECOVERY] Error accessing sessionStorage:", e);
+        }
+      }, 2000); // Wait 2 seconds before auto-triggering
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasSessionIdForRecovery, autoGenerateForRecovery, loading, reportContent, input, error, urlSessionIdForRecovery]);
+
   if (loading) {
     const isBundleLoading = bundleType && bundleReports.length > 0;
     const isVerifying = loadingStage === "verifying";
@@ -1413,6 +1489,7 @@ function PreviewContent() {
     // Check if we're in a stuck state (no loading, no error, no content)
     const urlSessionId = searchParams.get("session_id");
     const urlReportId = searchParams.get("reportId");
+    const autoGenerate = searchParams.get("auto_generate") === "true";
     const hasSessionId = !!urlSessionId;
     const isPaidReport = reportType && reportType !== "life-summary";
     
@@ -1423,6 +1500,15 @@ function PreviewContent() {
             <CardContent className="p-8 text-center">
               <div className="text-5xl mb-4">⏳</div>
               <h2 className="text-2xl font-bold mb-4 text-slate-800">Preparing Your Report...</h2>
+              
+              {/* Auto-recovery indicator */}
+              {(hasSessionId || autoGenerate) && (
+                <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 font-medium">
+                    🔄 Auto-recovery in progress... Attempting to load your report.
+                  </p>
+                </div>
+              )}
               
               {/* Show more informative message based on state */}
               {hasSessionId || urlReportId ? (
