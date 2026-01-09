@@ -34,6 +34,8 @@ function PreviewContent() {
   const [refundAcknowledged, setRefundAcknowledged] = useState(false);
   const [emailCopySuccess, setEmailCopySuccess] = useState(false);
   const [loadingStage, setLoadingStage] = useState<"verifying" | "generating" | null>(null); // Track loading stage for better UX
+  const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null); // Track when loading started for elapsed time
+  const [elapsedTime, setElapsedTime] = useState<number>(0); // Track elapsed time in seconds
   
   // Bundle state
   const [bundleType, setBundleType] = useState<string | null>(null);
@@ -82,6 +84,8 @@ function PreviewContent() {
     
     setLoading(true);
     setLoadingStage("generating"); // Ensure stage is set when generating
+    setLoadingStartTime(Date.now()); // Track when loading started
+    setElapsedTime(0); // Reset elapsed time
     setError(null);
 
     try {
@@ -268,6 +272,8 @@ function PreviewContent() {
         setError(e.message || "Request failed. Please check your permissions or try again later.");
         setLoading(false);
         setLoadingStage(null);
+        setLoadingStartTime(null); // Clear loading start time
+        setElapsedTime(0); // Reset elapsed time
         isGeneratingRef.current = false; // Clear lock immediately
         return; // Exit - no retry
       }
@@ -595,6 +601,8 @@ function PreviewContent() {
         // Attempt to regenerate payment token from session_id - MUST WAIT for this
         setLoading(true); // Show loading while verifying
         setLoadingStage("verifying"); // Show payment verification stage
+        setLoadingStartTime(Date.now()); // Track when loading started
+        setElapsedTime(0); // Reset elapsed time
         
         (async () => {
           try {
@@ -843,9 +851,51 @@ function PreviewContent() {
     }
   };
 
+  // Track elapsed time during loading
+  useEffect(() => {
+    if (loading && loadingStartTime) {
+      const interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - loadingStartTime) / 1000);
+        setElapsedTime(elapsed);
+        
+        // CRITICAL: Auto-detect timeout and show error if stuck
+        // Timeout thresholds: 120s for complex reports, 100s for regular reports, 30s for verification
+        const timeoutThreshold = loadingStage === "verifying" 
+          ? 30 
+          : (reportType === "full-life" || reportType === "major-life-phase") 
+          ? 120 
+          : 100;
+        
+        if (elapsed >= timeoutThreshold) {
+          console.error(`[CLIENT TIMEOUT] Report generation stuck for ${elapsed}s, showing timeout error`);
+          setError(`Report generation is taking longer than expected (${elapsed}s). This may indicate a timeout. Your payment has been automatically cancelled and you will NOT be charged. Please try again or contact support if the issue persists.`);
+          setLoading(false);
+          setLoadingStage(null);
+          setLoadingStartTime(null);
+          setElapsedTime(0);
+          isGeneratingRef.current = false; // Clear lock
+        }
+      }, 1000); // Update every second
+      
+      return () => clearInterval(interval);
+    }
+  }, [loading, loadingStartTime, loadingStage, reportType]);
+
   if (loading) {
     const isBundleLoading = bundleType && bundleReports.length > 0;
     const isVerifying = loadingStage === "verifying";
+    const isPaidReport = reportType !== "life-summary";
+    
+    // Calculate time remaining or elapsed
+    const estimatedTime = loadingStage === "verifying" 
+      ? 10 
+      : (reportType === "full-life" || reportType === "major-life-phase") 
+      ? 70 
+      : reportType === "life-summary"
+      ? 40
+      : 50;
+    const timeRemaining = Math.max(0, estimatedTime - elapsedTime);
+    const isTakingLonger = elapsedTime > estimatedTime;
     
     return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
@@ -859,6 +909,40 @@ function PreviewContent() {
                 ? "Generating Your Bundle Reports..." 
                 : "Generating Your Report..."}
             </h2>
+            
+            {/* Elapsed time indicator */}
+            {elapsedTime > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-slate-500">
+                  {isTakingLonger ? (
+                    <span className="text-amber-600 font-semibold">
+                      ⏱️ Taking longer than expected ({elapsedTime}s elapsed) - Still processing...
+                    </span>
+                  ) : (
+                    <span className="text-slate-600">
+                      ⏱️ Elapsed: {elapsedTime}s {timeRemaining > 0 && `• Est. remaining: ${timeRemaining}s`}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+            
+            {/* Payment reassurance for paid reports */}
+            {isPaidReport && !isVerifying && (
+              <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 text-left">
+                <div className="flex items-start gap-2">
+                  <span className="text-lg">💳</span>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-green-800 mb-1">
+                      Payment Verified & Protected
+                    </p>
+                    <p className="text-xs text-green-700">
+                      Your payment is confirmed. If report generation fails, you will <strong>automatically receive a refund</strong> - no action needed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {isVerifying ? (
               <div className="space-y-4">
@@ -958,11 +1042,47 @@ function PreviewContent() {
                             : "30-50 seconds"
                         }
                       </p>
+                      {isTakingLonger && elapsedTime > estimatedTime && (
+                        <div className="mt-3 pt-3 border-t border-purple-200">
+                          <p className="text-xs text-amber-700 font-medium">
+                            ⚠️ This is taking longer than usual. Our system is still processing your request. 
+                            If it continues, you&apos;ll see an error message and your payment will be automatically cancelled.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
             )}
+            
+            {/* Safety note about Start Over button */}
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <p className="text-xs text-slate-500 mb-3">
+                ⚠️ <strong>Important:</strong> Do not refresh or click &quot;Start Over&quot; while generation is in progress, 
+                as this may trigger duplicate charges.
+              </p>
+              <Link href="/ai-astrology/input">
+                <Button 
+                  className="cosmic-button-secondary"
+                  onClick={(e) => {
+                    if (loading) {
+                      e.preventDefault();
+                      if (window.confirm("Report generation is in progress. Are you sure you want to cancel? Your payment will be automatically refunded if generation hasn't completed.")) {
+                        setLoading(false);
+                        setLoadingStage(null);
+                        setLoadingStartTime(null);
+                        setElapsedTime(0);
+                        isGeneratingRef.current = false;
+                        window.location.href = "/ai-astrology/input";
+                      }
+                    }
+                  }}
+                >
+                  Start Over {loading ? "(Cancel Generation)" : ""}
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -1290,17 +1410,138 @@ function PreviewContent() {
 
   if (!reportContent || !input) {
     // Should not happen, but handle gracefully
+    // Check if we're in a stuck state (no loading, no error, no content)
+    const urlSessionId = searchParams.get("session_id");
+    const urlReportId = searchParams.get("reportId");
+    const hasSessionId = !!urlSessionId;
+    const isPaidReport = reportType && reportType !== "life-summary";
+    
     return (
       <div className="cosmic-bg py-8">
         <div className="container mx-auto px-4 max-w-2xl">
           <Card className="cosmic-card">
             <CardContent className="p-8 text-center">
               <div className="text-5xl mb-4">⏳</div>
-              <h2 className="text-2xl font-bold mb-4 text-slate-800">Loading Report...</h2>
-              <p className="text-slate-600 mb-6">Please wait while we prepare your report.</p>
-              <Link href="/ai-astrology/input">
-                <Button className="cosmic-button-secondary">Start Over</Button>
-              </Link>
+              <h2 className="text-2xl font-bold mb-4 text-slate-800">Preparing Your Report...</h2>
+              
+              {/* Show more informative message based on state */}
+              {hasSessionId || urlReportId ? (
+                <div className="space-y-4 text-left">
+                  <p className="text-slate-600 mb-4">
+                    We&apos;re loading your report. This should only take a few seconds...
+                  </p>
+                  
+                  {isPaidReport && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-xl">💳</div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-blue-800 mb-1">
+                            Payment Status
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            {hasSessionId 
+                              ? "We detected your payment session. If your report doesn&apos;t load, it may still be generating. Check below for recovery options."
+                              : "Your payment is protected. If generation fails, you&apos;ll automatically receive a refund."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {hasSessionId && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-xl">⚠️</div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-amber-800 mb-2">
+                            Report May Still Be Generating
+                          </p>
+                          <p className="text-xs text-amber-700 mb-3">
+                            If your report doesn&apos;t appear within 30 seconds, it may have timed out or failed. 
+                            You can try the recovery option below.
+                          </p>
+                          <Button
+                            className="w-full cosmic-button"
+                            onClick={async () => {
+                              setLoading(true);
+                              setLoadingStage("generating");
+                              setLoadingStartTime(Date.now());
+                              setError(null);
+                              
+                              try {
+                                // Try to regenerate using session_id
+                                const savedInput = sessionStorage.getItem("aiAstrologyInput");
+                                const savedReportType = sessionStorage.getItem("aiAstrologyReportType");
+                                
+                                if (savedInput && savedReportType) {
+                                  const inputData = JSON.parse(savedInput);
+                                  const reportTypeToUse = savedReportType as ReportType;
+                                  
+                                  // Verify payment first
+                                  const verifyResponse = await apiGet<{
+                                    ok: boolean;
+                                    data?: {
+                                      paid: boolean;
+                                      paymentToken?: string;
+                                      reportType?: string;
+                                      paymentIntentId?: string;
+                                    };
+                                  }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId!)}`);
+                                  
+                                  if (verifyResponse.ok && verifyResponse.data?.paid) {
+                                    // Store payment data
+                                    if (verifyResponse.data.paymentToken) {
+                                      sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
+                                    }
+                                    if (verifyResponse.data.paymentIntentId) {
+                                      sessionStorage.setItem("aiAstrologyPaymentIntentId", verifyResponse.data.paymentIntentId);
+                                    }
+                                    sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+                                    
+                                    // Regenerate report
+                                    await generateReport(inputData, reportTypeToUse, urlSessionId, verifyResponse.data.paymentIntentId);
+                                  } else {
+                                    throw new Error("Payment verification failed. Please complete payment again.");
+                                  }
+                                } else {
+                                  throw new Error("Input data not found. Please start over.");
+                                }
+                              } catch (e: any) {
+                                setError(e.message || "Failed to recover report. Please try again.");
+                                setLoading(false);
+                                setLoadingStage(null);
+                                setLoadingStartTime(null);
+                              }
+                            }}
+                          >
+                            🔄 Recover My Report (Verify Payment & Regenerate)
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <p className="text-xs text-slate-500 mb-3">
+                      If this page doesn&apos;t update, your report generation may have timed out. 
+                      Your payment will be automatically cancelled if generation failed.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-slate-600 mb-6">
+                  We&apos;re preparing your report. If nothing happens within 10 seconds, please click &quot;Start Over&quot; below.
+                </p>
+              )}
+              
+              <div className="mt-6">
+                <Link href="/ai-astrology/input">
+                  <Button className="cosmic-button-secondary">
+                    Start Over {hasSessionId ? "(May Cancel Generation)" : ""}
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>
