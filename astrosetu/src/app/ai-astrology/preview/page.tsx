@@ -955,7 +955,7 @@ function PreviewContent() {
       
       return () => clearTimeout(timer);
     }
-  }, [hasSessionIdForRecovery, autoGenerateForRecovery, loading, reportContent, input, error, urlSessionIdForRecovery]);
+  }, [hasSessionIdForRecovery, autoGenerateForRecovery, loading, reportContent, input, error, urlSessionIdForRecovery, generateReport]);
 
   if (loading) {
     const isBundleLoading = bundleType && bundleReports.length > 0;
