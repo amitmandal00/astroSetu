@@ -928,7 +928,7 @@ function PreviewContent() {
             return;
           }
           
-          // If we have session_id, verify payment and regenerate
+          // If we have session_id, verify payment and regenerate (works for both real and test sessions)
           if (urlSessionIdForRecovery) {
             console.log("[AUTO-RECOVERY] Verifying payment and regenerating report...");
             setLoading(true);
@@ -937,7 +937,8 @@ function PreviewContent() {
             setError(null);
             
             try {
-              // Verify payment first
+              // Verify payment first (handles both real Stripe sessions and test sessions)
+              // apiGet throws on error, so we catch and handle separately
               const verifyResponse = await apiGet<{
                 ok: boolean;
                 data?: {
@@ -951,27 +952,36 @@ function PreviewContent() {
               console.log("[AUTO-RECOVERY] Payment verification result:", {
                 ok: verifyResponse.ok,
                 paid: verifyResponse.data?.paid,
-                hasToken: !!verifyResponse.data?.paymentToken
+                hasToken: !!verifyResponse.data?.paymentToken,
+                sessionId: urlSessionIdForRecovery.startsWith("test_session_") ? "TEST_SESSION" : "REAL_SESSION",
+                reportType: verifyResponse.data?.reportType
               });
               
               if (verifyResponse.ok && verifyResponse.data?.paid) {
-                // Store payment data
+                // Store payment data (test sessions may not have paymentToken, that's OK - generate-report handles test users)
                 if (verifyResponse.data.paymentToken) {
                   sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
                 }
                 if (verifyResponse.data.paymentIntentId) {
                   sessionStorage.setItem("aiAstrologyPaymentIntentId", verifyResponse.data.paymentIntentId);
                 }
+                // Use reportType from verification if available
+                const finalReportType = (verifyResponse.data.reportType || reportTypeToUse) as ReportType;
                 sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+                sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionIdForRecovery);
+                if (verifyResponse.data.reportType) {
+                  sessionStorage.setItem("aiAstrologyReportType", verifyResponse.data.reportType);
+                }
                 setPaymentVerified(true);
                 setInput(inputData);
-                setReportType(reportTypeToUse);
+                setReportType(finalReportType);
                 
-                // Regenerate report
-                console.log("[AUTO-RECOVERY] Calling generateReport...");
-                await generateReport(inputData, reportTypeToUse, urlSessionIdForRecovery, verifyResponse.data.paymentIntentId);
+                // Regenerate report (works for both test users and real users)
+                // generate-report API will detect test users and handle accordingly
+                console.log("[AUTO-RECOVERY] Calling generateReport (session_id will be used for test user detection)...");
+                await generateReport(inputData, finalReportType, urlSessionIdForRecovery, verifyResponse.data.paymentIntentId);
               } else {
-                throw new Error("Payment verification failed. Please complete payment again.");
+                throw new Error("Payment verification failed - payment not confirmed. Please complete payment again.");
               }
             } catch (e: any) {
               console.error("[AUTO-RECOVERY] Payment verification or generation failed:", e);
