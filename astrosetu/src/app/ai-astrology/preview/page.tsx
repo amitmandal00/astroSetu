@@ -1150,10 +1150,81 @@ function PreviewContent() {
     }
   }, [hasSessionIdForRecovery, autoGenerateForRecovery, reportContent, urlSessionIdForRecovery, generateReport, input, reportType, loading, error]);
 
+  // Helper functions for loading screen (accessible in both loading and content blocks)
+  const urlSessionIdForLoading = searchParams.get("session_id");
+  const urlReportIdForLoading = searchParams.get("reportId");
+  const currentReportIdForLoading = reportContent?.reportId || urlReportIdForLoading;
+  const hasSessionIdForLoading = !!urlSessionIdForLoading;
+  
+  // Get report link for copying
+  const reportLinkForLoading = typeof window !== "undefined" && currentReportIdForLoading 
+    ? `${window.location.origin}/ai-astrology/preview?reportId=${currentReportIdForLoading}`
+    : typeof window !== "undefined" && urlSessionIdForLoading
+    ? `${window.location.origin}/ai-astrology/preview?session_id=${urlSessionIdForLoading}`
+    : typeof window !== "undefined" ? window.location.href : "";
+  
+  // Helper to retry loading by reportId or sessionId
+  const handleRetryLoading = useCallback(async () => {
+    if (!currentReportIdForLoading && !urlSessionIdForLoading) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Try to load from sessionStorage first (for reportId)
+      if (currentReportIdForLoading) {
+        const storedReport = sessionStorage.getItem(`aiAstrologyReport_${currentReportIdForLoading}`);
+        if (storedReport) {
+          const parsed = JSON.parse(storedReport);
+          setReportContent(parsed.content);
+          setInput(parsed.input);
+          setReportType(parsed.reportType);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // For bundles with sessionId, trigger auto-recovery by refreshing
+      if (urlSessionIdForLoading && bundleType && bundleReports.length > 0) {
+        window.location.href = `/ai-astrology/preview?session_id=${urlSessionIdForLoading}&auto_generate=true`;
+        return;
+      }
+      
+      // If not in sessionStorage, try to fetch from API or show error
+      throw new Error("Report not found in cache. Please regenerate your report.");
+    } catch (e: any) {
+      setError(e.message || "Failed to load report. Please try regenerating.");
+      setLoading(false);
+    }
+  }, [currentReportIdForLoading, urlSessionIdForLoading, bundleType, bundleReports.length]);
+  
+  // Helper to copy report link
+  const handleCopyReportLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(reportLinkForLoading);
+      setEmailCopySuccess(true);
+      setTimeout(() => setEmailCopySuccess(false), 2000);
+    } catch (e) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = reportLinkForLoading;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setEmailCopySuccess(true);
+      setTimeout(() => setEmailCopySuccess(false), 2000);
+    }
+  }, [reportLinkForLoading]);
+
   if (loading) {
     const isBundleLoading = bundleType && bundleReports.length > 0;
     const isVerifying = loadingStage === "verifying";
     const isPaidReport = reportType !== "life-summary";
+    const urlSessionId = urlSessionIdForLoading;
+    const urlReportId = urlReportIdForLoading;
+    const currentReportId = currentReportIdForLoading;
+    const hasSessionId = hasSessionIdForLoading;
     
     // Calculate time remaining or elapsed (optimized estimates for faster generation)
     const estimatedTime = loadingStage === "verifying" 
@@ -1233,46 +1304,87 @@ function PreviewContent() {
                 </div>
               </div>
             ) : isBundleLoading && bundleProgress ? (
+              // Enhanced bundle loading screen - matching marriage report UX
               <div className="space-y-4">
-                <p className="text-slate-600 mb-4">
-                  Our AI is analyzing your birth chart and generating your personalized bundle reports.
-                  This typically takes 1-2 minutes for {bundleProgress.total} comprehensive reports.
-                </p>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-left">
-                  <div className="flex items-start gap-3">
-                    <div className="text-xl">✨</div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-purple-800 mb-1">
-                        Bundle Generation in Progress
-                      </p>
-                      <p className="text-xs text-purple-700 mb-3">
-                        Creating {bundleProgress.total} comprehensive reports for you:
-                      </p>
-                      <div className="mb-3">
-                        <div className="bg-slate-100 rounded-full h-2.5 mb-2">
-                          <div 
-                            className="bg-purple-600 h-2.5 rounded-full transition-all duration-300"
-                            style={{ width: `${(bundleProgress.current / bundleProgress.total) * 100}%` }}
-                          ></div>
-                        </div>
+                {/* Progress Stepper - Same style as single reports */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 rounded-full bg-purple-600 animate-pulse"></div>
+                      <div className="w-12 h-0.5 bg-purple-300"></div>
+                      <div className={`w-3 h-3 rounded-full ${bundleProgress.current > 0 ? 'bg-purple-600' : 'bg-purple-300'}`}></div>
+                      <div className={`w-12 h-0.5 ${bundleProgress.current > 0 ? 'bg-purple-300' : 'bg-slate-300'}`}></div>
+                      <div className={`w-3 h-3 rounded-full ${bundleProgress.current >= bundleProgress.total ? 'bg-purple-600' : 'bg-slate-300'}`}></div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm text-center text-slate-600 mb-4">
+                    This usually completes within 1-2 minutes for {bundleProgress.total} comprehensive reports.
+                    {elapsedTime >= 120 && (
+                      <span className="block mt-2 text-amber-700 font-medium">
+                        If this screen stays for more than 2 minutes, please refresh this page. Your reports will not be lost.
+                      </span>
+                    )}
+                    {!elapsedTime || elapsedTime < 120 ? (
+                      <span className="block mt-2">If it takes longer, your reports are still being prepared safely.</span>
+                    ) : null}
+                  </p>
+                  
+                  {/* Bundle Progress Status Indicators */}
+                  <div className="space-y-2 mb-6 text-left bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <div className={`flex items-center gap-2 text-sm ${bundleProgress.current > 0 ? 'text-green-700' : 'text-slate-400'}`}>
+                      {bundleProgress.current > 0 ? '✓' : '⏳'} 
+                      <span className={bundleProgress.current > 0 ? 'font-medium' : ''}>
+                        Analyzing your birth chart data
+                      </span>
+                    </div>
+                    <div className={`flex items-center gap-2 text-sm ${bundleProgress.current >= bundleProgress.total ? 'text-green-700' : bundleProgress.current > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                      {bundleProgress.current >= bundleProgress.total ? '✓' : bundleProgress.current > 0 ? '⏳' : '○'} 
+                      <span className={bundleProgress.current > 0 ? 'font-medium' : ''}>
+                        Generating personalized insights ({bundleProgress.current} of {bundleProgress.total} reports completed)
+                      </span>
+                    </div>
+                    <div className={`flex items-center gap-2 text-sm ${bundleProgress.current >= bundleProgress.total ? 'text-green-700' : 'text-slate-400'}`}>
+                      {bundleProgress.current >= bundleProgress.total ? '✓' : '⏳'} 
+                      <span className={bundleProgress.current >= bundleProgress.total ? 'font-medium' : ''}>
+                        Preparing your complete bundle package
+                      </span>
+                    </div>
+                    
+                    {/* Current Report Status */}
+                    {bundleProgress.currentReport && bundleProgress.current > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-300">
                         <p className="text-xs text-purple-600 font-medium">
-                          {bundleProgress.current} of {bundleProgress.total} reports completed
+                          ✓ Latest completed: {bundleProgress.currentReport}
                         </p>
-                        {bundleProgress.currentReport && bundleProgress.current > 0 && (
-                          <p className="text-xs text-purple-500 mt-1 italic">
-                            ✓ Latest: {bundleProgress.currentReport}
-                          </p>
-                        )}
                       </div>
-                      <ul className="text-xs text-purple-600 space-y-1 ml-4 list-disc">
-                        <li>Analyzing your birth chart data</li>
-                        <li>Generating personalized insights for each report</li>
-                        <li>Preparing your complete bundle package</li>
-                      </ul>
-                      <p className="text-xs text-purple-600 mt-3 font-medium">
-                        ⏱️ Estimated time: 1-2 minutes for all reports
+                    )}
+                    
+                    {/* Progress Bar */}
+                    <div className="mt-4">
+                      <div className="bg-slate-100 rounded-full h-2.5 mb-2">
+                        <div 
+                          className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+                          style={{ width: `${Math.min((bundleProgress.current / bundleProgress.total) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-center text-purple-600 font-medium">
+                        {bundleProgress.current} of {bundleProgress.total} reports completed ({Math.round((bundleProgress.current / bundleProgress.total) * 100)}%)
                       </p>
                     </div>
+                  </div>
+                  
+                  {/* Value Reinforcement During Wait - Bundle Benefits */}
+                  <div className="mb-6 text-left bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
+                    <p className="text-sm font-semibold text-purple-900 mb-2">What you&apos;re getting:</p>
+                    <ul className="space-y-1 text-sm text-slate-700">
+                      <li>✓ {bundleProgress.total} comprehensive AI-generated reports</li>
+                      <li>✓ Personalized insights for each area of your life</li>
+                      <li>✓ Complete downloadable PDF bundle package</li>
+                      {bundleType && (
+                        <li>✓ Save money with bundle pricing</li>
+                      )}
+                    </ul>
                   </div>
                 </div>
               </div>
@@ -1338,32 +1450,92 @@ function PreviewContent() {
               </div>
             )}
             
-            {/* Safety note about Start Over button */}
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <p className="text-xs text-slate-500 mb-3">
-                ⚠️ <strong>Important:</strong> Do not refresh or click &quot;Start Over&quot; while generation is in progress, 
-                as this may trigger duplicate charges.
-              </p>
-              <Link href="/ai-astrology/input">
-                <Button 
-                  className="cosmic-button-secondary"
-                  onClick={(e) => {
-                    if (loading) {
-                      e.preventDefault();
-                      if (window.confirm("Report generation is in progress. Are you sure you want to cancel? Your payment will be automatically refunded if generation hasn't completed.")) {
-                        setLoading(false);
-                        setLoadingStage(null);
-                        setLoadingStartTime(null);
-                        setElapsedTime(0);
-                        isGeneratingRef.current = false;
-                        window.location.href = "/ai-astrology/input";
-                      }
-                    }
-                  }}
-                >
-                  Start Over {loading ? "(Cancel Generation)" : ""}
-                </Button>
-              </Link>
+            {/* Action Buttons Footer - Same for bundles and single reports */}
+            <div className="mt-6 pt-6 border-t border-slate-200 space-y-3">
+              {/* Copy Report Link Button (if session ID available for bundles or reportId for single reports) */}
+              {(currentReportId || urlSessionId) && (
+                <div>
+                  <Button
+                    onClick={handleCopyReportLink}
+                    className="w-full cosmic-button-secondary"
+                    disabled={loading}
+                  >
+                    {emailCopySuccess ? "✓ Link Copied!" : "📋 Copy Report Link"}
+                  </Button>
+                </div>
+              )}
+              
+              {/* Primary Action: Retry Loading (Safe - No Regeneration) - Works for both bundles and single reports */}
+              {(currentReportId || (isBundleLoading && urlSessionId)) ? (
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleRetryLoading}
+                    disabled={loading}
+                    className="w-full cosmic-button-secondary"
+                  >
+                    🔄 Retry Loading {isBundleLoading ? "Bundle" : "Report"}
+                  </Button>
+                  
+                  {/* Secondary Action: Start New (Small Link) */}
+                  <div className="text-center">
+                    <Link href="/ai-astrology/input" className="text-sm text-slate-600 hover:text-slate-800 underline">
+                      Start a new {isBundleLoading ? "bundle" : "report"} instead
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Link href="/ai-astrology/input" className="block">
+                    <Button 
+                      className="w-full cosmic-button-secondary"
+                      onClick={(e) => {
+                        if (loading) {
+                          e.preventDefault();
+                          if (window.confirm("Report generation is in progress. Are you sure you want to cancel? Your payment will be automatically refunded if generation hasn't completed.")) {
+                            setLoading(false);
+                            setLoadingStage(null);
+                            setLoadingStartTime(null);
+                            setElapsedTime(0);
+                            isGeneratingRef.current = false;
+                            window.location.href = "/ai-astrology/input";
+                          }
+                        }
+                      }}
+                    >
+                      Start Over {loading ? "(Cancel Generation)" : ""}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+              
+              {/* Report ID / Session ID Footer */}
+              {(currentReportId || (isBundleLoading && urlSessionId)) && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <p className="text-xs text-center text-slate-500">
+                    <strong className="text-slate-700">
+                      {isBundleLoading ? "Bundle Session ID:" : "Report ID:"}
+                    </strong>{" "}
+                    <span className="font-mono">{currentReportId || urlSessionId}</span>
+                  </p>
+                </div>
+              )}
+              
+              {/* Warning about not closing tab (only if using session storage) */}
+              {hasSessionId && !currentReportId && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">⚠️</span>
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-amber-800 mb-1">
+                        Do not close this tab
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        Your {isBundleLoading ? "bundle is" : "report is"} being loaded from your session. If you close this tab, you may need to regenerate.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
