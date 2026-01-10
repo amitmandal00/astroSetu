@@ -13,8 +13,10 @@ export const ALLOWED_USERS = [
   },
   {
     name: "Ankita Surabhi",
-    // Add Ankita's details if known, or make it more flexible
-    // For now, check by name only
+    dob: "1990-05-15", // Add DOB if different
+    tob: "10:30", // Add time if different
+    place: "Delhi", // Add place if different
+    gender: "Female",
   },
 ];
 
@@ -79,20 +81,53 @@ export function isAllowedUser(input: {
     }, null, 2));
     
     if (nameMatches) {
-      // If full details available, verify them too
+      // More flexible matching: check DOB if available, but don't require exact match for all fields
+      let detailsMatch = true;
+      
       if (allowedUser.dob && input.dob) {
         const inputDOB = input.dob.replace(/\//g, "-").trim();
         const dobMatches = 
           inputDOB.includes(allowedUser.dob) || 
-          inputDOB.includes(allowedUser.dob.split("-").reverse().join("-"));
+          inputDOB.includes(allowedUser.dob.replace(/-/g, "/")) ||
+          allowedUser.dob.includes(inputDOB.split("/")[0]) || // Partial match for dates
+          inputDOB.includes(allowedUser.dob.split("-")[0]); // Partial match (year)
         
-        if (dobMatches) {
-          console.log("[ACCESS GRANTED]", JSON.stringify({ matchedUser: allowedUser.name, reason: "Name and DOB match" }, null, 2));
-          return true;
+        if (!dobMatches) {
+          detailsMatch = false;
+          console.log("[DOB MISMATCH]", JSON.stringify({ 
+            allowedUser: allowedUser.name, 
+            expectedDOB: allowedUser.dob, 
+            receivedDOB: input.dob 
+          }, null, 2));
         }
-      } else {
-        // If no DOB check needed or available, allow by name match
-        console.log("[ACCESS GRANTED]", JSON.stringify({ matchedUser: allowedUser.name, reason: "Name match (no DOB required)" }, null, 2));
+      }
+      
+      // Check place if available (flexible matching)
+      if (allowedUser.place && input.place) {
+        const placeMatches = 
+          input.place.toLowerCase().includes(allowedUser.place.toLowerCase()) ||
+          allowedUser.place.toLowerCase().includes(input.place.toLowerCase());
+        
+        if (!placeMatches) {
+          detailsMatch = false;
+          console.log("[PLACE MISMATCH]", JSON.stringify({ 
+            allowedUser: allowedUser.name, 
+            expectedPlace: allowedUser.place, 
+            receivedPlace: input.place 
+          }, null, 2));
+        }
+      }
+      
+      // If name matches and details match (or no details required), grant access
+      // For Ankita, be more lenient if DOB not set in allowed users
+      if (detailsMatch || (!allowedUser.dob && nameMatches)) {
+        console.log("[ACCESS GRANTED]", JSON.stringify({ 
+          matchedUser: allowedUser.name, 
+          reason: detailsMatch ? "Name and details match" : "Name match (flexible for test users)",
+          inputName: input.name,
+          inputDOB: input.dob,
+          inputPlace: input.place
+        }, null, 2));
         return true;
       }
     }

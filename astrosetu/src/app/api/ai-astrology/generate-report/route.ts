@@ -64,10 +64,46 @@ function checkIfTestUser(input: AIAstrologyInput): boolean {
     const placeMatch = input.place?.toLowerCase().includes(testUser.place.toLowerCase()) ?? false;
     const genderMatch = !testUser.gender || input.gender?.toLowerCase() === testUser.gender.toLowerCase();
 
-    // If name matches and other key fields match (flexible matching for Ankita)
-    if (nameMatch && dobMatch && placeMatch && (timeMatch || !input.tob) && (genderMatch || !testUser.gender)) {
-      console.log(`[TEST USER] Production test user detected: ${testUser.name}`);
+    // More flexible matching - allow if name matches and at least DOB OR place matches
+    // This handles cases where exact place/time might vary (e.g., "Delhi" vs "New Delhi")
+    const hasNameMatch = nameMatch;
+    const hasBasicMatch = dobMatch || placeMatch; // At least DOB or place should match
+    const timeMatchesOrNotRequired = timeMatch || !input.tob || !testUser.time;
+    const genderMatchesOrNotRequired = genderMatch || !testUser.gender;
+    
+    if (hasNameMatch && hasBasicMatch && timeMatchesOrNotRequired && genderMatchesOrNotRequired) {
+      console.log(`[TEST USER] Production test user detected: ${testUser.name}`, JSON.stringify({
+        nameMatch,
+        dobMatch,
+        placeMatch,
+        timeMatch,
+        genderMatch,
+        inputName: input.name,
+        inputDOB: input.dob,
+        inputPlace: input.place,
+        inputTob: input.tob,
+      }, null, 2));
       return true;
+    } else {
+      // Log why test user detection failed for debugging
+      if (nameMatch) {
+        console.log(`[TEST USER MATCH FAILED]`, JSON.stringify({
+          testUserName: testUser.name,
+          inputName: input.name,
+          nameMatch,
+          dobMatch,
+          placeMatch,
+          timeMatch,
+          genderMatch,
+          inputDOB: input.dob,
+          inputPlace: input.place,
+          inputTob: input.tob,
+          inputGender: input.gender,
+          reason: !hasBasicMatch ? "DOB and Place don't match" : 
+                  !timeMatchesOrNotRequired ? "Time doesn't match" :
+                  !genderMatchesOrNotRequired ? "Gender doesn't match" : "Unknown"
+        }, null, 2));
+      }
     }
   }
   
@@ -172,13 +208,22 @@ export async function POST(req: Request) {
     // 2. CRITICAL: Access restriction for production testing
     // Only allow Amit Kumar Mandal and Ankita Surabhi until testing is complete
     const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
-    if (restrictAccess && !isAllowedUser(input)) {
+    
+    // ENHANCED: Check if user is a test user FIRST (before access restriction)
+    // This ensures test users always pass access restriction even if matching logic differs
+    const isTestUserForAccess = isTestUser || checkIfTestUser(input);
+    
+    if (restrictAccess && !isTestUserForAccess && !isAllowedUser(input)) {
       const restrictionError = {
         requestId,
         timestamp: new Date().toISOString(),
         reportType,
         userName: input.name || "N/A",
         userDOB: input.dob || "N/A",
+        userPlace: input.place || "N/A",
+        userTob: input.tob || "N/A",
+        isTestUser: isTestUser,
+        isTestUserForAccess: isTestUserForAccess,
         error: "Access restricted for production testing",
       };
       console.error("[ACCESS RESTRICTION]", JSON.stringify(restrictionError, null, 2));
@@ -190,6 +235,17 @@ export async function POST(req: Request) {
         { ok: false, error: getRestrictionMessage() },
         { status: 403, headers: { "X-Request-ID": requestId } }
       );
+    }
+    
+    // Log successful access for test users
+    if (isTestUserForAccess) {
+      console.log("[TEST USER ACCESS GRANTED]", JSON.stringify({
+        requestId,
+        userName: input.name,
+        userDOB: input.dob,
+        reportType,
+        timestamp: new Date().toISOString(),
+      }, null, 2));
     }
 
     // 3. Validate report type - CRITICAL: Cancel payment if invalid
@@ -716,7 +772,15 @@ export async function POST(req: Request) {
       reportContent = await Promise.race([reportGenerationPromise, timeoutPromise]);
       
       // Log successful completion
-      console.log(`[REPORT GENERATION] Successfully completed for reportType=${reportType}, content length: ${reportContent ? JSON.stringify(reportContent).length : 0}`);
+      console.log(`[REPORT GENERATION] Successfully completed for reportType=${reportType}`, JSON.stringify({
+        reportType,
+        userName: input.name,
+        contentLength: reportContent ? JSON.stringify(reportContent).length : 0,
+        hasReportId: !!reportContent?.reportId,
+        reportId: reportContent?.reportId || "N/A",
+        requestId,
+        timestamp: new Date().toISOString(),
+      }, null, 2));
       
       // CRITICAL: Cache the generated report to prevent duplicate OpenAI calls
       cacheReport(idempotencyKey, reportId, reportContent, reportType, input);
