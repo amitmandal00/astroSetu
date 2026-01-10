@@ -142,6 +142,17 @@ function checkIfTestUser(input: AIAstrologyInput): boolean {
  */
 export async function POST(req: Request) {
   const requestId = generateRequestId();
+  const startTime = Date.now();
+  const requestStartLog = {
+    requestId,
+    timestamp: new Date().toISOString(),
+    endpoint: "/api/ai-astrology/generate-report",
+    method: req.method,
+    url: req.url,
+    userAgent: req.headers.get("user-agent")?.substring(0, 100) || "N/A",
+    origin: req.headers.get("origin") || "N/A",
+  };
+  console.log("[REQUEST START]", JSON.stringify(requestStartLog, null, 2));
 
   try {
     // Stricter rate limiting for report generation (production-ready)
@@ -151,6 +162,13 @@ export async function POST(req: Request) {
     if (rateLimitResponse) {
       rateLimitResponse.headers.set("X-Request-ID", requestId);
       rateLimitResponse.headers.set("Retry-After", "60");
+      const rateLimitLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        action: "RATE_LIMIT_HIT",
+        elapsedMs: Date.now() - startTime,
+      };
+      console.log("[RATE LIMIT]", JSON.stringify(rateLimitLog, null, 2));
       return rateLimitResponse;
     }
 
@@ -172,6 +190,21 @@ export async function POST(req: Request) {
     }>(req);
 
     const { input, reportType, paymentToken, paymentIntentId, sessionId: fallbackSessionId, decisionContext } = json;
+    
+    // Log request details for debugging (anonymized)
+    const requestDetailsLog = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      reportType,
+      hasPaymentToken: !!paymentToken,
+      hasPaymentIntentId: !!paymentIntentId,
+      hasSessionId: !!fallbackSessionId,
+      userName: input?.name || "N/A",
+      userDOB: input?.dob ? `${input.dob.substring(0, 4)}-XX-XX` : "N/A", // Year only for privacy
+      hasCoordinates: !!(input?.latitude && input?.longitude),
+      elapsedMs: Date.now() - startTime,
+    };
+    console.log("[REQUEST PARSED]", JSON.stringify(requestDetailsLog, null, 2));
 
     // Check for demo mode and test user (needed for payment cancellation checks)
     // NOTE: Test users bypass payment by default to avoid payment verification errors
@@ -215,7 +248,22 @@ export async function POST(req: Request) {
     // Order: 1) Input validation, 2) Access restriction, 3) Report type, 4) Idempotency check, 5) Payment verification, 6) Only then call OpenAI
     
     // 1. Validate input - CRITICAL: Cancel payment if validation fails
+    const validationStartTime = Date.now();
     if (!input.name || !input.dob || !input.tob || !input.place) {
+      const validationErrorLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        action: "INPUT_VALIDATION_FAILED",
+        missingFields: {
+          name: !input.name,
+          dob: !input.dob,
+          tob: !input.tob,
+          place: !input.place,
+        },
+        elapsedMs: Date.now() - validationStartTime,
+        totalElapsedMs: Date.now() - startTime,
+      };
+      console.error("[VALIDATION ERROR]", JSON.stringify(validationErrorLog, null, 2));
       await cancelPaymentSafely("Input validation failed - missing required fields");
       return NextResponse.json(
         { ok: false, error: "Missing required fields: name, dob, tob, place" },
@@ -224,12 +272,33 @@ export async function POST(req: Request) {
     }
 
     if (!input.latitude || !input.longitude) {
+      const validationErrorLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        action: "INPUT_VALIDATION_FAILED",
+        missingFields: {
+          latitude: !input.latitude,
+          longitude: !input.longitude,
+        },
+        elapsedMs: Date.now() - validationStartTime,
+        totalElapsedMs: Date.now() - startTime,
+      };
+      console.error("[VALIDATION ERROR]", JSON.stringify(validationErrorLog, null, 2));
       await cancelPaymentSafely("Input validation failed - missing coordinates");
       return NextResponse.json(
         { ok: false, error: "Latitude and longitude are required" },
         { status: 400, headers: { "X-Request-ID": requestId } }
       );
     }
+    
+    const validationSuccessLog = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      action: "INPUT_VALIDATION_SUCCESS",
+      elapsedMs: Date.now() - validationStartTime,
+      totalElapsedMs: Date.now() - startTime,
+    };
+    console.log("[VALIDATION SUCCESS]", JSON.stringify(validationSuccessLog, null, 2));
 
     // 2. CRITICAL: Access restriction for production testing
     // Only allow Amit Kumar Mandal and Ankita Surabhi until testing is complete
@@ -269,23 +338,32 @@ export async function POST(req: Request) {
       }
     }
     
-    // Log successful access for test users
-    if (isTestUserForAccess) {
-      console.log("[TEST USER ACCESS GRANTED]", JSON.stringify({
-        requestId,
-        userName: input.name,
-        userDOB: input.dob,
-        userPlace: input.place,
-        userTob: input.tob,
-        reportType,
-        restrictAccess,
-        timestamp: new Date().toISOString(),
-      }, null, 2));
-    }
+    // Log access check result
+    const accessCheckLog = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      action: isTestUserForAccess ? "ACCESS_GRANTED_TEST_USER" : restrictAccess ? "ACCESS_CHECK" : "ACCESS_OPEN",
+      userName: input.name,
+      userDOB: input.dob ? `${input.dob.substring(0, 4)}-XX-XX` : "N/A",
+      reportType,
+      restrictAccess,
+      isTestUser: isTestUserForAccess,
+      elapsedMs: Date.now() - startTime,
+    };
+    console.log("[ACCESS CHECK]", JSON.stringify(accessCheckLog, null, 2));
 
     // 3. Validate report type - CRITICAL: Cancel payment if invalid
     const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
     if (!reportType || !validReportTypes.includes(reportType)) {
+      const reportTypeErrorLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        action: "INVALID_REPORT_TYPE",
+        providedType: reportType || "MISSING",
+        validTypes: validReportTypes,
+        elapsedMs: Date.now() - startTime,
+      };
+      console.error("[REPORT TYPE ERROR]", JSON.stringify(reportTypeErrorLog, null, 2));
       await cancelPaymentSafely("Invalid report type");
       return NextResponse.json(
         { ok: false, error: `Invalid report type. Must be one of: ${validReportTypes.join(", ")}` },
@@ -300,11 +378,17 @@ export async function POST(req: Request) {
     
     if (cachedReport) {
       // Report already exists - return cached version (NO OpenAI call)
-      console.log(`[IDEMPOTENCY] Returning cached report for key: ${idempotencyKey.substring(0, 30)}...`, {
+      const cacheHitLog = {
         requestId,
+        timestamp: new Date().toISOString(),
+        action: "CACHE_HIT",
+        idempotencyKey: idempotencyKey.substring(0, 30) + "...",
         reportId: cachedReport.reportId,
+        reportType,
         status: cachedReport.status,
-      });
+        elapsedMs: Date.now() - startTime,
+      };
+      console.log("[IDEMPOTENCY CACHE HIT]", JSON.stringify(cacheHitLog, null, 2));
       
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
       const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(cachedReport.reportId)}&reportType=${encodeURIComponent(reportType)}`;
@@ -341,10 +425,16 @@ export async function POST(req: Request) {
     
     if (!isProcessing) {
       // Another request is already processing this report - return processing status
-      console.log(`[IDEMPOTENCY] Report already processing for key: ${idempotencyKey.substring(0, 30)}...`, {
+      const processingLog = {
         requestId,
+        timestamp: new Date().toISOString(),
+        action: "ALREADY_PROCESSING",
+        idempotencyKey: idempotencyKey.substring(0, 30) + "...",
+        reportType,
         reportId,
-      });
+        elapsedMs: Date.now() - startTime,
+      };
+      console.log("[IDEMPOTENCY ALREADY PROCESSING]", JSON.stringify(processingLog, null, 2));
       
       return NextResponse.json(
         {
@@ -756,6 +846,19 @@ export async function POST(req: Request) {
       };
       console.log("[PAYMENT VERIFIED]", JSON.stringify(paymentVerifiedLog, null, 2));
     }
+    
+    // Log generation start
+    const generationStartLog = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      action: "REPORT_GENERATION_START",
+      reportType,
+      isPaidReport: isPaidReportType(reportType),
+      isTestUser,
+      isDemoMode,
+      elapsedMs: Date.now() - startTime,
+    };
+    console.log("[GENERATION START]", JSON.stringify(generationStartLog, null, 2));
 
     // Generate report based on type with hard timeout fallback
     // Optimized timeouts for faster user experience:
@@ -808,16 +911,24 @@ export async function POST(req: Request) {
       // Race the timeout against report generation
       reportContent = await Promise.race([reportGenerationPromise, timeoutPromise]);
       
-      // Log successful completion
-      console.log(`[REPORT GENERATION] Successfully completed for reportType=${reportType}`, JSON.stringify({
+      // Log successful completion with timing
+      const generationTime = Date.now() - startTime;
+      const successLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        action: "REPORT_GENERATION_SUCCESS",
         reportType,
         userName: input.name,
+        userDOB: input.dob ? `${input.dob.substring(0, 4)}-XX-XX` : "N/A",
         contentLength: reportContent ? JSON.stringify(reportContent).length : 0,
         hasReportId: !!reportContent?.reportId,
         reportId: reportContent?.reportId || "N/A",
-        requestId,
-        timestamp: new Date().toISOString(),
-      }, null, 2));
+        generationTimeMs: generationTime,
+        isTestUser,
+        isDemoMode,
+        elapsedMs: generationTime,
+      };
+      console.log("[REPORT GENERATION SUCCESS]", JSON.stringify(successLog, null, 2));
       
       // CRITICAL: Cache the generated report to prevent duplicate OpenAI calls
       cacheReport(idempotencyKey, reportId, reportContent, reportType, input);
