@@ -56,6 +56,7 @@ function PreviewContent() {
   // Request lock to prevent concurrent report generation
   const isGeneratingRef = useRef(false);
   const generationAttemptRef = useRef(0);
+  const hasRedirectedRef = useRef(false); // Track redirect to prevent loops
 
   const getReportName = (type: ReportType | null) => {
     switch (type) {
@@ -281,16 +282,20 @@ function PreviewContent() {
         if (response.data?.content && response.data?.reportId) {
           try {
             const reportId = response.data.reportId;
-            sessionStorage.setItem(`aiAstrologyReport_${reportId}`, JSON.stringify({
+            const reportData = JSON.stringify({
               content: response.data.content,
               reportType: response.data.reportType,
               input: response.data.input,
               generatedAt: response.data.generatedAt,
               reportId, // Store canonical reportId for consistency
-            }));
-            console.log("[CLIENT] Stored report content in sessionStorage for reportId:", reportId);
+            });
+            
+            // Save to both sessionStorage (current session) and localStorage (persists across refreshes)
+            sessionStorage.setItem(`aiAstrologyReport_${reportId}`, reportData);
+            localStorage.setItem(`aiAstrologyReport_${reportId}`, reportData);
+            console.log("[CLIENT] Stored report content in sessionStorage and localStorage for reportId:", reportId);
           } catch (storageError) {
-            console.warn("[CLIENT] Failed to store report in sessionStorage:", storageError);
+            console.warn("[CLIENT] Failed to store report in storage:", storageError);
           }
         }
         
@@ -655,23 +660,46 @@ function PreviewContent() {
     if (typeof window === "undefined") return;
     
     try {
-      // CRITICAL: Check for reportId in URL - if present, try to load from sessionStorage
+      // CRITICAL: Check for reportId in URL - if present, try to load from sessionStorage or localStorage
+      // This check happens BEFORE the delay to ensure immediate loading when report exists
       const reportId = searchParams.get("reportId");
       if (reportId && !reportContent) {
         try {
-          const storedReport = sessionStorage.getItem(`aiAstrologyReport_${reportId}`);
+          // Try sessionStorage first (same session)
+          let storedReport = sessionStorage.getItem(`aiAstrologyReport_${reportId}`);
+          
+          // If not in sessionStorage, try localStorage (persists across refreshes)
+          if (!storedReport) {
+            storedReport = localStorage.getItem(`aiAstrologyReport_${reportId}`);
+            if (storedReport) {
+              console.log("[CLIENT] Loaded report from localStorage for reportId:", reportId);
+            }
+          } else {
+            console.log("[CLIENT] Loaded report from sessionStorage for reportId:", reportId);
+          }
+          
           if (storedReport) {
             const parsed = JSON.parse(storedReport);
-            console.log("[CLIENT] Loaded report from sessionStorage for reportId:", reportId);
             setReportContent(parsed.content);
             setReportType(parsed.reportType || (searchParams.get("reportType") as ReportType) || "life-summary");
             setInput(parsed.input);
             setLoading(false);
             // Don't continue with auto-generation if we already have content
             return;
+          } else {
+            // ReportId in URL but not found in storage - don't try to regenerate
+            // This would create a new reportId which is wrong
+            // Instead, show error or redirect to input page
+            console.warn("[CLIENT] ReportId found in URL but not in storage:", reportId);
+            setError("Report not found. Please generate a new report.");
+            setLoading(false);
+            return; // Exit early - don't try to regenerate with different ID
           }
         } catch (error) {
-          console.warn("[CLIENT] Failed to load report from sessionStorage:", error);
+          console.warn("[CLIENT] Failed to load report from storage:", error);
+          setError("Failed to load report. Please try again.");
+          setLoading(false);
+          return; // Exit early on error
         }
       }
       
@@ -679,206 +707,243 @@ function PreviewContent() {
       const urlSessionId = searchParams.get("session_id");
       const autoGenerate = searchParams.get("auto_generate") === "true"; // Trigger auto-generation after payment
       
-      // Get input from sessionStorage
-      const savedInput = sessionStorage.getItem("aiAstrologyInput");
-      const savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType;
-      const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
-      
-      // Get bundle information
-      const savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
-      const savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
-
-      if (!savedInput) {
-        router.push("/ai-astrology/input");
-        return;
-      }
-
-      const inputData = JSON.parse(savedInput);
-      const reportTypeToUse = savedReportType || "life-summary";
-      
-      setInput(inputData);
-      setReportType(reportTypeToUse);
-      
-      // CRITICAL FIX: If payment verified flag is missing but session_id exists, try to re-verify
-      // IMPORTANT: Wait for verification before allowing report generation
-      if (!paymentVerified && urlSessionId) {
-        // Attempt to regenerate payment token from session_id - MUST WAIT for this
-        setLoading(true); // Show loading while verifying
-        setLoadingStage("verifying"); // Show payment verification stage
-        setLoadingStartTime(Date.now()); // Track when loading started
-        setElapsedTime(0); // Reset elapsed time
+      // CRITICAL FIX: Add small delay to allow sessionStorage to be written after navigation
+      // This prevents race condition where we check before data is saved from input page
+      // This fixes the redirect loop issue
+      // IMPORTANT: This delay ONLY applies when there's NO reportId in URL (coming from input page)
+      // If reportId exists, it's already handled above (before this delay)
+      const timeoutId = setTimeout(() => {
+        try {
+          // Get input from sessionStorage
+        const savedInput = sessionStorage.getItem("aiAstrologyInput");
+        const savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType;
+        const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
         
-        (async () => {
-          try {
-            console.log("[Preview] Attempting to regenerate payment token from session_id:", urlSessionId.substring(0, 20) + "...");
-            
-            const verifyResponse = await apiGet<{
-              ok: boolean;
-              data?: {
-                paid: boolean;
-                paymentToken?: string;
-                reportType?: string;
-                paymentIntentId?: string;
-              };
-              error?: string;
-            }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId)}`);
-            
-            console.log("[Preview] Payment verification response:", {
-              ok: verifyResponse.ok,
-              paid: verifyResponse.data?.paid,
-              hasToken: !!verifyResponse.data?.paymentToken,
-              error: verifyResponse.error
-            });
-            
-            if (verifyResponse.ok && verifyResponse.data?.paid) {
-              // Store regenerated token and payment intent ID
-              try {
-                if (verifyResponse.data.paymentToken) {
-                  sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
+        // Get bundle information
+        const savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
+        const savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
+
+        // CRITICAL FIX: Only redirect if we truly don't have input data AND haven't redirected already
+        // Also preserve reportType when redirecting to prevent loops
+        if (!savedInput && !hasRedirectedRef.current) {
+          // Preserve reportType from URL params or use savedReportType if available
+          const urlReportType = searchParams.get("reportType");
+          const redirectUrl = urlReportType 
+            ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+            : savedReportType && savedReportType !== "life-summary"
+            ? `/ai-astrology/input?reportType=${encodeURIComponent(savedReportType)}`
+            : "/ai-astrology/input";
+          console.log("[Preview] No saved input found after delay, redirecting to:", redirectUrl);
+          hasRedirectedRef.current = true; // Prevent multiple redirects
+          router.push(redirectUrl);
+          return;
+        }
+        
+        // If no input after delay, exit early
+        if (!savedInput) return;
+        
+        // Continue with the rest of the logic only if we have savedInput
+        const inputData = JSON.parse(savedInput);
+        const reportTypeToUse = savedReportType || "life-summary";
+        
+        setInput(inputData);
+        setReportType(reportTypeToUse);
+          
+        // CRITICAL FIX: If payment verified flag is missing but session_id exists, try to re-verify
+        // IMPORTANT: Wait for verification before allowing report generation
+        if (!paymentVerified && urlSessionId) {
+          // Attempt to regenerate payment token from session_id - MUST WAIT for this
+          setLoading(true); // Show loading while verifying
+          setLoadingStage("verifying"); // Show payment verification stage
+          setLoadingStartTime(Date.now()); // Track when loading started
+          setElapsedTime(0); // Reset elapsed time
+          
+          (async () => {
+            try {
+              console.log("[Preview] Attempting to regenerate payment token from session_id:", urlSessionId.substring(0, 20) + "...");
+              
+              const verifyResponse = await apiGet<{
+                ok: boolean;
+                data?: {
+                  paid: boolean;
+                  paymentToken?: string;
+                  reportType?: string;
+                  paymentIntentId?: string;
+                };
+                error?: string;
+              }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId)}`);
+              
+              console.log("[Preview] Payment verification response:", {
+                ok: verifyResponse.ok,
+                paid: verifyResponse.data?.paid,
+                hasToken: !!verifyResponse.data?.paymentToken,
+                error: verifyResponse.error
+              });
+              
+              if (verifyResponse.ok && verifyResponse.data?.paid) {
+                // Store regenerated token and payment intent ID
+                try {
+                  if (verifyResponse.data.paymentToken) {
+                    sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
+                  }
+                  if (verifyResponse.data.paymentIntentId) {
+                    sessionStorage.setItem("aiAstrologyPaymentIntentId", verifyResponse.data.paymentIntentId);
+                  }
+                  sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+                  sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
+                  if (verifyResponse.data.reportType) {
+                    sessionStorage.setItem("aiAstrologyReportType", verifyResponse.data.reportType);
+                    setReportType(verifyResponse.data.reportType as ReportType);
+                  }
+                  setPaymentVerified(true);
+                  console.log("[Preview] Payment token and intent ID regenerated successfully");
+                  
+                  // Now trigger report generation with verified payment
+                  // CRITICAL: Set auto-generated guard to prevent duplicate calls from auto_generate path
+                  hasAutoGeneratedRef.current = true;
+                  setLoadingStage("generating"); // Switch to report generation stage
+                  generateReport(inputData, verifyResponse.data.reportType as ReportType || reportTypeToUse, urlSessionId, verifyResponse.data.paymentIntentId);
+                  return;
+                } catch (e) {
+                  console.error("Failed to store regenerated payment token:", e);
+                  setLoading(false);
+                  setLoadingStage(null);
                 }
-                if (verifyResponse.data.paymentIntentId) {
-                  sessionStorage.setItem("aiAstrologyPaymentIntentId", verifyResponse.data.paymentIntentId);
-                }
-                sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
-                sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
-                if (verifyResponse.data.reportType) {
-                  sessionStorage.setItem("aiAstrologyReportType", verifyResponse.data.reportType);
-                  setReportType(verifyResponse.data.reportType as ReportType);
-                }
-                setPaymentVerified(true);
-                console.log("[Preview] Payment token and intent ID regenerated successfully");
-                
-                // Now trigger report generation with verified payment
-                // CRITICAL: Set auto-generated guard to prevent duplicate calls from auto_generate path
-                hasAutoGeneratedRef.current = true;
-                setLoadingStage("generating"); // Switch to report generation stage
-                generateReport(inputData, verifyResponse.data.reportType as ReportType || reportTypeToUse, urlSessionId, verifyResponse.data.paymentIntentId);
-                return;
-              } catch (e) {
-                console.error("Failed to store regenerated payment token:", e);
+              } else {
+                console.error("[Preview] Payment verification failed:", verifyResponse.error);
+                setError(`Payment verification failed: ${verifyResponse.error || "Please complete payment again."}`);
                 setLoading(false);
                 setLoadingStage(null);
               }
-            } else {
-              console.error("[Preview] Payment verification failed:", verifyResponse.error);
-              setError(`Payment verification failed: ${verifyResponse.error || "Please complete payment again."}`);
+            } catch (e: any) {
+              console.error("Failed to regenerate payment token from session_id:", e);
+              setError(`Failed to verify payment: ${e.message || "Please try again or contact support."}`);
               setLoading(false);
               setLoadingStage(null);
             }
-          } catch (e: any) {
-            console.error("Failed to regenerate payment token from session_id:", e);
-            setError(`Failed to verify payment: ${e.message || "Please try again or contact support."}`);
-            setLoading(false);
-            setLoadingStage(null);
+          })();
+          
+          // Don't proceed with report generation yet - wait for verification
+          return;
+        } else {
+          setPaymentVerified(paymentVerified);
+        }
+        
+        // Parse bundle information
+        if (savedBundleType && savedBundleReports) {
+          try {
+            const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
+            setBundleType(savedBundleType);
+            setBundleReports(bundleReportsList);
+          } catch (e) {
+            console.error("Failed to parse bundle reports:", e);
           }
-        })();
-        
-        // Don't proceed with report generation yet - wait for verification
-        return;
-      } else {
-        setPaymentVerified(paymentVerified);
-      }
-      
-      // Parse bundle information
-      if (savedBundleType && savedBundleReports) {
-        try {
-          const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
-          setBundleType(savedBundleType);
-          setBundleReports(bundleReportsList);
-        } catch (e) {
-          console.error("Failed to parse bundle reports:", e);
         }
-      }
 
-      // Check if payment is required
-      const isPaidReport = reportTypeToUse !== "life-summary";
-      const isBundle = savedBundleType && savedBundleReports;
-      
-      // CRITICAL FIX: If paid report and no payment verified, but we have session_id, try verification first
-      if (isPaidReport && !paymentVerified && !urlSessionId) {
-        // No payment and no session_id - show payment prompt
-        setLoading(false);
-        return;
-      }
-      
-      // If we have session_id but payment not verified yet, the verification will trigger report generation
-      if (isPaidReport && !paymentVerified && urlSessionId) {
-        // Verification is in progress (handled above), don't proceed yet
-        return;
-      }
-
-      // CRITICAL: Auto-generate report for:
-      // 1. Paid reports: if payment verified (with or without auto_generate flag, to support existing flows)
-      // 2. Free reports: immediately when reaching preview page (no payment needed)
-      // This ensures ALL reports follow the same flow and auto-generate consistently
-      // IMPORTANT: Don't require auto_generate=true for paid reports - if payment is verified and we have input, generate
-      // This fixes issues where year-analysis and other paid reports worked before but broke after changes
-      const shouldAutoGenerate = 
-        // Paid reports: generate if payment verified (supports both auto_generate flow and direct navigation)
-        (isPaidReport && paymentVerified && !reportContent) ||
-        // Free reports: auto-generate immediately if we have input and no content yet
-        (!isPaidReport && !reportContent);
-      
-      if (shouldAutoGenerate && inputData && reportTypeToUse && !loading && !hasAutoGeneratedRef.current) {
-        hasAutoGeneratedRef.current = true; // Set guard immediately
-        console.log("[Preview] Auto-generating report:", { 
-          reportType: reportTypeToUse, 
-          hasInput: !!inputData,
-          isPaidReport,
-          autoGenerate,
-          paymentVerified,
-          isFreeReport: !isPaidReport
-        });
-        
-        // Get paymentIntentId from sessionStorage if available (for paid reports only)
-        let paymentIntentIdFromStorage: string | undefined;
-        try {
-          paymentIntentIdFromStorage = sessionStorage.getItem("aiAstrologyPaymentIntentId") || undefined;
-        } catch (e) {
-          console.error("Failed to read paymentIntentId from sessionStorage:", e);
+        // Check if payment is required
+        const isPaidReport = reportTypeToUse !== "life-summary";
+        const isBundle = savedBundleType && savedBundleReports;
+          
+        // CRITICAL FIX: If paid report and no payment verified, but we have session_id, try verification first
+        if (isPaidReport && !paymentVerified && !urlSessionId) {
+          // No payment and no session_id - show payment prompt
+          setLoading(false);
+          return;
         }
         
-        // Show loading immediately and set stage to generating (for ALL report types)
-        setLoading(true);
-        setLoadingStage("generating");
-        setLoadingStartTime(Date.now());
-        setElapsedTime(0);
-        // Reset progress steps for all reports
-        setProgressSteps({
-          birthChart: false,
-          planetaryAnalysis: false,
-          generatingInsights: false,
-        });
+        // If we have session_id but payment not verified yet, the verification will trigger report generation
+        if (isPaidReport && !paymentVerified && urlSessionId) {
+          // Verification is in progress (handled above), don't proceed yet
+          return;
+        }
+
+        // CRITICAL: Auto-generate report for:
+        // 1. Paid reports: if payment verified (with or without auto_generate flag, to support existing flows)
+        // 2. Free reports: immediately when reaching preview page (no payment needed)
+        // This ensures ALL reports follow the same flow and auto-generate consistently
+        // IMPORTANT: Don't require auto_generate=true for paid reports - if payment is verified and we have input, generate
+        // This fixes issues where year-analysis and other paid reports worked before but broke after changes
+        const shouldAutoGenerate = 
+          // Paid reports: generate if payment verified (supports both auto_generate flow and direct navigation)
+          (isPaidReport && paymentVerified && !reportContent) ||
+          // Free reports: auto-generate immediately if we have input and no content yet
+          (!isPaidReport && !reportContent);
         
-        // Small delay to ensure state is set
-        setTimeout(() => {
-          if (isBundle && savedBundleReports) {
-            try {
-              const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
-              generateBundleReports(inputData, bundleReportsList, urlSessionId || undefined, paymentIntentIdFromStorage);
-            } catch (e) {
-              console.error("Failed to parse bundle reports:", e);
-              generateReport(inputData, reportTypeToUse, urlSessionId || undefined, paymentIntentIdFromStorage);
+        if (shouldAutoGenerate && inputData && reportTypeToUse && !loading && !hasAutoGeneratedRef.current) {
+          hasAutoGeneratedRef.current = true; // Set guard immediately
+          console.log("[Preview] Auto-generating report:", { 
+            reportType: reportTypeToUse, 
+            hasInput: !!inputData,
+            isPaidReport,
+            autoGenerate,
+            paymentVerified,
+            isFreeReport: !isPaidReport
+          });
+          
+          // Get paymentIntentId from sessionStorage if available (for paid reports only)
+          let paymentIntentIdFromStorage: string | undefined;
+          try {
+            paymentIntentIdFromStorage = sessionStorage.getItem("aiAstrologyPaymentIntentId") || undefined;
+          } catch (e) {
+            console.error("Failed to read paymentIntentId from sessionStorage:", e);
+          }
+          
+          // Show loading immediately and set stage to generating (for ALL report types)
+          setLoading(true);
+          setLoadingStage("generating");
+          setLoadingStartTime(Date.now());
+          setElapsedTime(0);
+          // Reset progress steps for all reports
+          setProgressSteps({
+            birthChart: false,
+            planetaryAnalysis: false,
+            generatingInsights: false,
+          });
+          
+          // Small delay to ensure state is set
+          setTimeout(() => {
+            if (isBundle && savedBundleReports) {
+              try {
+                const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
+                generateBundleReports(inputData, bundleReportsList, urlSessionId || undefined, paymentIntentIdFromStorage);
+              } catch (e) {
+                console.error("Failed to parse bundle reports:", e);
+                generateReport(inputData, reportTypeToUse, urlSessionId || undefined, paymentIntentIdFromStorage);
+              }
+            } else {
+              // For free reports, don't pass session_id or paymentIntentId
+              const sessionIdForGeneration = isPaidReport ? (urlSessionId || undefined) : undefined;
+              const paymentIntentIdForGeneration = isPaidReport ? paymentIntentIdFromStorage : undefined;
+              generateReport(inputData, reportTypeToUse, sessionIdForGeneration, paymentIntentIdForGeneration);
             }
-          } else {
-            // For free reports, don't pass session_id or paymentIntentId
-            const sessionIdForGeneration = isPaidReport ? (urlSessionId || undefined) : undefined;
-            const paymentIntentIdForGeneration = isPaidReport ? paymentIntentIdFromStorage : undefined;
-            generateReport(inputData, reportTypeToUse, sessionIdForGeneration, paymentIntentIdForGeneration);
-          }
-        }, 300);
-        return; // Exit early to avoid duplicate generation
-      }
+          }, 300);
+          return; // Exit early to avoid duplicate generation
+        }
+        } catch (e) {
+          // Handle errors within setTimeout
+          console.error("[Preview] Error in delayed sessionStorage check:", e);
+          // Don't redirect on error here - let outer catch handle it
+        }
+      }, 200); // Small delay to allow sessionStorage to be written (fixes redirect loop)
       
-      // REMOVED: Legacy auto-generation paths that were causing duplicate calls
-      // Only the auto_generate=true path above should trigger generation
+      // Cleanup timeout on unmount
+      return () => {
+        clearTimeout(timeoutId);
+      };
     } catch (e) {
       // Handle JSON parse errors or sessionStorage errors (e.g., private browsing mode)
       console.error("Error accessing sessionStorage or parsing saved input:", e);
-      router.push("/ai-astrology/input");
+      // CRITICAL: Preserve reportType when redirecting to prevent loops
+      const urlReportType = searchParams.get("reportType");
+      const redirectUrl = urlReportType 
+        ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+        : "/ai-astrology/input";
+      router.push(redirectUrl);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, generateReport, generateBundleReports, searchParams.toString(), loading]);
+    // CRITICAL: Removed 'loading' from dependencies to prevent re-running on every loading state change
+    // This prevents redirect loops when loading state changes
+  }, [router, generateReport, generateBundleReports, searchParams.toString()]);
 
   const isPaidReport = reportType !== "life-summary";
   const needsPayment = isPaidReport && !paymentVerified;
@@ -1213,9 +1278,12 @@ function PreviewContent() {
     setError(null);
     
     try {
-      // Try to load from sessionStorage first (for reportId)
+      // Try to load from sessionStorage first, then localStorage (for reportId)
       if (currentReportIdForLoading) {
-        const storedReport = sessionStorage.getItem(`aiAstrologyReport_${currentReportIdForLoading}`);
+        let storedReport = sessionStorage.getItem(`aiAstrologyReport_${currentReportIdForLoading}`);
+        if (!storedReport) {
+          storedReport = localStorage.getItem(`aiAstrologyReport_${currentReportIdForLoading}`);
+        }
         if (storedReport) {
           const parsed = JSON.parse(storedReport);
           setReportContent(parsed.content);
@@ -1965,16 +2033,21 @@ function PreviewContent() {
     }
     
     // No session or report ID and not loading - redirect to input page to start fresh
-    // This shouldn't normally happen, but handle gracefully
-    // Use setTimeout instead of useEffect (hooks can't be called conditionally)
-    if (typeof window !== "undefined") {
+    // CRITICAL: Only redirect once to prevent loops, preserve reportType
+    // This should rarely execute, but handle gracefully if it does
+    if (!hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
+      const redirectUrl = reportType && reportType !== "life-summary" 
+        ? `/ai-astrology/input?reportType=${encodeURIComponent(reportType)}` 
+        : "/ai-astrology/input";
+      console.log("[Preview] Redirecting to input page (no content/input found):", redirectUrl);
+      // Use setTimeout to avoid React rendering issues
       setTimeout(() => {
-        router.push(reportType && reportType !== "life-summary" 
-          ? `/ai-astrology/input?reportType=${reportType}` 
-          : "/ai-astrology/input");
+        router.push(redirectUrl);
       }, 100);
     }
     
+    // Show loading state while redirecting (prevents flash of content)
     return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
         <Card className="max-w-2xl w-full mx-4">

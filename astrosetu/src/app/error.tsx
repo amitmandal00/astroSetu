@@ -14,17 +14,10 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error(error);
-    logError("unhandled_error_boundary", error);
-    
-    // Also send to Sentry directly
-    if (typeof window !== "undefined") {
-      try {
-        const Sentry = require("@sentry/nextjs");
-        Sentry.captureException(error);
-      } catch (e) {
-        // Sentry not available
-      }
-    }
+    // logError already sends to Sentry, so no need to call Sentry directly again
+    logError("unhandled_error_boundary", error, {
+      digest: error.digest,
+    });
   }, [error]);
 
   return (
