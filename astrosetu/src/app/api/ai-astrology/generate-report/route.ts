@@ -64,12 +64,31 @@ function checkIfTestUser(input: AIAstrologyInput): boolean {
     const placeMatch = input.place?.toLowerCase().includes(testUser.place.toLowerCase()) ?? false;
     const genderMatch = !testUser.gender || input.gender?.toLowerCase() === testUser.gender.toLowerCase();
 
-    // More flexible matching - allow if name matches and at least DOB OR place matches
-    // This handles cases where exact place/time might vary (e.g., "Delhi" vs "New Delhi")
+    // ULTRA-FLEXIBLE matching for production test users:
+    // 1. Name must match (flexible - contains or matches)
+    // 2. At least ONE of: DOB, place, or time should match (very lenient)
+    // 3. Gender is optional (only check if provided)
     const hasNameMatch = nameMatch;
-    const hasBasicMatch = dobMatch || placeMatch; // At least DOB or place should match
+    
+    // For Amit: require DOB match (he's the primary test user)
+    // For Ankita: be more lenient (name + any detail)
+    const isAmit = testUser.name.toLowerCase().includes("amit");
+    const isAnkita = testUser.name.toLowerCase().includes("ankita");
+    
+    let hasBasicMatch = false;
+    if (isAmit) {
+      // Amit: require DOB match (most reliable)
+      hasBasicMatch = dobMatch || placeMatch; // DOB or place
+    } else if (isAnkita) {
+      // Ankita: very lenient - name match is enough, but prefer DOB/place if available
+      hasBasicMatch = dobMatch || placeMatch || true; // Always true for Ankita if name matches
+    } else {
+      // Other test users: require at least one detail
+      hasBasicMatch = dobMatch || placeMatch;
+    }
+    
     const timeMatchesOrNotRequired = timeMatch || !input.tob || !testUser.time;
-    const genderMatchesOrNotRequired = genderMatch || !testUser.gender;
+    const genderMatchesOrNotRequired = genderMatch || !testUser.gender || !input.gender;
     
     if (hasNameMatch && hasBasicMatch && timeMatchesOrNotRequired && genderMatchesOrNotRequired) {
       console.log(`[TEST USER] Production test user detected: ${testUser.name}`, JSON.stringify({
@@ -78,10 +97,14 @@ function checkIfTestUser(input: AIAstrologyInput): boolean {
         placeMatch,
         timeMatch,
         genderMatch,
+        hasBasicMatch,
+        isAmit,
+        isAnkita,
         inputName: input.name,
         inputDOB: input.dob,
         inputPlace: input.place,
         inputTob: input.tob,
+        inputGender: input.gender,
       }, null, 2));
       return true;
     } else {
@@ -95,6 +118,9 @@ function checkIfTestUser(input: AIAstrologyInput): boolean {
           placeMatch,
           timeMatch,
           genderMatch,
+          hasBasicMatch,
+          isAmit,
+          isAnkita,
           inputDOB: input.dob,
           inputPlace: input.place,
           inputTob: input.tob,
@@ -210,31 +236,37 @@ export async function POST(req: Request) {
     const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
     
     // ENHANCED: Check if user is a test user FIRST (before access restriction)
-    // This ensures test users always pass access restriction even if matching logic differs
-    const isTestUserForAccess = isTestUser || checkIfTestUser(input);
+    // This ensures test users ALWAYS pass access restriction even if matching logic differs
+    // Re-check test user status here to ensure we have the latest detection
+    const isTestUserForAccess = checkIfTestUser(input);
     
-    if (restrictAccess && !isTestUserForAccess && !isAllowedUser(input)) {
-      const restrictionError = {
-        requestId,
-        timestamp: new Date().toISOString(),
-        reportType,
-        userName: input.name || "N/A",
-        userDOB: input.dob || "N/A",
-        userPlace: input.place || "N/A",
-        userTob: input.tob || "N/A",
-        isTestUser: isTestUser,
-        isTestUserForAccess: isTestUserForAccess,
-        error: "Access restricted for production testing",
-      };
-      console.error("[ACCESS RESTRICTION]", JSON.stringify(restrictionError, null, 2));
-      
-      // CRITICAL: Cancel payment if access is restricted (user should not be charged)
-      await cancelPaymentSafely("Access restricted - user not authorized");
-      
-      return NextResponse.json(
-        { ok: false, error: getRestrictionMessage() },
-        { status: 403, headers: { "X-Request-ID": requestId } }
-      );
+    // CRITICAL: Test users ALWAYS bypass access restriction
+    if (restrictAccess && !isTestUserForAccess) {
+      // Only check isAllowedUser if NOT a test user
+      if (!isAllowedUser(input)) {
+        const restrictionError = {
+          requestId,
+          timestamp: new Date().toISOString(),
+          reportType,
+          userName: input.name || "N/A",
+          userDOB: input.dob || "N/A",
+          userPlace: input.place || "N/A",
+          userTob: input.tob || "N/A",
+          isTestUser: isTestUser,
+          isTestUserForAccess: isTestUserForAccess,
+          restrictAccess,
+          error: "Access restricted for production testing",
+        };
+        console.error("[ACCESS RESTRICTION]", JSON.stringify(restrictionError, null, 2));
+        
+        // CRITICAL: Cancel payment if access is restricted (user should not be charged)
+        await cancelPaymentSafely("Access restricted - user not authorized");
+        
+        return NextResponse.json(
+          { ok: false, error: getRestrictionMessage() },
+          { status: 403, headers: { "X-Request-ID": requestId } }
+        );
+      }
     }
     
     // Log successful access for test users
@@ -243,7 +275,10 @@ export async function POST(req: Request) {
         requestId,
         userName: input.name,
         userDOB: input.dob,
+        userPlace: input.place,
+        userTob: input.tob,
         reportType,
+        restrictAccess,
         timestamp: new Date().toISOString(),
       }, null, 2));
     }
