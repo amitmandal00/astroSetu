@@ -404,8 +404,12 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
  * Generate Marriage Timing Report (Paid)
  */
 export async function generateMarriageTimingReport(input: AIAstrologyInput): Promise<ReportContent> {
+  const startTime = Date.now();
   try {
+    console.log(`[generateMarriageTimingReport] Starting report generation for ${input.name}`);
     // Get astrology data
+    console.log(`[generateMarriageTimingReport] Calling getKundli...`);
+    const kundliStartTime = Date.now();
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -416,10 +420,15 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
+    const kundliTime = Date.now() - kundliStartTime;
+    console.log(`[generateMarriageTimingReport] getKundli completed in ${kundliTime}ms`);
 
     // Get dosha analysis
     let doshaAnalysis: DoshaAnalysis | null = null;
+    let doshaTime = 0;
     try {
+      console.log(`[generateMarriageTimingReport] Calling getDoshaAnalysis...`);
+      const doshaStartTime = Date.now();
       const { getDoshaAnalysis } = await import("../astrologyAPI");
       doshaAnalysis = await getDoshaAnalysis({
         name: input.name,
@@ -431,8 +440,10 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
         timezone: input.timezone || "Asia/Kolkata",
         ayanamsa: 1,
       });
+      doshaTime = Date.now() - doshaStartTime;
+      console.log(`[generateMarriageTimingReport] getDoshaAnalysis completed in ${doshaTime}ms`);
     } catch (e) {
-      console.log("Could not fetch dosha analysis:", e);
+      console.log(`[generateMarriageTimingReport] Could not fetch dosha analysis:`, e);
     }
 
     // Extract relevant planetary data (handle missing planets array)
@@ -492,12 +503,20 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
     );
 
     // Generate AI content (pass reportType for proper retry handling and logging)
+    console.log(`[generateMarriageTimingReport] Generating AI content...`);
+    const aiStartTime = Date.now();
     const aiResponse = await generateAIContent(prompt, "marriage-timing");
+    const aiTime = Date.now() - aiStartTime;
+    console.log(`[generateMarriageTimingReport] AI content generated in ${aiTime}ms, parsing response...`);
     
     // Parse and return
-    return parseAIResponse(aiResponse, "marriage-timing");
+    const parsed = parseAIResponse(aiResponse, "marriage-timing");
+    const totalTime = Date.now() - startTime;
+    console.log(`[generateMarriageTimingReport] Report generation complete in ${totalTime}ms (Kundli: ${kundliTime}ms, Dosha: ${doshaTime}ms, AI: ${aiTime}ms)`);
+    return parsed;
   } catch (error: any) {
-    console.error("[generateMarriageTimingReport] Error:", error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[generateMarriageTimingReport] Error after ${totalTime}ms:`, error);
     throw error; // Re-throw to be handled by API route
   }
 }
@@ -506,8 +525,12 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
  * Generate Career & Money Report (Paid)
  */
 export async function generateCareerMoneyReport(input: AIAstrologyInput): Promise<ReportContent> {
+  const startTime = Date.now();
   try {
+    console.log(`[generateCareerMoneyReport] Starting report generation for ${input.name}`);
     // Get astrology data
+    console.log(`[generateCareerMoneyReport] Calling getKundli...`);
+    const kundliStartTime = Date.now();
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -518,6 +541,8 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
+    const kundliTime = Date.now() - kundliStartTime;
+    console.log(`[generateCareerMoneyReport] getKundli completed in ${kundliTime}ms, extracting planetary data...`);
 
     // Extract relevant planetary data
     // 10th house = career, 2nd house = money
@@ -568,12 +593,20 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
     );
 
     // Generate AI content (pass reportType for proper retry handling and logging)
+    console.log(`[generateCareerMoneyReport] Generating AI content...`);
+    const aiStartTime = Date.now();
     const aiResponse = await generateAIContent(prompt, "career-money");
+    const aiTime = Date.now() - aiStartTime;
+    console.log(`[generateCareerMoneyReport] AI content generated in ${aiTime}ms, parsing response...`);
     
     // Parse and return
-    return parseAIResponse(aiResponse, "career-money");
+    const parsed = parseAIResponse(aiResponse, "career-money");
+    const totalTime = Date.now() - startTime;
+    console.log(`[generateCareerMoneyReport] Report generation complete in ${totalTime}ms (Kundli: ${kundliTime}ms, AI: ${aiTime}ms)`);
+    return parsed;
   } catch (error: any) {
-    console.error("[generateCareerMoneyReport] Error:", error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[generateCareerMoneyReport] Error after ${totalTime}ms:`, error);
     throw error; // Re-throw to be handled by API route
   }
 }
@@ -582,8 +615,12 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
  * Generate Full Life Report (Paid - comprehensive report)
  */
 export async function generateFullLifeReport(input: AIAstrologyInput): Promise<ReportContent> {
+  const startTime = Date.now();
   try {
+    console.log(`[generateFullLifeReport] Starting report generation for ${input.name}`);
     // Get astrology data from Prokerala API
+    console.log(`[generateFullLifeReport] Calling getKundli...`);
+    const kundliStartTime = Date.now();
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -594,10 +631,15 @@ export async function generateFullLifeReport(input: AIAstrologyInput): Promise<R
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
+    const kundliTime = Date.now() - kundliStartTime;
+    console.log(`[generateFullLifeReport] getKundli completed in ${kundliTime}ms`);
 
     // Get dosha analysis for comprehensive report
     let doshaAnalysis: DoshaAnalysis | null = null;
+    let doshaTime = 0;
     try {
+      console.log(`[generateFullLifeReport] Calling getDoshaAnalysis...`);
+      const doshaStartTime = Date.now();
       const { getDoshaAnalysis } = await import("../astrologyAPI");
       doshaAnalysis = await getDoshaAnalysis({
         name: input.name,
@@ -609,8 +651,10 @@ export async function generateFullLifeReport(input: AIAstrologyInput): Promise<R
         timezone: input.timezone || "Asia/Kolkata",
         ayanamsa: 1,
       });
+      doshaTime = Date.now() - doshaStartTime;
+      console.log(`[generateFullLifeReport] getDoshaAnalysis completed in ${doshaTime}ms`);
     } catch (e) {
-      console.log("Could not fetch dosha analysis:", e);
+      console.log(`[generateFullLifeReport] Could not fetch dosha analysis:`, e);
     }
 
     // Extract planetary data (handle missing planets array)
@@ -650,12 +694,20 @@ export async function generateFullLifeReport(input: AIAstrologyInput): Promise<R
     );
 
     // Generate AI content (pass reportType for complex report handling)
+    console.log(`[generateFullLifeReport] Generating AI content...`);
+    const aiStartTime = Date.now();
     const aiResponse = await generateAIContent(prompt, "full-life");
+    const aiTime = Date.now() - aiStartTime;
+    console.log(`[generateFullLifeReport] AI content generated in ${aiTime}ms, parsing response...`);
     
     // Parse and return
-    return parseAIResponse(aiResponse, "full-life");
+    const parsed = parseAIResponse(aiResponse, "full-life");
+    const totalTime = Date.now() - startTime;
+    console.log(`[generateFullLifeReport] Report generation complete in ${totalTime}ms (Kundli: ${kundliTime}ms, Dosha: ${doshaTime}ms, AI: ${aiTime}ms)`);
+    return parsed;
   } catch (error: any) {
-    console.error("[generateFullLifeReport] Error:", error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[generateFullLifeReport] Error after ${totalTime}ms:`, error);
     // Fallback: If dedicated prompt fails, combine individual reports
     try {
       const [lifeSummary, marriageTiming, careerMoney] = await Promise.all([
@@ -692,10 +744,12 @@ export async function generateYearAnalysisReport(
   input: AIAstrologyInput, 
   dateRange?: { startYear: number; startMonth: number; endYear: number; endMonth: number }
 ): Promise<ReportContent> {
+  const startTime = Date.now();
   try {
     console.log(`[generateYearAnalysisReport] Starting report generation for ${input.name}`);
     // Get astrology data from Prokerala API
     console.log(`[generateYearAnalysisReport] Calling getKundli...`);
+    const kundliStartTime = Date.now();
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -706,7 +760,8 @@ export async function generateYearAnalysisReport(
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
-    console.log(`[generateYearAnalysisReport] getKundli completed, extracting planetary data...`);
+    const kundliTime = Date.now() - kundliStartTime;
+    console.log(`[generateYearAnalysisReport] getKundli completed in ${kundliTime}ms, extracting planetary data...`);
 
     // Extract planetary data (handle missing planets array)
     const planets = (kundliResult.planets || []).map(p => ({
@@ -750,15 +805,19 @@ export async function generateYearAnalysisReport(
 
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateYearAnalysisReport] Calling generateAIContent...`);
+    const aiStartTime = Date.now();
     const aiResponse = await generateAIContent(prompt, "year-analysis");
-    console.log(`[generateYearAnalysisReport] AI content generated, parsing response...`);
+    const aiTime = Date.now() - aiStartTime;
+    console.log(`[generateYearAnalysisReport] AI content generated in ${aiTime}ms, parsing response...`);
     
     // Parse and return
     const parsed = parseAIResponse(aiResponse, "year-analysis");
-    console.log(`[generateYearAnalysisReport] Report generation complete`);
+    const totalTime = Date.now() - startTime;
+    console.log(`[generateYearAnalysisReport] Report generation complete in ${totalTime}ms (Kundli: ${kundliTime}ms, AI: ${aiTime}ms)`);
     return parsed;
   } catch (error: any) {
-    console.error("[generateYearAnalysisReport] Error:", error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[generateYearAnalysisReport] Error after ${totalTime}ms:`, error);
     throw error; // Re-throw to be handled by API route
   }
 }
@@ -767,8 +826,12 @@ export async function generateYearAnalysisReport(
  * Generate Major Life Phase Report (Paid - 3-5 year outlook)
  */
 export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Promise<ReportContent> {
+  const startTime = Date.now();
   try {
+    console.log(`[generateMajorLifePhaseReport] Starting report generation for ${input.name}`);
     // Get astrology data from Prokerala API
+    console.log(`[generateMajorLifePhaseReport] Calling getKundli...`);
+    const kundliStartTime = Date.now();
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -779,6 +842,8 @@ export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Pro
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
+    const kundliTime = Date.now() - kundliStartTime;
+    console.log(`[generateMajorLifePhaseReport] getKundli completed in ${kundliTime}ms, extracting planetary data...`);
 
     // Extract planetary data
     const planets = (kundliResult.planets || []).map(p => ({
@@ -811,12 +876,20 @@ export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Pro
     );
 
     // Generate AI content (pass reportType for complex report handling)
+    console.log(`[generateMajorLifePhaseReport] Generating AI content...`);
+    const aiStartTime = Date.now();
     const aiResponse = await generateAIContent(prompt, "major-life-phase");
+    const aiTime = Date.now() - aiStartTime;
+    console.log(`[generateMajorLifePhaseReport] AI content generated in ${aiTime}ms, parsing response...`);
     
     // Parse and return
-    return parseAIResponse(aiResponse, "major-life-phase");
+    const parsed = parseAIResponse(aiResponse, "major-life-phase");
+    const totalTime = Date.now() - startTime;
+    console.log(`[generateMajorLifePhaseReport] Report generation complete in ${totalTime}ms (Kundli: ${kundliTime}ms, AI: ${aiTime}ms)`);
+    return parsed;
   } catch (error: any) {
-    console.error("[generateMajorLifePhaseReport] Error:", error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[generateMajorLifePhaseReport] Error after ${totalTime}ms:`, error);
     throw error;
   }
 }
@@ -828,8 +901,12 @@ export async function generateDecisionSupportReport(
   input: AIAstrologyInput,
   decisionContext?: string
 ): Promise<ReportContent> {
+  const startTime = Date.now();
   try {
+    console.log(`[generateDecisionSupportReport] Starting report generation for ${input.name}`);
     // Get astrology data from Prokerala API
+    console.log(`[generateDecisionSupportReport] Calling getKundli...`);
+    const kundliStartTime = Date.now();
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -840,6 +917,8 @@ export async function generateDecisionSupportReport(
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
+    const kundliTime = Date.now() - kundliStartTime;
+    console.log(`[generateDecisionSupportReport] getKundli completed in ${kundliTime}ms, extracting planetary data...`);
 
     // Extract planetary data
     const planets = (kundliResult.planets || []).map(p => ({
@@ -873,12 +952,20 @@ export async function generateDecisionSupportReport(
     );
 
     // Generate AI content (pass reportType for proper retry handling and logging)
+    console.log(`[generateDecisionSupportReport] Generating AI content...`);
+    const aiStartTime = Date.now();
     const aiResponse = await generateAIContent(prompt, "decision-support");
+    const aiTime = Date.now() - aiStartTime;
+    console.log(`[generateDecisionSupportReport] AI content generated in ${aiTime}ms, parsing response...`);
     
     // Parse and return
-    return parseAIResponse(aiResponse, "decision-support");
+    const parsed = parseAIResponse(aiResponse, "decision-support");
+    const totalTime = Date.now() - startTime;
+    console.log(`[generateDecisionSupportReport] Report generation complete in ${totalTime}ms (Kundli: ${kundliTime}ms, AI: ${aiTime}ms)`);
+    return parsed;
   } catch (error: any) {
-    console.error("[generateDecisionSupportReport] Error:", error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[generateDecisionSupportReport] Error after ${totalTime}ms:`, error);
     throw error;
   }
 }
