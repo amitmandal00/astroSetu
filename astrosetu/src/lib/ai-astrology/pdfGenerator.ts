@@ -38,11 +38,16 @@ export async function generatePDF(
     return null;
   }
 
+  const startTime = Date.now();
+  console.log("[PDF] Starting PDF generation for", reportType);
+  
   try {
     const PDF = await loadPDFLibraries();
     if (!PDF) {
       throw new Error("Failed to load PDF library");
     }
+    
+    console.log("[PDF] PDF library loaded, starting document creation...");
 
     const doc = new PDF({
       orientation: "portrait",
@@ -970,11 +975,22 @@ export async function generatePDF(
     // If not enough space, disclaimer will be in footer area (handled in footer section)
 
     // Generate blob
+    console.log("[PDF] Generating PDF blob...");
     const pdfBlob = doc.output("blob");
+    const generationTime = Date.now() - startTime;
+    console.log(`[PDF] PDF generation completed successfully in ${generationTime}ms`);
     return pdfBlob;
-  } catch (error) {
-    console.error("Error generating PDF:", error);
-    return null;
+  } catch (error: any) {
+    const generationTime = Date.now() - startTime;
+    console.error(`[PDF] Error generating PDF after ${generationTime}ms:`, error);
+    // Provide more specific error messages
+    if (error?.message?.includes("memory") || error?.message?.includes("too large")) {
+      throw new Error("Report is too large for PDF generation. Please try a shorter report or contact support.");
+    }
+    if (error?.message?.includes("timeout")) {
+      throw new Error("PDF generation timed out. Please try again.");
+    }
+    throw new Error(`PDF generation failed: ${error?.message || "Unknown error"}`);
   }
 }
 
@@ -1008,11 +1024,16 @@ export async function generateBundlePDF(
     return null;
   }
 
+  const startTime = Date.now();
+  console.log("[PDF] Starting bundle PDF generation for", bundleReports.length, "reports");
+  
   try {
     const PDF = await loadPDFLibraries();
     if (!PDF) {
       throw new Error("Failed to load PDF library");
     }
+    
+    console.log("[PDF] PDF library loaded, starting bundle document creation...");
 
     const doc = new PDF({
       orientation: "portrait",
@@ -1607,11 +1628,22 @@ export async function generateBundlePDF(
       });
     }
 
+    console.log("[PDF] Generating bundle PDF blob...");
     const pdfBlob = doc.output("blob");
+    const generationTime = Date.now() - startTime;
+    console.log(`[PDF] Bundle PDF generation completed successfully in ${generationTime}ms`);
     return pdfBlob;
-  } catch (error) {
-    console.error("Error generating bundle PDF:", error);
-    return null;
+  } catch (error: any) {
+    const generationTime = Date.now() - startTime;
+    console.error(`[PDF] Error generating bundle PDF after ${generationTime}ms:`, error);
+    // Provide more specific error messages
+    if (error?.message?.includes("memory") || error?.message?.includes("too large")) {
+      throw new Error("Bundle is too large for PDF generation. Please try downloading individual reports.");
+    }
+    if (error?.message?.includes("timeout")) {
+      throw new Error("Bundle PDF generation timed out. Please try again or download individual reports.");
+    }
+    throw new Error(`Bundle PDF generation failed: ${error?.message || "Unknown error"}`);
   }
 }
 
@@ -1628,17 +1660,21 @@ export async function downloadPDF(
   bundleReports?: string[],
   bundleType?: string
 ): Promise<boolean> {
+  const startTime = Date.now();
   try {
     let blob: Blob | null = null;
 
     // Check if this is a bundle
     if (bundleContents && bundleReports && bundleReports.length > 0 && bundleType) {
+      console.log("[PDF] Generating bundle PDF...");
       // Generate bundle PDF with all reports
       blob = await generateBundlePDF(bundleContents, bundleReports, input, bundleType);
       if (!blob) {
-        return false;
+        console.error("[PDF] Bundle PDF generation returned null");
+        throw new Error("Bundle PDF generation failed - no blob returned");
       }
       
+      console.log("[PDF] Bundle PDF generated, creating download...");
       const bundleTitleMap: Record<string, string> = {
         "life-decision-pack": "life-decision-pack",
         "all-3": "all-3-reports",
@@ -1652,29 +1688,42 @@ export async function downloadPDF(
       link.download = filename || `${bundleFilename}-${input.name}-${new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Small delay before cleanup to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
     } else {
+      console.log("[PDF] Generating single report PDF...");
       // Single report PDF
       blob = await generatePDF(reportContent, input, reportType);
       if (!blob) {
-        return false;
+        console.error("[PDF] Single PDF generation returned null");
+        throw new Error("PDF generation failed - no blob returned");
       }
 
+      console.log("[PDF] PDF generated, creating download...");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = filename || `${reportType}-${input.name}-${new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Small delay before cleanup to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
     }
 
+    const totalTime = Date.now() - startTime;
+    console.log(`[PDF] PDF download completed successfully in ${totalTime}ms`);
     return true;
-  } catch (error) {
-    console.error("Error downloading PDF:", error);
-    return false;
+  } catch (error: any) {
+    const totalTime = Date.now() - startTime;
+    console.error(`[PDF] Error downloading PDF after ${totalTime}ms:`, error);
+    // Re-throw with more context for better error handling
+    throw error;
   }
 }
 

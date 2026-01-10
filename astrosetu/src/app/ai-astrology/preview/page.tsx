@@ -212,14 +212,14 @@ function PreviewContent() {
       }
 
       // Calculate timeout based on report type (match server-side timeout + buffer)
-      // Server timeout: 65s (free), 60s (regular paid), or 75s (complex)
+      // Server timeout: 65s (free), 60s (regular paid), or 90s (complex)
       // Client should be slightly longer to avoid premature timeout
       const isComplexReport = type === "full-life" || type === "major-life-phase";
       const isFreeReport = type === "life-summary";
       // Free reports: 70s (server: 65s) - Prokerala API call can add 5-10s
       // Regular paid: 65s (server: 60s)
-      // Complex: 80s (server: 75s)
-      const clientTimeout = isComplexReport ? 80000 : (isFreeReport ? 70000 : 65000);
+      // Complex: 100s (server: 90s + 10s buffer) - Increased to accommodate longer generation time
+      const clientTimeout = isComplexReport ? 100000 : (isFreeReport ? 70000 : 65000);
       
       const response = await apiPost<{
         ok: boolean;
@@ -1051,19 +1051,46 @@ function PreviewContent() {
   const needsPayment = isPaidReport && !paymentVerified;
 
   const handlePurchase = async () => {
-    if (!input || !reportType) return;
+    if (!input) return;
+    
+    // Check if this is a bundle purchase
+    const isBundle = bundleType && bundleReports.length > 0;
+    if (isBundle && !reportType) {
+      // For bundles, we need at least one reportType (will be handled by bundleReports)
+      console.warn("[Purchase] Bundle purchase but no reportType set");
+    }
+    if (!isBundle && !reportType) {
+      setError("Report type is required");
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null); // Clear any previous errors
+      
+      // CRITICAL: For bundles, send bundleReports to create separate line items for each report
+      const checkoutPayload: any = {
+        input,
+      };
+      
+      if (isBundle) {
+        // Bundle: Send bundle information for separate charges
+        checkoutPayload.bundleReports = bundleReports;
+        checkoutPayload.bundleType = bundleType;
+        // Still include reportType for metadata (use first report in bundle)
+        checkoutPayload.reportType = bundleReports[0] || reportType;
+        console.log(`[Purchase] Creating bundle checkout for ${bundleReports.length} reports:`, bundleReports);
+      } else {
+        // Single report
+        checkoutPayload.reportType = reportType;
+        console.log(`[Purchase] Creating single report checkout for:`, reportType);
+      }
+      
       const response = await apiPost<{
         ok: boolean;
         data?: { url: string; sessionId: string };
         error?: string;
-      }>("/api/ai-astrology/create-checkout", {
-        reportType,
-        input,
-      });
+      }>("/api/ai-astrology/create-checkout", checkoutPayload);
 
       if (!response.ok) {
         throw new Error(response.error || "Failed to create checkout");
@@ -1104,10 +1131,22 @@ function PreviewContent() {
     if (!reportContent || !input) return;
 
     setDownloadingPDF(true);
+    setError(null); // Clear any previous errors
+    
+    // Add timeout to prevent infinite hanging (60 seconds for single, 120 seconds for bundle)
+    const isBundle = bundleType && bundleReports.length > 0 && bundleContents.size > 0;
+    const timeoutDuration = isBundle ? 120000 : 60000; // 120s for bundles, 60s for single
+    
+    const timeoutId = setTimeout(() => {
+      if (downloadingPDF) {
+        console.error("[PDF] Generation timeout after", timeoutDuration / 1000, "seconds");
+        setError("PDF generation is taking longer than expected. Please try again. If the issue persists, the report may be too large.");
+        setDownloadingPDF(false);
+      }
+    }, timeoutDuration);
+    
     try {
       // Check if this is a bundle download
-      const isBundle = bundleType && bundleReports.length > 0 && bundleContents.size > 0;
-      
       if (isBundle) {
         // Download bundle PDF with all reports
         const bundleContentsMap = new Map<string, ReportContent>();
@@ -1120,6 +1159,7 @@ function PreviewContent() {
         
         // Ensure we have all bundle contents before downloading
         if (bundleContentsMap.size === bundleReports.length) {
+          console.log("[PDF] Starting bundle PDF generation...");
           const success = await downloadPDF(
             reportContent, // Still needed for function signature but bundle data is used
             input,
@@ -1129,23 +1169,29 @@ function PreviewContent() {
             bundleReports,
             bundleType
           );
+          clearTimeout(timeoutId);
           if (!success) {
-            setError("Failed to generate bundle PDF. Please try again.");
+            setError("Failed to generate bundle PDF. Please try again. If the issue persists, try downloading individual reports.");
           }
         } else {
+          clearTimeout(timeoutId);
           setError("Not all bundle reports are available. Please wait for all reports to generate.");
         }
       } else {
         // Download single report PDF
+        console.log("[PDF] Starting single report PDF generation...");
         const success = await downloadPDF(reportContent, input, reportType || "life-summary");
+        clearTimeout(timeoutId);
         if (!success) {
-          setError("Failed to generate PDF. Please try again.");
+          setError("Failed to generate PDF. Please try again. If the issue persists, try refreshing the page.");
         }
       }
     } catch (e: any) {
-      console.error("PDF download error:", e);
-      setError("Failed to download PDF. Please try again.");
+      clearTimeout(timeoutId);
+      console.error("[PDF] PDF download error:", e);
+      setError(`Failed to download PDF: ${e.message || "Unknown error"}. Please try again or refresh the page.`);
     } finally {
+      clearTimeout(timeoutId);
       setDownloadingPDF(false);
     }
   };
@@ -1170,11 +1216,12 @@ function PreviewContent() {
         }
         
         // CRITICAL: Auto-detect timeout and show error if stuck
-        // Timeout thresholds: 120s for complex reports, 100s for regular reports, 30s for verification
+        // Timeout thresholds: 130s for complex reports (matches increased 90s server timeout + buffer), 100s for regular reports, 30s for verification
+        // Increased from 120s to 130s to match increased server timeout for complex reports
         const timeoutThreshold = loadingStage === "verifying" 
           ? 30 
           : (reportType === "full-life" || reportType === "major-life-phase") 
-          ? 120 
+          ? 130 
           : 100;
         
         if (elapsed >= timeoutThreshold) {
@@ -1442,14 +1489,14 @@ function PreviewContent() {
     const hasSessionId = hasSessionIdForLoading;
     
     // Calculate time remaining or elapsed (optimized estimates for faster generation)
-    // Free reports: 60-90 seconds, Regular paid: 60-90 seconds, Complex: 60-90 seconds (unified for consistency)
+    // Free reports: ~60 seconds, Regular paid: ~60 seconds, Complex: ~75-90 seconds
     const estimatedTime = loadingStage === "verifying" 
       ? 10 
       : (reportType === "full-life" || reportType === "major-life-phase") 
-      ? 90  // Complex reports: 90 seconds
+      ? 90  // Complex reports: up to 90 seconds (comprehensive analysis takes longer)
       : reportType === "life-summary"
-      ? 90  // Free reports: 90 seconds (same as paid for consistency)
-      : 90; // Regular paid reports: 90 seconds (same estimate for all)
+      ? 65  // Free reports: ~65 seconds
+      : 60; // Regular paid reports: ~60 seconds
     const timeRemaining = Math.max(0, estimatedTime - elapsedTime);
     const isTakingLonger = elapsedTime > estimatedTime;
     
@@ -1468,13 +1515,20 @@ function PreviewContent() {
         <Card className="max-w-2xl w-full mx-4 mt-16">
           <CardContent className="p-12 text-center">
             <div className="animate-spin text-6xl mb-6">🌙</div>
-            <h2 className="text-2xl font-bold mb-4">
+            <h2 className="text-2xl font-bold mb-2 text-slate-900">
               {isVerifying 
                 ? "Verifying Your Payment..." 
                 : isBundleLoading 
                 ? "Generating Your Bundle Reports..." 
-                : "Generating Your Report..."}
+                : `Generating Your ${getReportName(reportType || "life-summary")}...`}
             </h2>
+            <p className="text-sm text-slate-500 mb-4">
+              {isVerifying
+                ? "One quick moment while we confirm everything is ready"
+                : isBundleLoading
+                ? "Creating comprehensive insights across multiple life areas"
+                : "Our AI is analyzing your birth chart and generating personalized insights"}
+            </p>
             
             {/* Elapsed time indicator - Always show for ALL reports */}
             <div className="mb-4">
@@ -1489,6 +1543,12 @@ function PreviewContent() {
                   </span>
                 )}
               </p>
+              {/* Note for complex reports */}
+              {(reportType === "full-life" || reportType === "major-life-phase") && !isTakingLonger && (
+                <p className="text-xs text-slate-500 mt-1">
+                  💡 Complex reports take longer to generate comprehensive insights (typically 60-90 seconds)
+                </p>
+              )}
             </div>
             
             {/* Payment reassurance for paid reports only - Free reports don't show this */}
@@ -1511,7 +1571,7 @@ function PreviewContent() {
             {isVerifying ? (
               <div className="space-y-4">
                 <p className="text-slate-600 mb-4">
-                  We&apos;re confirming your payment was successful. This usually takes just a few seconds...
+                  We&apos;re confirming your payment was successful. This usually takes just a few seconds and happens automatically.
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
                   <div className="flex items-start gap-3">
@@ -1521,7 +1581,7 @@ function PreviewContent() {
                         Payment Verification in Progress
                       </p>
                       <p className="text-xs text-blue-700">
-                        Please wait while we verify your payment. Your report will start generating automatically once verification is complete.
+                        Please wait while we verify your payment. This usually takes just 2-5 seconds. Your report will start generating automatically once verification is complete.
                       </p>
                     </div>
                   </div>
@@ -1598,17 +1658,37 @@ function PreviewContent() {
                     </div>
                   </div>
                   
-                  {/* Value Reinforcement During Wait - Bundle Benefits */}
-                  <div className="mb-6 text-left bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
-                    <p className="text-sm font-semibold text-purple-900 mb-2">What you&apos;re getting:</p>
-                    <ul className="space-y-1 text-sm text-slate-700">
-                      <li>✓ {bundleProgress.total} comprehensive AI-generated reports</li>
-                      <li>✓ Personalized insights for each area of your life</li>
-                      <li>✓ Complete downloadable PDF bundle package</li>
+                  {/* Enhanced Value Reinforcement During Wait - Bundle Benefits */}
+                  <div className="mb-6 text-left bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 rounded-lg p-5 border-2 border-purple-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">✨</span>
+                      <p className="text-sm font-bold text-purple-900">Your Bundle Package</p>
+                    </div>
+                    <ul className="space-y-2 text-sm text-slate-700">
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-600 mt-0.5">✓</span>
+                        <span><strong>{bundleProgress.total} comprehensive AI-generated reports</strong> covering multiple life areas</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-600 mt-0.5">✓</span>
+                        <span>Personalized insights tailored to your unique birth chart</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-600 mt-0.5">✓</span>
+                        <span>Complete downloadable PDF bundle package</span>
+                      </li>
                       {bundleType && (
-                        <li>✓ Save money with bundle pricing</li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-600 mt-0.5">✓</span>
+                          <span>Special bundle pricing - save money with this package</span>
+                        </li>
                       )}
                     </ul>
+                    <div className="mt-4 pt-4 border-t border-purple-200">
+                      <p className="text-xs text-slate-600 italic">
+                        💡 Each report is being individually crafted based on your astrological data
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1627,48 +1707,85 @@ function PreviewContent() {
                     </div>
                   </div>
                   
-                  <p className="text-sm text-center text-slate-600 mb-4">
-                    This usually completes within {
-                      reportType === "life-summary" 
-                        ? "60-90 seconds" 
-                        : reportType === "full-life" || reportType === "major-life-phase"
-                        ? "60-90 seconds"
-                        : "60-90 seconds"
-                    }.
+                  <div className="mb-4 text-center">
+                    <p className="text-sm text-slate-600 mb-2">
+                      {elapsedTime < 30 
+                        ? "✨ Our AI is crafting your personalized insights..."
+                        : elapsedTime < 60
+                        ? "📊 Analyzing planetary positions and calculating insights..."
+                        : elapsedTime < 90
+                        ? "🎯 Fine-tuning predictions and recommendations..."
+                        : "⏳ Finalizing your comprehensive report..."}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Typically completes in {
+                        reportType === "life-summary" 
+                          ? "60-70 seconds" 
+                          : reportType === "full-life" || reportType === "major-life-phase"
+                          ? "75-90 seconds"
+                          : "60-75 seconds"
+                      } • Elapsed: {elapsedTime}s
+                    </p>
                     {elapsedTime >= 90 && (
-                      <span className="block mt-2 text-amber-700 font-medium">
-                        If this screen stays for more than 2 minutes, please refresh this page. Your report will not be lost.
-                      </span>
+                      <p className="text-xs text-amber-700 font-medium mt-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                        💡 Taking longer than usual? Your report is still being prepared. If this continues beyond 2 minutes, you can refresh - your progress will be saved.
+                      </p>
                     )}
-                    {!elapsedTime || elapsedTime < 90 ? (
-                      <span className="block mt-2">If it takes longer, your report is still being prepared safely.</span>
-                    ) : null}
-                  </p>
+                  </div>
                   
-                  {/* Progress Status Indicators */}
-                  <div className="space-y-2 mb-6 text-left bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <div className={`flex items-center gap-2 text-sm ${progressSteps.birthChart ? 'text-green-700' : 'text-slate-400'}`}>
-                      {progressSteps.birthChart ? '✓' : '⏳'} 
-                      <span className={progressSteps.birthChart ? 'font-medium' : ''}>Birth chart prepared</span>
+                  {/* Enhanced Progress Status Indicators */}
+                  <div className="space-y-3 mb-6 text-left bg-gradient-to-br from-slate-50 to-purple-50 rounded-lg p-5 border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700 mb-3 uppercase tracking-wide">Generation Progress</p>
+                    <div className={`flex items-center gap-3 text-sm transition-all duration-300 ${progressSteps.birthChart ? 'text-green-700' : 'text-slate-500'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${progressSteps.birthChart ? 'bg-green-100 border-2 border-green-500' : 'bg-slate-100 border-2 border-slate-300'}`}>
+                        {progressSteps.birthChart ? '✓' : elapsedTime >= 5 ? '⏳' : '○'}
+                      </div>
+                      <div className="flex-1">
+                        <span className={progressSteps.birthChart ? 'font-semibold' : ''}>Birth Chart Calculation</span>
+                        {progressSteps.birthChart && <span className="text-xs text-green-600 ml-2">✓ Complete</span>}
+                      </div>
                     </div>
-                    <div className={`flex items-center gap-2 text-sm ${progressSteps.planetaryAnalysis ? 'text-green-700' : 'text-slate-400'}`}>
-                      {progressSteps.planetaryAnalysis ? '✓' : '⏳'} 
-                      <span className={progressSteps.planetaryAnalysis ? 'font-medium' : ''}>Planetary analysis completed</span>
+                    <div className={`flex items-center gap-3 text-sm transition-all duration-300 ${progressSteps.planetaryAnalysis ? 'text-green-700' : 'text-slate-500'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${progressSteps.planetaryAnalysis ? 'bg-green-100 border-2 border-green-500' : progressSteps.birthChart ? 'bg-blue-100 border-2 border-blue-400 animate-pulse' : 'bg-slate-100 border-2 border-slate-300'}`}>
+                        {progressSteps.planetaryAnalysis ? '✓' : progressSteps.birthChart && elapsedTime >= 15 ? '⏳' : '○'}
+                      </div>
+                      <div className="flex-1">
+                        <span className={progressSteps.planetaryAnalysis ? 'font-semibold' : ''}>Planetary Position Analysis</span>
+                        {progressSteps.planetaryAnalysis && <span className="text-xs text-green-600 ml-2">✓ Complete</span>}
+                        {progressSteps.birthChart && !progressSteps.planetaryAnalysis && <span className="text-xs text-blue-600 ml-2">In progress...</span>}
+                      </div>
                     </div>
-                    <div className={`flex items-center gap-2 text-sm ${progressSteps.generatingInsights ? 'text-green-700' : 'text-slate-400'}`}>
-                      {progressSteps.generatingInsights ? '✓' : '⏳'} 
-                      <span className={progressSteps.generatingInsights ? 'font-medium' : ''}>Generating personalized insights</span>
+                    <div className={`flex items-center gap-3 text-sm transition-all duration-300 ${progressSteps.generatingInsights ? 'text-green-700' : 'text-slate-500'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${progressSteps.generatingInsights ? 'bg-green-100 border-2 border-green-500' : progressSteps.planetaryAnalysis ? 'bg-purple-100 border-2 border-purple-400 animate-pulse' : 'bg-slate-100 border-2 border-slate-300'}`}>
+                        {progressSteps.generatingInsights ? '✓' : progressSteps.planetaryAnalysis && elapsedTime >= 25 ? '⏳' : '○'}
+                      </div>
+                      <div className="flex-1">
+                        <span className={progressSteps.generatingInsights ? 'font-semibold' : ''}>AI-Powered Insight Generation</span>
+                        {progressSteps.generatingInsights && <span className="text-xs text-green-600 ml-2">✓ Complete</span>}
+                        {progressSteps.planetaryAnalysis && !progressSteps.generatingInsights && <span className="text-xs text-purple-600 ml-2">Crafting your insights...</span>}
+                      </div>
                     </div>
                   </div>
                   
-                  {/* Value Reinforcement During Wait */}
-                  <div className="mb-6 text-left bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
-                    <p className="text-sm font-semibold text-purple-900 mb-2">What you&apos;re getting:</p>
-                    <ul className="space-y-1 text-sm text-slate-700">
+                  {/* Enhanced Value Reinforcement During Wait */}
+                  <div className="mb-6 text-left bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 rounded-lg p-5 border-2 border-purple-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">✨</span>
+                      <p className="text-sm font-bold text-purple-900">What You&apos;re Getting</p>
+                    </div>
+                    <ul className="space-y-2 text-sm text-slate-700">
                       {getReportBenefits(reportType).map((benefit, idx) => (
-                        <li key={idx}>{benefit}</li>
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-purple-600 mt-0.5">✓</span>
+                          <span>{benefit}</span>
+                        </li>
                       ))}
                     </ul>
+                    <div className="mt-4 pt-4 border-t border-purple-200">
+                      <p className="text-xs text-slate-600 italic">
+                        💡 Your report is being tailored specifically to your birth details and planetary positions
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2132,19 +2249,31 @@ function PreviewContent() {
     // This prevents redirects during the critical setup phase
     if (shouldWaitForProcess || isWaitingForState) {
       // Show loading state while waiting for useEffect or recovery to process
+      const reportName = reportType 
+        ? getReportName(reportType).replace(" Report", "")
+        : "Your Report";
+      
       return (
         <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-2xl w-full mx-4">
             <CardContent className="p-12 text-center">
               <div className="animate-spin text-6xl mb-6">🌙</div>
-              <h2 className="text-2xl font-bold mb-4">
-                {urlHasReportType ? "Loading..." : "Preparing Report Generation..."}
-              </h2>
-              <p className="text-slate-600 mb-6">
+              <h2 className="text-2xl font-bold mb-4 text-slate-900">
                 {urlHasReportType 
-                  ? "Setting up your report. Please wait..." 
-                  : "Setting up your report generation. This will only take a moment..."}
+                  ? `Preparing ${reportName}...` 
+                  : "Initializing Report Generation..."}
+              </h2>
+              <p className="text-slate-600 mb-4">
+                {urlHasReportType 
+                  ? `We're setting up your personalized ${reportName.toLowerCase()} report. This will only take a moment...` 
+                  : "We're preparing everything needed to generate your personalized astrology report."}
               </p>
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                  <span>Almost ready...</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -2825,7 +2954,7 @@ function PreviewContent() {
                   {downloadingPDF ? (
                     <span className="flex items-center gap-2">
                       <span className="animate-spin">📄</span>
-                      <span>Generating PDF...</span>
+                      <span>Generating PDF... This may take 30-60 seconds</span>
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">

@@ -103,6 +103,8 @@ export async function POST(req: Request) {
     successUrl?: string;
     cancelUrl?: string;
     decisionContext?: string;
+    bundleReports?: string[];
+    bundleType?: string;
   } | null = null;
   let isDemoMode = false;
   let isTestUser = false;
@@ -123,9 +125,11 @@ export async function POST(req: Request) {
       successUrl?: string;
       cancelUrl?: string;
       decisionContext?: string; // Optional context for decision support reports
+      bundleReports?: string[]; // Array of report types for bundle purchases
+      bundleType?: string; // Bundle type identifier
     }>(req);
 
-    const { reportType, subscription = false, input, successUrl, cancelUrl } = json;
+    const { reportType, subscription = false, input, successUrl, cancelUrl, bundleReports, bundleType } = json;
 
     // Check for demo mode or test user (for logging only)
     // NOTE: Test users bypass payment by default to avoid payment verification errors

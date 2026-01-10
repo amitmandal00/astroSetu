@@ -16,6 +16,7 @@ import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/payment
 import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing } from "@/lib/ai-astrology/reportCache";
+import { generateSessionKey } from "@/lib/ai-astrology/openAICallTracker";
 
 /**
  * Check if the user is a production test user
@@ -833,14 +834,15 @@ export async function POST(req: Request) {
     // - Reduced retries (3 instead of 5) = faster failure
     // - Reduced retry waits (5-20s instead of 10-60s) = faster recovery
     // - Reduced token limits = faster generation
-    // Timeout values: 60s for free reports (Prokerala + OpenAI), 75s for complex paid reports
+    // Timeout values: 60s for free reports (Prokerala + OpenAI), 90s for complex paid reports
     // Free reports might take longer due to Prokerala API call before OpenAI
     const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
     const isFreeReport = reportType === "life-summary";
     // Free reports: 65s (Prokerala call can take 5-10s, then OpenAI needs time)
     // Regular paid reports: 60s (already have data, just OpenAI)
-    // Complex reports: 75s (more tokens to generate)
-    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 75000 : (isFreeReport ? 65000 : 60000);
+    // Complex reports: 90s (more tokens to generate - 2200 tokens for comprehensive analysis)
+    // Increased from 75s to 90s for better reliability with complex reports
+    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 90000 : (isFreeReport ? 65000 : 60000);
     let reportContent;
     
     try {
@@ -851,17 +853,20 @@ export async function POST(req: Request) {
         }, REPORT_GENERATION_TIMEOUT);
       });
 
+      // Generate session key for OpenAI call tracking
+      const sessionKey = generateSessionKey(input);
+      
       // Race between report generation and timeout
       const reportGenerationPromise = (async () => {
         switch (reportType) {
           case "life-summary":
-            return await generateLifeSummaryReport(input);
+            return await generateLifeSummaryReport(input, sessionKey);
           case "marriage-timing":
-            return await generateMarriageTimingReport(input);
+            return await generateMarriageTimingReport(input, sessionKey);
           case "career-money":
-            return await generateCareerMoneyReport(input);
+            return await generateCareerMoneyReport(input, sessionKey);
           case "full-life":
-            return await generateFullLifeReport(input);
+            return await generateFullLifeReport(input, sessionKey);
           case "year-analysis":
             // Use next 12 months from current date (intelligent date window)
             // This provides guidance for the actual upcoming year period, not just calendar year
@@ -871,11 +876,11 @@ export async function POST(req: Request) {
               startMonth: yearAnalysisRange.startMonth,
               endYear: yearAnalysisRange.endYear,
               endMonth: yearAnalysisRange.endMonth,
-            });
+            }, sessionKey);
           case "major-life-phase":
-            return await generateMajorLifePhaseReport(input);
+            return await generateMajorLifePhaseReport(input, sessionKey);
           case "decision-support":
-            return await generateDecisionSupportReport(input, decisionContext);
+            return await generateDecisionSupportReport(input, decisionContext, sessionKey);
           default:
             throw new Error(`Unknown report type: ${reportType}`);
         }

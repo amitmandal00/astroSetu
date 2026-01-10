@@ -19,11 +19,16 @@ export function isAIConfigured(): boolean {
 /**
  * Generate AI report using OpenAI or Anthropic
  */
-async function generateAIContent(prompt: string, reportType?: string): Promise<string> {
+async function generateAIContent(
+  prompt: string, 
+  reportType?: string,
+  sessionKey?: string,
+  input?: any
+): Promise<string> {
   if (OPENAI_API_KEY) {
     // Reduced max retries to 3 for faster response (was 5)
     // Most requests succeed on first try, retries add significant delay
-    return generateWithOpenAI(prompt, 0, 3, reportType);
+    return generateWithOpenAI(prompt, 0, 3, reportType, sessionKey, input);
   } else if (ANTHROPIC_API_KEY) {
     return generateWithAnthropic(prompt);
   } else {
@@ -35,15 +40,38 @@ async function generateAIContent(prompt: string, reportType?: string): Promise<s
  * Generate content using OpenAI GPT-4
  * Includes retry logic with exponential backoff for rate limits
  */
-async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 3, reportType?: string): Promise<string> {
+async function generateWithOpenAI(
+  prompt: string, 
+  retryCount: number = 0, 
+  maxRetries: number = 3, 
+  reportType?: string,
+  sessionKey?: string,
+  input?: any
+): Promise<string> {
+  const callStartTime = Date.now();
+  
   // Optimize token counts for faster generation while maintaining quality
   // Reduced tokens for faster responses:
   // Free reports: 1000 tokens (further reduced from 1200 for faster generation)
   // Regular paid reports: 1800 tokens - good balance, faster
-  // Complex reports: 3000 tokens - comprehensive but faster
+  // Complex reports: 2200 tokens (optimized from 2500 for faster generation while maintaining quality)
+  // Note: major-life-phase uses 2200 tokens for optimal speed/quality balance (was 2500, originally 3000)
   const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
   const isFreeReport = reportType === "life-summary";
-  const maxTokens = isComplexReport ? 3000 : (isFreeReport ? 1000 : 1800); // Optimized for speed: 1000 for free (faster), 1800 for paid, 3000 for complex
+  // Use 2200 tokens for complex reports to optimize speed while maintaining quality (reduced from 2500)
+  const maxTokens = isComplexReport ? 2200 : (isFreeReport ? 1000 : 1800); // Optimized for speed: 1000 for free, 1800 for paid, 2200 for complex
+  
+  // Track OpenAI call (if sessionKey provided)
+  if (sessionKey && typeof require !== "undefined") {
+    try {
+      const { trackOpenAICall } = require("./openAICallTracker");
+      // Track the call attempt
+      const callDuration = Date.now() - callStartTime;
+      trackOpenAICall(sessionKey, reportType || "unknown", false, retryCount, callDuration);
+    } catch (e) {
+      // Ignore tracking errors
+    }
+  }
   
   // Add explicit timeout to fetch (45 seconds max per request)
   const controller = new AbortController();
@@ -131,7 +159,7 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
         console.log(`[OpenAI] Rate limit hit for reportType=${reportType || "unknown"}, retrying after ${Math.round(totalWait / 1000)}s (attempt ${retryCount + 1}/${maxRetries})`);
         
         await new Promise(resolve => setTimeout(resolve, totalWait));
-        return generateWithOpenAI(prompt, retryCount + 1, maxRetries, reportType);
+        return generateWithOpenAI(prompt, retryCount + 1, maxRetries, reportType, sessionKey, input);
       } else {
         const finalError = `OpenAI rate limit exceeded. Maximum retries (${maxRetries}) reached after ${maxRetries} attempts. Please try again in a few minutes.`;
         console.error(`[OpenAI] ${finalError} (reportType=${reportType || "unknown"})`);
@@ -154,10 +182,24 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
     try {
       const data = await response.json();
       const content = data.choices[0]?.message?.content || "";
+      const tokensUsed = data.usage?.total_tokens;
+      const callDuration = Date.now() - callStartTime;
+      
       if (!content) {
         console.warn(`[OpenAI] Empty content in response for reportType=${reportType || "unknown"}`);
       }
-      console.log(`[OpenAI] Response parsed successfully, content length: ${content.length} chars`);
+      console.log(`[OpenAI] Response parsed successfully, content length: ${content.length} chars${tokensUsed ? `, tokens: ${tokensUsed}` : ""}`);
+      
+      // Track successful OpenAI call (if sessionKey provided)
+      if (sessionKey && typeof require !== "undefined") {
+        try {
+          const { trackOpenAICall } = require("./openAICallTracker");
+          trackOpenAICall(sessionKey, reportType || "unknown", true, retryCount, callDuration, tokensUsed);
+        } catch (e) {
+          // Ignore tracking errors
+        }
+      }
+      
       return content;
     } catch (parseError: any) {
       console.error(`[OpenAI] Failed to parse response JSON for reportType=${reportType || "unknown"}`, {
@@ -334,7 +376,7 @@ function getReportTitle(reportType: ReportType): string {
 /**
  * Generate Life Summary Report (Free)
  */
-export async function generateLifeSummaryReport(input: AIAstrologyInput): Promise<ReportContent> {
+export async function generateLifeSummaryReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateLifeSummaryReport] Starting report generation for ${input.name}`);
@@ -384,7 +426,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateLifeSummaryReport] Generating AI content...`);
     const aiStartTime = Date.now();
-    const aiResponse = await generateAIContent(prompt, "life-summary");
+    const aiResponse = await generateAIContent(prompt, "life-summary", sessionKey, input);
     const aiTime = Date.now() - aiStartTime;
     console.log(`[generateLifeSummaryReport] AI content generated in ${aiTime}ms, parsing response...`);
   
@@ -403,7 +445,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
 /**
  * Generate Marriage Timing Report (Paid)
  */
-export async function generateMarriageTimingReport(input: AIAstrologyInput): Promise<ReportContent> {
+export async function generateMarriageTimingReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateMarriageTimingReport] Starting report generation for ${input.name}`);
@@ -505,7 +547,7 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateMarriageTimingReport] Generating AI content...`);
     const aiStartTime = Date.now();
-    const aiResponse = await generateAIContent(prompt, "marriage-timing");
+    const aiResponse = await generateAIContent(prompt, "marriage-timing", sessionKey, input);
     const aiTime = Date.now() - aiStartTime;
     console.log(`[generateMarriageTimingReport] AI content generated in ${aiTime}ms, parsing response...`);
     
@@ -524,7 +566,7 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput): Pro
 /**
  * Generate Career & Money Report (Paid)
  */
-export async function generateCareerMoneyReport(input: AIAstrologyInput): Promise<ReportContent> {
+export async function generateCareerMoneyReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateCareerMoneyReport] Starting report generation for ${input.name}`);
@@ -595,7 +637,7 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateCareerMoneyReport] Generating AI content...`);
     const aiStartTime = Date.now();
-    const aiResponse = await generateAIContent(prompt, "career-money");
+    const aiResponse = await generateAIContent(prompt, "career-money", sessionKey, input);
     const aiTime = Date.now() - aiStartTime;
     console.log(`[generateCareerMoneyReport] AI content generated in ${aiTime}ms, parsing response...`);
     
@@ -614,7 +656,7 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput): Promis
 /**
  * Generate Full Life Report (Paid - comprehensive report)
  */
-export async function generateFullLifeReport(input: AIAstrologyInput): Promise<ReportContent> {
+export async function generateFullLifeReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateFullLifeReport] Starting report generation for ${input.name}`);
@@ -696,7 +738,7 @@ export async function generateFullLifeReport(input: AIAstrologyInput): Promise<R
     // Generate AI content (pass reportType for complex report handling)
     console.log(`[generateFullLifeReport] Generating AI content...`);
     const aiStartTime = Date.now();
-    const aiResponse = await generateAIContent(prompt, "full-life");
+    const aiResponse = await generateAIContent(prompt, "full-life", sessionKey, input);
     const aiTime = Date.now() - aiStartTime;
     console.log(`[generateFullLifeReport] AI content generated in ${aiTime}ms, parsing response...`);
     
@@ -742,7 +784,8 @@ export async function generateFullLifeReport(input: AIAstrologyInput): Promise<R
  */
 export async function generateYearAnalysisReport(
   input: AIAstrologyInput, 
-  dateRange?: { startYear: number; startMonth: number; endYear: number; endMonth: number }
+  dateRange?: { startYear: number; startMonth: number; endYear: number; endMonth: number },
+  sessionKey?: string
 ): Promise<ReportContent> {
   const startTime = Date.now();
   try {
@@ -806,7 +849,7 @@ export async function generateYearAnalysisReport(
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateYearAnalysisReport] Calling generateAIContent...`);
     const aiStartTime = Date.now();
-    const aiResponse = await generateAIContent(prompt, "year-analysis");
+    const aiResponse = await generateAIContent(prompt, "year-analysis", sessionKey, input);
     const aiTime = Date.now() - aiStartTime;
     console.log(`[generateYearAnalysisReport] AI content generated in ${aiTime}ms, parsing response...`);
     
@@ -825,7 +868,7 @@ export async function generateYearAnalysisReport(
 /**
  * Generate Major Life Phase Report (Paid - 3-5 year outlook)
  */
-export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Promise<ReportContent> {
+export async function generateMajorLifePhaseReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateMajorLifePhaseReport] Starting report generation for ${input.name}`);
@@ -863,7 +906,11 @@ export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Pro
       nextDasha: kundliResult.chart?.dasha?.next || "Unknown",
     };
 
-    // Generate prompt
+    // Get date windows for major life phase (3-5 years from current date)
+    const { getMajorLifePhaseWindows } = await import("./dateHelpers");
+    const dateWindows = getMajorLifePhaseWindows();
+    
+    // Generate prompt with dynamic date windows
     const prompt = generateMajorLifePhasePrompt(
       {
         name: input.name,
@@ -872,13 +919,14 @@ export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Pro
         place: input.place,
         gender: input.gender,
       },
-      planetaryData
+      planetaryData,
+      dateWindows
     );
 
     // Generate AI content (pass reportType for complex report handling)
     console.log(`[generateMajorLifePhaseReport] Generating AI content...`);
     const aiStartTime = Date.now();
-    const aiResponse = await generateAIContent(prompt, "major-life-phase");
+    const aiResponse = await generateAIContent(prompt, "major-life-phase", sessionKey, input);
     const aiTime = Date.now() - aiStartTime;
     console.log(`[generateMajorLifePhaseReport] AI content generated in ${aiTime}ms, parsing response...`);
     
@@ -899,7 +947,8 @@ export async function generateMajorLifePhaseReport(input: AIAstrologyInput): Pro
  */
 export async function generateDecisionSupportReport(
   input: AIAstrologyInput,
-  decisionContext?: string
+  decisionContext?: string,
+  sessionKey?: string
 ): Promise<ReportContent> {
   const startTime = Date.now();
   try {
@@ -954,7 +1003,7 @@ export async function generateDecisionSupportReport(
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateDecisionSupportReport] Generating AI content...`);
     const aiStartTime = Date.now();
-    const aiResponse = await generateAIContent(prompt, "decision-support");
+    const aiResponse = await generateAIContent(prompt, "decision-support", sessionKey, input);
     const aiTime = Date.now() - aiStartTime;
     console.log(`[generateDecisionSupportReport] AI content generated in ${aiTime}ms, parsing response...`);
     

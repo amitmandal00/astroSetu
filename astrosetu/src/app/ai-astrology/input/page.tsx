@@ -176,11 +176,11 @@ function InputFormContent() {
       }
 
       // Redirect to preview page
-      // CRITICAL: Include reportType in URL to prevent redirect loops
+      // CRITICAL: Always include reportType in URL to prevent redirect loops
       // This ensures the preview page knows what report type to generate even if sessionStorage is lost
-      const previewUrl = reportType && reportType !== "life-summary"
-        ? `/ai-astrology/preview?reportType=${encodeURIComponent(reportType)}`
-        : "/ai-astrology/preview";
+      // For free life summary, explicitly include reportType=life-summary in URL
+      const finalReportType = reportType || "life-summary";
+      const previewUrl = `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}`;
       
       // CRITICAL: Don't reset loading state on successful navigation to prevent flickering
       // The loading state will be cleared when the component unmounts during navigation

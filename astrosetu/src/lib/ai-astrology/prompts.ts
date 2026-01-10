@@ -192,7 +192,7 @@ export const AI_PROMPT_TEMPLATES = {
          Create a prominent box titled "Decision Anchor (Read This First)" with:
          "Based on this report, the most productive focus for you right now is: [Single clear statement about career/money focus]"
          This does NOT make predictions - it gives users closure and direction.
-         Example: "Based on this report, the most productive focus for you right now is: Building skills in [specific area] over the next 12-18 months, as major career momentum windows open in 2026-2027."
+         Example: "Based on this report, the most productive focus for you right now is: Building skills in [specific area] over the next 12-18 months, as major career momentum windows open in the coming years."
       
       2. AVOID PERSONALITY STEREOTYPES - Focus on career phases and timing, not personality traits
          - Instead of "Sagittarius people are adventurous..."
@@ -338,7 +338,7 @@ export const AI_PROMPT_TEMPLATES = {
          Create a prominent box titled "Decision Anchor (Read This First)" with:
          "Based on this report, the most productive focus for you right now is: [Single clear statement about overall life focus]"
          This does NOT make predictions - it gives users closure and direction.
-         Example: "Based on this report, the most productive focus for you right now is: Strengthening career foundations while preparing for relationship opportunities in the 2025-2027 timeframe."
+         Example: "Based on this report, the most productive focus for you right now is: Strengthening career foundations while preparing for relationship opportunities in the coming 2-3 year timeframe."
       
       2. DATA SOURCE LABEL (add at the very beginning):
          "Based on: Ascendant + Moon Sign + Dasha overview (high-level analysis)"
@@ -355,7 +355,7 @@ export const AI_PROMPT_TEMPLATES = {
       
       6. EXECUTIVE SUMMARY (must be first section - make this DETAILED):
          Create a section titled "Your Key Life Insights (Summary)" with:
-         - Marriage: Best window between [specific date range - use BROAD range like "2024-2027"] with 2-3 sentences of context
+         - Marriage: Best window between [specific date range - use BROAD range based on current date, e.g., "2026-2029" if current year is 2026] with 2-3 sentences of context
          - Career: Major growth phase [description] with 2-3 sentences explaining the phase
          - Money: [Description] over next 3-5 years with 2-3 sentences on financial patterns
          - Health: [Overview] with 1-2 sentences on health themes
@@ -379,7 +379,7 @@ export const AI_PROMPT_TEMPLATES = {
       
       8. Marriage Timing Section (make this COMPREHENSIVE):
          - Start with: "High-level marriage timing overview (for precise windows, see dedicated Marriage Timing Report)"
-         - Provide BROAD window (e.g., "2024-2027 timeframe") with detailed explanation
+         - Provide BROAD window (e.g., "2026-2029 timeframe" if current year is 2026) with detailed explanation, using future years only
          - Include subsections:
            * Favorable periods (2-3 periods with explanations)
            * Factors influencing timing (3-4 factors)
@@ -690,7 +690,7 @@ export const AI_PROMPT_TEMPLATES = {
             Title: "3-5 Year Strategic Life Phase Theme"
             Content: One clear sentence describing the overall theme of the next 3-5 years
             Example: "The next 3-5 years represent a phase of transformation and career advancement for you."
-            Include the timeframe: "2024-2028" (or current year + 3 to current year + 5)
+            CRITICAL: Include the timeframe using FUTURE YEARS ONLY from current date. Use the calculated date range provided in the prompt context.
          
          f) EXECUTIVE SUMMARY (MANDATORY):
             Title: "Phase-at-a-Glance Summary"
@@ -704,11 +704,13 @@ export const AI_PROMPT_TEMPLATES = {
          
          g) YEAR-BY-YEAR BREAKDOWN (MANDATORY - REDUCED TEXT):
             Title: "Year-by-Year Breakdown"
+            CRITICAL: Use ONLY FUTURE YEARS from the current date. The year labels are provided in the prompt context.
             For EACH year (Year 1, Year 2, Year 3, Year 4, Year 5):
-            - Year label: "Year 1 (2024)", "Year 2 (2025)", etc.
+            - Year label: Use the year labels provided (e.g., "Year 1 (2026)", "Year 2 (2027)", etc. - based on current date)
             - Theme: One line describing the year's theme
             - Focus areas: MAXIMUM 3 bullets per year (not paragraphs) - avoid fatigue
             Format as clear, concise subsections. Keep each year to essentials only.
+            IMPORTANT: Year 1 should be the CURRENT YEAR (starting from today), Year 2 should be CURRENT YEAR + 1, etc.
          
          h) MAJOR TRANSITIONS (MANDATORY):
             Title: "Major Transitions Ahead"
@@ -721,10 +723,11 @@ export const AI_PROMPT_TEMPLATES = {
             - Other significant life changes
             For each transition:
             - Type of transition
-            - Approximate timeframe (e.g., "2025-2026", "late 2026")
+            - Approximate timeframe: Use FUTURE YEARS ONLY from current date (e.g., if current year is 2026, use "2026-2027", "late 2027", etc.)
             - Description of what the transition may involve
             - Preparation steps (2-3 actionable items)
             Frame as "phases when" not "will happen".
+            CRITICAL: All timeframes must be in the FUTURE relative to the current date.
          
          i) LONG-TERM OPPORTUNITIES (MANDATORY):
             Title: "Long-Term Opportunities"
@@ -984,8 +987,57 @@ export function generateYearAnalysisPrompt(
 /**
  * Generate prompt for Major Life Phase report (3-5 year outlook)
  */
-export function generateMajorLifePhasePrompt(birthDetails: any, planetaryData: any): string {
-  return AI_PROMPT_TEMPLATES["v1.0"].majorLifePhase(birthDetails, planetaryData);
+export function generateMajorLifePhasePrompt(birthDetails: any, planetaryData: any, dateWindows?: any): string {
+  // Get date windows if not provided
+  if (!dateWindows) {
+    const { getMajorLifePhaseWindows } = require("./dateHelpers");
+    dateWindows = getMajorLifePhaseWindows();
+  }
+  
+  // Calculate current date for context
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  
+  // Get year-by-year labels
+  const yearLabels = dateWindows.yearByYear.map((year: number, index: number) => 
+    `Year ${index + 1} (${year})`
+  ).join(', ');
+  
+  // Create timeframe description
+  const timeframeDescription = `${dateWindows.startYear}–${dateWindows.endYear}`;
+  
+  // Update the prompt template with actual dates
+  const prompt = AI_PROMPT_TEMPLATES["v1.0"].majorLifePhase(birthDetails, planetaryData);
+  
+  // Replace hardcoded examples with dynamic dates and inject date context
+  let updatedPrompt = prompt
+    .replace(/2024-2028/g, timeframeDescription)
+    .replace(/current year \+ 3 to current year \+ 5/g, timeframeDescription)
+    .replace(/"Year 1 \(2024\)", "Year 2 \(2025\)", etc\./g, `${yearLabels}`)
+    .replace(/2025-2026/g, `${dateWindows.yearByYear[1]}-${dateWindows.yearByYear[2]}`)
+    .replace(/late 2026/g, `late ${dateWindows.yearByYear[1] || dateWindows.yearByYear[0] + 1}`);
+  
+  // Inject current date context after INPUT section
+  const dateContextNote = `
+      
+      CRITICAL DATE CONTEXT FOR THIS REPORT:
+      Current Date: ${currentDate}
+      Current Year: ${currentYear}
+      Report covers years: ${yearLabels}
+      Timeframe: ${timeframeDescription}
+      
+      MANDATORY: Use ONLY FUTURE YEARS from the current date. Year 1 = ${dateWindows.yearByYear[0]} (current year), Year 2 = ${dateWindows.yearByYear[1]}, etc.
+      DO NOT reference past years or years before ${dateWindows.startYear}.
+      All year references in examples should use the years: ${yearLabels}`;
+  
+  // Insert date context after INPUT section
+  updatedPrompt = updatedPrompt.replace(
+    /Here is the planetary data:.*?\n\n/,
+    `Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}${dateContextNote}\n\n`
+  );
+  
+  return updatedPrompt;
 }
 
 /**
