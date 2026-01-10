@@ -808,10 +808,13 @@ function PreviewContent() {
         // IMPORTANT: Wait for verification before allowing report generation
         if (!paymentVerified && urlSessionId) {
           // Attempt to regenerate payment token from session_id - MUST WAIT for this
+          // CRITICAL: Set loading state IMMEDIATELY to prevent redirect logic from triggering
           setLoading(true); // Show loading while verifying
           setLoadingStage("verifying"); // Show payment verification stage
           setLoadingStartTime(Date.now()); // Track when loading started
           setElapsedTime(0); // Reset elapsed time
+          // Also set generating lock to prevent redirects during verification
+          isGeneratingRef.current = true;
           
           (async () => {
             try {
@@ -876,18 +879,21 @@ function PreviewContent() {
                   console.error("Failed to store regenerated payment token:", e);
                   setLoading(false);
                   setLoadingStage(null);
+                  isGeneratingRef.current = false; // Clear lock on error
                 }
               } else {
                 console.error("[Preview] Payment verification failed:", verifyResponse.error);
                 setError(`Payment verification failed: ${verifyResponse.error || "Please complete payment again."}`);
                 setLoading(false);
                 setLoadingStage(null);
+                isGeneratingRef.current = false; // Clear lock on error
               }
             } catch (e: any) {
               console.error("Failed to regenerate payment token from session_id:", e);
               setError(`Failed to verify payment: ${e.message || "Please try again or contact support."}`);
               setLoading(false);
               setLoadingStage(null);
+              isGeneratingRef.current = false; // Clear lock on error
             }
           })();
           
@@ -915,6 +921,9 @@ function PreviewContent() {
         // CRITICAL FIX: If paid report and no payment verified, but we have session_id, try verification first
         if (isPaidReport && !paymentVerified && !urlSessionId) {
           // No payment and no session_id - show payment prompt
+          // CRITICAL: Set loading to false AFTER input state is set (which happens above)
+          // This allows payment prompt UI to render (checks !loading)
+          // Since input is now set, redirect logic won't trigger (checks !input)
           setLoading(false);
           return;
         }
@@ -1199,9 +1208,12 @@ function PreviewContent() {
     // CRITICAL FIX: Trigger recovery if we have session_id but NO reportContent (regardless of input state)
     // This handles cases where input is loaded but report generation never happened or failed silently
     // Wait a short delay to let main useEffect finish first
+    // IMPORTANT: Only trigger if NOT currently loading/generating to avoid conflicts
     const shouldTriggerRecovery = (
       (hasSessionIdForRecovery || autoGenerateForRecovery) && 
       !reportContent && 
+      !loading &&
+      !isGeneratingRef.current &&
       !autoRecoveryTriggeredRef.current // Prevent multiple triggers
     );
     
@@ -2091,34 +2103,47 @@ function PreviewContent() {
     );
   }
 
-  // CRITICAL FIX: Check if we're waiting for useEffect to set state from sessionStorage
-  // When coming from input page, reportType is in URL, useEffect needs time to set input state
-  // Don't redirect immediately if we have reportType in URL - wait for useEffect to process
+  // CRITICAL FIX: Unified check for when we need to wait vs redirect
+  // Never redirect if:
+  // 1. Currently loading or generating
+  // 2. Have reportType in URL (coming from input page) - wait for useEffect
+  // 3. Have session_id or reportId (indicates ongoing process)
+  // 4. Already redirected
   const urlHasReportType = searchParams.get("reportType") !== null;
   const urlSessionId = searchParams.get("session_id");
   const urlReportId = searchParams.get("reportId");
   const autoGenerate = searchParams.get("auto_generate") === "true";
-  const isWaitingForState = urlHasReportType && !input && !hasRedirectedRef.current && !urlSessionId && !urlReportId;
+  
+  // Determine if we should wait (loading, generating, or have URL params indicating process)
+  const shouldWaitForProcess = loading || isGeneratingRef.current || urlHasReportType || urlSessionId || urlReportId || autoGenerate;
+  
+  // Determine if we're waiting for state to be set (have URL params but no input yet)
+  const isWaitingForState = urlHasReportType && !input && !hasRedirectedRef.current && !loading;
   
   if (!reportContent || !input) {
-    // CRITICAL: If we're in loading state, the main loading screen above handles it
-    // This block should never execute when loading is true, but if it does, return null
-    // to let the main loading screen (lines 1220+) render
-    if (loading) {
-      return null; // Main loading screen will handle this
+    // CRITICAL: If we're in loading state OR generating, ALWAYS show loading screen
+    // Do NOT redirect - the loading screen handles the generation process
+    if (loading || isGeneratingRef.current) {
+      return null; // Main loading screen will handle this (lines 1220+)
     }
     
-    // CRITICAL: If we have reportType in URL (coming from input page) and no input yet,
-    // wait for useEffect to set state before redirecting - prevents premature redirects
-    if (isWaitingForState) {
+    // CRITICAL: If we have any URL params indicating a process (reportType, session_id, reportId),
+    // OR if we're waiting for state, show loading and wait
+    // This prevents redirects during the critical setup phase
+    if (shouldWaitForProcess || isWaitingForState) {
+      // Show loading state while waiting for useEffect or recovery to process
       return (
         <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-2xl w-full mx-4">
             <CardContent className="p-12 text-center">
               <div className="animate-spin text-6xl mb-6">🌙</div>
-              <h2 className="text-2xl font-bold mb-4">Loading...</h2>
+              <h2 className="text-2xl font-bold mb-4">
+                {urlHasReportType ? "Loading..." : "Preparing Report Generation..."}
+              </h2>
               <p className="text-slate-600 mb-6">
-                Setting up your report. Please wait...
+                {urlHasReportType 
+                  ? "Setting up your report. Please wait..." 
+                  : "Setting up your report generation. This will only take a moment..."}
               </p>
             </CardContent>
           </Card>
@@ -2126,49 +2151,23 @@ function PreviewContent() {
       );
     }
     
-    // If we have session_id or reportId or autoGenerate, we should be in loading state
-    // The useEffect auto-recovery logic should handle this, but if we somehow reach here,
-    // show a minimal loading indicator that will trigger the main loading screen
-    if (urlSessionId || urlReportId || autoGenerate) {
-      // Auto-recovery should kick in, but show minimal state while waiting
-      return (
-        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
-          <Card className="max-w-2xl w-full mx-4">
-            <CardContent className="p-12 text-center">
-              <div className="animate-spin text-6xl mb-6">🌙</div>
-              <h2 className="text-2xl font-bold mb-4">Preparing Report Generation...</h2>
-              <p className="text-slate-600 mb-6">
-                Setting up your report generation. This will only take a moment...
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-    
-    // No session or report ID and not loading - redirect to input page to start fresh
-    // CRITICAL: Only redirect once to prevent loops, preserve reportType
-    // This should rarely execute, but handle gracefully if it does
-    if (!hasRedirectedRef.current && !loading && !isGeneratingRef.current) {
-      // Check if we're already on the input page to prevent loops
+    // CRITICAL: Only redirect if ALL of the following are true:
+    // 1. Not loading or generating
+    // 2. No reportType in URL (didn't come from input page)
+    // 3. No session_id or reportId (no ongoing process)
+    // 4. Haven't redirected already
+    // 5. Not already on input page
+    // This ensures we ONLY redirect when truly necessary (user navigated directly without context)
+    if (!hasRedirectedRef.current && !loading && !isGeneratingRef.current && !urlHasReportType && !urlSessionId && !urlReportId) {
       const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
       if (!currentPath.includes("/input")) {
         hasRedirectedRef.current = true;
-        // CRITICAL: Always preserve reportType from URL params first (most reliable), then state, then default
-        const urlReportTypeForRedirect = searchParams.get("reportType") as ReportType | null;
-        const reportTypeForRedirect = (urlReportTypeForRedirect && validReportTypes.includes(urlReportTypeForRedirect))
-          ? urlReportTypeForRedirect
-          : (reportType && reportType !== "life-summary" ? reportType : null);
-        
+        // Preserve reportType from state if available
+        const reportTypeForRedirect = reportType && reportType !== "life-summary" ? reportType : null;
         const redirectUrl = reportTypeForRedirect
           ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeForRedirect)}` 
           : "/ai-astrology/input";
-        console.log("[Preview] Redirecting to input page (no content/input found):", redirectUrl, {
-          fromUrl: urlReportTypeForRedirect,
-          fromState: reportType,
-          final: reportTypeForRedirect
-        });
-        // Use setTimeout to avoid React rendering issues
+        console.log("[Preview] Redirecting to input page (no context found):", redirectUrl);
         setTimeout(() => {
           router.push(redirectUrl);
         }, 100);
