@@ -21,8 +21,9 @@ export function isAIConfigured(): boolean {
  */
 async function generateAIContent(prompt: string, reportType?: string): Promise<string> {
   if (OPENAI_API_KEY) {
-    // Increase max retries to 5 for better resilience against rate limits
-    return generateWithOpenAI(prompt, 0, 5, reportType);
+    // Reduced max retries to 3 for faster response (was 5)
+    // Most requests succeed on first try, retries add significant delay
+    return generateWithOpenAI(prompt, 0, 3, reportType);
   } else if (ANTHROPIC_API_KEY) {
     return generateWithAnthropic(prompt);
   } else {
@@ -34,39 +35,48 @@ async function generateAIContent(prompt: string, reportType?: string): Promise<s
  * Generate content using OpenAI GPT-4
  * Includes retry logic with exponential backoff for rate limits
  */
-async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 5, reportType?: string): Promise<string> {
+async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 3, reportType?: string): Promise<string> {
   // Optimize token counts for faster generation while maintaining quality
-  // Free reports: 1500 tokens (faster, still comprehensive)
-  // Regular paid reports: 2000 tokens (good balance)
-  // Complex reports: 4000 tokens (comprehensive analysis)
+  // Reduced tokens for faster responses:
+  // Free reports: 1200 tokens (was 1500) - faster, still comprehensive
+  // Regular paid reports: 1800 tokens (was 2000) - good balance, faster
+  // Complex reports: 3000 tokens (was 4000) - comprehensive but faster
   const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
   const isFreeReport = reportType === "life-summary";
-  const maxTokens = isComplexReport ? 4000 : (isFreeReport ? 1500 : 2000); // Optimized: 1500 for free, 2000 for paid, 4000 for complex
+  const maxTokens = isComplexReport ? 3000 : (isFreeReport ? 1200 : 1800); // Optimized for speed: 1200 for free, 1800 for paid, 3000 for complex
   
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are a helpful assistant that generates astrology reports in a clear, structured format.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: maxTokens,
-    }),
-  });
+  // Add explicit timeout to fetch (45 seconds max per request)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout per request
+  
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful assistant that generates astrology reports in a clear, structured format.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: maxTokens,
+      }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
 
-  if (!response.ok) {
+    if (!response.ok) {
     const errorText = await response.text();
     let errorData: any;
     
@@ -79,9 +89,9 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
     // Handle rate limit errors with retry
     if (response.status === 429 || errorData?.error?.code === "rate_limit_exceeded") {
       if (retryCount < maxRetries) {
-        // Trust OpenAI's Retry-After header - it's the authoritative source
-        // Only use minimum wait if no header is provided
-        let waitTime = 10000; // Default to 10 seconds (reasonable minimum if no header)
+        // Faster retry strategy for better user experience
+        // Use shorter waits to avoid long delays
+        let waitTime = 5000; // Default to 5 seconds (reduced from 10s)
         
         // Check Retry-After header first (this is the most reliable source)
         const retryAfterHeader = response.headers.get("retry-after");
@@ -89,9 +99,8 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
           const retryAfterSeconds = parseInt(retryAfterHeader);
           if (!isNaN(retryAfterSeconds)) {
             waitTime = retryAfterSeconds * 1000; // Convert seconds to milliseconds
-            // Trust OpenAI's value - don't override with minimum (they know best)
-            // Only add small buffer (10% extra) for safety
-            waitTime = Math.round(waitTime * 1.1);
+            // Cap at 15 seconds max per retry (was unbounded) for faster failure
+            waitTime = Math.min(waitTime, 15000);
           }
         } else {
           // Try to parse retry-after from error message
@@ -102,20 +111,21 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
             const retryValue = parseInt(retryAfterMatch[1]);
             const unit = retryAfterMatch[2]?.toLowerCase() || "seconds";
             if (unit.includes("ms") || unit.includes("millisecond")) {
-              waitTime = Math.max(retryValue, 5000); // Minimum 5 seconds
+              waitTime = Math.max(retryValue, 3000); // Minimum 3 seconds (reduced from 5s)
             } else {
               // Seconds
-              waitTime = Math.max(retryValue * 1000, 5000); // Minimum 5 seconds
+              waitTime = Math.max(retryValue * 1000, 3000); // Minimum 3 seconds (reduced from 5s)
+              waitTime = Math.min(waitTime, 15000); // Cap at 15s
             }
           } else {
-            // No Retry-After header or message - use exponential backoff (10s, 20s, 30s, 40s, 50s)
-            waitTime = 10000 + (retryCount * 10000); // 10s, 20s, 30s, 40s, 50s
+            // Faster exponential backoff: 5s, 8s, 12s (was 10s, 20s, 30s, 40s, 50s)
+            waitTime = 5000 + (retryCount * 3500); // 5s, 8.5s, 12s
           }
         }
 
-        // Add jitter (random 0-3 seconds) to avoid thundering herd
-        const jitter = Math.random() * 3000;
-        const totalWait = Math.min(waitTime + jitter, 60000); // Cap at 60 seconds total (reasonable max)
+        // Add jitter (random 0-2 seconds, reduced from 0-3s) to avoid thundering herd
+        const jitter = Math.random() * 2000;
+        const totalWait = Math.min(waitTime + jitter, 20000); // Cap at 20 seconds total (reduced from 60s)
 
         console.log(`[OpenAI] Rate limit hit for reportType=${reportType || "unknown"}, retrying after ${Math.round(totalWait / 1000)}s (attempt ${retryCount + 1}/${maxRetries})`);
         
@@ -130,31 +140,38 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
 
     // Handle other errors
     throw new Error(`OpenAI API error: ${errorText}`);
-  }
-
-  // Log successful request (only on first attempt to reduce noise)
-  if (retryCount === 0) {
-    console.log(`[OpenAI] Successfully generated content for reportType=${reportType || "unknown"}`);
-  } else {
-    console.log(`[OpenAI] Successfully generated content after ${retryCount} retries (reportType=${reportType || "unknown"})`);
-  }
-
-  // Parse response with error handling and timeout protection
-  try {
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content || "";
-    if (!content) {
-      console.warn(`[OpenAI] Empty content in response for reportType=${reportType || "unknown"}`);
     }
-    console.log(`[OpenAI] Response parsed successfully, content length: ${content.length} chars`);
-    return content;
-  } catch (parseError: any) {
-    console.error(`[OpenAI] Failed to parse response JSON for reportType=${reportType || "unknown"}`, {
-      error: parseError.message,
-      status: response.status,
-      statusText: response.statusText,
-    });
-    throw new Error(`Failed to parse AI response: ${parseError.message}`);
+
+    // Log successful request (only on first attempt to reduce noise)
+    if (retryCount === 0) {
+      console.log(`[OpenAI] Successfully generated content for reportType=${reportType || "unknown"}`);
+    } else {
+      console.log(`[OpenAI] Successfully generated content after ${retryCount} retries (reportType=${reportType || "unknown"})`);
+    }
+
+    // Parse response with error handling and timeout protection
+    try {
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content || "";
+      if (!content) {
+        console.warn(`[OpenAI] Empty content in response for reportType=${reportType || "unknown"}`);
+      }
+      console.log(`[OpenAI] Response parsed successfully, content length: ${content.length} chars`);
+      return content;
+    } catch (parseError: any) {
+      console.error(`[OpenAI] Failed to parse response JSON for reportType=${reportType || "unknown"}`, {
+        error: parseError.message,
+        status: response.status,
+        statusText: response.statusText,
+      });
+      throw new Error(`Failed to parse AI response: ${parseError.message}`);
+    }
+  } catch (fetchError: any) {
+    clearTimeout(timeoutId);
+    if (fetchError.name === 'AbortError') {
+      throw new Error("OpenAI API request timed out after 45 seconds. Please try again.");
+    }
+    throw fetchError;
   }
 }
 

@@ -356,7 +356,8 @@ function PreviewContent() {
       };
 
       // Individual timeout for each report (match server timeout + buffer)
-      // Server timeout: 90s (regular) or 120s (complex), use the longer one for bundles to be safe
+      // Server timeout: 60s (regular) or 75s (complex), use the longer one for bundles to be safe
+      // Optimized for faster generation
       // Client timeout should be slightly longer to account for network overhead
       const INDIVIDUAL_REPORT_TIMEOUT = 130000; // 130s - slightly longer than server max (120s)
 
@@ -1039,14 +1040,14 @@ function PreviewContent() {
     const isVerifying = loadingStage === "verifying";
     const isPaidReport = reportType !== "life-summary";
     
-    // Calculate time remaining or elapsed
+    // Calculate time remaining or elapsed (optimized estimates for faster generation)
     const estimatedTime = loadingStage === "verifying" 
       ? 10 
       : (reportType === "full-life" || reportType === "major-life-phase") 
-      ? 70 
+      ? 50  // Reduced from 70s (optimized generation)
       : reportType === "life-summary"
-      ? 40
-      : 50;
+      ? 30  // Reduced from 40s (optimized generation)
+      : 40; // Reduced from 50s (optimized generation)
     const timeRemaining = Math.max(0, estimatedTime - elapsedTime);
     const isTakingLonger = elapsedTime > estimatedTime;
     
@@ -1189,10 +1190,10 @@ function PreviewContent() {
                       <p className="text-xs text-purple-600 mt-2 font-medium">
                         ⏱️ Estimated time: {
                           reportType === "life-summary" 
-                            ? "20-40 seconds" 
+                            ? "15-30 seconds" 
                             : reportType === "full-life" || reportType === "major-life-phase"
-                            ? "45-70 seconds"
-                            : "30-50 seconds"
+                            ? "35-50 seconds"
+                            : "25-40 seconds"
                         }
                       </p>
                       {isTakingLonger && elapsedTime > estimatedTime && (

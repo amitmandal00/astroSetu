@@ -758,11 +758,13 @@ export async function POST(req: Request) {
     }
 
     // Generate report based on type with hard timeout fallback
-    // Timeout accounts for normal generation + potential rate limit retries
-    // Retry logic now uses smarter waits (10-60s, trusting OpenAI's Retry-After header)
-    // So timeout can be more reasonable: 90s for regular, 120s for complex reports
+    // Optimized timeouts for faster user experience:
+    // - Reduced retries (3 instead of 5) = faster failure
+    // - Reduced retry waits (5-20s instead of 10-60s) = faster recovery
+    // - Reduced token limits = faster generation
+    // So timeout can be more reasonable: 60s for regular, 75s for complex reports
     const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
-    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 120000 : 90000; // 120s for complex, 90s for regular (allows retries without being excessive)
+    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 75000 : 60000; // 75s for complex, 60s for regular (optimized for speed)
     let reportContent;
     
     try {
