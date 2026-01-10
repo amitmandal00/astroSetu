@@ -58,6 +58,9 @@ function PreviewContent() {
   const generationAttemptRef = useRef(0);
   const hasRedirectedRef = useRef(false); // Track redirect to prevent loops
 
+  // Valid report types for validation
+  const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
+
   const getReportName = (type: ReportType | null) => {
     switch (type) {
       case "marriage-timing":
@@ -659,6 +662,12 @@ function PreviewContent() {
     // Check if sessionStorage is available
     if (typeof window === "undefined") return;
     
+    // CRITICAL FIX: Prevent redirect loops by checking if we're already redirecting or loading
+    // If we're in the middle of loading or have already redirected, don't run this effect again
+    if (hasRedirectedRef.current || loading || isGeneratingRef.current) {
+      return;
+    }
+    
     try {
       // CRITICAL: Check for reportId in URL - if present, try to load from sessionStorage or localStorage
       // This check happens BEFORE the delay to ensure immediate loading when report exists
@@ -707,12 +716,18 @@ function PreviewContent() {
       const urlSessionId = searchParams.get("session_id");
       const autoGenerate = searchParams.get("auto_generate") === "true"; // Trigger auto-generation after payment
       
-      // CRITICAL FIX: Add small delay to allow sessionStorage to be written after navigation
+      // CRITICAL FIX: Add delay to allow sessionStorage to be written after navigation
       // This prevents race condition where we check before data is saved from input page
       // This fixes the redirect loop issue
       // IMPORTANT: This delay ONLY applies when there's NO reportId in URL (coming from input page)
       // If reportId exists, it's already handled above (before this delay)
+      // Increased delay to 500ms to ensure sessionStorage is fully available
       const timeoutId = setTimeout(() => {
+        // CRITICAL: Double-check we haven't redirected or started loading in the meantime
+        if (hasRedirectedRef.current || loading || isGeneratingRef.current) {
+          return;
+        }
+        
         try {
           // Get input from sessionStorage
         const savedInput = sessionStorage.getItem("aiAstrologyInput");
@@ -724,8 +739,16 @@ function PreviewContent() {
         const savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
 
         // CRITICAL FIX: Only redirect if we truly don't have input data AND haven't redirected already
+        // Also check that we're not currently on the input page (prevent infinite loops)
         // Also preserve reportType when redirecting to prevent loops
         if (!savedInput && !hasRedirectedRef.current) {
+          // Check if we're already on the input page to prevent loops
+          const currentPath = window.location.pathname;
+          if (currentPath.includes("/input")) {
+            console.log("[Preview] Already on input page, not redirecting to prevent loop");
+            return;
+          }
+          
           // Preserve reportType from URL params or use savedReportType if available
           const urlReportType = searchParams.get("reportType");
           const redirectUrl = urlReportType 
@@ -744,7 +767,11 @@ function PreviewContent() {
         
         // Continue with the rest of the logic only if we have savedInput
         const inputData = JSON.parse(savedInput);
-        const reportTypeToUse = savedReportType || "life-summary";
+        // CRITICAL: Prefer reportType from URL params (more reliable), then sessionStorage, then default
+        const urlReportTypeForUse = searchParams.get("reportType") as ReportType | null;
+        const reportTypeToUse = (urlReportTypeForUse && validReportTypes.includes(urlReportTypeForUse)) 
+          ? urlReportTypeForUse 
+          : (savedReportType || "life-summary");
         
         setInput(inputData);
         setReportType(reportTypeToUse);
@@ -923,8 +950,21 @@ function PreviewContent() {
           // Handle errors within setTimeout
           console.error("[Preview] Error in delayed sessionStorage check:", e);
           // Don't redirect on error here - let outer catch handle it
+          // Only redirect if we haven't already redirected and it's a critical error
+          if (!hasRedirectedRef.current && e instanceof Error && e.message.includes("sessionStorage")) {
+            // Only redirect for sessionStorage errors, not other errors
+            const currentPath = window.location.pathname;
+            if (!currentPath.includes("/input")) {
+              hasRedirectedRef.current = true;
+              const urlReportType = searchParams.get("reportType");
+              const redirectUrl = urlReportType 
+                ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+                : "/ai-astrology/input";
+              router.push(redirectUrl);
+            }
+          }
         }
-      }, 200); // Small delay to allow sessionStorage to be written (fixes redirect loop)
+      }, 500); // Increased delay to 500ms to ensure sessionStorage is fully available after navigation
       
       // Cleanup timeout on unmount
       return () => {
@@ -933,17 +973,27 @@ function PreviewContent() {
     } catch (e) {
       // Handle JSON parse errors or sessionStorage errors (e.g., private browsing mode)
       console.error("Error accessing sessionStorage or parsing saved input:", e);
-      // CRITICAL: Preserve reportType when redirecting to prevent loops
-      const urlReportType = searchParams.get("reportType");
-      const redirectUrl = urlReportType 
-        ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
-        : "/ai-astrology/input";
-      router.push(redirectUrl);
+      
+      // CRITICAL: Only redirect if we haven't already redirected and we're not already on input page
+      if (!hasRedirectedRef.current) {
+        const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+        if (!currentPath.includes("/input")) {
+          hasRedirectedRef.current = true;
+          // CRITICAL: Preserve reportType when redirecting to prevent loops
+          const urlReportType = searchParams.get("reportType");
+          const redirectUrl = urlReportType 
+            ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+            : "/ai-astrology/input";
+          router.push(redirectUrl);
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // CRITICAL: Removed 'loading' from dependencies to prevent re-running on every loading state change
     // This prevents redirect loops when loading state changes
-  }, [router, generateReport, generateBundleReports, searchParams.toString()]);
+    // Also removed searchParams.toString() to prevent re-running on every URL change
+    // Only re-run when router, generateReport, or generateBundleReports change
+  }, [router, generateReport, generateBundleReports]);
 
   const isPaidReport = reportType !== "life-summary";
   const needsPayment = isPaidReport && !paymentVerified;
@@ -2035,16 +2085,20 @@ function PreviewContent() {
     // No session or report ID and not loading - redirect to input page to start fresh
     // CRITICAL: Only redirect once to prevent loops, preserve reportType
     // This should rarely execute, but handle gracefully if it does
-    if (!hasRedirectedRef.current) {
-      hasRedirectedRef.current = true;
-      const redirectUrl = reportType && reportType !== "life-summary" 
-        ? `/ai-astrology/input?reportType=${encodeURIComponent(reportType)}` 
-        : "/ai-astrology/input";
-      console.log("[Preview] Redirecting to input page (no content/input found):", redirectUrl);
-      // Use setTimeout to avoid React rendering issues
-      setTimeout(() => {
-        router.push(redirectUrl);
-      }, 100);
+    if (!hasRedirectedRef.current && !loading && !isGeneratingRef.current) {
+      // Check if we're already on the input page to prevent loops
+      const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+      if (!currentPath.includes("/input")) {
+        hasRedirectedRef.current = true;
+        const redirectUrl = reportType && reportType !== "life-summary" 
+          ? `/ai-astrology/input?reportType=${encodeURIComponent(reportType)}` 
+          : "/ai-astrology/input";
+        console.log("[Preview] Redirecting to input page (no content/input found):", redirectUrl);
+        // Use setTimeout to avoid React rendering issues
+        setTimeout(() => {
+          router.push(redirectUrl);
+        }, 100);
+      }
     }
     
     // Show loading state while redirecting (prevents flash of content)
