@@ -1,6 +1,9 @@
 /**
  * AI Prompt Templates for Astrology Reports
  * Versioned prompts for consistent AI responses
+ * 
+ * Note: Static content (disclaimers, formatting) has been moved to staticContent.ts
+ * to reduce prompt tokens and improve consistency.
  */
 
 export const AI_PROMPT_SYSTEM_MESSAGE = `
@@ -27,12 +30,26 @@ REPORT-SPECIFIC INTELLIGENCE LAYERS (CRITICAL - Use different approaches per rep
 - Decision Support Report: Context-specific guidance. Focus on decision options, timing for decisions, and decision-specific factors. Avoid general life themes.
 
 REPORT STRUCTURE RULES:
+FORMATTING RULES:
+- Use bullet points for lists (max 20 words per bullet)
+- Start each major section with a 1-2 line summary
+- After technical terms, always explain: "What this means in daily life"
+- Use clear section headers and subsections
+- Keep paragraphs concise (3-4 sentences max)
+- Use bold text for emphasis on key points only
+
+LANGUAGE RULES:
+- Use calm, non-absolute language ("tends to", "favors", "may benefit from")
+- Avoid fear language and absolute statements
+- Use ranges and probabilities, not guarantees
+- After predictions, add context: "These are favorable periods, not guarantees"
+- Focus on guidance and timing, not definitive outcomes
+
+CRITICAL:
 - Begin every major section with a 1-2 line summary (key takeaway)
-- Use short bullet points (max 20 words per bullet)
 - Avoid repeating similar traits
 - End each section with "What this means for you" in plain English (ONLY in main sections, not subsections)
 - Prioritize clarity over completeness
-- After technical terms (like Ascendant, Nakshatra), always explain what they mean in daily life
 - Compress text by ~20% - be concise and impactful
 `;
 
@@ -91,6 +108,7 @@ export const AI_PROMPT_TEMPLATES = {
          "Based on this report, the most productive focus for you right now is: [Single clear statement about what to prioritize for marriage readiness/timing]"
          This does NOT make predictions - it gives users closure and direction.
          Example: "Based on this report, the most productive focus for you right now is: Building emotional clarity and readiness, as your strongest marriage windows open in ${primaryDesc}."
+         TOKEN BUDGET: ≤ 120 words (2-3 sentences max)
       
       2. YOU MUST PROVIDE DATE RANGES - Never say "cannot determine timing" or "when data becomes available"
          - Provide primary window: ${primaryDesc}
@@ -121,8 +139,10 @@ export const AI_PROMPT_TEMPLATES = {
             • Stronger windows open [date range]
             • Delays are more about [explanation] than denial
             • Preparation and clarity now improve outcomes later
+            TOKEN BUDGET: ≤ 200 words (4-5 bullets max)
          
          e) "Marriage Timing - Key Insight" section: 1-2 line summary (e.g., "Your strongest marriage window opens after a period of emotional stabilization, with favorable alignment in ${primaryDesc}.")
+            TOKEN BUDGET: ≤ 50 words (1-2 sentences max)
          
          f) "Ideal Marriage Windows" section:
             - Primary window: ${primaryDesc}
@@ -131,29 +151,35 @@ export const AI_PROMPT_TEMPLATES = {
               "Timeline: ${timelineVisual}"
               (Where ⭐ marks the primary/secondary windows)
             - Explanation of why these periods are favorable
+            TOKEN BUDGET: ≤ 250 words (including timeline)
          
          g) "If You're Already in a Relationship" section (NEW - MANDATORY):
             Add a note explaining how this report applies if the user is already in a relationship:
             - If in relationship: These windows indicate favorable periods for commitment, engagement, or marriage
             - If single: These windows indicate favorable periods for meeting potential partners
             - This prevents confusion and expands audience
+            TOKEN BUDGET: ≤ 100 words (2-3 bullets max)
          
          h) "Potential Delay Factors" section:
             - Plain English explanations
             - Not about denial, but timing alignment
+            TOKEN BUDGET: ≤ 150 words (3-4 bullets max)
          
          i) "Compatibility Indicators" section
+            TOKEN BUDGET: ≤ 180 words (4-5 bullets max)
          
          j) "Non-Religious Remedies" section (SHORTENED):
             - MAXIMUM 3 actionable remedies/actions
             - Keep it non-religious and practical
             - Focus only on the most impactful actions
+            TOKEN BUDGET: ≤ 150 words (3 bullets max)
          
          k) "What You Should Focus on Now" section (Decision Guidance):
             - Prioritize [action]
             - Strengthen [aspect]
             - Avoid [behavior]
             - Practical, actionable guidance
+            TOKEN BUDGET: ≤ 200 words (4-5 bullets max)
          
          l) TIMING HIERARCHY EXPLANATION (add after Ideal Marriage Windows section):
             Include a box/note:
@@ -562,6 +588,7 @@ export const AI_PROMPT_TEMPLATES = {
             - Relationship / personal focus: Description
             - Energy level: "low", "moderate", or "high"
             Format as clear subsections for each quarter.
+            TOKEN BUDGET: ≤ 600 words total (4 quarters × 150 words max per quarter)
          
          h) BEST PERIODS (MANDATORY):
             Title: "Best Periods"
@@ -571,6 +598,7 @@ export const AI_PROMPT_TEMPLATES = {
             - Best months for finances: List months
             For each, provide brief description (1 line) of why these periods are favorable.
             Use strategic language, not predictions.
+            TOKEN BUDGET: ≤ 200 words (3 subsections × 60-70 words max each)
          
          i) LOW-RETURN PERIODS (RENAMED - was "Caution Periods"):
             Title: "Low-Return Periods" (NOT "Caution Periods" - sounds less negative, more strategic)
@@ -580,6 +608,7 @@ export const AI_PROMPT_TEMPLATES = {
             - Decision fatigue periods: Months and brief description
             Frame as "more challenging for" and "lower return on investment" - NOT "avoid" or "will fail".
             Use strategic, less fear-based language.
+            TOKEN BUDGET: ≤ 180 words (3 subsections × 60 words max each)
          
          j) FOCUS AREAS BY MONTH (optional but valuable):
             Title: "Focus Areas by Month"

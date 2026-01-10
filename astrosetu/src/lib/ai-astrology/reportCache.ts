@@ -20,6 +20,9 @@ interface CachedReport {
 // In-memory cache (in production, consider Redis or database)
 const reportCache = new Map<string, CachedReport>();
 
+// Mapping from reportId to idempotencyKey (for status lookup)
+const reportIdToKeyMap = new Map<string, string>();
+
 // TTL: 24 hours (reports are valid for 24 hours)
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -98,6 +101,20 @@ export function cacheReport(
     status: "completed",
     createdAt: Date.now(),
   });
+
+  // Store mapping for status lookup
+  reportIdToKeyMap.set(reportId, idempotencyKey);
+}
+
+/**
+ * Get cached report by reportId (for status polling)
+ */
+export function getCachedReportByReportId(reportId: string): CachedReport | null {
+  const idempotencyKey = reportIdToKeyMap.get(reportId);
+  if (!idempotencyKey) {
+    return null;
+  }
+  return getCachedReport(idempotencyKey);
 }
 
 /**
@@ -124,6 +141,9 @@ export function markReportProcessing(
     createdAt: Date.now(),
   });
 
+  // Store mapping for status lookup
+  reportIdToKeyMap.set(reportId, idempotencyKey);
+
   return true; // Successfully marked as processing
 }
 
@@ -132,12 +152,22 @@ export function markReportProcessing(
  */
 export function cleanupExpiredCache(): void {
   const now = Date.now();
+  const keysToDelete: string[] = [];
+  
   reportCache.forEach((cached, key) => {
     const age = now - cached.createdAt;
     if (age > CACHE_TTL_MS) {
-      reportCache.delete(key);
+      keysToDelete.push(key);
+      // Also clean up reportId mapping
+      reportIdToKeyMap.forEach((mappedKey, reportId) => {
+        if (mappedKey === key) {
+          reportIdToKeyMap.delete(reportId);
+        }
+      });
     }
   });
+  
+  keysToDelete.forEach(key => reportCache.delete(key));
 }
 
 // Clean up expired entries every hour

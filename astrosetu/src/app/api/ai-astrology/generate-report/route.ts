@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { checkRateLimit, handleApiError, parseJsonBody, validateRequestSize } from "@/lib/apiHelpers";
 import { generateRequestId } from "@/lib/requestId";
 import {
@@ -15,8 +16,127 @@ import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
 import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
-import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing } from "@/lib/ai-astrology/reportCache";
+import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing, getCachedReportByReportId } from "@/lib/ai-astrology/reportCache";
 import { generateSessionKey } from "@/lib/ai-astrology/openAICallTracker";
+
+/**
+ * GET handler - Check report status by reportId (for polling)
+ * Used when a report is already being generated and client needs to check status
+ */
+export async function GET(req: NextRequest) {
+  const startTime = Date.now();
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  
+  try {
+    const searchParams = req.nextUrl.searchParams;
+    const reportId = searchParams.get("reportId");
+    
+    if (!reportId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "reportId query parameter is required",
+          requestId,
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Get cached report by reportId
+    const cachedReport = getCachedReportByReportId(reportId);
+    
+    if (!cachedReport) {
+      // Report not found - might be expired or never existed
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "processing" as const,
+            reportId,
+            message: "Report generation in progress or not found. Please continue waiting.",
+          },
+          requestId,
+        },
+        {
+          status: 202, // Accepted - still processing (optimistic)
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache",
+          },
+        }
+      );
+    }
+    
+    // Check status
+    if (cachedReport.status === "completed") {
+      // Report is ready
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+      const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(reportId)}&reportType=${encodeURIComponent(cachedReport.reportType)}`;
+      const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+      
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "completed" as const,
+            reportId: cachedReport.reportId,
+            reportType: cachedReport.reportType,
+            input: cachedReport.input,
+            content: cachedReport.content,
+            generatedAt: cachedReport.generatedAt,
+            redirectUrl,
+            fullRedirectUrl,
+          },
+          requestId,
+        },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache",
+          },
+        }
+      );
+    } else {
+      // Still processing
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "processing" as const,
+            reportId,
+            message: "Report generation in progress. Please continue waiting.",
+          },
+          requestId,
+        },
+        {
+          status: 202, // Accepted - still processing
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache",
+          },
+        }
+      );
+    }
+  } catch (error: any) {
+    const errorLog = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      action: "GET_STATUS_ERROR",
+      error: error.message || String(error),
+      elapsedMs: Date.now() - startTime,
+    };
+    console.error("[GET REPORT STATUS ERROR]", JSON.stringify(errorLog, null, 2));
+    
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Failed to check report status",
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
+}
 
 /**
  * Check if the user is a production test user
@@ -871,12 +991,12 @@ export async function POST(req: Request) {
             // Use next 12 months from current date (intelligent date window)
             // This provides guidance for the actual upcoming year period, not just calendar year
             const yearAnalysisRange = getYearAnalysisDateRange();
-            return await generateYearAnalysisReport(input, {
+            return await generateYearAnalysisReport(input, sessionKey, {
               startYear: yearAnalysisRange.startYear,
               startMonth: yearAnalysisRange.startMonth,
               endYear: yearAnalysisRange.endYear,
               endMonth: yearAnalysisRange.endMonth,
-            }, sessionKey);
+            });
           case "major-life-phase":
             return await generateMajorLifePhaseReport(input, sessionKey);
           case "decision-support":

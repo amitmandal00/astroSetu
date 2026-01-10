@@ -224,7 +224,7 @@ function PreviewContent() {
       const response = await apiPost<{
         ok: boolean;
         data?: {
-          status?: "completed" | "pending" | "failed";
+          status?: "completed" | "processing" | "pending" | "failed";
           reportId?: string;
           reportType: ReportType;
           input: AIAstrologyInput;
@@ -232,6 +232,7 @@ function PreviewContent() {
           generatedAt: string;
           redirectUrl?: string;
           fullRedirectUrl?: string;
+          message?: string;
         };
         error?: string;
       }>(apiUrl, {
@@ -241,6 +242,101 @@ function PreviewContent() {
         paymentIntentId: isPaid ? paymentIntentId : undefined, // CRITICAL: For manual capture after report generation
         sessionId: isPaid ? (sessionId || undefined) : undefined, // For token regeneration fallback
       }, { timeoutMs: clientTimeout });
+
+      // Handle "processing" status - start polling instead of retrying
+      if (response.ok && response.data?.status === "processing" && response.data?.reportId) {
+        console.log(`[CLIENT] Report is processing, starting polling for reportId: ${response.data.reportId}`);
+        const reportId = response.data.reportId;
+        
+        // Poll every 3 seconds for report completion
+        const pollInterval = 3000; // 3 seconds
+        const maxPollAttempts = Math.floor(clientTimeout / pollInterval); // Don't poll longer than timeout
+        let pollAttempts = 0;
+        
+        const pollForReport = async (): Promise<void> => {
+          if (pollAttempts >= maxPollAttempts) {
+            console.warn(`[CLIENT] Polling timeout after ${maxPollAttempts} attempts`);
+            throw new Error("Report generation is taking longer than expected. Please try again.");
+          }
+          
+          pollAttempts++;
+          console.log(`[CLIENT] Polling attempt ${pollAttempts}/${maxPollAttempts} for reportId: ${reportId}`);
+          
+          try {
+            const statusResponse = await fetch(`/api/ai-astrology/generate-report?reportId=${encodeURIComponent(reportId)}`, {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            });
+            
+            if (!statusResponse.ok) {
+              // If status check fails, wait and retry
+              await new Promise(resolve => setTimeout(resolve, pollInterval));
+              return pollForReport();
+            }
+            
+            const statusData = await statusResponse.json();
+            
+            if (statusData.ok && statusData.data) {
+              if (statusData.data.status === "completed") {
+                // Report is ready - handle completion
+                console.log(`[CLIENT] Polling success - report completed for reportId: ${reportId}`);
+                
+                // Store content if available
+                if (statusData.data.content && statusData.data.reportId) {
+                  try {
+                    const reportData = JSON.stringify({
+                      content: statusData.data.content,
+                      reportType: statusData.data.reportType,
+                      input: statusData.data.input,
+                      generatedAt: statusData.data.generatedAt,
+                      reportId: statusData.data.reportId,
+                    });
+                    sessionStorage.setItem(`aiAstrologyReport_${statusData.data.reportId}`, reportData);
+                    localStorage.setItem(`aiAstrologyReport_${statusData.data.reportId}`, reportData);
+                    console.log("[CLIENT] Stored report content from polling");
+                  } catch (storageError) {
+                    console.warn("[CLIENT] Failed to store report from polling:", storageError);
+                  }
+                }
+                
+                // Navigate to report
+                if (statusData.data.redirectUrl) {
+                  console.log("[CLIENT] Navigating to report from polling:", statusData.data.redirectUrl);
+                  router.replace(statusData.data.redirectUrl);
+                  return;
+                }
+              } else if (statusData.data.status === "processing") {
+                // Still processing - wait and poll again
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                return pollForReport();
+              }
+            }
+          } catch (pollError: any) {
+            console.warn(`[CLIENT] Polling error (attempt ${pollAttempts}):`, pollError);
+            // Wait and retry unless we've exceeded max attempts
+            if (pollAttempts < maxPollAttempts) {
+              await new Promise(resolve => setTimeout(resolve, pollInterval));
+              return pollForReport();
+            }
+            throw pollError;
+          }
+        };
+        
+        // Start polling (don't await - let it run in background)
+        pollForReport().catch((pollError: any) => {
+          console.error("[CLIENT] Polling failed:", pollError);
+          setError(pollError.message || "Failed to check report status. Please try again.");
+          setLoading(false);
+          setLoadingStage(null);
+          isGeneratingRef.current = false;
+          hasAutoGeneratedRef.current = false;
+        });
+        
+        // Return early - polling will handle completion
+        return;
+      }
 
       if (!response.ok) {
         // CLIENT-SIDE ERROR LOGGING
@@ -270,6 +366,7 @@ function PreviewContent() {
           setLoading(false);
           setLoadingStage(null);
           isGeneratingRef.current = false; // Clear lock
+          hasAutoGeneratedRef.current = false; // Reset to allow manual retry
           return; // Exit immediately - no retry
         }
         
@@ -370,6 +467,7 @@ function PreviewContent() {
         setLoadingStartTime(null); // Clear loading start time
         setElapsedTime(0); // Reset elapsed time
         isGeneratingRef.current = false; // Clear lock immediately
+        hasAutoGeneratedRef.current = false; // Reset to allow manual retry
         return; // Exit - no retry
       }
       
@@ -394,6 +492,8 @@ function PreviewContent() {
       setLoadingStartTime(null);
       setElapsedTime(0);
       isGeneratingRef.current = false;
+      // CRITICAL: Reset auto-generated ref on error to allow retry
+      hasAutoGeneratedRef.current = false;
     } finally {
       // Only clear lock if this is still the current attempt (prevent race conditions)
       if (currentAttempt === generationAttemptRef.current) {
@@ -1232,6 +1332,7 @@ function PreviewContent() {
           setLoadingStartTime(null);
           setElapsedTime(0);
           isGeneratingRef.current = false; // Clear lock
+          hasAutoGeneratedRef.current = false; // Reset to allow retry
         }
       }, 1000); // Update every second
       
@@ -1250,18 +1351,21 @@ function PreviewContent() {
   const urlSessionIdForRecovery = searchParams.get("session_id");
   const autoGenerateForRecovery = searchParams.get("auto_generate") === "true";
   const hasSessionIdForRecovery = !!urlSessionIdForRecovery;
+  const isFreeReportForRecovery = reportType === "life-summary";
   
   useEffect(() => {
     // CRITICAL FIX: Trigger recovery if we have session_id but NO reportContent (regardless of input state)
+    // OR if it's a free report that's stuck (no session_id needed for free reports)
     // This handles cases where input is loaded but report generation never happened or failed silently
     // Wait a short delay to let main useEffect finish first
     // IMPORTANT: Only trigger if NOT currently loading/generating to avoid conflicts
     const shouldTriggerRecovery = (
-      (hasSessionIdForRecovery || autoGenerateForRecovery) && 
+      ((hasSessionIdForRecovery || autoGenerateForRecovery) || (isFreeReportForRecovery && input && !reportContent)) && 
       !reportContent && 
       !loading &&
       !isGeneratingRef.current &&
       !autoRecoveryTriggeredRef.current // Prevent multiple triggers
+      // Note: Don't check hasAutoGeneratedRef here - recovery should work even if auto-generation was attempted
     );
     
     if (shouldTriggerRecovery) {
@@ -1357,6 +1461,7 @@ function PreviewContent() {
               setLoadingStage(null);
               setLoadingStartTime(null);
               autoRecoveryTriggeredRef.current = false; // Allow retry
+              hasAutoGeneratedRef.current = false; // Reset to allow manual retry
             }
           } else if (reportTypeToUse === "life-summary") {
             // Free report - just regenerate directly
@@ -1385,6 +1490,7 @@ function PreviewContent() {
               setLoadingStartTime(null);
               setElapsedTime(0);
               autoRecoveryTriggeredRef.current = false; // Allow retry
+              hasAutoGeneratedRef.current = false; // Reset to allow manual retry
             }
           } else {
             setError("Missing payment session. Please complete payment again.");
@@ -1393,6 +1499,7 @@ function PreviewContent() {
           console.error("[AUTO-RECOVERY] Recovery failed:", e);
           setError(e.message || "Failed to recover report. Please start over.");
           autoRecoveryTriggeredRef.current = false; // Allow retry
+          hasAutoGeneratedRef.current = false; // Reset to allow manual retry
         }
         };
         
@@ -1407,7 +1514,7 @@ function PreviewContent() {
     if (reportContent) {
       autoRecoveryTriggeredRef.current = false;
     }
-  }, [hasSessionIdForRecovery, autoGenerateForRecovery, reportContent, urlSessionIdForRecovery, generateReport, input, reportType, loading, error]);
+  }, [hasSessionIdForRecovery, autoGenerateForRecovery, reportContent, urlSessionIdForRecovery, generateReport, input, reportType, loading, error, isFreeReportForRecovery]);
 
   // Helper functions for loading screen (accessible in both loading and content blocks)
   const urlSessionIdForLoading = searchParams.get("session_id");
