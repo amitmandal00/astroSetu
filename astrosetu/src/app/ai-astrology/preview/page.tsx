@@ -403,6 +403,9 @@ function PreviewContent() {
       setLoading(false);
       setLoadingStage(null);
     }
+    // Note: loadingStartTime is intentionally not in dependencies - we read it in error handler but set it inside the function
+    // Including it would cause unnecessary re-renders. The state value is always current when accessed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [upsellShown, router]);
 
   const generateBundleReports = useCallback(async (inputData: AIAstrologyInput, reports: ReportType[], currentSessionId?: string, currentPaymentIntentId?: string) => {
@@ -662,9 +665,10 @@ function PreviewContent() {
     // Check if sessionStorage is available
     if (typeof window === "undefined") return;
     
-    // CRITICAL FIX: Prevent redirect loops by checking if we're already redirecting or loading
-    // If we're in the middle of loading or have already redirected, don't run this effect again
-    if (hasRedirectedRef.current || loading || isGeneratingRef.current) {
+    // CRITICAL FIX: Prevent redirect loops by checking if we're already redirecting
+    // BUT: Don't skip if loading - we need to check sessionStorage even during initial loading
+    // Only skip if we've already redirected or are currently generating
+    if (hasRedirectedRef.current || isGeneratingRef.current) {
       return;
     }
     
@@ -794,6 +798,9 @@ function PreviewContent() {
           final: reportTypeToUse
         });
         
+        // CRITICAL: Set input and reportType state IMMEDIATELY before any other checks
+        // This ensures the component has the data it needs to render correctly
+        // and prevents the "no input" redirect logic from triggering
         setInput(inputData);
         setReportType(reportTypeToUse);
           
@@ -1022,11 +1029,13 @@ function PreviewContent() {
         }
       }
     }
+    // CRITICAL: Intentionally limited dependencies to prevent redirect loops and unnecessary re-renders:
+    // - 'loading' removed: Would cause re-runs on every loading state change, triggering redirect loops
+    // - 'reportContent' removed: We check reportContent inside, but don't want re-run when it changes (would interrupt generation)
+    // - 'searchParams' removed: We read searchParams inside but intentionally removed .toString() to avoid re-runs on every URL change
+    // - 'validReportTypes' removed: Constant array, doesn't need to be in dependencies
+    // Only re-run when router, generateReport, or generateBundleReports change (which indicates a new render cycle)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // CRITICAL: Removed 'loading' from dependencies to prevent re-running on every loading state change
-    // This prevents redirect loops when loading state changes
-    // Also removed searchParams.toString() to prevent re-running on every URL change
-    // Only re-run when router, generateReport, or generateBundleReports change
   }, [router, generateReport, generateBundleReports]);
 
   const isPaidReport = reportType !== "life-summary";
@@ -2082,6 +2091,15 @@ function PreviewContent() {
     );
   }
 
+  // CRITICAL FIX: Check if we're waiting for useEffect to set state from sessionStorage
+  // When coming from input page, reportType is in URL, useEffect needs time to set input state
+  // Don't redirect immediately if we have reportType in URL - wait for useEffect to process
+  const urlHasReportType = searchParams.get("reportType") !== null;
+  const urlSessionId = searchParams.get("session_id");
+  const urlReportId = searchParams.get("reportId");
+  const autoGenerate = searchParams.get("auto_generate") === "true";
+  const isWaitingForState = urlHasReportType && !input && !hasRedirectedRef.current && !urlSessionId && !urlReportId;
+  
   if (!reportContent || !input) {
     // CRITICAL: If we're in loading state, the main loading screen above handles it
     // This block should never execute when loading is true, but if it does, return null
@@ -2090,11 +2108,23 @@ function PreviewContent() {
       return null; // Main loading screen will handle this
     }
     
-    // If we're not loading but have no content/input, check if we should trigger generation
-    // This handles cases where user navigated directly to preview page without going through input
-    const urlSessionId = searchParams.get("session_id");
-    const urlReportId = searchParams.get("reportId");
-    const autoGenerate = searchParams.get("auto_generate") === "true";
+    // CRITICAL: If we have reportType in URL (coming from input page) and no input yet,
+    // wait for useEffect to set state before redirecting - prevents premature redirects
+    if (isWaitingForState) {
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Loading...</h2>
+              <p className="text-slate-600 mb-6">
+                Setting up your report. Please wait...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
     
     // If we have session_id or reportId or autoGenerate, we should be in loading state
     // The useEffect auto-recovery logic should handle this, but if we somehow reach here,
