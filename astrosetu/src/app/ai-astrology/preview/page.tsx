@@ -1569,14 +1569,81 @@ function PreviewContent() {
     const autoGenerate = searchParams.get("auto_generate") === "true";
     const hasSessionId = !!urlSessionId;
     const isPaidReport = reportType && reportType !== "life-summary";
+    const currentReportId = reportContent?.reportId || urlReportId;
+    
+    // Get report link for copying
+    const reportLink = typeof window !== "undefined" && currentReportId 
+      ? `${window.location.origin}/ai-astrology/preview?reportId=${currentReportId}`
+      : typeof window !== "undefined" ? window.location.href : "";
+    
+    // Helper to retry loading by reportId
+    const handleRetryLoading = async () => {
+      if (!currentReportId) return;
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Try to load from sessionStorage first
+        const storedReport = sessionStorage.getItem(`aiAstrologyReport_${currentReportId}`);
+        if (storedReport) {
+          const parsed = JSON.parse(storedReport);
+          setReportContent(parsed.content);
+          setInput(parsed.input);
+          setReportType(parsed.reportType);
+          setLoading(false);
+          return;
+        }
+        
+        // If not in sessionStorage, try to fetch from API (if endpoint exists)
+        // For now, just show error
+        throw new Error("Report not found in cache. Please regenerate your report.");
+      } catch (e: any) {
+        setError(e.message || "Failed to load report. Please try regenerating.");
+        setLoading(false);
+      }
+    };
+    
+    // Helper to copy report link
+    const handleCopyReportLink = async () => {
+      try {
+        await navigator.clipboard.writeText(reportLink);
+        setEmailCopySuccess(true);
+        setTimeout(() => setEmailCopySuccess(false), 2000);
+      } catch (e) {
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = reportLink;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        setEmailCopySuccess(true);
+        setTimeout(() => setEmailCopySuccess(false), 2000);
+      }
+    };
     
     return (
       <div className="cosmic-bg py-8">
         <div className="container mx-auto px-4 max-w-2xl">
           <Card className="cosmic-card">
-            <CardContent className="p-8 text-center">
-              <div className="text-5xl mb-4">⏳</div>
-              <h2 className="text-2xl font-bold mb-4 text-slate-800">Preparing Your Report...</h2>
+            <CardContent className="p-8">
+              {/* Progress Stepper */}
+              <div className="mb-6">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 rounded-full bg-purple-600 animate-pulse"></div>
+                    <div className="w-12 h-0.5 bg-purple-300"></div>
+                    <div className="w-3 h-3 rounded-full bg-purple-300"></div>
+                    <div className="w-12 h-0.5 bg-slate-300"></div>
+                    <div className="w-3 h-3 rounded-full bg-slate-300"></div>
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold mb-2 text-center text-slate-800">Loading Report...</h2>
+                <p className="text-sm text-center text-slate-600 mb-6">
+                  This can take up to 60–90 seconds. If it takes longer, your report is still being prepared.
+                </p>
+              </div>
               
               {/* Auto-recovery indicator */}
               {(hasSessionId || autoGenerate) && (
@@ -1590,120 +1657,90 @@ function PreviewContent() {
               {/* Show more informative message based on state */}
               {hasSessionId || urlReportId ? (
                 <div className="space-y-4 text-left">
-                  <p className="text-slate-600 mb-4">
-                    We&apos;re loading your report. This should only take a few seconds...
-                  </p>
-                  
                   {isPaidReport && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                       <div className="flex items-start gap-3">
                         <div className="text-xl">💳</div>
                         <div className="flex-1">
-                          <p className="text-sm font-semibold text-blue-800 mb-1">
-                            Payment Status
+                          <p className="text-sm font-semibold text-green-800 mb-1">
+                            Payment Verified & Protected
                           </p>
-                          <p className="text-xs text-blue-700">
-                            {hasSessionId 
-                              ? "We detected your payment session. If your report doesn&apos;t load, it may still be generating. Check below for recovery options."
-                              : "Your payment is protected. If generation fails, you&apos;ll automatically receive a refund."}
+                          <p className="text-xs text-green-700">
+                            Your payment is confirmed. If report generation fails, you will <strong>automatically receive a refund</strong> - no action needed.
                           </p>
                         </div>
                       </div>
                     </div>
                   )}
                   
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    {currentReportId && (
+                      <Button
+                        onClick={handleRetryLoading}
+                        disabled={loading}
+                        className="cosmic-button-secondary"
+                      >
+                        🔄 Retry Loading
+                      </Button>
+                    )}
+                    <Button
+                      onClick={handleCopyReportLink}
+                      className="cosmic-button-secondary"
+                      disabled={loading}
+                    >
+                      {emailCopySuccess ? "✓ Link Copied!" : "📋 Copy Report Link"}
+                    </Button>
+                  </div>
+                  
+                  {/* Report ID for debugging/support */}
+                  {currentReportId && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
+                      <p className="text-xs text-slate-600 font-mono break-all">
+                        <strong className="text-slate-800">Report ID:</strong> {currentReportId}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Conditional warning about not closing tab (only if using session storage) */}
                   {hasSessionId && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
                       <div className="flex items-start gap-3">
                         <div className="text-xl">⚠️</div>
                         <div className="flex-1">
-                          <p className="text-sm font-semibold text-amber-800 mb-2">
-                            Report May Still Be Generating
+                          <p className="text-sm font-semibold text-amber-800 mb-1">
+                            Do not close this tab
                           </p>
-                          <p className="text-xs text-amber-700 mb-3">
-                            If your report doesn&apos;t appear within 30 seconds, it may have timed out or failed. 
-                            You can try the recovery option below.
+                          <p className="text-xs text-amber-700">
+                            Your report is being loaded from your session. If you close this tab, you may need to regenerate your report.
                           </p>
-                          <Button
-                            className="w-full cosmic-button"
-                            onClick={async () => {
-                              setLoading(true);
-                              setLoadingStage("generating");
-                              setLoadingStartTime(Date.now());
-                              setError(null);
-                              
-                              try {
-                                // Try to regenerate using session_id
-                                const savedInput = sessionStorage.getItem("aiAstrologyInput");
-                                const savedReportType = sessionStorage.getItem("aiAstrologyReportType");
-                                
-                                if (savedInput && savedReportType) {
-                                  const inputData = JSON.parse(savedInput);
-                                  const reportTypeToUse = savedReportType as ReportType;
-                                  
-                                  // Verify payment first
-                                  const verifyResponse = await apiGet<{
-                                    ok: boolean;
-                                    data?: {
-                                      paid: boolean;
-                                      paymentToken?: string;
-                                      reportType?: string;
-                                      paymentIntentId?: string;
-                                    };
-                                  }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId!)}`);
-                                  
-                                  if (verifyResponse.ok && verifyResponse.data?.paid) {
-                                    // Store payment data
-                                    if (verifyResponse.data.paymentToken) {
-                                      sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
-                                    }
-                                    if (verifyResponse.data.paymentIntentId) {
-                                      sessionStorage.setItem("aiAstrologyPaymentIntentId", verifyResponse.data.paymentIntentId);
-                                    }
-                                    sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
-                                    
-                                    // Regenerate report
-                                    await generateReport(inputData, reportTypeToUse, urlSessionId, verifyResponse.data.paymentIntentId);
-                                  } else {
-                                    throw new Error("Payment verification failed. Please complete payment again.");
-                                  }
-                                } else {
-                                  throw new Error("Input data not found. Please start over.");
-                                }
-                              } catch (e: any) {
-                                setError(e.message || "Failed to recover report. Please try again.");
-                                setLoading(false);
-                                setLoadingStage(null);
-                                setLoadingStartTime(null);
-                              }
-                            }}
-                          >
-                            🔄 Recover My Report (Verify Payment & Regenerate)
-                          </Button>
                         </div>
                       </div>
                     </div>
                   )}
-                  
-                  <div className="mt-4 pt-4 border-t border-slate-200">
-                    <p className="text-xs text-slate-500 mb-3">
-                      If this page doesn&apos;t update, your report generation may have timed out. 
-                      Your payment will be automatically cancelled if generation failed.
-                    </p>
-                  </div>
                 </div>
               ) : (
-                <p className="text-slate-600 mb-6">
-                  We&apos;re preparing your report. If nothing happens within 10 seconds, please click &quot;Start Over&quot; below.
-                </p>
+                <div className="space-y-4 text-left">
+                  <p className="text-slate-600 mb-6">
+                    We&apos;re preparing your report. If nothing happens within 10 seconds, please use the options below.
+                  </p>
+                </div>
               )}
               
-              <div className="mt-6">
-                <Link href="/ai-astrology/input">
-                  <Button className="cosmic-button-secondary">
-                    Start Over {hasSessionId ? "(May Cancel Generation)" : ""}
-                  </Button>
-                </Link>
+              {/* Action Buttons Footer */}
+              <div className="mt-6 pt-6 border-t border-slate-200 space-y-3">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <p className="text-sm text-red-800">{error}</p>
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Link href="/ai-astrology/input" className="flex-1">
+                    <Button className="w-full cosmic-button-secondary">
+                      Start Over {hasSessionId ? "(May Cancel Generation)" : ""}
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </CardContent>
           </Card>

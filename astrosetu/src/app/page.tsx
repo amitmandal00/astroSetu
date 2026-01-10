@@ -14,6 +14,7 @@ import { session } from "@/lib/session";
 import { getPrioritizedModules, type UserGoal } from "@/lib/goalPrioritization";
 import { ASTRO_IMAGES } from "@/lib/astroImages";
 import { AI_ONLY_MODE } from "@/lib/feature-flags";
+import { FAQSchema } from "@/components/seo/StructuredData";
 
 export default function Home() {
   // Get user goals and prioritize modules (hooks must be called before any returns)
@@ -212,6 +213,44 @@ export default function Home() {
 
       {/* Mobile App Download Section */}
       <AppDownload />
+      
+      {/* FAQ Schema for SEO */}
+      <FAQSchema
+        faqs={[
+          {
+            question: "What is AstroSetu?",
+            answer: "AstroSetu is an AI-powered astrology platform providing personalized horoscope, kundli generation, marriage timing, career guidance, and life predictions. We offer automated astrology services with instant insights based on your birth chart.",
+          },
+          {
+            question: "How accurate are the astrology predictions?",
+            answer: "Our predictions are based on traditional Vedic astrology calculations and AI-powered analysis. While astrology is not a science, our platform uses NASA ephemeris data for planetary positions and follows traditional astrological principles for interpretation.",
+          },
+          {
+            question: "Do I need to provide my birth details?",
+            answer: "Yes, for accurate kundli generation and predictions, you need to provide your date of birth, time of birth, and place of birth. This information is used to calculate your exact planetary positions.",
+          },
+          {
+            question: "Is my personal information secure?",
+            answer: "Yes, we take privacy seriously. Your birth details and personal information are encrypted and stored securely. We never share your personal data with third parties without your consent.",
+          },
+          {
+            question: "Can I get a free horoscope?",
+            answer: "Yes, we offer free horoscope services including daily horoscope, kundli generation preview, and basic astrology tools. Premium reports with detailed analysis are available for purchase.",
+          },
+          {
+            question: "How do I generate my Kundli?",
+            answer: "Simply visit our Kundli page, enter your name, date of birth, time of birth, and place of birth. Our system will automatically calculate and display your complete birth chart with planetary positions, houses, and interpretations.",
+          },
+          {
+            question: "What is Kundli matching?",
+            answer: "Kundli matching (also called Guna Milan) is a traditional method to check marriage compatibility between two people based on their birth charts. We provide detailed compatibility analysis including Guna score, Mangal Dosha check, and compatibility insights.",
+          },
+          {
+            question: "Can I consult with astrologers online?",
+            answer: "Yes, we have a network of verified expert astrologers available for online consultations. You can chat with them, book sessions, and get personalized guidance for your questions.",
+          },
+        ]}
+      />
     </div>
   );
 }
