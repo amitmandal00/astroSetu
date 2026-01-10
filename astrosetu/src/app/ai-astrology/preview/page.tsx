@@ -2222,14 +2222,55 @@ function PreviewContent() {
                   </div>
                 )}
 
-                {/* Summary (for other reports or if no executive summary) */}
-                {content?.summary && 
-                 !(type === "full-life" && content?.executiveSummary) && 
-                 type !== "marriage-timing" && 
-                 type !== "career-money" && (
-                  <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
-                    <h2 className="text-xl font-bold mb-3 text-amber-900">Summary</h2>
-                    <p className="text-slate-700 leading-relaxed">{content.summary}</p>
+                {/* Enhanced Summary for Year Analysis Report */}
+                {type === "year-analysis" && content?.summary && (
+                  <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">📅</div>
+                      <h2 className="text-2xl font-bold text-indigo-900">Year Analysis Summary</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Enhanced Summary for Major Life Phase Report */}
+                {type === "major-life-phase" && content?.summary && (
+                  <div className="mb-8 p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-violet-50 rounded-xl border-2 border-violet-300 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">🗺️</div>
+                      <h2 className="text-2xl font-bold text-violet-900">3-5 Year Strategic Life Phase Summary</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Enhanced Summary for Decision Support Report */}
+                {type === "decision-support" && content?.summary && (
+                  <div className="mb-8 p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 rounded-xl border-2 border-emerald-300 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">🎯</div>
+                      <h2 className="text-2xl font-bold text-emerald-900">Decision Support Summary</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Enhanced Summary for Life Summary Report (Free) */}
+                {type === "life-summary" && content?.summary && (
+                  <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 rounded-xl border-2 border-amber-300 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">📊</div>
+                      <h2 className="text-2xl font-bold text-amber-900">Life Summary</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                    </div>
                   </div>
                 )}
 
@@ -2240,36 +2281,80 @@ function PreviewContent() {
                     const hasKeyInsight = section.title.toLowerCase().includes("- key insight") || section.title.toLowerCase().includes("key insight");
                     const sectionTitle = section.title.replace(/- Key Insight/gi, "").trim();
                     
-                    // Enhanced section detection for Marriage Timing Report
+                    // Enhanced section detection for ALL report types (standardized like marriage report)
                     const isMarriageTimingReport = type === "marriage-timing";
+                    const isCareerMoneyReport = type === "career-money";
+                    const isYearAnalysisReport = type === "year-analysis";
+                    const isMajorLifePhaseReport = type === "major-life-phase";
+                    const isDecisionSupportReport = type === "decision-support";
+                    const isLifeSummaryReport = type === "life-summary";
+                    
+                    // Summary sections (already displayed above, skip in section list)
                     const isMarriageSummarySection = isMarriageTimingReport && section.title.toLowerCase().includes("marriage timing summary");
-                    const isDecisionGuidanceSection = (isMarriageTimingReport || type === "career-money") && 
-                      (section.title.toLowerCase().includes("what you should focus") || 
-                       section.title.toLowerCase().includes("decision guidance") || 
-                       section.title.toLowerCase().includes("focus on now"));
+                    const isCareerMoneySummarySection = isCareerMoneyReport && section.title.toLowerCase().includes("career & money summary");
+                    
+                    // Decision Guidance (applies to multiple report types)
+                    const isDecisionGuidanceSection = (
+                      isMarriageTimingReport || 
+                      isCareerMoneyReport || 
+                      isYearAnalysisReport ||
+                      isMajorLifePhaseReport ||
+                      isDecisionSupportReport
+                    ) && (
+                      section.title.toLowerCase().includes("what you should focus") || 
+                      section.title.toLowerCase().includes("decision guidance") || 
+                      section.title.toLowerCase().includes("focus on now") ||
+                      section.title.toLowerCase().includes("key actions") ||
+                      section.title.toLowerCase().includes("recommendations")
+                    );
+                    
+                    // Marriage-specific sections
                     const isIdealWindowsSection = isMarriageTimingReport && section.title.toLowerCase().includes("ideal marriage window");
                     const isDelayFactorsSection = isMarriageTimingReport && (section.title.toLowerCase().includes("delay") || section.title.toLowerCase().includes("potential delay"));
                     
-                    // Enhanced section detection for Career & Money Report
-                    const isCareerMoneyReport = type === "career-money";
-                    const isCareerMoneySummarySection = isCareerMoneyReport && section.title.toLowerCase().includes("career & money summary");
+                    // Career & Money sections
                     const isCareerMomentumSection = isCareerMoneyReport && section.title.toLowerCase().includes("career momentum");
                     const isMoneyGrowthSection = isCareerMoneyReport && (section.title.toLowerCase().includes("money growth") || section.title.toLowerCase().includes("financial growth"));
                     const isCareerDirectionSection = isCareerMoneyReport && (section.title.toLowerCase().includes("career direction") || section.title.toLowerCase().includes("best career"));
                     
+                    // Year Analysis sections
+                    const isYearOverviewSection = isYearAnalysisReport && (section.title.toLowerCase().includes("year overview") || section.title.toLowerCase().includes("12 month"));
+                    const isMonthlyHighlightsSection = isYearAnalysisReport && (section.title.toLowerCase().includes("monthly") || section.title.toLowerCase().includes("key months"));
+                    
+                    // Major Life Phase sections
+                    const isPhaseOverviewSection = isMajorLifePhaseReport && (section.title.toLowerCase().includes("phase overview") || section.title.toLowerCase().includes("strategic phase"));
+                    const isLongTermTrendsSection = isMajorLifePhaseReport && (section.title.toLowerCase().includes("long term") || section.title.toLowerCase().includes("trends"));
+                    
+                    // Decision Support sections
+                    const isDecisionAnalysisSection = isDecisionSupportReport && (section.title.toLowerCase().includes("decision analysis") || section.title.toLowerCase().includes("astrological perspective"));
+                    const isRecommendationsSection = isDecisionSupportReport && (section.title.toLowerCase().includes("recommendations") || section.title.toLowerCase().includes("guidance"));
+                    
+                    // Major sections (enhanced visual treatment)
                     const isMajorSection = idx === 0 || 
                       section.title.toLowerCase().includes("personality") || 
                       section.title.toLowerCase().includes("marriage") || 
                       section.title.toLowerCase().includes("career") || 
                       section.title.toLowerCase().includes("money") ||
+                      section.title.toLowerCase().includes("life") ||
+                      section.title.toLowerCase().includes("overview") ||
                       isDecisionGuidanceSection ||
                       isIdealWindowsSection ||
                       isCareerMomentumSection ||
                       isMoneyGrowthSection ||
-                      isCareerDirectionSection;
+                      isCareerDirectionSection ||
+                      isYearOverviewSection ||
+                      isMonthlyHighlightsSection ||
+                      isPhaseOverviewSection ||
+                      isLongTermTrendsSection ||
+                      isDecisionAnalysisSection ||
+                      isRecommendationsSection;
                     
-                    // Skip summary sections if we already displayed them above
-                    if (isMarriageSummarySection || isCareerMoneySummarySection) {
+                    // Skip summary sections if we already displayed them above (for all report types)
+                    if (isMarriageSummarySection || isCareerMoneySummarySection || 
+                        (isYearAnalysisReport && section.title.toLowerCase().includes("year analysis summary")) ||
+                        (isMajorLifePhaseReport && section.title.toLowerCase().includes("strategic life phase summary")) ||
+                        (isDecisionSupportReport && section.title.toLowerCase().includes("decision support summary")) ||
+                        (isLifeSummaryReport && section.title.toLowerCase().includes("life summary"))) {
                       return null;
                     }
                     
@@ -2287,14 +2372,23 @@ function PreviewContent() {
                   <div className={`${
                     isDecisionGuidanceSection ? "bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-xl border-2 border-emerald-300 shadow-sm" :
                     isIdealWindowsSection ? "bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-xl border-2 border-pink-300 shadow-sm" :
-                    isDelayFactorsSection ? "bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-xl border-2 border-amber-300" :
+                    isDelayFactorsSection ? "bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-xl border-2 border-amber-300 shadow-sm" :
                     isCareerMomentumSection ? "bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-300 shadow-sm" :
                     isMoneyGrowthSection ? "bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-300 shadow-sm" :
                     isCareerDirectionSection ? "bg-gradient-to-br from-purple-50 to-violet-50 p-6 rounded-xl border-2 border-purple-300 shadow-sm" :
+                    isYearOverviewSection ? "bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border-2 border-indigo-300 shadow-sm" :
+                    isMonthlyHighlightsSection ? "bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-300 shadow-sm" :
+                    isPhaseOverviewSection ? "bg-gradient-to-br from-violet-50 to-purple-50 p-6 rounded-xl border-2 border-violet-300 shadow-sm" :
+                    isLongTermTrendsSection ? "bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-xl border-2 border-purple-300 shadow-sm" :
+                    isDecisionAnalysisSection ? "bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-xl border-2 border-emerald-300 shadow-sm" :
+                    isRecommendationsSection ? "bg-gradient-to-br from-teal-50 to-green-50 p-6 rounded-xl border-2 border-teal-300 shadow-sm" :
                     isMajorSection ? "bg-gradient-to-br from-slate-50 to-blue-50/30 p-6 rounded-xl border border-slate-200" : ""
                   }`}>
                       <div className="flex items-start gap-3 mb-4">
-                        {(isMajorSection || isDecisionGuidanceSection || isIdealWindowsSection || isDelayFactorsSection || isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection) && (
+                        {(isMajorSection || isDecisionGuidanceSection || isIdealWindowsSection || isDelayFactorsSection || 
+                          isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection ||
+                          isYearOverviewSection || isMonthlyHighlightsSection || isPhaseOverviewSection || 
+                          isLongTermTrendsSection || isDecisionAnalysisSection || isRecommendationsSection) && (
                           <div className="text-xl sm:text-2xl mt-1">
                           {isDecisionGuidanceSection ? "✅" :
                            isCareerMomentumSection ? "📈" :
@@ -2302,10 +2396,17 @@ function PreviewContent() {
                            isCareerDirectionSection ? "🎯" :
                            isIdealWindowsSection ? "🕒" :
                            isDelayFactorsSection ? "⚠️" :
+                           isYearOverviewSection ? "📅" :
+                           isMonthlyHighlightsSection ? "📆" :
+                           isPhaseOverviewSection ? "🗺️" :
+                           isLongTermTrendsSection ? "📊" :
+                           isDecisionAnalysisSection ? "🎯" :
+                           isRecommendationsSection ? "💡" :
                            section.title.toLowerCase().includes("personality") ? "👤" :
                            section.title.toLowerCase().includes("marriage") ? "💑" :
                            section.title.toLowerCase().includes("career") ? "💼" :
-                           section.title.toLowerCase().includes("money") ? "💰" : "📊"}
+                           section.title.toLowerCase().includes("money") ? "💰" : 
+                           section.title.toLowerCase().includes("life") ? "🌟" : "📊"}
                         </div>
                       )}
                       <div className="flex-1">
@@ -2356,6 +2457,78 @@ function PreviewContent() {
                             return null;
                           })()
                         )}
+                        
+                        {/* Confidence/Strength Indicators for Year Analysis sections */}
+                        {(isYearAnalysisReport && (isYearOverviewSection || isMonthlyHighlightsSection) && section.content) && (
+                          (() => {
+                            const yearStrengthMatch = section.content.match(/year strength:.*?(strong|moderate|weak|favorable)/i);
+                            const phaseMatch = section.content.match(/current phase:.*?(favorable|challenging|transformative)/i);
+                            if (yearStrengthMatch || phaseMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-indigo-50 border-l-4 border-indigo-400 rounded-r-lg">
+                                  <div className="space-y-1">
+                                    {yearStrengthMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-indigo-900">{yearStrengthMatch[0]}</p>
+                                    )}
+                                    {phaseMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-indigo-900">{phaseMatch[0]}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-indigo-700 mt-1">Astrological phase indicators, not absolute predictions</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        
+                        {/* Confidence Indicators for Major Life Phase sections */}
+                        {(isMajorLifePhaseReport && (isPhaseOverviewSection || isLongTermTrendsSection) && section.content) && (
+                          (() => {
+                            const phaseStrengthMatch = section.content.match(/phase strength:.*?(strong|moderate|weak)/i);
+                            const strategicClarityMatch = section.content.match(/strategic clarity:.*?(high|moderate|developing)/i);
+                            if (phaseStrengthMatch || strategicClarityMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-violet-50 border-l-4 border-violet-400 rounded-r-lg">
+                                  <div className="space-y-1">
+                                    {phaseStrengthMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-violet-900">{phaseStrengthMatch[0]}</p>
+                                    )}
+                                    {strategicClarityMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-violet-900">{strategicClarityMatch[0]}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-violet-700 mt-1">Strategic phase indicators for long-term planning</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        
+                        {/* Confidence Indicators for Decision Support sections */}
+                        {(isDecisionSupportReport && (isDecisionAnalysisSection || isRecommendationsSection) && section.content) && (
+                          (() => {
+                            const decisionClarityMatch = section.content.match(/decision clarity:.*?(strong|moderate|developing)/i);
+                            const alignmentMatch = section.content.match(/astrological alignment:.*?(favorable|neutral|consider)/i);
+                            if (decisionClarityMatch || alignmentMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-emerald-50 border-l-4 border-emerald-400 rounded-r-lg">
+                                  <div className="space-y-1">
+                                    {decisionClarityMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-emerald-900">{decisionClarityMatch[0]}</p>
+                                    )}
+                                    {alignmentMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-emerald-900">{alignmentMatch[0]}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-emerald-700 mt-1">Guidance indicators to support your decision-making</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
                       </div>
                     </div>
                   
@@ -2377,24 +2550,34 @@ function PreviewContent() {
                           <li key={bulletIdx} className={`flex items-start gap-3 ${
                             isDecisionGuidanceSection ? "p-2 bg-white/50 rounded-lg" : 
                             isCareerMomentumSection ? "p-2 bg-white/30 rounded" :
-                            isMoneyGrowthSection ? "p-2 bg-white/30 rounded" : ""
+                            isMoneyGrowthSection ? "p-2 bg-white/30 rounded" :
+                            isCareerDirectionSection ? "p-2 bg-white/30 rounded" :
+                            isYearOverviewSection || isMonthlyHighlightsSection ? "p-2 bg-white/30 rounded" :
+                            isPhaseOverviewSection || isLongTermTrendsSection ? "p-2 bg-white/30 rounded" :
+                            isDecisionAnalysisSection || isRecommendationsSection ? "p-2 bg-white/50 rounded-lg" :
+                            isIdealWindowsSection ? "p-2 bg-white/50 rounded-lg" : ""
                           }`}>
                             <span className={`mt-1 ${
-                              isDecisionGuidanceSection ? "text-emerald-600" : 
+                              isDecisionGuidanceSection || isDecisionAnalysisSection || isRecommendationsSection ? "text-emerald-600" : 
                               isCareerMomentumSection ? "text-blue-600" :
                               isMoneyGrowthSection ? "text-green-600" :
                               isCareerDirectionSection ? "text-purple-600" :
+                              isYearOverviewSection || isMonthlyHighlightsSection ? "text-indigo-600" :
+                              isPhaseOverviewSection || isLongTermTrendsSection ? "text-violet-600" :
                               isIdealWindowsSection ? "text-pink-600" : 
                               "text-amber-700"
                             }`}>
-                              {isDecisionGuidanceSection ? "✓" : 
-                               isCareerMomentumSection ? "→" :
+                              {isDecisionGuidanceSection || isDecisionAnalysisSection || isRecommendationsSection ? "✓" : 
+                               isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection ? "→" :
+                               isYearOverviewSection || isMonthlyHighlightsSection || isPhaseOverviewSection || isLongTermTrendsSection ? "→" :
+                               isIdealWindowsSection ? "🕒" :
                                "•"}
                             </span>
                             <span className={`${
-                              isDecisionGuidanceSection ? "font-medium" : 
-                              isCareerMomentumSection ? "font-medium" :
-                              isMoneyGrowthSection ? "font-medium" : ""
+                              isDecisionGuidanceSection || isDecisionAnalysisSection || isRecommendationsSection ? "font-medium" : 
+                              isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection ? "font-medium" :
+                              isYearOverviewSection || isMonthlyHighlightsSection || isPhaseOverviewSection || isLongTermTrendsSection ? "font-medium" :
+                              isIdealWindowsSection ? "font-medium" : ""
                             } text-slate-700`}>{displayBullet}</span>
                           </li>
                         );
