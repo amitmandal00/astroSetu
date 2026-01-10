@@ -932,15 +932,23 @@ export async function POST(req: Request) {
       
       // CRITICAL: Cache the generated report to prevent duplicate OpenAI calls
       cacheReport(idempotencyKey, reportId, reportContent, reportType, input);
-      console.log(`[IDEMPOTENCY] Cached report for key: ${idempotencyKey.substring(0, 30)}...`, {
+      const cacheSaveLog = {
         requestId,
+        timestamp: new Date().toISOString(),
+        action: "REPORT_CACHED",
+        idempotencyKey: idempotencyKey.substring(0, 30) + "...",
         reportId,
-      });
+        reportType,
+        elapsedMs: Date.now() - startTime,
+      };
+      console.log("[IDEMPOTENCY CACHED]", JSON.stringify(cacheSaveLog, null, 2));
   } catch (error: any) {
     // COMPREHENSIVE ERROR LOGGING for production debugging
+    const totalTime = Date.now() - startTime;
     const errorContext = {
       requestId,
       timestamp: new Date().toISOString(),
+      action: "REPORT_GENERATION_ERROR",
       reportType,
       hasInput: !!input,
       inputName: input?.name || "N/A", // Name only, no sensitive data
@@ -950,7 +958,9 @@ export async function POST(req: Request) {
       isTestUser,
       errorType: error.constructor?.name || "Unknown",
       errorMessage: error.message || "Unknown error",
-      errorStack: error.stack || "No stack trace",
+      errorStack: error.stack?.substring(0, 1000) || "No stack trace", // Limit stack trace length
+      totalTimeMs: totalTime,
+      elapsedMs: totalTime,
     };
     
     console.error("[REPORT GENERATION ERROR]", JSON.stringify(errorContext, null, 2));
