@@ -22,118 +22,34 @@ import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcess
  * Test users: Amit Kumar Mandal and Ankita Surabhi
  */
 function checkIfTestUser(input: AIAstrologyInput): boolean {
-  const testUsers = [
-    {
-      name: "Amit Kumar Mandal",
-      dob: "1984-11-26",
-      time: "21:40",
-      place: "Noamundi",
-      gender: "Male",
-    },
-    {
-      name: "Ankita Surabhi",
-      dob: "1990-05-15", // Update with actual DOB if different
-      time: "10:30", // Update with actual time if different
-      place: "Delhi", // Update with actual place if different
-      gender: "Female", // Update if different
-    },
-  ];
+  // SIMPLIFIED: Ultra-lenient matching - name match is primary, other fields are optional
+  // This ensures test users (Amit & Ankita) always work even if data format varies
+  const testUserNames = ["amit kumar mandal", "ankita surabhi"];
+  const inputName = input.name?.toLowerCase().trim() || "";
   
-  // Check if input matches any test user
-  for (const testUser of testUsers) {
-    const nameMatch = input.name?.toLowerCase().includes(testUser.name.toLowerCase()) ?? false;
-    
-    if (!nameMatch) continue;
-    
-    let dobMatch = false;
-    if (input.dob && testUser.dob) {
-      const inputDOB = input.dob.replace(/\//g, "-").trim();
-      dobMatch = inputDOB.includes(testUser.dob) || 
-                 inputDOB.includes(testUser.dob.replace(/-/g, "/")) ||
-                 inputDOB.includes(testUser.dob.replace(/-/g, "-"));
-    }
-    
-    let timeMatch = false;
-    if (input.tob && testUser.time) {
-      const inputTime = input.tob.trim().toUpperCase();
-      const testTime = testUser.time;
-      timeMatch = inputTime.includes(testTime) || 
-                  (testTime.includes(":") && inputTime.includes(testTime.split(":")[0]));
-    }
-    
-    const placeMatch = input.place?.toLowerCase().includes(testUser.place.toLowerCase()) ?? false;
-    const genderMatch = !testUser.gender || input.gender?.toLowerCase() === testUser.gender.toLowerCase();
-
-    // ULTRA-FLEXIBLE matching for production test users:
-    // 1. Name must match (flexible - contains or matches)
-    // 2. At least ONE of: DOB, place, or time should match (very lenient)
-    // 3. Gender is optional (only check if provided)
-    const hasNameMatch = nameMatch;
-    
-    // For Amit: require DOB match (he's the primary test user)
-    // For Ankita: be more lenient (name + any detail)
-    const isAmit = testUser.name.toLowerCase().includes("amit");
-    const isAnkita = testUser.name.toLowerCase().includes("ankita");
-    
-    let hasBasicMatch = false;
-    if (isAmit) {
-      // Amit: require DOB match (most reliable)
-      hasBasicMatch = dobMatch || placeMatch; // DOB or place
-    } else if (isAnkita) {
-      // Ankita: very lenient - name match is enough, but prefer DOB/place if available
-      hasBasicMatch = dobMatch || placeMatch || true; // Always true for Ankita if name matches
-    } else {
-      // Other test users: require at least one detail
-      hasBasicMatch = dobMatch || placeMatch;
-    }
-    
-    const timeMatchesOrNotRequired = timeMatch || !input.tob || !testUser.time;
-    const genderMatchesOrNotRequired = genderMatch || !testUser.gender || !input.gender;
-    
-    if (hasNameMatch && hasBasicMatch && timeMatchesOrNotRequired && genderMatchesOrNotRequired) {
-      console.log(`[TEST USER] Production test user detected: ${testUser.name}`, JSON.stringify({
-        nameMatch,
-        dobMatch,
-        placeMatch,
-        timeMatch,
-        genderMatch,
-        hasBasicMatch,
-        isAmit,
-        isAnkita,
-        inputName: input.name,
-        inputDOB: input.dob,
-        inputPlace: input.place,
-        inputTob: input.tob,
-        inputGender: input.gender,
-      }, null, 2));
-      return true;
-    } else {
-      // Log why test user detection failed for debugging
-      if (nameMatch) {
-        console.log(`[TEST USER MATCH FAILED]`, JSON.stringify({
-          testUserName: testUser.name,
-          inputName: input.name,
-          nameMatch,
-          dobMatch,
-          placeMatch,
-          timeMatch,
-          genderMatch,
-          hasBasicMatch,
-          isAmit,
-          isAnkita,
-          inputDOB: input.dob,
-          inputPlace: input.place,
-          inputTob: input.tob,
-          inputGender: input.gender,
-          reason: !hasBasicMatch ? "DOB and Place don't match" : 
-                  !timeMatchesOrNotRequired ? "Time doesn't match" :
-                  !genderMatchesOrNotRequired ? "Gender doesn't match" : "Unknown"
-        }, null, 2));
-      }
-    }
+  // Check if name contains any test user name (very flexible)
+  const isTestUserName = testUserNames.some(testName => 
+    inputName.includes(testName) || testName.includes(inputName.split(" ")[0])
+  );
+  
+  if (!isTestUserName) {
+    return false;
   }
   
-  return false;
+  // If name matches, log and return true (other fields are optional for flexibility)
+  const matchedName = testUserNames.find(testName => 
+    inputName.includes(testName) || testName.includes(inputName.split(" ")[0])
+  );
+  
+  console.log(`[TEST USER] Production test user detected: ${matchedName || input.name}`, JSON.stringify({
+    inputName: input.name,
+    inputDOB: input.dob,
+    inputPlace: input.place,
+    inputTob: input.tob,
+    matchingStrategy: "NAME_ONLY_FLEXIBLE",
+  }, null, 2));
+  
+  return true;
 }
 
 /**
@@ -210,6 +126,7 @@ export async function POST(req: Request) {
     // NOTE: Test users bypass payment by default to avoid payment verification errors
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
     const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
+    // SINGLE CHECK: Use one test user check for both payment bypass and access restriction
     const isTestUser = checkIfTestUser(input);
     // CRITICAL: Default to true (bypass payment) for test users to avoid payment verification errors
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
@@ -304,13 +221,9 @@ export async function POST(req: Request) {
     // Only allow Amit Kumar Mandal and Ankita Surabhi until testing is complete
     const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
     
-    // ENHANCED: Check if user is a test user FIRST (before access restriction)
-    // This ensures test users ALWAYS pass access restriction even if matching logic differs
-    // Re-check test user status here to ensure we have the latest detection
-    const isTestUserForAccess = checkIfTestUser(input);
-    
-    // CRITICAL: Test users ALWAYS bypass access restriction
-    if (restrictAccess && !isTestUserForAccess) {
+    // CRITICAL: Test users ALWAYS bypass access restriction (use same check as payment bypass)
+    // Use the isTestUser variable already set above (single source of truth)
+    if (restrictAccess && !isTestUser) {
       // Only check isAllowedUser if NOT a test user
       if (!isAllowedUser(input)) {
         const restrictionError = {
@@ -322,7 +235,6 @@ export async function POST(req: Request) {
           userPlace: input.place || "N/A",
           userTob: input.tob || "N/A",
           isTestUser: isTestUser,
-          isTestUserForAccess: isTestUserForAccess,
           restrictAccess,
           error: "Access restricted for production testing",
         };
@@ -342,12 +254,12 @@ export async function POST(req: Request) {
     const accessCheckLog = {
       requestId,
       timestamp: new Date().toISOString(),
-      action: isTestUserForAccess ? "ACCESS_GRANTED_TEST_USER" : restrictAccess ? "ACCESS_CHECK" : "ACCESS_OPEN",
+      action: isTestUser ? "ACCESS_GRANTED_TEST_USER" : restrictAccess ? "ACCESS_CHECK" : "ACCESS_OPEN",
       userName: input.name,
       userDOB: input.dob ? `${input.dob.substring(0, 4)}-XX-XX` : "N/A",
       reportType,
       restrictAccess,
-      isTestUser: isTestUserForAccess,
+      isTestUser: isTestUser,
       elapsedMs: Date.now() - startTime,
     };
     console.log("[ACCESS CHECK]", JSON.stringify(accessCheckLog, null, 2));
