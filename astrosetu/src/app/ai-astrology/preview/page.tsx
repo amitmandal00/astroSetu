@@ -145,9 +145,10 @@ function PreviewContent() {
       }
 
       // Calculate timeout based on report type (match server-side timeout + buffer)
-      // Server timeout: 90s (regular) or 120s (complex), so client should be slightly longer
+      // Server timeout: 60s (regular) or 75s (complex), so client should be slightly longer
+      // Optimized for faster generation - reduced from 90s/120s to 60s/75s
       const isComplexReport = type === "full-life" || type === "major-life-phase";
-      const clientTimeout = isComplexReport ? 130000 : 100000; // 130s for complex (server: 120s), 100s for regular (server: 90s)
+      const clientTimeout = isComplexReport ? 80000 : 65000; // 80s for complex (server: 75s), 65s for regular (server: 60s)
       
       const response = await apiPost<{
         ok: boolean;
@@ -1166,10 +1167,10 @@ function PreviewContent() {
                 <p className="text-slate-600 mb-4">
                   Our AI is analyzing your birth chart and generating personalized insights. 
                   {reportType === "life-summary" 
-                    ? " This typically takes 20-40 seconds." 
+                    ? " This typically takes 15-30 seconds." 
                     : reportType === "full-life" || reportType === "major-life-phase"
-                    ? " This typically takes 45-70 seconds for comprehensive analysis."
-                    : " This typically takes 30-50 seconds."}
+                    ? " This typically takes 35-50 seconds for comprehensive analysis."
+                    : " This typically takes 25-40 seconds."}
                 </p>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-left">
                   <div className="flex items-start gap-3">
