@@ -38,12 +38,12 @@ async function generateAIContent(prompt: string, reportType?: string): Promise<s
 async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 3, reportType?: string): Promise<string> {
   // Optimize token counts for faster generation while maintaining quality
   // Reduced tokens for faster responses:
-  // Free reports: 1200 tokens (was 1500) - faster, still comprehensive
-  // Regular paid reports: 1800 tokens (was 2000) - good balance, faster
-  // Complex reports: 3000 tokens (was 4000) - comprehensive but faster
+  // Free reports: 1000 tokens (further reduced from 1200 for faster generation)
+  // Regular paid reports: 1800 tokens - good balance, faster
+  // Complex reports: 3000 tokens - comprehensive but faster
   const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
   const isFreeReport = reportType === "life-summary";
-  const maxTokens = isComplexReport ? 3000 : (isFreeReport ? 1200 : 1800); // Optimized for speed: 1200 for free, 1800 for paid, 3000 for complex
+  const maxTokens = isComplexReport ? 3000 : (isFreeReport ? 1000 : 1800); // Optimized for speed: 1000 for free (faster), 1800 for paid, 3000 for complex
   
   // Add explicit timeout to fetch (45 seconds max per request)
   const controller = new AbortController();
@@ -90,8 +90,9 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
     if (response.status === 429 || errorData?.error?.code === "rate_limit_exceeded") {
       if (retryCount < maxRetries) {
         // Faster retry strategy for better user experience
-        // Use shorter waits to avoid long delays
-        let waitTime = 5000; // Default to 5 seconds (reduced from 10s)
+        // Use shorter waits for free reports to avoid long delays
+        const isFreeReportType = reportType === "life-summary";
+        let waitTime = isFreeReportType ? 3000 : 5000; // 3s for free reports, 5s for paid (reduced from 10s)
         
         // Check Retry-After header first (this is the most reliable source)
         const retryAfterHeader = response.headers.get("retry-after");
@@ -334,10 +335,12 @@ function getReportTitle(reportType: ReportType): string {
  * Generate Life Summary Report (Free)
  */
 export async function generateLifeSummaryReport(input: AIAstrologyInput): Promise<ReportContent> {
+  const startTime = Date.now();
   try {
-    console.log(`[generateYearAnalysisReport] Starting report generation for ${input.name}`);
+    console.log(`[generateLifeSummaryReport] Starting report generation for ${input.name}`);
     // Get astrology data from Prokerala API
-    console.log(`[generateYearAnalysisReport] Calling getKundli...`);
+    console.log(`[generateLifeSummaryReport] Calling getKundli...`);
+    const kundliStartTime = Date.now();
     const kundliResult = await getKundli({
       name: input.name,
       dob: input.dob,
@@ -348,7 +351,8 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
       timezone: input.timezone || "Asia/Kolkata",
       ayanamsa: 1,
     });
-    console.log(`[generateYearAnalysisReport] getKundli completed, extracting planetary data...`);
+    const kundliTime = Date.now() - kundliStartTime;
+    console.log(`[generateLifeSummaryReport] getKundli completed in ${kundliTime}ms, extracting planetary data...`);
 
     // Extract planetary data (handle missing planets array)
     const planets = (kundliResult.planets || []).map(p => ({
@@ -357,7 +361,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
       house: p.house || 0,
       degrees: p.degree || 0,
     }));
-    console.log(`[generateYearAnalysisReport] Planetary data extracted (${planets.length} planets)`);
+    console.log(`[generateLifeSummaryReport] Planetary data extracted (${planets.length} planets)`);
 
     // Generate prompt
     const prompt = generateLifeSummaryPrompt(
@@ -378,12 +382,20 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput): Promis
     );
 
     // Generate AI content (pass reportType for proper retry handling and logging)
+    console.log(`[generateLifeSummaryReport] Generating AI content...`);
+    const aiStartTime = Date.now();
     const aiResponse = await generateAIContent(prompt, "life-summary");
+    const aiTime = Date.now() - aiStartTime;
+    console.log(`[generateLifeSummaryReport] AI content generated in ${aiTime}ms, parsing response...`);
   
     // Parse and return
-    return parseAIResponse(aiResponse, "life-summary");
+    const parsed = parseAIResponse(aiResponse, "life-summary");
+    const totalTime = Date.now() - startTime;
+    console.log(`[generateLifeSummaryReport] Report generation complete in ${totalTime}ms (Kundli: ${kundliTime}ms, AI: ${aiTime}ms)`);
+    return parsed;
   } catch (error: any) {
-    console.error("[generateLifeSummaryReport] Error:", error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[generateLifeSummaryReport] Error after ${totalTime}ms:`, error);
     throw error; // Re-throw to be handled by API route
   }
 }

@@ -833,9 +833,14 @@ export async function POST(req: Request) {
     // - Reduced retries (3 instead of 5) = faster failure
     // - Reduced retry waits (5-20s instead of 10-60s) = faster recovery
     // - Reduced token limits = faster generation
-    // So timeout can be more reasonable: 60s for regular, 75s for complex reports
+    // Timeout values: 60s for free reports (Prokerala + OpenAI), 75s for complex paid reports
+    // Free reports might take longer due to Prokerala API call before OpenAI
     const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
-    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 75000 : 60000; // 75s for complex, 60s for regular (optimized for speed)
+    const isFreeReport = reportType === "life-summary";
+    // Free reports: 65s (Prokerala call can take 5-10s, then OpenAI needs time)
+    // Regular paid reports: 60s (already have data, just OpenAI)
+    // Complex reports: 75s (more tokens to generate)
+    const REPORT_GENERATION_TIMEOUT = isComplexReport ? 75000 : (isFreeReport ? 65000 : 60000);
     let reportContent;
     
     try {

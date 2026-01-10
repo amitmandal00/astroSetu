@@ -202,10 +202,14 @@ function PreviewContent() {
       }
 
       // Calculate timeout based on report type (match server-side timeout + buffer)
-      // Server timeout: 60s (regular) or 75s (complex), so client should be slightly longer
-      // Optimized for faster generation - reduced from 90s/120s to 60s/75s
+      // Server timeout: 65s (free), 60s (regular paid), or 75s (complex)
+      // Client should be slightly longer to avoid premature timeout
       const isComplexReport = type === "full-life" || type === "major-life-phase";
-      const clientTimeout = isComplexReport ? 80000 : 65000; // 80s for complex (server: 75s), 65s for regular (server: 60s)
+      const isFreeReport = type === "life-summary";
+      // Free reports: 70s (server: 65s) - Prokerala API call can add 5-10s
+      // Regular paid: 65s (server: 60s)
+      // Complex: 80s (server: 75s)
+      const clientTimeout = isComplexReport ? 80000 : (isFreeReport ? 70000 : 65000);
       
       const response = await apiPost<{
         ok: boolean;
