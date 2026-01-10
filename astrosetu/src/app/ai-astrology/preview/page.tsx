@@ -1476,16 +1476,26 @@ function PreviewContent() {
                     🔄 Retry Loading {isBundleLoading ? "Bundle" : "Report"}
                   </Button>
                   
-                  {/* Secondary Action: Start New (Small Link) */}
+                  {/* Secondary Action: Start New (Small Link) - Preserve report type if available */}
                   <div className="text-center">
-                    <Link href="/ai-astrology/input" className="text-sm text-slate-600 hover:text-slate-800 underline">
-                      Start a new {isBundleLoading ? "bundle" : "report"} instead
+                    <Link 
+                      href={reportType && reportType !== "life-summary" 
+                        ? `/ai-astrology/input?reportType=${reportType}` 
+                        : "/ai-astrology/input"} 
+                      className="text-sm text-slate-600 hover:text-slate-800 underline"
+                    >
+                      Start a new {isBundleLoading ? "bundle" : reportType && reportType !== "life-summary" ? getReportName(reportType).toLowerCase() : "report"} instead
                     </Link>
                   </div>
                 </div>
-              ) : (
+                ) : (
                 <div className="space-y-3">
-                  <Link href="/ai-astrology/input" className="block">
+                  <Link 
+                    href={reportType && reportType !== "life-summary" 
+                      ? `/ai-astrology/input?reportType=${reportType}` 
+                      : "/ai-astrology/input"} 
+                    className="block"
+                  >
                     <Button 
                       className="w-full cosmic-button-secondary"
                       onClick={(e) => {
@@ -1497,7 +1507,10 @@ function PreviewContent() {
                             setLoadingStartTime(null);
                             setElapsedTime(0);
                             isGeneratingRef.current = false;
-                            window.location.href = "/ai-astrology/input";
+                            const url = reportType && reportType !== "life-summary" 
+                              ? `/ai-astrology/input?reportType=${reportType}` 
+                              : "/ai-astrology/input";
+                            window.location.href = url;
                           }
                         }
                       }}
@@ -1659,7 +1672,11 @@ function PreviewContent() {
                     </Button>
                   </Link>
                 )}
-                <Link href="/ai-astrology/input">
+                <Link 
+                  href={reportType && reportType !== "life-summary" 
+                    ? `/ai-astrology/input?reportType=${reportType}` 
+                    : "/ai-astrology/input"}
+                >
                   <Button className="cosmic-button-secondary">Start Over</Button>
                 </Link>
               </div>
@@ -1708,7 +1725,7 @@ function PreviewContent() {
                 <h2 className="text-2xl font-bold mb-4 text-red-700">Invalid Report Type</h2>
                 <p className="text-slate-600 mb-6">Please select a valid report type.</p>
                 <Link href="/ai-astrology/input">
-                  <Button className="cosmic-button-secondary">Start Over</Button>
+                  <Button className="cosmic-button-secondary">Choose Report Type</Button>
                 </Link>
               </CardContent>
             </Card>
@@ -1729,7 +1746,7 @@ function PreviewContent() {
                 <h2 className="text-2xl font-bold mb-4 text-red-700">Invalid Report Type</h2>
                 <p className="text-slate-600 mb-6">The selected report type is not available.</p>
                 <Link href="/ai-astrology/input">
-                  <Button className="cosmic-button-secondary">Start Over</Button>
+                  <Button className="cosmic-button-secondary">Choose Report Type</Button>
                 </Link>
               </CardContent>
             </Card>
@@ -2077,18 +2094,28 @@ function PreviewContent() {
                       🔄 Retry Loading Report
                     </Button>
                     
-                    {/* Secondary Action: Start New (Small Link) */}
+                    {/* Secondary Action: Start New (Small Link) - Preserve report type */}
                     <div className="text-center">
-                      <Link href="/ai-astrology/input" className="text-sm text-slate-600 hover:text-slate-800 underline">
-                        Start a new report instead
+                      <Link 
+                        href={reportType && reportType !== "life-summary" 
+                          ? `/ai-astrology/input?reportType=${reportType}` 
+                          : "/ai-astrology/input"} 
+                        className="text-sm text-slate-600 hover:text-slate-800 underline"
+                      >
+                        Start a new {reportType && reportType !== "life-summary" ? getReportName(reportType).toLowerCase() : "report"} instead
                       </Link>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <Link href="/ai-astrology/input" className="block">
+                    <Link 
+                      href={reportType && reportType !== "life-summary" 
+                        ? `/ai-astrology/input?reportType=${reportType}` 
+                        : "/ai-astrology/input"} 
+                      className="block"
+                    >
                       <Button className="w-full cosmic-button-secondary">
-                        Start a New Report
+                        Start a New {reportType && reportType !== "life-summary" ? getReportName(reportType) : "Report"}
                       </Button>
                     </Link>
                   </div>
