@@ -1,281 +1,337 @@
-# Manual Testing Guide for P0 Enhancements
-
-Since automated tests require network access, use this manual testing guide to verify all P0 enhancements.
+# Manual Testing Guide - Report Generation
 
 ## Prerequisites
 
-1. **Start the development server:**
-   ```bash
-   cd astrosetu
-   npm run dev
+1. **Test User Credentials:**
+   - Name: `Amit Kumar Mandal`
+   - DOB: `1984-11-28` (or `1984-11-26` - both should work)
+   - Time: `21:40`
+   - Place: `Noamundi, Jharkhand, India`
+   - Gender: `Male`
+
+2. **Environment:**
+   - Production URL: `https://www.mindveda.net`
+   - Ensure `NEXT_PUBLIC_RESTRICT_ACCESS=true` is set
+   - Ensure `BYPASS_PAYMENT_FOR_TEST_USERS=true` (default)
+
+---
+
+## Test Checklist
+
+### ✅ Test 1: Life Summary (Free Report)
+
+**URL:** `https://www.mindveda.net/ai-astrology/input?reportType=life-summary`
+
+**Steps:**
+1. Navigate to URL
+2. Fill in test user data
+3. Click "Generate Free Report"
+4. **Verify:**
+   - [ ] No payment required
+   - [ ] Test user detected (check browser console for `[TEST USER]` log)
+   - [ ] Loading screen shows progress indicators
+   - [ ] Report generates within 15-30 seconds
+   - [ ] Report displays with sections
+
+**Expected Result:** ✅ Free report generated successfully
+
+---
+
+### ✅ Test 2: Marriage Timing Report (Paid)
+
+**URL:** `https://www.mindveda.net/ai-astrology/input?reportType=marriage-timing`
+
+**Steps:**
+1. Navigate to URL
+2. Fill in test user data
+3. Click "Purchase Marriage Timing Report"
+4. **Verify:**
+   - [ ] Test user detected
+   - [ ] Checkout session created (mock session)
+   - [ ] Payment bypassed (test user)
+   - [ ] Redirected to preview page
+   - [ ] Loading screen shows progress
+   - [ ] Report generates within 25-40 seconds
+   - [ ] Report displays with marriage timing sections
+
+**Expected Result:** ✅ Paid report generated with payment bypass
+
+---
+
+### ✅ Test 3: Career & Money Report (Paid)
+
+**URL:** `https://www.mindveda.net/ai-astrology/input?reportType=career-money`
+
+**Steps:**
+1. Navigate to URL
+2. Fill in test user data
+3. Click "Purchase Career & Money Report"
+4. **Verify:**
+   - [ ] Test user detected
+   - [ ] Payment bypassed
+   - [ ] Report generates within 25-40 seconds
+   - [ ] Report displays with career/money sections
+
+**Expected Result:** ✅ Report generated successfully
+
+---
+
+### ✅ Test 4: Full Life Report (Paid - Complex)
+
+**URL:** `https://www.mindveda.net/ai-astrology/input?reportType=full-life`
+
+**Steps:**
+1. Navigate to URL
+2. Fill in test user data
+3. Click "Purchase Full Life Report"
+4. **Verify:**
+   - [ ] Test user detected
+   - [ ] Payment bypassed
+   - [ ] Report generates within 35-50 seconds (complex report)
+   - [ ] Report displays with executive summary
+   - [ ] All sections displayed
+
+**Expected Result:** ✅ Complex report generated successfully
+
+---
+
+### ✅ Test 5: Year Analysis Report (Paid)
+
+**URL:** `https://www.mindveda.net/ai-astrology/input?reportType=year-analysis`
+
+**Steps:**
+1. Navigate to URL
+2. Fill in test user data
+3. Click "Purchase Year Analysis Report"
+4. **Verify:**
+   - [ ] Test user detected
+   - [ ] Payment bypassed
+   - [ ] Report generates within 25-40 seconds
+   - [ ] Report displays with 12-month analysis
+
+**Expected Result:** ✅ Report generated successfully
+
+---
+
+### ✅ Test 6: Major Life Phase Report (Paid - Complex)
+
+**URL:** `https://www.mindveda.net/ai-astrology/input?reportType=major-life-phase`
+
+**Steps:**
+1. Navigate to URL
+2. Fill in test user data
+3. Click "Purchase 3-5 Year Strategic Life Phase Report"
+4. **Verify:**
+   - [ ] Test user detected
+   - [ ] Payment bypassed
+   - [ ] Report generates within 35-50 seconds
+   - [ ] Report displays with strategic overview
+
+**Expected Result:** ✅ Complex report generated successfully
+
+---
+
+### ✅ Test 7: Decision Support Report (Paid)
+
+**URL:** `https://www.mindveda.net/ai-astrology/input?reportType=decision-support`
+
+**Steps:**
+1. Navigate to URL
+2. Fill in test user data
+3. Enter decision context: "Should I change my job in the next 6 months?"
+4. Click "Purchase Decision Support Report"
+5. **Verify:**
+   - [ ] Test user detected
+   - [ ] Payment bypassed
+   - [ ] Decision context included
+   - [ ] Report generates within 25-40 seconds
+   - [ ] Report displays with decision guidance
+
+**Expected Result:** ✅ Report generated with decision context
+
+---
+
+## Error Scenarios to Test
+
+### ❌ Test 8: Invalid Input
+
+**Steps:**
+1. Navigate to any report type
+2. Leave name field empty
+3. Try to submit
+4. **Verify:**
+   - [ ] Validation error shown
+   - [ ] Form doesn't submit
+
+**Expected Result:** ✅ Validation prevents submission
+
+---
+
+### ❌ Test 9: Access Restriction (Non-Test User)
+
+**Steps:**
+1. Use a different name (not Amit or Ankita)
+2. Try to generate a report
+3. **Verify:**
+   - [ ] Access restriction error shown
+   - [ ] Payment not charged
+
+**Expected Result:** ✅ Access denied for non-test users
+
+---
+
+### ❌ Test 10: Timeout Handling
+
+**Steps:**
+1. Generate a complex report (full-life)
+2. Wait for timeout (if it occurs)
+3. **Verify:**
+   - [ ] Timeout error shown
+   - [ ] Payment automatically refunded/cancelled
+   - [ ] User can retry
+
+**Expected Result:** ✅ Graceful timeout handling
+
+---
+
+## Loading Screen UX Tests
+
+### ✅ Test 11: Loading Screen Features
+
+**Steps:**
+1. Generate any report
+2. Observe loading screen
+3. **Verify:**
+   - [ ] Progress indicators show (birth chart, planetary analysis, generating insights)
+   - [ ] Time estimate shown (60-90 seconds)
+   - [ ] Value proposition shown ("What you're getting")
+   - [ ] Report ID displayed (if available)
+   - [ ] "Retry Loading Report" button works
+   - [ ] "Copy Report Link" button works
+   - [ ] Recovery guidance appears after 90 seconds
+
+**Expected Result:** ✅ All loading screen features work correctly
+
+---
+
+## Browser Console Checks
+
+While testing, check browser console for:
+
+1. **Test User Detection:**
    ```
-   Server should be running on `http://localhost:3001`
+   [TEST USER] Production test user detected: amit kumar mandal
+   ```
 
-2. **Open browser DevTools:**
-   - Press F12 or Cmd+Option+I (Mac) / Ctrl+Shift+I (Windows)
-   - Go to Network tab
-   - Go to Console tab
+2. **Access Check:**
+   ```
+   [ACCESS CHECK] { action: "ACCESS_GRANTED_TEST_USER" }
+   ```
 
----
+3. **Payment Bypass:**
+   ```
+   [PAYMENT BYPASS STATUS] { mode: "TEST USER" }
+   ```
 
-## Testing Checklist
+4. **Generation Start:**
+   ```
+   [GENERATION START] { action: "REPORT_GENERATION_START" }
+   ```
 
-### 1. Input Validation Testing
-
-#### Test Invalid Email Registration
-1. Open `http://localhost:3001/register` or use API directly
-2. Try to register with invalid email: `{"email":"invalid","name":"Test"}`
-3. **Expected:** Should return 400 error with validation message
-4. **Check:** Network tab shows 400 status, error message mentions email validation
-
-#### Test Invalid Login
-1. Try to login with invalid email: `{"email":"notanemail"}`
-2. **Expected:** Should return 400 error
-3. **Check:** Error message about email format
-
-#### Test Numerology with Empty Name
-1. Go to `/numerology` page
-2. Submit form with empty name
-3. **Expected:** Should show validation error, form should not submit
-4. **Check:** Client-side validation prevents submission
-
-#### Test Payment with Invalid Amount
-1. Try to create payment with negative amount: `{"amount":-100}`
-2. **Expected:** Should return 400 error
-3. **Check:** Error message about invalid amount
-
-#### Test Payment with Excessive Amount
-1. Try to create payment with very large amount: `{"amount":10000000}`
-2. **Expected:** Should return 400 error (amount exceeds max limit)
-3. **Check:** Error message mentions maximum limit
+5. **Generation Success:**
+   ```
+   [REPORT GENERATION SUCCESS] { generationTimeMs: ... }
+   ```
 
 ---
 
-### 2. Request Size Validation Testing
+## Vercel Logs Checks
 
-#### Test Oversized Request
-1. Use browser console or Postman
-2. Send a very large JSON payload (e.g., 100KB+)
-3. **Expected:** Should return 400 error
-4. **Check:** Error message about request size limit
+Check Vercel logs for:
 
-**Example using curl:**
-```bash
-# Create a large payload
-python3 -c "import json; print(json.dumps({'email': 'test@test.com', 'data': 'x' * 100000}))" > large_payload.json
+1. **Request Start:**
+   ```
+   [REQUEST START] { requestId: "req-..." }
+   ```
 
-# Try to send it
-curl -X POST http://localhost:3001/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d @large_payload.json
+2. **Test User Detection:**
+   ```
+   [TEST USER] Production test user detected
+   ```
 
-# Should return 400 error
+3. **Access Granted:**
+   ```
+   [ACCESS CHECK] { action: "ACCESS_GRANTED_TEST_USER" }
+   ```
+
+4. **Generation Success:**
+   ```
+   [REPORT GENERATION SUCCESS] { generationTimeMs: ... }
+   ```
+
+5. **Response Sent:**
+   ```
+   [RESPONSE SUCCESS] { totalTimeMs: ... }
+   ```
+
+---
+
+## Performance Benchmarks
+
+| Report Type | Expected Time | Max Time |
+|------------|---------------|----------|
+| life-summary | 15-30s | 60s |
+| marriage-timing | 25-40s | 75s |
+| career-money | 25-40s | 75s |
+| year-analysis | 25-40s | 75s |
+| full-life | 35-50s | 90s |
+| major-life-phase | 35-50s | 90s |
+| decision-support | 25-40s | 75s |
+
+---
+
+## Issues to Report
+
+When testing, document:
+
+1. **Critical Issues:**
+   - Report generation fails
+   - Payment not bypassed for test user
+   - Access restriction blocks test user
+   - Timeout errors
+
+2. **Minor Issues:**
+   - Slow generation (beyond expected time)
+   - UI/UX issues
+   - Error messages unclear
+
+3. **Enhancements:**
+   - Suggestions for improvement
+   - Missing features
+
+---
+
+## Test Results Template
+
+```markdown
+## Test Results - [Date]
+
+### Test 1: Life Summary
+- Status: ✅ PASS / ❌ FAIL
+- Generation Time: ___ seconds
+- Issues: ___
+
+### Test 2: Marriage Timing
+- Status: ✅ PASS / ❌ FAIL
+- Generation Time: ___ seconds
+- Issues: ___
+
+[... continue for all tests ...]
+
+### Summary
+- Total Tests: 7
+- Passed: ___
+- Failed: ___
+- Critical Issues: ___
+- Minor Issues: ___
 ```
-
----
-
-### 3. Error Handling Testing
-
-#### Test Unauthenticated Access
-1. Open browser in incognito/private mode
-2. Try to access `/wallet` page
-3. **Expected:** Should redirect to login or show 401 error
-4. **Check:** Network tab shows 401 status for API calls
-
-#### Test Invalid API Endpoints
-1. Try to access non-existent endpoint: `http://localhost:3001/api/nonexistent`
-2. **Expected:** Should return 404 error
-3. **Check:** Proper error response
-
-#### Test Error Boundary
-1. Trigger a JavaScript error (if possible)
-2. **Expected:** Error boundary should catch it and show user-friendly message
-3. **Check:** Error message displayed instead of blank page
-
----
-
-### 4. Rate Limiting Testing
-
-#### Test Auth Endpoint Rate Limiting
-1. Use a tool like Postman or curl to make rapid requests
-2. Send 15+ requests quickly to `/api/auth/login`:
-   ```bash
-   for i in {1..15}; do
-     curl -X POST http://localhost:3001/api/auth/login \
-       -H "Content-Type: application/json" \
-       -d '{"email":"test@test.com"}' &
-   done
-   wait
-   ```
-3. **Expected:** After 10 requests, should get 429 (Too Many Requests)
-4. **Check:** Response headers include `X-RateLimit-Limit`, `X-RateLimit-Remaining`
-
-#### Test Payment Endpoint Rate Limiting
-1. Make 25+ rapid requests to `/api/payments/create-order`
-2. **Expected:** Should get 429 after limit exceeded
-3. **Check:** Rate limit headers in response
-
----
-
-### 5. Security Headers Testing
-
-#### Check Security Headers
-1. Open browser DevTools → Network tab
-2. Load any page (e.g., `http://localhost:3001`)
-3. Click on any request → Headers tab
-4. **Check for these headers:**
-   - `Content-Security-Policy` - Should be present
-   - `Strict-Transport-Security` - Should be present
-   - `X-Frame-Options` - Should be `SAMEORIGIN`
-   - `X-Content-Type-Options` - Should be `nosniff`
-   - `X-XSS-Protection` - Should be `1; mode=block`
-   - `Referrer-Policy` - Should be present
-
-**Using curl:**
-```bash
-curl -I http://localhost:3001 | grep -i "content-security\|strict-transport\|x-frame\|x-content\|x-xss\|referrer"
-```
-
----
-
-### 6. Valid Endpoints Testing
-
-#### Test Public Endpoints
-1. **Get Astrologers:**
-   ```bash
-   curl http://localhost:3001/api/astrologers
-   ```
-   **Expected:** Should return 200 with astrologer list
-
-2. **Get Payment Config:**
-   ```bash
-   curl http://localhost:3001/api/payments/config
-   ```
-   **Expected:** Should return 200 with config
-
-3. **Get Panchang:**
-   ```bash
-   curl "http://localhost:3001/api/astrology/panchang?date=2025-01-15&place=Delhi"
-   ```
-   **Expected:** Should return 200 with panchang data
-
----
-
-### 7. Input Sanitization Testing
-
-#### Test Email Sanitization
-1. Try to register with email: `"  TEST@EXAMPLE.COM  "`
-2. **Expected:** Should be sanitized to `test@example.com`
-3. **Check:** Stored email is lowercase and trimmed
-
-#### Test Phone Sanitization
-1. Try to register with phone: `"+91 12345 67890"`
-2. **Expected:** Should be sanitized to `+911234567890`
-3. **Check:** Phone stored without spaces
-
----
-
-### 8. Error Messages Testing
-
-#### Test Validation Error Messages
-1. Submit invalid data to any endpoint
-2. **Expected:** Should get clear, user-friendly error message
-3. **Check:** Error message explains what's wrong
-
-**Example:**
-- Invalid email → "Invalid email format"
-- Missing required field → "Field is required"
-- Amount too large → "Amount exceeds maximum limit"
-
----
-
-## Testing Tools
-
-### Browser DevTools
-- **Network Tab:** Check request/response status codes and headers
-- **Console Tab:** Check for JavaScript errors
-- **Application Tab:** Check localStorage, cookies
-
-### curl (Command Line)
-```bash
-# Test GET request
-curl http://localhost:3001/api/astrologers
-
-# Test POST request
-curl -X POST http://localhost:3001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com"}'
-
-# Check headers
-curl -I http://localhost:3001
-```
-
-### Postman
-1. Import API collection
-2. Test each endpoint
-3. Check response status codes
-4. Verify error messages
-
----
-
-## Expected Results Summary
-
-| Test Type | Expected Status | What to Check |
-|-----------|----------------|---------------|
-| Invalid Input | 400 | Validation error message |
-| Oversized Request | 400 | Request size error |
-| Unauthenticated | 401 | Authentication error |
-| Rate Limited | 429 | Rate limit headers |
-| Valid Request | 200 | Successful response |
-| Security Headers | Present | All headers in response |
-
----
-
-## Quick Test Script
-
-Save this as `quick-test.sh`:
-
-```bash
-#!/bin/bash
-BASE_URL="http://localhost:3001"
-
-echo "Testing P0 Enhancements..."
-echo ""
-
-# Test 1: Invalid email
-echo "Test 1: Invalid email registration"
-curl -X POST "$BASE_URL/api/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"invalid"}' \
-  -w "\nStatus: %{http_code}\n" -s | tail -1
-echo ""
-
-# Test 2: Valid endpoint
-echo "Test 2: Get astrologers"
-curl "$BASE_URL/api/astrologers" \
-  -w "\nStatus: %{http_code}\n" -s | tail -1
-echo ""
-
-# Test 3: Check headers
-echo "Test 3: Security headers"
-curl -I "$BASE_URL" 2>/dev/null | grep -i "content-security\|x-frame"
-echo ""
-
-echo "Tests complete!"
-```
-
-Run with: `chmod +x quick-test.sh && ./quick-test.sh`
-
----
-
-## Notes
-
-- All tests should be run with the development server running
-- Some tests may require authentication (use login first)
-- Rate limiting tests need rapid requests (use scripts or tools)
-- Security headers can be checked in browser DevTools or with curl
-
----
-
-**Last Updated:** $(date)
-

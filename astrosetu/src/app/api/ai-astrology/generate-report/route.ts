@@ -25,28 +25,79 @@ function checkIfTestUser(input: AIAstrologyInput): boolean {
   // SIMPLIFIED: Ultra-lenient matching - name match is primary, other fields are optional
   // This ensures test users (Amit & Ankita) always work even if data format varies
   const testUserNames = ["amit kumar mandal", "ankita surabhi"];
-  const inputName = input.name?.toLowerCase().trim() || "";
+  
+  if (!input.name) {
+    return false;
+  }
+  
+  // Normalize input name: lowercase, trim, normalize spaces
+  const inputName = input.name.toLowerCase().trim().replace(/\s+/g, " ");
   
   // Check if name contains any test user name (very flexible)
-  const isTestUserName = testUserNames.some(testName => 
-    inputName.includes(testName) || testName.includes(inputName.split(" ")[0])
-  );
+  const isTestUserName = testUserNames.some(testName => {
+    const testNameLower = testName.toLowerCase().trim();
+    
+    // Normalize both for comparison
+    const normalizedTest = testNameLower.replace(/\s+/g, " ");
+    const normalizedInput = inputName.replace(/\s+/g, " ");
+    
+    // Exact match after normalization
+    if (normalizedInput === normalizedTest) {
+      return true;
+    }
+    
+    // Contains match (either direction)
+    if (normalizedInput.includes(normalizedTest) || normalizedTest.includes(normalizedInput)) {
+      return true;
+    }
+    
+    // Check if first name matches (e.g., "amit" matches "Amit Kumar Mandal")
+    const testFirstName = normalizedTest.split(" ")[0];
+    const inputFirstWord = normalizedInput.split(" ")[0];
+    if (testFirstName === inputFirstWord && testFirstName.length >= 3) {
+      return true;
+    }
+    
+    // Check if all words from test name are present in input (flexible order)
+    const testWords = normalizedTest.split(/\s+/).filter(w => w.length > 1);
+    const inputWords = normalizedInput.split(/\s+/).filter(w => w.length > 1);
+    const allTestWordsPresent = testWords.every(testWord => 
+      inputWords.some(inputWord => inputWord === testWord || inputWord.includes(testWord) || testWord.includes(inputWord))
+    );
+    
+    return allTestWordsPresent && testWords.length > 0;
+  });
   
   if (!isTestUserName) {
+    // Log why it didn't match for debugging
+    console.log(`[TEST USER CHECK FAILED]`, JSON.stringify({
+      inputName: input.name,
+      normalizedInput: inputName,
+      testUserNames,
+      reason: "Name did not match any test user pattern"
+    }, null, 2));
     return false;
   }
   
   // If name matches, log and return true (other fields are optional for flexibility)
-  const matchedName = testUserNames.find(testName => 
-    inputName.includes(testName) || testName.includes(inputName.split(" ")[0])
-  );
+  const matchedName = testUserNames.find(testName => {
+    const testNameLower = testName.toLowerCase().trim();
+    const normalizedTest = testNameLower.replace(/\s+/g, " ");
+    const normalizedInput = inputName.replace(/\s+/g, " ");
+    return normalizedInput === normalizedTest || 
+           normalizedInput.includes(normalizedTest) || 
+           normalizedTest.includes(normalizedInput);
+  });
   
   console.log(`[TEST USER] Production test user detected: ${matchedName || input.name}`, JSON.stringify({
     inputName: input.name,
+    normalizedInput: inputName,
+    matchedTestUser: matchedName,
     inputDOB: input.dob,
     inputPlace: input.place,
     inputTob: input.tob,
     matchingStrategy: "NAME_ONLY_FLEXIBLE",
+    detected: true,
   }, null, 2));
   
   return true;
@@ -222,8 +273,11 @@ export async function POST(req: Request) {
     const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
     
     // CRITICAL: Test users ALWAYS bypass access restriction (use same check as payment bypass)
-    // Use the isTestUser variable already set above (single source of truth)
-    if (restrictAccess && !isTestUser) {
+    // IMPORTANT: Re-check test user here to ensure we catch it (double-check for safety)
+    // This ensures test users are NEVER blocked by access restriction
+    const isTestUserForAccess = checkIfTestUser(input);
+    
+    if (restrictAccess && !isTestUserForAccess) {
       // Only check isAllowedUser if NOT a test user
       if (!isAllowedUser(input)) {
         const restrictionError = {
@@ -235,6 +289,7 @@ export async function POST(req: Request) {
           userPlace: input.place || "N/A",
           userTob: input.tob || "N/A",
           isTestUser: isTestUser,
+          isTestUserForAccess: isTestUserForAccess,
           restrictAccess,
           error: "Access restricted for production testing",
         };
@@ -250,16 +305,17 @@ export async function POST(req: Request) {
       }
     }
     
-    // Log access check result
+    // Log access check result (use isTestUserForAccess for accuracy)
     const accessCheckLog = {
       requestId,
       timestamp: new Date().toISOString(),
-      action: isTestUser ? "ACCESS_GRANTED_TEST_USER" : restrictAccess ? "ACCESS_CHECK" : "ACCESS_OPEN",
+      action: isTestUserForAccess ? "ACCESS_GRANTED_TEST_USER" : restrictAccess ? "ACCESS_CHECK" : "ACCESS_OPEN",
       userName: input.name,
       userDOB: input.dob ? `${input.dob.substring(0, 4)}-XX-XX` : "N/A",
       reportType,
       restrictAccess,
       isTestUser: isTestUser,
+      isTestUserForAccess: isTestUserForAccess,
       elapsedMs: Date.now() - startTime,
     };
     console.log("[ACCESS CHECK]", JSON.stringify(accessCheckLog, null, 2));

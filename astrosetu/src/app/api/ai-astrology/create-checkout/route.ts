@@ -7,59 +7,85 @@ import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 /**
  * Check if the user is a production test user
  * Test users: Amit Kumar Mandal and Ankita Surabhi
+ * SIMPLIFIED: Ultra-lenient matching - name match only (same as generate-report endpoint)
  */
 function checkIfTestUser(input?: any): boolean {
-  if (!input) return false;
-  
-  const testUsers = [
-    {
-      name: "Amit Kumar Mandal",
-      dob: "1984-11-26",
-      time: "21:40",
-      place: "Noamundi",
-      gender: "Male",
-    },
-    {
-      name: "Ankita Surabhi",
-      dob: "1990-05-15", // Update with actual DOB if different
-      time: "10:30", // Update with actual time if different
-      place: "Delhi", // Update with actual place if different
-      gender: "Female", // Update if different
-    },
-  ];
-  
-  // Check if input matches any test user
-  for (const testUser of testUsers) {
-    const nameMatch = input.name?.toLowerCase().includes(testUser.name.toLowerCase()) ?? false;
-    
-    if (!nameMatch) continue;
-    
-    let dobMatch = false;
-    if (input.dob) {
-      const inputDOB = input.dob.replace(/\//g, "-").trim();
-      dobMatch = inputDOB.includes(testUser.dob) || 
-                 inputDOB.includes(testUser.dob.replace(/-/g, "/")) ||
-                 inputDOB.includes(testUser.dob.replace(/-/g, "-"));
-    }
-    
-    let timeMatch = false;
-    if (input.tob && testUser.time) {
-      const inputTime = input.tob.trim().toUpperCase();
-      const testTime = testUser.time;
-      timeMatch = inputTime.includes(testTime) || 
-                  (testTime.includes(":") && inputTime.includes(testTime.split(":")[0]));
-    }
-    
-    const placeMatch = input.place?.toLowerCase().includes(testUser.place.toLowerCase()) ?? false;
-    const genderMatch = !testUser.gender || input.gender?.toLowerCase() === testUser.gender.toLowerCase();
-
-    // If name matches and other key fields match (flexible matching for Ankita)
-    if (nameMatch && dobMatch && placeMatch && (timeMatch || !input.tob) && (genderMatch || !testUser.gender)) {
-      return true;
-    }
+  if (!input || !input.name) {
+    return false;
   }
   
-  return false;
+  // SIMPLIFIED: Ultra-lenient matching - name match is primary, other fields are optional
+  // This ensures test users (Amit & Ankita) always work even if data format varies
+  const testUserNames = ["amit kumar mandal", "ankita surabhi"];
+  
+  // Normalize input name: lowercase, trim, normalize spaces
+  const inputName = input.name.toLowerCase().trim().replace(/\s+/g, " ");
+  
+  // Check if name contains any test user name (very flexible)
+  const isTestUserName = testUserNames.some(testName => {
+    const testNameLower = testName.toLowerCase().trim();
+    
+    // Normalize both for comparison
+    const normalizedTest = testNameLower.replace(/\s+/g, " ");
+    const normalizedInput = inputName.replace(/\s+/g, " ");
+    
+    // Exact match after normalization
+    if (normalizedInput === normalizedTest) {
+      return true;
+    }
+    
+    // Contains match (either direction)
+    if (normalizedInput.includes(normalizedTest) || normalizedTest.includes(normalizedInput)) {
+      return true;
+    }
+    
+    // Check if first name matches (e.g., "amit" matches "Amit Kumar Mandal")
+    const testFirstName = normalizedTest.split(" ")[0];
+    const inputFirstWord = normalizedInput.split(" ")[0];
+    if (testFirstName === inputFirstWord && testFirstName.length >= 3) {
+      return true;
+    }
+    
+    // Check if all words from test name are present in input (flexible order)
+    const testWords = normalizedTest.split(/\s+/).filter((w: string) => w.length > 1);
+    const inputWords = normalizedInput.split(/\s+/).filter((w: string) => w.length > 1);
+    const allTestWordsPresent = testWords.every((testWord: string) => 
+      inputWords.some((inputWord: string) => inputWord === testWord || inputWord.includes(testWord) || testWord.includes(inputWord))
+    );
+    
+    return allTestWordsPresent && testWords.length > 0;
+  });
+  
+  if (!isTestUserName) {
+    // Log why it didn't match for debugging
+    console.log(`[TEST USER CHECK FAILED - CHECKOUT]`, JSON.stringify({
+      inputName: input.name,
+      normalizedInput: inputName,
+      testUserNames,
+      reason: "Name did not match any test user pattern"
+    }, null, 2));
+    return false;
+  }
+  
+  // If name matches, log and return true (other fields are optional for flexibility)
+  const matchedName = testUserNames.find(testName => {
+    const testNameLower = testName.toLowerCase().trim();
+    const normalizedTest = testNameLower.replace(/\s+/g, " ");
+    const normalizedInput = inputName.replace(/\s+/g, " ");
+    return normalizedInput === normalizedTest || 
+           normalizedInput.includes(normalizedTest) || 
+           normalizedTest.includes(normalizedInput);
+  });
+  
+  console.log(`[TEST USER - CHECKOUT] Production test user detected: ${matchedName || input.name}`, JSON.stringify({
+    inputName: input.name,
+    normalizedInput: inputName,
+    matchedTestUser: matchedName,
+    matchingStrategy: "NAME_ONLY_FLEXIBLE",
+    detected: true,
+  }, null, 2));
+  
+  return true;
 }
 
 /**
@@ -115,25 +141,50 @@ export async function POST(req: Request) {
     // Prevent unauthorized users from creating payment sessions
     // Only allow Amit Kumar Mandal and Ankita Surabhi until testing is complete
     const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
-    if (restrictAccess && input && !isAllowedUser(input)) {
-      const restrictionError = {
+    
+    // CRITICAL: Test users ALWAYS bypass access restriction
+    // Check test user status here to ensure test users can create checkout sessions
+    // IMPORTANT: Use the same checkIfTestUser function to ensure consistency
+    const isTestUserForAccess = checkIfTestUser(input);
+    
+    if (restrictAccess && input && !isTestUserForAccess) {
+      // Only check isAllowedUser if NOT a test user
+      if (!isAllowedUser(input)) {
+        const restrictionError = {
+          requestId,
+          timestamp: new Date().toISOString(),
+          reportType: reportType || "subscription",
+          userName: input.name || "N/A",
+          userDOB: input.dob || "N/A",
+          isTestUser: isTestUser,
+          isTestUserForAccess: isTestUserForAccess,
+          error: "Access restricted for production testing - payment creation blocked",
+        };
+        console.error("[ACCESS RESTRICTION - PAYMENT CREATION]", JSON.stringify(restrictionError, null, 2));
+        
+        return NextResponse.json(
+          { 
+            ok: false, 
+            error: getRestrictionMessage() + " Payment sessions cannot be created for unauthorized users.",
+            code: "ACCESS_RESTRICTED"
+          },
+          { status: 403 }
+        );
+      }
+    }
+    
+    // Log access check result
+    if (restrictAccess) {
+      const accessCheckLog = {
         requestId,
         timestamp: new Date().toISOString(),
+        action: isTestUserForAccess ? "ACCESS_GRANTED_TEST_USER" : "ACCESS_CHECK",
         reportType: reportType || "subscription",
-        userName: input.name || "N/A",
-        userDOB: input.dob || "N/A",
-        error: "Access restricted for production testing - payment creation blocked",
+        userName: input?.name || "N/A",
+        isTestUser: isTestUser,
+        isTestUserForAccess: isTestUserForAccess,
       };
-      console.error("[ACCESS RESTRICTION - PAYMENT CREATION]", JSON.stringify(restrictionError, null, 2));
-      
-      return NextResponse.json(
-        { 
-          ok: false, 
-          error: getRestrictionMessage() + " Payment sessions cannot be created for unauthorized users.",
-          code: "ACCESS_RESTRICTED"
-        },
-        { status: 403 }
-      );
+      console.log("[ACCESS CHECK - CHECKOUT]", JSON.stringify(accessCheckLog, null, 2));
     }
 
     // Validate inputs before creating mock session

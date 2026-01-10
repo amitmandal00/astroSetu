@@ -36,6 +36,15 @@ function PreviewContent() {
   const [loadingStage, setLoadingStage] = useState<"verifying" | "generating" | null>(null); // Track loading stage for better UX
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null); // Track when loading started for elapsed time
   const [elapsedTime, setElapsedTime] = useState<number>(0); // Track elapsed time in seconds
+  const [progressSteps, setProgressSteps] = useState<{
+    birthChart: boolean;
+    planetaryAnalysis: boolean;
+    generatingInsights: boolean;
+  }>({
+    birthChart: false,
+    planetaryAnalysis: false,
+    generatingInsights: false,
+  }); // Track progress steps for better UX
   
   // Bundle state
   const [bundleType, setBundleType] = useState<string | null>(null);
@@ -64,6 +73,54 @@ function PreviewContent() {
         return "Decision Support Report";
       default:
         return "Life Summary";
+    }
+  };
+
+  // Get value propositions for the report type (shown during loading)
+  const getReportBenefits = (type: ReportType | null): string[] => {
+    switch (type) {
+      case "marriage-timing":
+        return [
+          "✓ Optimal marriage timing windows (month-by-month)",
+          "✓ Planetary influence analysis for relationships",
+          "✓ Personalized, non-generic insights"
+        ];
+      case "career-money":
+        return [
+          "✓ Career direction and growth opportunities",
+          "✓ Financial stability and money growth insights",
+          "✓ Personalized, non-generic guidance"
+        ];
+      case "full-life":
+        return [
+          "✓ Comprehensive life overview (career, relationships, health)",
+          "✓ Long-term strategic insights (next 5-10 years)",
+          "✓ Personalized, non-generic analysis"
+        ];
+      case "year-analysis":
+        return [
+          "✓ 12-month strategic overview",
+          "✓ Career, money & relationship focus",
+          "✓ Personalized, non-generic insights"
+        ];
+      case "major-life-phase":
+        return [
+          "✓ 3-5 year strategic life phase overview",
+          "✓ Major transitions and opportunities",
+          "✓ Personalized, non-generic insights"
+        ];
+      case "decision-support":
+        return [
+          "✓ Personalized decision guidance",
+          "✓ Timing and opportunity analysis",
+          "✓ Non-generic, contextual insights"
+        ];
+      default:
+        return [
+          "✓ Personalized life summary",
+          "✓ Key insights from your birth chart",
+          "✓ Free comprehensive overview"
+        ];
     }
   };
 
@@ -246,15 +303,26 @@ function PreviewContent() {
       }
 
       // If no redirect (older API versions), use existing behavior
-      setReportContent(response.data?.content || null);
-      
-      // Show upsell for paid reports after a delay (30 seconds)
-      const currentReportType = response.data?.reportType || type;
-      if (currentReportType !== "life-summary" && !upsellShown) {
-        setTimeout(() => {
-          setShowUpsell(true);
-          setUpsellShown(true);
-        }, 30000); // 30 seconds after report generation
+      // CRITICAL: Ensure we have content before setting it
+      if (response.data?.content) {
+        setReportContent(response.data.content);
+        setLoading(false);
+        setLoadingStage(null);
+        
+        // Show upsell for paid reports after a delay (30 seconds)
+        const currentReportType = response.data?.reportType || type;
+        if (currentReportType !== "life-summary" && !upsellShown) {
+          setTimeout(() => {
+            setShowUpsell(true);
+            setUpsellShown(true);
+          }, 30000); // 30 seconds after report generation
+        }
+      } else {
+        // No content received - this shouldn't happen if status is "completed"
+        console.warn("[CLIENT] API returned ok but no content:", response.data);
+        setError("Report generation completed but no content was returned. Please try again.");
+        setLoading(false);
+        setLoadingStage(null);
       }
     } catch (e: any) {
       // CLIENT-SIDE EXCEPTION LOGGING
@@ -265,8 +333,15 @@ function PreviewContent() {
         errorMessage: e.message || "Unknown error",
         errorStack: e.stack || "No stack trace",
         stopRetry: (e as any).stopRetry || false,
+        elapsedTime: Date.now() - (loadingStartTime || Date.now()),
       };
       console.error("[CLIENT REPORT GENERATION EXCEPTION]", JSON.stringify(exceptionContext, null, 2));
+      
+      // CRITICAL: Check for timeout errors specifically
+      const isTimeoutError = e.message?.includes("timed out") || 
+                            e.message?.includes("AbortError") ||
+                            e.name === "AbortError" ||
+                            e.message?.includes("taking longer than expected");
       
       // CRITICAL: Stop immediately on fatal errors (403/429/500) - don't retry
       // This prevents retry loops that drain API credits
@@ -280,17 +355,33 @@ function PreviewContent() {
         return; // Exit - no retry
       }
       
+      // Handle timeout errors with better messaging
+      if (isTimeoutError) {
+        // Calculate timeout from report type (same logic as in try block)
+        const isComplexReportType = type === "full-life" || type === "major-life-phase";
+        const calculatedTimeout = isComplexReportType ? 80000 : 65000;
+        const timeoutMessage = `Report generation timed out after ${calculatedTimeout / 1000} seconds. This can happen with complex reports. Your payment has been automatically cancelled. Please try again or contact support if the issue persists.`;
+        setError(timeoutMessage);
+      } 
       // Improved error message for rate limits
-      if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit") || e.message.includes("high demand"))) {
+      else if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit") || e.message.includes("high demand"))) {
         setError("Our AI service is experiencing high demand right now. Please wait 2-3 minutes and try again. Your request will be processed as soon as capacity is available. If you've paid, your payment has been automatically cancelled and you will NOT be charged.");
       } else {
         setError(e.message || "Failed to generate report. Please try again.");
       }
+      
+      // CRITICAL: Always clear loading state on error
+      setLoading(false);
+      setLoadingStage(null);
+      setLoadingStartTime(null);
+      setElapsedTime(0);
+      isGeneratingRef.current = false;
     } finally {
       // Only clear lock if this is still the current attempt (prevent race conditions)
       if (currentAttempt === generationAttemptRef.current) {
         isGeneratingRef.current = false;
       }
+      // Loading state is already cleared in catch block, but ensure it's cleared here too as fallback
       setLoading(false);
       setLoadingStage(null);
     }
@@ -854,12 +945,24 @@ function PreviewContent() {
     }
   };
 
-  // Track elapsed time during loading
+  // Track elapsed time during loading and update progress steps
   useEffect(() => {
     if (loading && loadingStartTime) {
       const interval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - loadingStartTime) / 1000);
         setElapsedTime(elapsed);
+        
+        // Update progress steps (simulated progress for UX - not actual backend status)
+        // These are visual indicators to show work is happening
+        if (elapsed >= 5) {
+          setProgressSteps(prev => ({ ...prev, birthChart: true }));
+        }
+        if (elapsed >= 15) {
+          setProgressSteps(prev => ({ ...prev, planetaryAnalysis: true }));
+        }
+        if (elapsed >= 25) {
+          setProgressSteps(prev => ({ ...prev, generatingInsights: true }));
+        }
         
         // CRITICAL: Auto-detect timeout and show error if stuck
         // Timeout thresholds: 120s for complex reports, 100s for regular reports, 30s for verification
@@ -881,6 +984,13 @@ function PreviewContent() {
       }, 1000); // Update every second
       
       return () => clearInterval(interval);
+    } else {
+      // Reset progress steps when not loading
+      setProgressSteps({
+        birthChart: false,
+        planetaryAnalysis: false,
+        generatingInsights: false,
+      });
     }
   }, [loading, loadingStartTime, loadingStage, reportType]);
 
@@ -1163,49 +1273,62 @@ function PreviewContent() {
                 </div>
               </div>
             ) : (
+              // Use the improved loading screen for all single reports (unified UX)
               <div className="space-y-4">
-                <p className="text-slate-600 mb-4">
-                  Our AI is analyzing your birth chart and generating personalized insights. 
-                  {reportType === "life-summary" 
-                    ? " This typically takes 15-30 seconds." 
-                    : reportType === "full-life" || reportType === "major-life-phase"
-                    ? " This typically takes 35-50 seconds for comprehensive analysis."
-                    : " This typically takes 25-40 seconds."}
-                </p>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-left">
-                  <div className="flex items-start gap-3">
-                    <div className="text-xl">✨</div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-purple-800 mb-1">
-                        Report Generation in Progress
-                      </p>
-                      <p className="text-xs text-purple-700 mb-2">
-                        Your personalized AI astrology report is being created. This includes:
-                      </p>
-                      <ul className="text-xs text-purple-600 space-y-1 ml-4 list-disc">
-                        <li>Fetching your birth chart data from NASA calculations</li>
-                        <li>Analyzing planetary positions and aspects</li>
-                        <li>Generating personalized AI insights</li>
-                        <li>Structuring your complete report</li>
-                      </ul>
-                      <p className="text-xs text-purple-600 mt-2 font-medium">
-                        ⏱️ Estimated time: {
-                          reportType === "life-summary" 
-                            ? "15-30 seconds" 
-                            : reportType === "full-life" || reportType === "major-life-phase"
-                            ? "35-50 seconds"
-                            : "25-40 seconds"
-                        }
-                      </p>
-                      {isTakingLonger && elapsedTime > estimatedTime && (
-                        <div className="mt-3 pt-3 border-t border-purple-200">
-                          <p className="text-xs text-amber-700 font-medium">
-                            ⚠️ This is taking longer than usual. Our system is still processing your request. 
-                            If it continues, you&apos;ll see an error message and your payment will be automatically cancelled.
-                          </p>
-                        </div>
-                      )}
+                {/* Progress Stepper - Same as new loading screen */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 rounded-full bg-purple-600 animate-pulse"></div>
+                      <div className="w-12 h-0.5 bg-purple-300"></div>
+                      <div className="w-3 h-3 rounded-full bg-purple-300"></div>
+                      <div className="w-12 h-0.5 bg-slate-300"></div>
+                      <div className="w-3 h-3 rounded-full bg-slate-300"></div>
                     </div>
+                  </div>
+                  
+                  <p className="text-sm text-center text-slate-600 mb-4">
+                    This usually completes within {
+                      reportType === "life-summary" 
+                        ? "60-90 seconds" 
+                        : reportType === "full-life" || reportType === "major-life-phase"
+                        ? "60-90 seconds"
+                        : "60-90 seconds"
+                    }.
+                    {elapsedTime >= 90 && (
+                      <span className="block mt-2 text-amber-700 font-medium">
+                        If this screen stays for more than 2 minutes, please refresh this page. Your report will not be lost.
+                      </span>
+                    )}
+                    {!elapsedTime || elapsedTime < 90 ? (
+                      <span className="block mt-2">If it takes longer, your report is still being prepared safely.</span>
+                    ) : null}
+                  </p>
+                  
+                  {/* Progress Status Indicators */}
+                  <div className="space-y-2 mb-6 text-left bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <div className={`flex items-center gap-2 text-sm ${progressSteps.birthChart ? 'text-green-700' : 'text-slate-400'}`}>
+                      {progressSteps.birthChart ? '✓' : '⏳'} 
+                      <span className={progressSteps.birthChart ? 'font-medium' : ''}>Birth chart prepared</span>
+                    </div>
+                    <div className={`flex items-center gap-2 text-sm ${progressSteps.planetaryAnalysis ? 'text-green-700' : 'text-slate-400'}`}>
+                      {progressSteps.planetaryAnalysis ? '✓' : '⏳'} 
+                      <span className={progressSteps.planetaryAnalysis ? 'font-medium' : ''}>Planetary analysis completed</span>
+                    </div>
+                    <div className={`flex items-center gap-2 text-sm ${progressSteps.generatingInsights ? 'text-green-700' : 'text-slate-400'}`}>
+                      {progressSteps.generatingInsights ? '✓' : '⏳'} 
+                      <span className={progressSteps.generatingInsights ? 'font-medium' : ''}>Generating personalized insights</span>
+                    </div>
+                  </div>
+                  
+                  {/* Value Reinforcement During Wait */}
+                  <div className="mb-6 text-left bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
+                    <p className="text-sm font-semibold text-purple-900 mb-2">What you&apos;re getting:</p>
+                    <ul className="space-y-1 text-sm text-slate-700">
+                      {getReportBenefits(reportType).map((benefit, idx) => (
+                        <li key={idx}>{benefit}</li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>
@@ -1627,6 +1750,18 @@ function PreviewContent() {
     
     return (
       <div className="cosmic-bg py-8">
+        {/* Legal Banner - Reduced Contrast During Loading */}
+        {loading && (
+          <div className="container mx-auto px-4 max-w-2xl mb-4">
+            <div className="bg-orange-50/60 border border-orange-200/60 rounded-lg p-3 flex flex-wrap items-center justify-center gap-4 text-xs text-orange-700/70">
+              <span>Educational guidance only</span>
+              <span className="hidden sm:inline">•</span>
+              <span>Fully automated</span>
+              <span className="hidden sm:inline">•</span>
+              <span>No live support</span>
+            </div>
+          </div>
+        )}
         <div className="container mx-auto px-4 max-w-2xl">
           <Card className="cosmic-card">
             <CardContent className="p-8">
@@ -1642,9 +1777,43 @@ function PreviewContent() {
                   </div>
                 </div>
                 <h2 className="text-2xl font-bold mb-2 text-center text-slate-800">Loading Report...</h2>
-                <p className="text-sm text-center text-slate-600 mb-6">
-                  This can take up to 60–90 seconds. If it takes longer, your report is still being prepared.
+                <p className="text-sm text-center text-slate-600 mb-4">
+                  This usually completes within 60–90 seconds.
+                  {elapsedTime >= 90 && (
+                    <span className="block mt-2 text-amber-700 font-medium">
+                      If this screen stays for more than 2 minutes, please refresh this page. Your report will not be lost.
+                    </span>
+                  )}
+                  {!elapsedTime || elapsedTime < 90 ? (
+                    <span className="block mt-2">If it takes longer, your report is still being prepared safely.</span>
+                  ) : null}
                 </p>
+                
+                {/* Progress Status Indicators */}
+                <div className="space-y-2 mb-6 text-left bg-slate-50 rounded-lg p-4 border border-slate-200">
+                  <div className={`flex items-center gap-2 text-sm ${progressSteps.birthChart ? 'text-green-700' : 'text-slate-400'}`}>
+                    {progressSteps.birthChart ? '✓' : '⏳'} 
+                    <span className={progressSteps.birthChart ? 'font-medium' : ''}>Birth chart prepared</span>
+                  </div>
+                  <div className={`flex items-center gap-2 text-sm ${progressSteps.planetaryAnalysis ? 'text-green-700' : 'text-slate-400'}`}>
+                    {progressSteps.planetaryAnalysis ? '✓' : '⏳'} 
+                    <span className={progressSteps.planetaryAnalysis ? 'font-medium' : ''}>Planetary analysis completed</span>
+                  </div>
+                  <div className={`flex items-center gap-2 text-sm ${progressSteps.generatingInsights ? 'text-green-700' : 'text-slate-400'}`}>
+                    {progressSteps.generatingInsights ? '✓' : '⏳'} 
+                    <span className={progressSteps.generatingInsights ? 'font-medium' : ''}>Generating personalized insights</span>
+                  </div>
+                </div>
+                
+                {/* Value Reinforcement During Wait */}
+                <div className="mb-6 text-left bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
+                  <p className="text-sm font-semibold text-purple-900 mb-2">What you&apos;re getting:</p>
+                  <ul className="space-y-1 text-sm text-slate-700">
+                    {getReportBenefits(reportType).map((benefit, idx) => (
+                      <li key={idx}>{benefit}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
               
               {/* Auto-recovery indicator */}
@@ -1675,32 +1844,16 @@ function PreviewContent() {
                     </div>
                   )}
                   
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                    {currentReportId && (
-                      <Button
-                        onClick={handleRetryLoading}
-                        disabled={loading}
-                        className="cosmic-button-secondary"
-                      >
-                        🔄 Retry Loading
-                      </Button>
-                    )}
-                    <Button
-                      onClick={handleCopyReportLink}
-                      className="cosmic-button-secondary"
-                      disabled={loading}
-                    >
-                      {emailCopySuccess ? "✓ Link Copied!" : "📋 Copy Report Link"}
-                    </Button>
-                  </div>
-                  
-                  {/* Report ID for debugging/support */}
+                  {/* Copy Report Link Button (if reportId available) */}
                   {currentReportId && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
-                      <p className="text-xs text-slate-600 font-mono break-all">
-                        <strong className="text-slate-800">Report ID:</strong> {currentReportId}
-                      </p>
+                    <div className="mb-4">
+                      <Button
+                        onClick={handleCopyReportLink}
+                        className="w-full cosmic-button-secondary"
+                        disabled={loading}
+                      >
+                        {emailCopySuccess ? "✓ Link Copied!" : "📋 Copy Report Link"}
+                      </Button>
                     </div>
                   )}
                   
@@ -1724,7 +1877,7 @@ function PreviewContent() {
               ) : (
                 <div className="space-y-4 text-left">
                   <p className="text-slate-600 mb-6">
-                    We&apos;re preparing your report. If nothing happens within 10 seconds, please use the options below.
+                    We&apos;re preparing your report. If it takes longer than expected, your report is still being prepared safely.
                   </p>
                 </div>
               )}
@@ -1736,13 +1889,43 @@ function PreviewContent() {
                     <p className="text-sm text-red-800">{error}</p>
                   </div>
                 )}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Link href="/ai-astrology/input" className="flex-1">
-                    <Button className="w-full cosmic-button-secondary">
-                      Start Over {hasSessionId ? "(May Cancel Generation)" : ""}
+                
+                {/* Primary Action: Retry Loading (Safe - No Regeneration) */}
+                {currentReportId ? (
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleRetryLoading}
+                      disabled={loading}
+                      className="w-full cosmic-button-secondary"
+                    >
+                      🔄 Retry Loading Report
                     </Button>
-                  </Link>
-                </div>
+                    
+                    {/* Secondary Action: Start New (Small Link) */}
+                    <div className="text-center">
+                      <Link href="/ai-astrology/input" className="text-sm text-slate-600 hover:text-slate-800 underline">
+                        Start a new report instead
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <Link href="/ai-astrology/input" className="block">
+                      <Button className="w-full cosmic-button-secondary">
+                        Start a New Report
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+                
+                {/* Report ID Footer (Always Show if Available) */}
+                {currentReportId && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <p className="text-xs text-center text-slate-500">
+                      <strong className="text-slate-700">Report ID:</strong> <span className="font-mono">{currentReportId}</span>
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
