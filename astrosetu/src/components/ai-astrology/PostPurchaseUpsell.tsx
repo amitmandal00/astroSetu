@@ -202,13 +202,8 @@ export function PostPurchaseUpsell({ currentReport, onClose }: PostPurchaseUpsel
                 </div>
                 <Link href={rec.link} onClick={handleClose}>
                   <Button
-                    className={`w-full ${
-                      rec.type === "bundle"
-                        ? "bg-emerald-600 hover:bg-emerald-700"
-                        : rec.type === "upgrade"
-                        ? "bg-purple-600 hover:bg-purple-700"
-                        : "cosmic-button"
-                    }`}
+                    className="w-full"
+                    variant="primary"
                   >
                     {rec.cta} →
                   </Button>
