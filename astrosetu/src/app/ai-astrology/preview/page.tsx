@@ -360,7 +360,7 @@ function PreviewContent() {
       // Server timeout: 60s (regular) or 75s (complex), use the longer one for bundles to be safe
       // Optimized for faster generation
       // Client timeout should be slightly longer to account for network overhead
-      const INDIVIDUAL_REPORT_TIMEOUT = 130000; // 130s - slightly longer than server max (120s)
+      const INDIVIDUAL_REPORT_TIMEOUT = 80000; // 80s - slightly longer than server max (75s, optimized)
 
       const reportPromises = reports.map(async (reportType) => {
         const reportName = getReportName(reportType);
