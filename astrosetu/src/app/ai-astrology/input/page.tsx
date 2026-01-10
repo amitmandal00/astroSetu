@@ -44,6 +44,8 @@ function InputFormContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Load saved form data from localStorage on mount
   useEffect(() => {
@@ -122,7 +124,6 @@ function InputFormContent() {
     e.preventDefault();
     if (!canSubmit) return;
 
-    setLoading(true);
     setError(null);
 
     try {
@@ -144,14 +145,29 @@ function InputFormContent() {
         }
       }
 
+      // Show confirmation modal instead of navigating immediately
+      setShowConfirmation(true);
+    } catch (e: any) {
+      setError(e.message || "Something went wrong. Please check your inputs.");
+    }
+  };
+
+  const handleConfirmation = async () => {
+    if (!termsAccepted) return;
+
+    setLoading(true);
+    setError(null);
+    setShowConfirmation(false);
+
+    try {
       const inputData = {
         name: name.trim(),
         dob,
         tob: tob.length === 5 ? `${tob}:00` : tob,
         place: place.trim(),
         gender: gender || undefined,
-        latitude: lat,
-        longitude: lon,
+        latitude: latitude!,
+        longitude: longitude!,
         timezone: "Asia/Kolkata",
       };
 
@@ -191,7 +207,62 @@ function InputFormContent() {
       // Only reset loading state on error (when navigation doesn't happen)
       setLoading(false);
     }
-    // Removed finally block - loading state persists during navigation to prevent flicker
+  };
+
+  const getReportBenefits = (): string[] => {
+    if (bundleParam && bundleReports.length > 0) {
+      return [
+        `${bundleReports.length} comprehensive AI-generated reports`,
+        "Personalized insights based on your birth chart",
+        "Complete downloadable PDF bundle package",
+        "Special bundle pricing - save money with this package"
+      ];
+    }
+    
+    switch (reportType) {
+      case "marriage-timing":
+        return [
+          "Optimal marriage timing windows (month-by-month)",
+          "Planetary influence analysis for relationships",
+          "Personalized, non-generic insights"
+        ];
+      case "career-money":
+        return [
+          "Career direction and growth opportunities",
+          "Financial stability and money growth insights",
+          "Personalized, non-generic guidance"
+        ];
+      case "full-life":
+        return [
+          "Comprehensive life overview (career, relationships, health)",
+          "Long-term strategic insights (next 5-10 years)",
+          "Personalized, non-generic analysis"
+        ];
+      case "year-analysis":
+        return [
+          "12-month strategic overview",
+          "Career, money & relationship focus",
+          "Personalized, non-generic insights"
+        ];
+      case "major-life-phase":
+        return [
+          "3-5 year strategic life phase overview",
+          "Major transitions and opportunities",
+          "Personalized, non-generic insights"
+        ];
+      case "decision-support":
+        return [
+          "Personalized decision guidance",
+          "Timing and opportunity analysis",
+          "Non-generic, contextual insights"
+        ];
+      default:
+        return [
+          "Personalized life summary",
+          "Key insights from your birth chart",
+          "Free comprehensive overview"
+        ];
+    }
   };
 
   const getReportTitle = () => {
@@ -462,6 +533,86 @@ function InputFormContent() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-purple-300 shadow-2xl">
+            <CardHeader 
+              icon="🔮"
+              title={getReportTitle()}
+              subtitle="Confirm your report generation"
+            />
+            <CardContent className="p-6">
+              {/* What You Will Get Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-slate-900 mb-4">What You Will Get</h3>
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
+                  <ul className="space-y-3">
+                    {getReportBenefits().map((benefit, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <span className="text-amber-600 font-bold text-lg mt-0.5">✓</span>
+                        <span className="text-slate-700 text-sm">{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Terms Acceptance Checkbox */}
+              <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-1 w-5 h-5 text-purple-600 border-purple-300 rounded focus:ring-purple-500 focus:ring-2"
+                    required
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-slate-900">
+                      I accept the terms and conditions
+                    </span>
+                    <p className="text-xs text-slate-600 mt-1">
+                      I understand this report is for educational guidance only, is fully automated, 
+                      and provides no guarantees. I have read and accept the disclaimer above.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={handleConfirmation}
+                  disabled={!termsAccepted || loading}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 py-3 text-base min-h-[44px]"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="animate-spin">🌙</span>
+                      Processing...
+                    </span>
+                  ) : (
+                    "Continue to Generate Report"
+                  )}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowConfirmation(false);
+                    setTermsAccepted(false);
+                  }}
+                  disabled={loading}
+                  variant="secondary"
+                  className="sm:w-auto min-h-[44px]"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
