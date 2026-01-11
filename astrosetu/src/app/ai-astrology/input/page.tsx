@@ -614,7 +614,10 @@ function InputFormContent() {
                   />
                   <div className="flex-1">
                     <span className="text-sm font-semibold text-slate-900">
-                      I accept the terms and conditions
+                      I accept the{" "}
+                      <Link href="/terms" target="_blank" className="text-purple-600 hover:text-purple-700 underline font-semibold" onClick={(e) => e.stopPropagation()}>
+                        terms and conditions
+                      </Link>
                     </span>
                     <p className="text-xs text-slate-600 mt-1">
                       I understand this report is for educational guidance only, is fully automated, 
