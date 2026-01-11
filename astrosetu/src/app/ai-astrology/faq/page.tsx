@@ -201,6 +201,23 @@ const FAQ_ITEMS = [
     ),
   },
   {
+    question: "What currency are prices in? Will I be charged in my local currency?",
+    answer: (
+      <>
+        All prices are displayed in <strong>Australian Dollars (AUD)</strong>. When you proceed to checkout, 
+        our payment provider (Stripe) will automatically convert the price to your local currency based on current exchange rates.
+        <ul className="list-disc list-inside mt-2 space-y-1 ml-4">
+          <li><strong>Website Display:</strong> Prices shown as AU$ (e.g., AU$0.50)</li>
+          <li><strong>At Checkout:</strong> Stripe displays the price in your local currency (e.g., $0.33 USD, ₹27 INR, £0.26 GBP)</li>
+          <li><strong>Payment:</strong> You pay in your local currency</li>
+          <li><strong>Exchange Rates:</strong> Stripe uses real-time exchange rates, which may vary slightly</li>
+        </ul>
+        This automatic conversion means you can purchase reports from anywhere in the world without worrying about currency conversion. 
+        The final amount you pay will be shown clearly at checkout before you complete the payment.
+      </>
+    ),
+  },
+  {
     question: "How often should I buy reports?",
     answer: (
       <>
