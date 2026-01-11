@@ -810,11 +810,38 @@ function PreviewContent() {
             const isFreeReport = reportTypeFromUrl === "life-summary";
             
             if (isFreeReport) {
-              // For free reports, clear the reportId from URL state and continue with normal flow
-              // This allows auto-generation to proceed
+              // For free reports, try to load input data from sessionStorage and trigger generation
+              // This allows auto-generation to proceed even with stale reportIds
               console.warn("[CLIENT] ReportId found in URL but not in storage for free report - clearing and regenerating:", reportId);
-              // Don't set error - just continue with auto-generation flow
-              // The reportId will be ignored and a new one will be generated
+              
+              // Try to load input data from sessionStorage immediately (may not exist if session expired)
+              try {
+                const savedInput = sessionStorage.getItem("aiAstrologyInput");
+                if (savedInput) {
+                  const inputData = JSON.parse(savedInput);
+                  setInput(inputData);
+                  setReportType("life-summary");
+                  // Don't set loading here - let the normal auto-generation flow handle it
+                  // This ensures the useEffect will trigger generation when it sees input data
+                } else {
+                  // No input data in sessionStorage - redirect to input page
+                  console.log("[CLIENT] No input data found for stale free report, redirecting to input page");
+                  if (!hasRedirectedRef.current) {
+                    hasRedirectedRef.current = true;
+                    router.push("/ai-astrology/input?reportType=life-summary");
+                    return;
+                  }
+                }
+              } catch (error) {
+                console.error("[CLIENT] Failed to load input data for stale free report:", error);
+                // Redirect to input page on error
+                if (!hasRedirectedRef.current) {
+                  hasRedirectedRef.current = true;
+                  router.push("/ai-astrology/input?reportType=life-summary");
+                  return;
+                }
+              }
+              // Continue to allow normal auto-generation flow to proceed
             } else {
               // For paid reports, show error (don't regenerate to prevent duplicate charges)
               console.warn("[CLIENT] ReportId found in URL but not in storage for paid report:", reportId);
