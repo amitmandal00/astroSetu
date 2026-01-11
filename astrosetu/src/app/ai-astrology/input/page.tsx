@@ -209,14 +209,55 @@ function InputFormContent() {
     }
   };
 
+  const getReportNameForBundle = (type: ReportType): string => {
+    switch (type) {
+      case "marriage-timing":
+        return "Marriage Timing Report";
+      case "career-money":
+        return "Career & Money Report";
+      case "full-life":
+        return "Full Life Report";
+      case "year-analysis":
+        return "Year Analysis Report (next 12 months)";
+      case "major-life-phase":
+        return "3-5 Year Strategic Life Phase Report";
+      case "decision-support":
+        return "Decision Support Report";
+      default:
+        return "";
+    }
+  };
+
+  const getBundleSavingsPercentage = (): number => {
+    if (bundleParam === "all-3") return 25;
+    if (bundleParam === "any-2") return 15;
+    if (bundleParam === "life-decision-pack") return 25;
+    return 0;
+  };
+
   const getReportBenefits = (): string[] => {
     if (bundleParam && bundleReports.length > 0) {
-      return [
-        `${bundleReports.length} comprehensive AI-generated reports`,
-        "Personalized insights based on your birth chart",
-        "Complete downloadable PDF bundle package",
-        "Special bundle pricing - save money with this package"
-      ];
+      const benefits: string[] = [];
+      
+      // Explicitly name each report in the bundle for clarity
+      bundleReports.forEach(reportType => {
+        const reportName = getReportNameForBundle(reportType);
+        if (reportName) {
+          benefits.push(reportName);
+        }
+      });
+      
+      // Add additional benefits
+      benefits.push("Personalized insights from your birth chart");
+      benefits.push("Complete downloadable PDF bundle");
+      
+      // Add savings percentage
+      const savingsPercent = getBundleSavingsPercentage();
+      if (savingsPercent > 0) {
+        benefits.push(`Special bundle pricing — save ${savingsPercent}% vs individual reports`);
+      }
+      
+      return benefits;
     }
     
     switch (reportType) {
@@ -541,7 +582,9 @@ function InputFormContent() {
             <CardHeader 
               icon="🔮"
               title={getReportTitle()}
-              subtitle="Confirm your report generation"
+              subtitle={bundleParam && bundleReports.length > 0 
+                ? "Confirm your personalized report generation"
+                : "Confirm your report generation"}
             />
             <CardContent className="p-6">
               {/* What You Will Get Section */}
@@ -581,18 +624,29 @@ function InputFormContent() {
                 </label>
               </div>
 
+              {/* Trust Reassurance (for bundles) */}
+              {bundleParam && bundleReports.length > 0 && (
+                <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-700 text-center">
+                    Your reports are generated securely and delivered instantly as PDFs.
+                  </p>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={handleConfirmation}
                   disabled={!termsAccepted || loading}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 py-3 text-base min-h-[44px]"
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 py-3 text-base min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="animate-spin">🌙</span>
                       Processing...
                     </span>
+                  ) : bundleParam && bundleReports.length > 0 ? (
+                    `Generate My ${bundleReports.length} Report${bundleReports.length > 1 ? 's' : ''}`
                   ) : (
                     "Continue to Generate Report"
                   )}
@@ -604,7 +658,7 @@ function InputFormContent() {
                   }}
                   disabled={loading}
                   variant="secondary"
-                  className="sm:w-auto min-h-[44px]"
+                  className="sm:w-auto min-h-[44px] text-slate-600 border-slate-300 hover:bg-slate-50"
                 >
                   Cancel
                 </Button>
