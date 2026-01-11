@@ -804,10 +804,21 @@ function PreviewContent() {
             return;
           } else {
             // ReportId in URL but not found in storage
-            // For free life-summary reports, we can regenerate (reportId might be stale or from a different session)
-            // For paid reports, we should show an error to prevent accidental re-generation
+            // CRITICAL: Check for bundles FIRST before checking if it's a free report
+            // Bundles are always paid reports, even if reportType in URL is "life-summary"
+            let isBundle = false;
+            try {
+              const savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
+              const savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
+              isBundle = !!(savedBundleType && savedBundleReports);
+            } catch (e) {
+              // Ignore errors checking for bundles
+            }
+            
+            // For free life-summary reports (NOT bundles), we can regenerate (reportId might be stale or from a different session)
+            // For paid reports (including bundles), we should show an error to prevent accidental re-generation
             const reportTypeFromUrl = searchParams.get("reportType") as ReportType;
-            const isFreeReport = reportTypeFromUrl === "life-summary";
+            const isFreeReport = !isBundle && reportTypeFromUrl === "life-summary";
             
             if (isFreeReport) {
               // For free reports, try to load input data from sessionStorage and trigger generation
@@ -821,8 +832,9 @@ function PreviewContent() {
                   const inputData = JSON.parse(savedInput);
                   setInput(inputData);
                   setReportType("life-summary");
-                  // Don't set loading here - let the normal auto-generation flow handle it
-                  // This ensures the useEffect will trigger generation when it sees input data
+                  // CRITICAL: Don't return early - let the setTimeout path handle auto-generation
+                  // The setTimeout path will see input is already set and trigger generation
+                  // Returning early would skip the auto-generation logic entirely
                 } else {
                   // No input data in sessionStorage - redirect to input page
                   console.log("[CLIENT] No input data found for stale free report, redirecting to input page");
@@ -841,10 +853,11 @@ function PreviewContent() {
                   return;
                 }
               }
-              // Continue to allow normal auto-generation flow to proceed
+              // Continue to setTimeout path - it will use the input we just set and trigger auto-generation
             } else {
-              // For paid reports, show error (don't regenerate to prevent duplicate charges)
-              console.warn("[CLIENT] ReportId found in URL but not in storage for paid report:", reportId);
+              // For paid reports (including bundles), show error (don't regenerate to prevent duplicate charges)
+              const reportTypeLabel = isBundle ? "bundle" : "paid report";
+              console.warn(`[CLIENT] ReportId found in URL but not in storage for ${reportTypeLabel}:`, reportId);
               setError("Report not found. Please generate a new report.");
               setLoading(false);
               return; // Exit early - don't try to regenerate with different ID
