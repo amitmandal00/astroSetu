@@ -335,19 +335,15 @@ function SubscriptionContent() {
                   {/* Monthly Title */}
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold text-slate-800">
-                      {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Theme: {guidance.guidance?.split(/[\.\n]/)[0]?.substring(0, 50).trim() || 'Balance & Communication'}
+                      {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Theme: {guidance.guidance?.split(/[\.\n]/)[0]?.trim() || 'Balance & Communication'}
                     </h3>
                   </div>
                   
-                  {/* Shortened Theme Block */}
+                  {/* Full Theme Block */}
                   <div className="p-5 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border border-blue-200">
                     <div className="prose prose-slate max-w-none">
                       <p className="text-slate-700 leading-relaxed text-sm whitespace-pre-wrap">
-                        {guidance.guidance ? 
-                          guidance.guidance.length > 300 ? 
-                            guidance.guidance.substring(0, 300) + '...' : 
-                            guidance.guidance
-                          : "This period favors thoughtful action and steady progress. Maintain balance in daily routines."}
+                        {guidance.guidance || "This period favors thoughtful action and steady progress. Maintain balance in daily routines."}
                       </p>
                     </div>
                   </div>

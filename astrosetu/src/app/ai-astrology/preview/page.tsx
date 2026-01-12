@@ -526,9 +526,13 @@ function PreviewContent() {
     // When generateBundleReports is called from setTimeout flow, loadingStartTime may already be set
     setLoadingStartTime(prev => {
       if (prev !== null && prev !== undefined) {
+        // Ensure ref is set even when returning existing value
+        loadingStartTimeRef.current = prev;
         return prev; // Keep existing start time
       }
-      return Date.now(); // Set new start time only if not already set
+      const newStartTime = Date.now();
+      loadingStartTimeRef.current = newStartTime; // Set ref when setting new start time
+      return newStartTime; // Set new start time only if not already set
     });
     setElapsedTime(0); // Reset elapsed time (will recalculate from loadingStartTime)
     setError(null);
@@ -1162,9 +1166,13 @@ function PreviewContent() {
           // Show loading immediately and set stage to generating (for ALL report types)
           setLoading(true);
           setLoadingStage("generating");
-          const startTime = Date.now();
-          loadingStartTimeRef.current = startTime;
-          setLoadingStartTime(startTime);
+          // CRITICAL: Only set loadingStartTime if ref is not already set (prevents timer reset)
+          // generateReport will also check this, but we set it here for consistency
+          if (loadingStartTimeRef.current === null) {
+            const startTime = Date.now();
+            loadingStartTimeRef.current = startTime;
+            setLoadingStartTime(startTime);
+          }
           setElapsedTime(0);
           // Reset progress steps for all reports
           setProgressSteps({
@@ -1471,24 +1479,22 @@ function PreviewContent() {
   // Track elapsed time during loading and update progress steps
   useEffect(() => {
     if (loading) {
-      // Ensure ref is synced with state when state changes
+      // Sync ref with state if state is available (safety measure)
+      // The ref is also set directly when we set the state, so this is just a backup
       if (loadingStartTime) {
         loadingStartTimeRef.current = loadingStartTime;
       }
       
       // Use ref value in interval - ref is always current and doesn't have closure issues
       // This is the most reliable approach for interval callbacks
+      // CRITICAL: Don't include loadingStartTime in dependencies to prevent unnecessary
+      // interval recreation. The ref is set directly when we set the state, so we don't
+      // need the effect to re-run when loadingStartTime changes.
       const interval = setInterval(() => {
+        // ONLY use ref - don't use state in callback (closure issues)
         const startTime = loadingStartTimeRef.current;
         if (!startTime) {
-          // If ref is not set yet, try to use state value and sync ref
-          if (loadingStartTime) {
-            loadingStartTimeRef.current = loadingStartTime;
-            const elapsed = Math.floor((Date.now() - loadingStartTime) / 1000);
-            setElapsedTime(elapsed);
-            return;
-          }
-          return; // No start time available yet
+          return; // No start time available yet - wait for next tick
         }
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setElapsedTime(elapsed);
@@ -1536,7 +1542,7 @@ function PreviewContent() {
         generatingInsights: false,
       });
     }
-  }, [loading, loadingStartTime, loadingStage, reportType]);
+  }, [loading, loadingStage, reportType]); // Removed loadingStartTime to prevent unnecessary interval recreation
 
   // Smart Upsell Trigger: Show upsell based on scroll engagement and reading time
   useEffect(() => {
