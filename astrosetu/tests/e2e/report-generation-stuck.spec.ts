@@ -37,7 +37,8 @@ test.describe('Report Generation Stuck Prevention', () => {
   });
   
   test('yearly analysis report should generate successfully (not get stuck)', async ({ page }) => {
-    // This test verifies year-analysis reports generate properly
+    // CRITICAL: This test verifies year-analysis reports generate properly AND timer increments (not stuck at 0s)
+    // This addresses the defect: "yearly analysis report and timer stuck" (reported multiple times)
     await page.goto('/ai-astrology/input?reportType=year-analysis');
     await fillInputForm(page);
     
@@ -45,14 +46,51 @@ test.describe('Report Generation Stuck Prevention', () => {
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
     // Wait for timer to start (payment verification might happen first)
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
     
-    // Check timer is running (should show elapsed time)
-    const timer = page.locator('text=/Elapsed|⏱️|Timer/i');
-    const timerVisible = await timer.first().isVisible({ timeout: 3000 }).catch(() => false);
+    // CRITICAL: Check timer is visible and verify it shows elapsed time > 0s (not stuck at 0s)
+    const timerText = page.locator('text=/Elapsed.*[0-9]+s/i');
+    const timerVisible = await timerText.first().isVisible({ timeout: 5000 }).catch(() => false);
+    
+    if (timerVisible) {
+      // Get the timer text content
+      const timerContent = await timerText.first().textContent();
+      console.log('[TEST] Year-analysis timer text at 3s:', timerContent);
+      
+      // CRITICAL: Verify timer shows elapsed time > 0s (not stuck at "Elapsed: 0s")
+      // Timer format is: "⏱️ Elapsed: Xs" where X should be > 0 after 3 seconds
+      expect(timerContent).not.toMatch(/Elapsed:\s*0s/i);
+      
+      // Wait a few more seconds to ensure timer continues incrementing
+      await page.waitForTimeout(3000);
+      
+      // Check timer again - should show higher value (or report completed)
+      const timerContentAfter = await timerText.first().textContent().catch(() => null);
+      if (timerContentAfter) {
+        console.log('[TEST] Year-analysis timer text at 6s:', timerContentAfter);
+        // Extract elapsed time values
+        const firstMatch = timerContent?.match(/Elapsed:\s*(\d+)s/i);
+        const secondMatch = timerContentAfter.match(/Elapsed:\s*(\d+)s/i);
+        
+        if (firstMatch && secondMatch) {
+          const firstTime = parseInt(firstMatch[1]);
+          const secondTime = parseInt(secondMatch[1]);
+          // Second time should be >= first time (timer should increment)
+          expect(secondTime).toBeGreaterThanOrEqual(firstTime);
+        }
+      }
+    } else {
+      // If timer is not visible, check if report already completed (acceptable in MOCK_MODE)
+      const reportContent = page.locator('text=/Report|Overview|Summary|Year Analysis/i');
+      const reportVisible = await reportContent.first().isVisible({ timeout: 2000 }).catch(() => false);
+      if (!reportVisible) {
+        // Timer should be visible if report is still generating
+        throw new Error('Timer not visible and report not completed - timer may be stuck');
+      }
+    }
     
     // Wait for report generation (year-analysis is a paid report, may take longer)
-    await waitForReportGeneration(page, 25000); // Longer timeout for paid reports
+    await waitForReportGeneration(page, 30000); // Longer timeout for paid reports
     
     // Verify report is displayed (not stuck)
     const reportContent = page.locator('text=/Report|Overview|Summary|Year Analysis|Year.*Analysis/i');

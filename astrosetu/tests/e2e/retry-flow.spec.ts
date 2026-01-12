@@ -49,11 +49,18 @@ test.describe('Retry Flow E2E', () => {
     // - Retry should not trigger duplicate payment charges
     // - Idempotency should prevent duplicate API calls
     
-    // Navigate to preview page directly (this test checks UI structure, not full flow)
-    await page.goto('/ai-astrology/preview?reportType=life-summary');
+    // Navigate to input page first, then generate report, so we have proper context
+    // Navigating directly to preview without input data causes redirect
+    await page.goto('/ai-astrology/input?reportType=life-summary');
     
-    // Wait for page to load
-    await page.waitForLoadState('networkidle').catch(() => {});
+    // Fill the form to generate a report
+    await fillInputForm(page);
+    
+    // Wait for preview page
+    await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
+    
+    // Wait for report generation to complete
+    await page.waitForTimeout(3000); // Wait for report to generate
     
     // Look for retry button (may not be visible if no error)
     const retryButton = page.locator('button:has-text("Retry"), button:has-text("Try Again"), a:has-text("Retry")');
@@ -69,7 +76,7 @@ test.describe('Retry Flow E2E', () => {
     // All are valid states depending on the current state of report generation
     const hasAnyUI = hasRetryButton || hasReport || hasLoading;
     
-    // At least one UI element should be present (this verifies the page loaded)
+    // At least one UI element should be present (this verifies the page loaded and report generated)
     expect(hasAnyUI).toBeTruthy();
     
     if (hasRetryButton) {

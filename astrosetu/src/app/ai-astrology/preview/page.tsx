@@ -158,8 +158,11 @@ function PreviewContent() {
       const startTime = Date.now();
       loadingStartTimeRef.current = startTime;
       setLoadingStartTime(startTime);
+      setElapsedTime(0); // Only reset elapsed time if we're starting a NEW timer (not continuing from payment verification)
     }
-    setElapsedTime(0); // Reset elapsed time (this is OK - it will recalculate from loadingStartTime)
+    // CRITICAL FIX: Don't reset elapsedTime if loadingStartTimeRef is already set
+    // This prevents resetting the timer when transitioning from payment verification to report generation
+    // The timer useEffect will calculate the correct elapsed time from the ref
     setError(null);
     // CRITICAL: Reset progress steps when starting generation (for ALL report types including free)
     setProgressSteps({
@@ -1001,7 +1004,9 @@ function PreviewContent() {
           const startTime = Date.now();
           loadingStartTimeRef.current = startTime;
           setLoadingStartTime(startTime); // Track when loading started
-          setElapsedTime(0); // Reset elapsed time
+          // CRITICAL: Don't set elapsedTime to 0 here - let the timer useEffect calculate it
+          // Setting it to 0 here causes a flash of 0s before the timer useEffect runs
+          // The timer useEffect will calculate the correct elapsed time immediately
           // NOTE: Don't set isGeneratingRef.current here - generateReport will set it when called
           // Setting it here causes generateReport to return early because it checks this flag
           
@@ -1173,7 +1178,9 @@ function PreviewContent() {
             loadingStartTimeRef.current = startTime;
             setLoadingStartTime(startTime);
           }
-          setElapsedTime(0);
+          // CRITICAL FIX: Don't reset elapsedTime here - let the timer useEffect calculate it
+          // Setting it to 0 here resets the timer even when continuing from payment verification
+          // The timer useEffect will calculate the correct elapsed time from the ref
           // Reset progress steps for all reports
           setProgressSteps({
             birthChart: false,
@@ -1493,6 +1500,15 @@ function PreviewContent() {
         const startTime = Date.now();
         loadingStartTimeRef.current = startTime;
         setLoadingStartTime(startTime);
+      }
+      
+      // CRITICAL FIX: Calculate initial elapsed time immediately (don't wait for first interval tick)
+      // This prevents the timer from displaying 0s even when loadingStartTimeRef is set
+      // This is especially important when transitioning from "verifying" to "generating" stage
+      const startTime = loadingStartTimeRef.current;
+      if (startTime) {
+        const initialElapsed = Math.floor((Date.now() - startTime) / 1000);
+        setElapsedTime(initialElapsed);
       }
       
       // Use ref value in interval - ref is always current and doesn't have closure issues
