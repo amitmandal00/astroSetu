@@ -331,35 +331,101 @@ function SubscriptionContent() {
               )}
 
               {guidance && (
-                <div className="space-y-4">
-                  {/* Monthly Title */}
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-slate-800">
-                      {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Theme: {guidance.guidance?.split(/[\.\n]/)[0]?.trim() || 'Balance & Communication'}
+                <div className="space-y-5">
+                  {/* Section 1: Monthly Theme */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                      {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Theme
                     </h3>
-                  </div>
-                  
-                  {/* Full Theme Block */}
-                  <div className="p-5 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border border-blue-200">
-                    <div className="prose prose-slate max-w-none">
-                      <p className="text-slate-700 leading-relaxed text-sm whitespace-pre-wrap">
-                        {guidance.guidance || "This period favors thoughtful action and steady progress. Maintain balance in daily routines."}
-                      </p>
+                    <div className="p-5 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border border-blue-200">
+                      <div className="prose prose-slate max-w-none">
+                        <p className="text-slate-700 leading-relaxed text-sm whitespace-pre-wrap">
+                          {guidance.guidance || "This period favors thoughtful action and steady progress. Maintain balance in daily routines."}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Optional: Focus Areas (if provided, but don't make it prescriptive) */}
-                  {guidance.actions && guidance.actions.length > 0 && (
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                      <h3 className="text-sm font-semibold text-slate-700 mb-3">Reflective Observations</h3>
-                      <ul className="space-y-2">
-                        {guidance.actions && guidance.actions.length > 0 && guidance.actions.slice(0, 3).map((action, idx) => (
-                          <li key={idx} className="flex items-start gap-3 text-sm text-slate-600">
-                            <span className="text-slate-400 mt-1">•</span>
-                            <span>{action}</span>
-                          </li>
-                        ))}
-                      </ul>
+                  {/* Section 2: Focus Areas */}
+                  {guidance.focusAreas && (
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-800 mb-3">This Month&apos;s Focus Areas</h3>
+                      <div className="grid gap-3">
+                        <div className="p-3 bg-white rounded-lg border border-slate-200">
+                          <div className="flex items-start gap-2 mb-1">
+                            <span className="text-base">🧠</span>
+                            <span className="text-sm font-semibold text-slate-700">Mindset & thinking style</span>
+                          </div>
+                          <p className="text-sm text-slate-600 ml-7">{guidance.focusAreas.mindset}</p>
+                        </div>
+                        <div className="p-3 bg-white rounded-lg border border-slate-200">
+                          <div className="flex items-start gap-2 mb-1">
+                            <span className="text-base">💼</span>
+                            <span className="text-sm font-semibold text-slate-700">Work & productivity</span>
+                          </div>
+                          <p className="text-sm text-slate-600 ml-7">{guidance.focusAreas.work}</p>
+                        </div>
+                        <div className="p-3 bg-white rounded-lg border border-slate-200">
+                          <div className="flex items-start gap-2 mb-1">
+                            <span className="text-base">🤝</span>
+                            <span className="text-sm font-semibold text-slate-700">Relationships & communication</span>
+                          </div>
+                          <p className="text-sm text-slate-600 ml-7">{guidance.focusAreas.relationships}</p>
+                        </div>
+                        <div className="p-3 bg-white rounded-lg border border-slate-200">
+                          <div className="flex items-start gap-2 mb-1">
+                            <span className="text-base">🧘</span>
+                            <span className="text-sm font-semibold text-slate-700">Energy & balance</span>
+                          </div>
+                          <p className="text-sm text-slate-600 ml-7">{guidance.focusAreas.energy}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 3: Helpful This Month */}
+                  {guidance.helpfulThisMonth && guidance.helpfulThisMonth.length > 0 && (
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-800 mb-3">Helpful This Month</h3>
+                      <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                        <ul className="space-y-2">
+                          {guidance.helpfulThisMonth.map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-3 text-sm text-slate-700">
+                              <span className="text-green-600 mt-1">•</span>
+                              <span>Do: {item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 4: Be Mindful Of */}
+                  {guidance.beMindfulOf && guidance.beMindfulOf.length > 0 && (
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-800 mb-3">Be Mindful Of</h3>
+                      <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                        <ul className="space-y-2">
+                          {guidance.beMindfulOf.map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-3 text-sm text-slate-700">
+                              <span className="text-amber-600 mt-1">•</span>
+                              <span>Avoid: {item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 5: Reflection Prompt */}
+                  {guidance.reflectionPrompt && (
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-800 mb-3">Reflection</h3>
+                      <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                        <p className="text-sm text-slate-700 italic">
+                          {guidance.reflectionPrompt}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -76,8 +76,8 @@ test.describe('Timer Behavior (Critical Defect Coverage)', () => {
     await expect(reportContent.first()).toBeVisible({ timeout: 5000 });
   });
   
-  test('bundle report timer should not get stuck after few seconds', async ({ page }) => {
-    // This test verifies bundle report timer continues properly
+  test('bundle report timer should not get stuck after 25 seconds', async ({ page }) => {
+    // This test verifies bundle report timer continues properly past the 25 second stuck point
     await page.goto('/ai-astrology/input?bundle=any-2');
     await fillInputForm(page);
     
@@ -85,50 +85,68 @@ test.describe('Timer Behavior (Critical Defect Coverage)', () => {
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
     // Wait for timer to start (bundle reports take longer)
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2000);
     
     // Check timer is running
-    const timer = page.locator('text=/Elapsed|⏱️|Bundle/i');
+    const timer = page.locator('text=/Elapsed|⏱️|Timer/i');
     const timerVisible = await timer.first().isVisible({ timeout: 3000 }).catch(() => false);
     
-    // Wait more (bundle reports take longer) to ensure timer doesn't get stuck
-    await page.waitForTimeout(5000);
+    // Wait to 5 seconds
+    await page.waitForTimeout(3000);
     
-    // Report generation should continue or complete
-    // With MOCK_MODE, bundle reports should complete
-    await page.waitForTimeout(5000);
+    // CRITICAL: Wait to ensure timer continues past 25 seconds (previously stuck point)
+    await page.waitForTimeout(25000); // Wait to 30 seconds total
     
-    // Verify bundle generation progress or completion
-    const bundleProgress = page.locator('text=/Bundle|Reports|Generating|Report/i');
-    const hasProgress = await bundleProgress.first().isVisible({ timeout: 5000 }).catch(() => false);
+    // Verify timer is still running or report completed (not stuck at 25s)
+    const bundleProgress = page.locator('text=/Bundle|Reports|Generating/i');
+    const reportContent = page.locator('text=/Report|Overview|Summary/i');
+    const hasProgress = await bundleProgress.first().isVisible({ timeout: 3000 }).catch(() => false);
+    const hasContent = await reportContent.first().isVisible({ timeout: 3000 }).catch(() => false);
     
-    // Bundle generation should be progressing or completed (not stuck)
-    expect(hasProgress || timerVisible).toBeTruthy();
+    // Bundle generation should be progressing or completed (not stuck at 25s)
+    expect(hasProgress || hasContent || timerVisible).toBeTruthy();
+    
+    // Wait for bundle generation to complete
+    await waitForReportGeneration(page, 30000); // 30s additional timeout
+    
+    // Verify not stuck in loading state
+    const loadingState = page.locator('text=/Generating.*Report/i');
+    const stillLoading = await loadingState.first().isVisible({ timeout: 2000 }).catch(() => false);
+    expect(stillLoading).toBeFalsy();
   });
   
   test('paid report timer should not get stuck at specific number', async ({ page }) => {
-    // This test verifies paid report timer doesn't freeze
+    // This test verifies paid report timer doesn't freeze (specifically year-analysis)
     await page.goto('/ai-astrology/input?reportType=year-analysis');
     await fillInputForm(page);
     
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Monitor timer for a few seconds
+    // Wait for timer to start (payment verification might happen first for paid reports)
+    await page.waitForTimeout(2000);
+    
+    // Check timer is running
+    const timer = page.locator('text=/Elapsed|⏱️|Timer/i');
+    const timerVisible = await timer.first().isVisible({ timeout: 3000 }).catch(() => false);
+    
+    // Monitor timer for a few seconds to ensure it continues (doesn't freeze)
     await page.waitForTimeout(3000);
     
-    const timer = page.locator('text=/Elapsed|⏱️/i');
-    const timerVisible = await timer.first().isVisible({ timeout: 2000 }).catch(() => false);
-    
-    // Wait more to ensure timer continues
+    // Wait more to ensure timer continues and report completes
     await page.waitForTimeout(3000);
     
     // Report should complete (timer stops incrementing)
-    await waitForReportGeneration(page, 15000);
+    await waitForReportGeneration(page, 20000); // Longer timeout for paid reports
     
     // Verify report is displayed (not stuck)
-    const reportContent = page.locator('text=/Report|Overview|Summary/i');
+    const reportContent = page.locator('text=/Report|Overview|Summary|Year Analysis/i');
     await expect(reportContent.first()).toBeVisible({ timeout: 5000 });
+    
+    // Verify timer stopped (loading state is gone)
+    const loadingState = page.locator('text=/Generating.*Report/i');
+    const stillLoading = await loadingState.first().isVisible({ timeout: 2000 }).catch(() => false);
+    expect(stillLoading).toBeFalsy();
   });
   
   test('timer should stop when report generation completes', async ({ page }) => {

@@ -316,36 +316,78 @@ export const AI_PROMPT_TEMPLATES = {
       Here are current planetary transits: ${JSON.stringify(currentTransits, null, 2)}
 
       OUTPUT:
-      Generate a "Current Theme & Focus" guidance that is general, reflective, and educational - NOT predictive or prescriptive.
+      Generate a "Monthly AI Astrology Outlook" that is structured, reflective, and educational - NOT predictive or prescriptive.
+      Total content should be ~300-450 words maximum.
       
       CRITICAL REQUIREMENTS:
       1. NO DAILY PRESCRIPTIONS:
          - Do NOT say "Today is good for..."
          - Do NOT say "Avoid today..."
          - Do NOT provide daily-specific actions
+         - Do NOT include dates, timelines, "good/bad days"
+         - Do NOT include remedies or rituals
       
-      2. THEME-BASED APPROACH:
+      2. STRUCTURE (VERY IMPORTANT - generate ALL sections):
+         
+         SECTION 1: Monthly Theme
+         - 2-3 lines summary + 1 short paragraph (keep existing guidance field format)
          - Focus on current period/phase themes
-         - Provide reflective, general guidance
-         - Use language like "This period favors..." or "Current themes suggest..."
+         - Use language like "This month emphasizes..." or "Current themes suggest..."
+         
+         SECTION 2: Focus Areas (REQUIRED - generate all 4 areas)
+         Generate exactly 4 focus areas, each with 1-2 sentences:
+         - Mindset & thinking style: [1-2 sentences about mental approach, thinking patterns]
+         - Work & productivity: [1-2 sentences about professional focus, work style]
+         - Relationships & communication: [1-2 sentences about interpersonal dynamics]
+         - Energy & balance: [1-2 sentences about energy levels, work-life balance]
+         
+         SECTION 3: Helpful This Month (REQUIRED - generate 2-3 items)
+         Generate 2-3 "Do" items (1-2 sentences each):
+         - Do: [action or approach that may be helpful]
+         - Do: [another helpful action or approach]
+         
+         SECTION 4: Be Mindful Of (REQUIRED - generate 2-3 items)
+         Generate 2-3 "Avoid" items (1-2 sentences each):
+         - Avoid: [pattern or approach to be mindful of]
+         - Avoid: [another pattern to be mindful of]
+         
+         SECTION 5: Reflection Prompt (REQUIRED - generate 1 question)
+         Generate 1 reflective question (not predictive):
+         - Format: "What [conversation/decision/area] deserves more clarity this month?"
+         - Example: "What conversation or decision deserves more clarity this month?"
       
-      3. STRUCTURE:
-         Generate a single calm guidance block that includes:
-         - A general theme or focus area for the current period
-         - Reflective observations (not prescriptions)
-         - Calm, non-absolute language
-         - Emphasis on balance and thoughtful action
-      
-      4. LANGUAGE RULES:
-         - Use: "favors", "suggests", "tends to", "may benefit from"
-         - Avoid: "must", "should", "avoid today", "good for today", "do this"
+      3. LANGUAGE RULES:
+         - Use: "favors", "suggests", "tends to", "may benefit from", "consider"
+         - Avoid: "must", "should", "avoid today", "good for today", "do this", predictions
          - Keep tone calm, reflective, and educational
          - No fear language
          - No guarantees or predictions
+         - "Avoid" items should be gentle awareness, not prohibitions
       
-      5. LENGTH:
-         Keep guidance concise - 2-4 sentences that provide a general theme.
-         Example: "This period favors thoughtful action and steady progress. Emphasis on clarity and communication tends to support better outcomes. Maintain balance between action and rest, and avoid rushing decisions."
+      4. OUTPUT FORMAT:
+         Structure the response as follows (use clear section headers):
+         
+         MONTHLY THEME:
+         [2-3 lines summary + 1 short paragraph]
+         
+         FOCUS AREAS:
+         - Mindset & thinking style: [1-2 sentences]
+         - Work & productivity: [1-2 sentences]
+         - Relationships & communication: [1-2 sentences]
+         - Energy & balance: [1-2 sentences]
+         
+         HELPFUL THIS MONTH:
+         - Do: [1-2 sentences]
+         - Do: [1-2 sentences]
+         - Do: [1-2 sentences] (optional third item)
+         
+         BE MINDFUL OF:
+         - Avoid: [1-2 sentences]
+         - Avoid: [1-2 sentences]
+         - Avoid: [1-2 sentences] (optional third item)
+         
+         REFLECTION PROMPT:
+         [1 question]
       `,
 
     fullLife: (birthDetails: any, planetaryData: any) => `

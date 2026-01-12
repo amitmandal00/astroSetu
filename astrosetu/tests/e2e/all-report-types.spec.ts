@@ -36,7 +36,8 @@ test.describe('All Report Types E2E', () => {
       await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
       
       // Wait for report generation (with MOCK_MODE, this should be fast)
-      await waitForReportGeneration(page, 15000);
+      // Paid reports may take slightly longer due to payment verification
+      await waitForReportGeneration(page, 20000);
       
       // Verify report is displayed
       await page.waitForTimeout(2000); // Wait for report to render
@@ -44,6 +45,11 @@ test.describe('All Report Types E2E', () => {
       // Check for report content (flexible selector)
       const reportContent = page.locator('text=/Report|Overview|Summary|Insights|Timing|Career|Life|Decision/i');
       await expect(reportContent.first()).toBeVisible({ timeout: 5000 });
+      
+      // Verify not stuck in loading state
+      const loadingState = page.locator('text=/Generating.*Report|Creating.*Report/i');
+      const stillLoading = await loadingState.first().isVisible({ timeout: 2000 }).catch(() => false);
+      expect(stillLoading).toBeFalsy();
     });
   }
 });

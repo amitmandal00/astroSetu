@@ -146,10 +146,20 @@ export type Subscription = {
 export type DailyGuidance = {
   date: string;
   input: AIAstrologyInput;
-  todayGoodFor: string[];
-  avoidToday: string[];
-  actions: string[];
-  planetaryInfluence: string;
-  guidance: string;
+  todayGoodFor: string[]; // Deprecated - kept for backward compatibility
+  avoidToday: string[]; // Deprecated - kept for backward compatibility
+  actions: string[]; // Deprecated - kept for backward compatibility
+  planetaryInfluence: string; // Deprecated - kept for backward compatibility
+  guidance: string; // Monthly theme (2-3 lines summary + 1 short paragraph)
+  // Enhanced structure for monthly outlook
+  focusAreas?: {
+    mindset: string; // 1-2 sentences
+    work: string; // 1-2 sentences
+    relationships: string; // 1-2 sentences
+    energy: string; // 1-2 sentences
+  };
+  helpfulThisMonth?: string[]; // Array of "Do" items (1-2 sentences each)
+  beMindfulOf?: string[]; // Array of "Avoid" items (1-2 sentences each)
+  reflectionPrompt?: string; // 1 question for reflection
 };
 

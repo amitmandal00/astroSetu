@@ -43,7 +43,8 @@ test.describe('Paid Report (Year Analysis) E2E', () => {
     }
     
     // Step 4: Wait for report generation (with MOCK_MODE, this should be fast)
-    await waitForReportGeneration(page, 15000);
+    // Paid reports may take slightly longer due to payment verification
+    await waitForReportGeneration(page, 20000);
     
     // Step 5: Verify report is displayed
     await page.waitForTimeout(2000); // Wait for report to render
@@ -55,6 +56,11 @@ test.describe('Paid Report (Year Analysis) E2E', () => {
     // Verify report sections are visible (year-analysis specific or general content)
     const reportContent = page.locator('text=/Quarterly|Theme|Year.*Theme|Overview|Summary|Insights/i');
     await expect(reportContent.first()).toBeVisible({ timeout: 5000 });
+    
+    // Verify not stuck in loading state
+    const loadingState = page.locator('text=/Generating.*Report|Creating.*Report/i');
+    const stillLoading = await loadingState.first().isVisible({ timeout: 2000 }).catch(() => false);
+    expect(stillLoading).toBeFalsy();
     
     // User's name might not be displayed, so we just verify content exists
     expect(titleVisible || await reportContent.first().isVisible()).toBeTruthy();

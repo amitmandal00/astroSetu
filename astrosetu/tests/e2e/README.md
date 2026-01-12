@@ -37,15 +37,23 @@ Tests retry functionality:
 - Retry succeeds without duplicate charges
 - Idempotency prevents duplicate API calls
 
+#### 6. `subscription-outlook.spec.ts`
+Tests enhanced monthly outlook structure:
+- Monthly Theme display
+- Focus Areas (Mindset, Work, Relationships, Energy)
+- Helpful This Month (Do items)
+- Be Mindful Of (Avoid items)
+- Reflection Prompt
+
 ### Extended Coverage Tests
 
-#### 6. `bundle-reports.spec.ts`
+#### 7. `bundle-reports.spec.ts`
 Tests bundle report generation:
 - any-2 bundle reports
 - all-3 bundle reports
 - Multiple report generation flow
 
-#### 7. `all-report-types.spec.ts`
+#### 8. `all-report-types.spec.ts`
 Tests all report types to ensure they work:
 - marriage-timing
 - career-money
@@ -53,7 +61,7 @@ Tests all report types to ensure they work:
 - major-life-phase
 - decision-support
 
-#### 8. `form-validation.spec.ts`
+#### 9. `form-validation.spec.ts`
 Tests form validation and error handling:
 - Empty form submission
 - Invalid date formats
@@ -61,7 +69,7 @@ Tests form validation and error handling:
 - Coordinate resolution
 - Field validation rules
 
-#### 9. `navigation-flows.spec.ts`
+#### 10. `navigation-flows.spec.ts`
 Tests navigation scenarios:
 - Back button navigation
 - Direct URL navigation
@@ -69,14 +77,14 @@ Tests navigation scenarios:
 - Multiple page navigation
 - Data persistence across navigation
 
-#### 10. `session-storage.spec.ts`
+#### 11. `session-storage.spec.ts`
 Tests session storage persistence:
 - Form data saved
 - Report type saved
 - Bundle data saved
 - Data availability after navigation
 
-#### 11. `edge-cases.spec.ts`
+#### 12. `edge-cases.spec.ts`
 Tests edge cases and boundary conditions:
 - Long names
 - Historical dates

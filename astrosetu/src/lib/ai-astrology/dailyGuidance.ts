@@ -52,7 +52,7 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
         },
       ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 2000, // Increased for enhanced structure (300-450 words)
     }),
   });
 
@@ -145,7 +145,7 @@ async function generateWithAnthropic(prompt: string): Promise<string> {
     },
     body: JSON.stringify({
       model: "claude-3-sonnet-20240229",
-      max_tokens: 1500,
+      max_tokens: 2000, // Increased for enhanced structure (300-450 words)
       messages: [
         {
           role: "user",
@@ -165,42 +165,91 @@ async function generateWithAnthropic(prompt: string): Promise<string> {
 }
 
 /**
- * Parse AI response into structured theme-based guidance
+ * Parse AI response into structured monthly outlook guidance
  */
 function parseDailyGuidance(response: string, date: string): DailyGuidance {
-  // Extract theme-based guidance (main content)
-  // Look for the core guidance message - typically the first substantial paragraph
-  const guidance = response
-    .split(/\n\n+/)
-    .map((para) => para.trim())
-    .filter((para) => {
-      // Filter out headings, lists, and very short paragraphs
-      return para.length > 50 && 
-             !para.match(/^(Today|Avoid|Good|Actions|Guidance|Theme|Focus):/i) &&
-             !para.startsWith('#') &&
-             !para.startsWith('•') &&
-             !para.startsWith('-');
-    })[0] || response.substring(0, 500).trim();
+  // Extract Monthly Theme (main guidance content)
+  const themeMatch = response.match(/MONTHLY THEME:?\s*(.*?)(?=\n\s*(?:FOCUS AREAS|HELPFUL|BE MINDFUL|REFLECTION)|$)/is);
+  const guidance = themeMatch
+    ? themeMatch[1].trim()
+    : response
+        .split(/\n\n+/)
+        .map((para) => para.trim())
+        .filter((para) => {
+          // Filter out headings, lists, and very short paragraphs
+          return para.length > 50 && 
+                 !para.match(/^(Today|Avoid|Good|Actions|Guidance|Theme|Focus|FOCUS AREAS|HELPFUL|BE MINDFUL|REFLECTION):/i) &&
+                 !para.startsWith('#') &&
+                 !para.startsWith('•') &&
+                 !para.startsWith('-');
+        })[0] || response.substring(0, 500).trim();
 
-  // Extract optional reflective observations (not prescriptions)
-  const observationsMatch = response.match(/(?:Observations|Reflective notes|Themes):\s*(.*?)(?:\n\n|$)/is);
-  const observations = observationsMatch
-    ? observationsMatch[1]
-        .split(/\n|•|-/)
-        .map((item) => item.trim())
-        .filter((item) => item.length > 10 && item.length < 150)
-        .slice(0, 5)
-    : [];
+  // Extract Focus Areas
+  const focusAreasMatch = response.match(/FOCUS AREAS:?\s*(.*?)(?=\n\s*(?:HELPFUL|BE MINDFUL|REFLECTION)|$)/is);
+  let focusAreas: { mindset: string; work: string; relationships: string; energy: string } | undefined;
+  if (focusAreasMatch) {
+    const focusText = focusAreasMatch[1];
+    const mindsetMatch = focusText.match(/Mindset[^:]*:\s*(.*?)(?=\n\s*[-•]|\n\s*(?:Work|Relationships|Energy)|$)/is);
+    const workMatch = focusText.match(/Work[^:]*:\s*(.*?)(?=\n\s*[-•]|\n\s*(?:Relationships|Energy|Mindset)|$)/is);
+    const relationshipsMatch = focusText.match(/Relationships[^:]*:\s*(.*?)(?=\n\s*[-•]|\n\s*(?:Energy|Mindset|Work)|$)/is);
+    const energyMatch = focusText.match(/Energy[^:]*:\s*(.*?)(?=\n\s*[-•]|\n\s*(?:Mindset|Work|Relationships)|$)/is);
+    
+    focusAreas = {
+      mindset: mindsetMatch ? mindsetMatch[1].trim().replace(/^[-•]\s*/, '') : "",
+      work: workMatch ? workMatch[1].trim().replace(/^[-•]\s*/, '') : "",
+      relationships: relationshipsMatch ? relationshipsMatch[1].trim().replace(/^[-•]\s*/, '') : "",
+      energy: energyMatch ? energyMatch[1].trim().replace(/^[-•]\s*/, '') : "",
+    };
+    
+    // If any area is empty, don't include focusAreas
+    if (!focusAreas.mindset || !focusAreas.work || !focusAreas.relationships || !focusAreas.energy) {
+      focusAreas = undefined;
+    }
+  }
 
-  // Use minimal defaults - guidance is the main content
+  // Extract Helpful This Month (Do items)
+  const helpfulMatch = response.match(/HELPFUL THIS MONTH:?\s*(.*?)(?=\n\s*(?:BE MINDFUL|REFLECTION)|$)/is);
+  const helpfulThisMonth = helpfulMatch
+    ? helpfulMatch[1]
+        .split(/\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.match(/^[-•]\s*Do:/i))
+        .map((line) => line.replace(/^[-•]\s*Do:\s*/i, '').trim())
+        .filter((item) => item.length > 10 && item.length < 200)
+        .slice(0, 3)
+    : undefined;
+
+  // Extract Be Mindful Of (Avoid items)
+  const mindfulMatch = response.match(/BE MINDFUL OF:?\s*(.*?)(?=\n\s*(?:REFLECTION|$)|$)/is);
+  const beMindfulOf = mindfulMatch
+    ? mindfulMatch[1]
+        .split(/\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.match(/^[-•]\s*Avoid:/i))
+        .map((line) => line.replace(/^[-•]\s*Avoid:\s*/i, '').trim())
+        .filter((item) => item.length > 10 && item.length < 200)
+        .slice(0, 3)
+    : undefined;
+
+  // Extract Reflection Prompt
+  const reflectionMatch = response.match(/REFLECTION PROMPT:?\s*(.*?)(?=\n\n|$)/is);
+  const reflectionPrompt = reflectionMatch
+    ? reflectionMatch[1].trim().replace(/^[-•]\s*/, '')
+    : undefined;
+
+  // Use defaults if parsing failed
   return {
     date,
     input: {} as AIAstrologyInput, // Will be filled by caller
-    todayGoodFor: [], // No longer used - kept for type compatibility
-    avoidToday: [], // No longer used - kept for type compatibility
-    actions: observations.length > 0 ? observations : [], // Used for optional reflective observations only
-    planetaryInfluence: "", // No longer shown separately
+    todayGoodFor: [], // Deprecated - kept for type compatibility
+    avoidToday: [], // Deprecated - kept for type compatibility
+    actions: [], // Deprecated - kept for type compatibility
+    planetaryInfluence: "", // Deprecated - kept for type compatibility
     guidance: guidance || "This period favors thoughtful action and steady progress. Maintain balance between action and rest, and avoid rushing decisions.",
+    focusAreas,
+    helpfulThisMonth: helpfulThisMonth && helpfulThisMonth.length > 0 ? helpfulThisMonth : undefined,
+    beMindfulOf: beMindfulOf && beMindfulOf.length > 0 ? beMindfulOf : undefined,
+    reflectionPrompt: reflectionPrompt && reflectionPrompt.length > 10 ? reflectionPrompt : undefined,
   };
 }
 

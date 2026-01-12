@@ -42,6 +42,52 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check for MOCK_MODE
+    if (process.env.MOCK_MODE === "true") {
+      // Return mock enhanced monthly outlook structure
+      const mockGuidance = {
+        date: date || new Date().toISOString().split("T")[0],
+        input,
+        todayGoodFor: [],
+        avoidToday: [],
+        actions: [],
+        planetaryInfluence: "",
+        guidance: "This month emphasizes balance between personal growth and professional commitments. Planetary influences suggest focusing on communication and relationship harmony. Consider reflecting on long-term goals while maintaining daily routines.",
+        focusAreas: {
+          mindset: "This month favors clear thinking and deliberate decision-making. Mental clarity improves when you take time for reflection.",
+          work: "Professional progress benefits from collaboration and clear communication. Focus on one key project at a time.",
+          relationships: "Open dialogue and patience support stronger connections this month. Listen actively and express needs directly.",
+          energy: "Balance activity with rest to maintain steady energy levels. Protect time for recovery and renewal.",
+        },
+        helpfulThisMonth: [
+          "Plan conversations carefully and write things down to ensure clarity",
+          "Revisit unfinished ideas and projects that deserve attention",
+        ],
+        beMindfulOf: [
+          "Overloading your schedule with too many commitments",
+          "Jumping to conclusions without gathering full information",
+        ],
+        reflectionPrompt: "What conversation or decision deserves more clarity this month?",
+      };
+
+      // Simulate slow generation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      return NextResponse.json(
+        {
+          ok: true,
+          data: mockGuidance,
+          requestId,
+        },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "public, max-age=3600",
+          },
+        }
+      );
+    }
+
     // Generate daily guidance
     const guidance = await generateDailyGuidance(input, date);
 

@@ -44,37 +44,67 @@ test.describe('Report Generation Stuck Prevention', () => {
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Wait for report generation
-    await waitForReportGeneration(page, 20000);
+    // Wait for timer to start (payment verification might happen first)
+    await page.waitForTimeout(2000);
+    
+    // Check timer is running (should show elapsed time)
+    const timer = page.locator('text=/Elapsed|⏱️|Timer/i');
+    const timerVisible = await timer.first().isVisible({ timeout: 3000 }).catch(() => false);
+    
+    // Wait for report generation (year-analysis is a paid report, may take longer)
+    await waitForReportGeneration(page, 25000); // Longer timeout for paid reports
     
     // Verify report is displayed (not stuck)
-    const reportContent = page.locator('text=/Report|Overview|Summary|Year Analysis/i');
+    const reportContent = page.locator('text=/Report|Overview|Summary|Year Analysis|Year.*Analysis/i');
     await expect(reportContent.first()).toBeVisible({ timeout: 5000 });
     
     // Verify not stuck in loading
-    const loadingState = page.locator('text=/Generating.*Report/i');
+    const loadingState = page.locator('text=/Generating.*Report|Creating.*Report/i');
     const stillLoading = await loadingState.first().isVisible({ timeout: 2000 }).catch(() => false);
     
     expect(stillLoading).toBeFalsy();
   });
   
-  test('bundle reports should generate successfully (not get stuck)', async ({ page }) => {
-    // This test verifies bundle reports generate properly
+  test('bundle reports should generate successfully (not get stuck after 25 seconds)', async ({ page }) => {
+    // This test verifies bundle reports generate properly and don't get stuck at 25 seconds
     await page.goto('/ai-astrology/input?bundle=any-2');
     await fillInputForm(page);
     
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Bundle reports take longer, wait appropriately
-    await page.waitForTimeout(10000); // Give bundle generation time
+    // Wait for timer to start
+    await page.waitForTimeout(2000);
     
-    // Verify bundle generation progress or completion
-    const bundleContent = page.locator('text=/Bundle|Reports|Generating|Report|Overview/i');
-    const hasContent = await bundleContent.first().isVisible({ timeout: 10000 }).catch(() => false);
+    // Monitor timer - it should continue past 25 seconds (previously stuck point)
+    await page.waitForTimeout(3000); // Wait to 5 seconds
     
-    // Bundle should be generating or completed (not stuck)
-    expect(hasContent).toBeTruthy();
+    const timer = page.locator('text=/Elapsed|⏱️|Timer/i');
+    const timerVisible = await timer.first().isVisible({ timeout: 3000 }).catch(() => false);
+    
+    // Wait more to ensure timer continues past 25 seconds (critical stuck point)
+    await page.waitForTimeout(25000); // Wait to 30 seconds total
+    
+    // Verify timer is still running or report completed (not stuck at 25s)
+    const bundleProgress = page.locator('text=/Bundle|Reports|Generating/i');
+    const reportContent = page.locator('text=/Report|Overview|Summary/i');
+    const hasProgress = await bundleProgress.first().isVisible({ timeout: 3000 }).catch(() => false);
+    const hasContent = await reportContent.first().isVisible({ timeout: 3000 }).catch(() => false);
+    
+    // Bundle should be generating (progress visible) or completed (content visible) - not stuck
+    expect(hasProgress || hasContent).toBeTruthy();
+    
+    // Wait for bundle generation to complete (longer timeout for bundles)
+    await waitForReportGeneration(page, 30000); // 30s additional timeout
+    
+    // Verify bundle reports completed (not stuck)
+    const finalContent = page.locator('text=/Report|Overview|Summary|Bundle/i');
+    await expect(finalContent.first()).toBeVisible({ timeout: 5000 });
+    
+    // Verify not stuck in loading state
+    const loadingState = page.locator('text=/Generating.*Report|Creating.*Report/i');
+    const stillLoading = await loadingState.first().isVisible({ timeout: 2000 }).catch(() => false);
+    expect(stillLoading).toBeFalsy();
   });
   
   test('individual reports should not get stuck', async ({ page }) => {
