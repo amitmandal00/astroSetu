@@ -1470,19 +1470,27 @@ function PreviewContent() {
 
   // Track elapsed time during loading and update progress steps
   useEffect(() => {
-    if (loading && loadingStartTime) {
-      // Sync ref with state (for other code that uses ref)
-      loadingStartTimeRef.current = loadingStartTime;
+    if (loading) {
+      // Ensure ref is synced with state when state changes
+      if (loadingStartTime) {
+        loadingStartTimeRef.current = loadingStartTime;
+      }
       
-      // Capture the start time value at the moment the interval is created
-      // When loadingStartTime changes, this useEffect re-runs, clearing the old interval
-      // and creating a new one with the updated value
-      const startTimeForInterval = loadingStartTime;
-      
+      // Use ref value in interval - ref is always current and doesn't have closure issues
+      // This is the most reliable approach for interval callbacks
       const interval = setInterval(() => {
-        // Calculate elapsed time using the captured start time
-        // This value is fresh because the useEffect re-runs when loadingStartTime changes
-        const elapsed = Math.floor((Date.now() - startTimeForInterval) / 1000);
+        const startTime = loadingStartTimeRef.current;
+        if (!startTime) {
+          // If ref is not set yet, try to use state value and sync ref
+          if (loadingStartTime) {
+            loadingStartTimeRef.current = loadingStartTime;
+            const elapsed = Math.floor((Date.now() - loadingStartTime) / 1000);
+            setElapsedTime(elapsed);
+            return;
+          }
+          return; // No start time available yet
+        }
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setElapsedTime(elapsed);
         
         // Update progress steps (simulated progress for UX - not actual backend status)
