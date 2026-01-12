@@ -198,7 +198,10 @@ function SubscriptionContent() {
               <div className="text-center space-y-4">
                 <div className="mb-4">
                   <p className="text-sm text-slate-600 mb-2">
-                    <strong>New outlook delivered automatically on the 1st of each month.</strong>
+                    <strong>A new monthly outlook is automatically generated on the 1st of each month and made available in your dashboard.</strong>
+                  </p>
+                  <p className="text-xs text-slate-500 mb-3">
+                    No emails required. Access anytime. Cancel anytime.
                   </p>
                   <p className="text-xs text-slate-500 italic">
                     Complements Year Analysis & Life Phase reports with ongoing monthly themes.
@@ -227,7 +230,7 @@ function SubscriptionContent() {
               <ul className="space-y-2">
                 <li className="flex items-start gap-3">
                   <span className="text-amber-700 text-lg">•</span>
-                  <span className="text-slate-700">Monthly focus areas & themes delivered automatically on the 1st</span>
+                  <span className="text-slate-700">Monthly focus areas & themes generated automatically on the 1st</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-amber-700 text-lg">•</span>
@@ -244,6 +247,25 @@ function SubscriptionContent() {
                 <li className="flex items-start gap-3">
                   <span className="text-amber-700 text-lg">•</span>
                   <span className="text-slate-700">Fully automated — no human involvement</span>
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* How Monthly Delivery Works */}
+        {!isSubscribed && (
+          <Card className="cosmic-card mb-6 bg-slate-50">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-slate-900 mb-3">How Monthly Delivery Works</h3>
+              <ul className="space-y-2 text-sm text-slate-700">
+                <li className="flex items-start gap-3">
+                  <span className="text-slate-500 mt-1">•</span>
+                  <span>A new outlook is generated once per month</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-slate-500 mt-1">•</span>
+                  <span>Available in your dashboard from the 1st onward</span>
                 </li>
               </ul>
             </CardContent>
