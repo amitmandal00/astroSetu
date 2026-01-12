@@ -103,7 +103,7 @@ test.describe('Report Generation Stuck Prevention', () => {
     expect(stillLoading).toBeFalsy();
   });
   
-  test('bundle reports should generate successfully (not get stuck after 18 seconds)', async ({ page }) => {
+  test('bundle reports should generate successfully (not get stuck after 26 seconds)', async ({ page }) => {
     // This test verifies bundle reports generate properly and don't get stuck at 18 seconds (reported issue)
     await page.goto('/ai-astrology/input?bundle=all-3');
     await fillInputForm(page);
