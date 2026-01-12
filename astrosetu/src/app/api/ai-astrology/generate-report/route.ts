@@ -949,6 +949,52 @@ export async function POST(req: Request) {
     };
     console.log("[GENERATION START]", JSON.stringify(generationStartLog, null, 2));
 
+    // MOCK_MODE: Return mock data for testing/development (prevents OpenAI/Prokerala API calls)
+    const mockMode = process.env.MOCK_MODE === "true";
+    if (mockMode) {
+      const { getMockReport, simulateApiDelay } = await import("@/lib/ai-astrology/mocks/fixtures");
+      
+      // Simulate API delay for realistic testing
+      await simulateApiDelay(1500, 3000);
+      
+      // Generate mock report
+      const mockReportContent = getMockReport(reportType);
+      
+      // Cache the mock report (for idempotency)
+      cacheReport(idempotencyKey, reportId, mockReportContent, reportType, input);
+      
+      const mockLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        action: "MOCK_REPORT_GENERATED",
+        reportType,
+        reportId,
+        elapsedMs: Date.now() - startTime,
+      };
+      console.log("[MOCK MODE]", JSON.stringify(mockLog, null, 2));
+      
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "completed" as const,
+            reportId,
+            reportType,
+            input,
+            content: mockReportContent,
+            generatedAt: mockReportContent.generatedAt || new Date().toISOString(),
+          },
+          requestId,
+        },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "X-Mock-Mode": "true",
+          },
+        }
+      );
+    }
+
     // Generate report based on type with hard timeout fallback
     // Optimized timeouts for faster user experience:
     // - Reduced retries (3 instead of 5) = faster failure
