@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test';
 import { fillInputForm, waitForReportGeneration } from './test-helpers';
 
 test.describe('Report Generation Stuck Prevention', () => {
-  test('free report should generate successfully (not get stuck)', async ({ page }) => {
+  test('free report should generate successfully (not get stuck at 19 seconds)', async ({ page }) => {
     // This test verifies free reports generate properly
     await page.goto('/ai-astrology/input?reportType=life-summary');
     await fillInputForm(page);

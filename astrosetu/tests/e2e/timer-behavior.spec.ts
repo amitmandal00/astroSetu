@@ -15,7 +15,7 @@ import { test, expect } from '@playwright/test';
 import { fillInputForm, waitForReportGeneration } from './test-helpers';
 
 test.describe('Timer Behavior (Critical Defect Coverage)', () => {
-  test('free report timer should not get stuck at 0s', async ({ page }) => {
+  test('free report timer should not get stuck at 19 seconds', async ({ page }) => {
     // CRITICAL: This test verifies free report timer starts and increments properly (not stuck at 0s)
     // This addresses the defect: "timer stuck at 0s" (reported multiple times for free reports)
     await page.goto('/ai-astrology/input?reportType=life-summary');
