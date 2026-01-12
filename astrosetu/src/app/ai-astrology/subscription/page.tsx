@@ -174,11 +174,36 @@ function SubscriptionContent() {
           </div>
         </div>
 
+        {/* Preview Snippet */}
+        {!isSubscribed && (
+          <Card className="cosmic-card mb-6 border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-slate-800 mb-3">Preview: Monthly Theme Example</h3>
+              <div className="bg-white rounded-lg p-4 border border-purple-200">
+                <p className="text-sm text-slate-700 italic mb-2">
+                  &quot;This month emphasizes balance between personal growth and professional commitments. 
+                  Planetary influences suggest focusing on communication and relationship harmony. 
+                  Consider reflecting on long-term goals while maintaining daily routines...&quot;
+                </p>
+                <p className="text-xs text-slate-500">Each month features a unique theme tailored to your birth chart</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Subscription Status */}
         {!isSubscribed && (
           <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
             <CardContent className="p-6">
-              <div className="text-center">
+              <div className="text-center space-y-4">
+                <div className="mb-4">
+                  <p className="text-sm text-slate-600 mb-2">
+                    <strong>New outlook delivered automatically on the 1st of each month.</strong>
+                  </p>
+                  <p className="text-xs text-slate-500 italic">
+                    Complements Year Analysis & Life Phase reports with ongoing monthly themes.
+                  </p>
+                </div>
                 <Button
                   onClick={handleSubscribe}
                   disabled={loading}
@@ -186,6 +211,9 @@ function SubscriptionContent() {
                 >
                   {loading ? "Processing..." : "Subscribe"}
                 </Button>
+                <p className="text-xs text-slate-500 italic mt-3">
+                  This is not a prediction service. Cancel anytime.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -199,23 +227,23 @@ function SubscriptionContent() {
               <ul className="space-y-2">
                 <li className="flex items-start gap-3">
                   <span className="text-amber-700 text-lg">•</span>
-                  <span className="text-slate-700">Monthly focus areas & themes</span>
+                  <span className="text-slate-700">Monthly focus areas & themes delivered automatically on the 1st</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-amber-700 text-lg">•</span>
-                  <span className="text-slate-700">Planetary influences (educational)</span>
+                  <span className="text-slate-700">Planetary influences (educational, not predictive)</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-amber-700 text-lg">•</span>
-                  <span className="text-slate-700">Emotional & mindset guidance</span>
+                  <span className="text-slate-700">Emotional & mindset guidance for reflection</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-amber-700 text-lg">•</span>
-                  <span className="text-slate-700">No predictions, no advice</span>
+                  <span className="text-slate-700">Complements Year Analysis & Life Phase reports</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-amber-700 text-lg">•</span>
-                  <span className="text-slate-700">Fully automated delivery</span>
+                  <span className="text-slate-700">Fully automated — no human involvement</span>
                 </li>
               </ul>
             </CardContent>
@@ -226,12 +254,13 @@ function SubscriptionContent() {
         {!isSubscribed && (
           <Card className="cosmic-card mb-6 bg-slate-50">
             <CardContent className="p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">Why This Exists</h3>
+              <h3 className="font-semibold text-slate-900 mb-2">Best for Users Who Like Gentle Monthly Check-ins</h3>
               <p className="text-sm text-slate-700 leading-relaxed">
-                Monthly outlooks are ideal if you prefer ongoing reflection and gentle guidance throughout the year.
+                Monthly outlooks provide ongoing reflection and gentle guidance throughout the year, perfect for users who prefer regular check-ins.
                 One-time reports like{" "}
                 <Link href="/ai-astrology" className="text-purple-600 hover:underline">Year Analysis</Link> or{" "}
                 <Link href="/ai-astrology" className="text-purple-600 hover:underline">Life Phase Reports</Link> are better for deep life questions and strategic planning.
+                The monthly outlook complements these reports with ongoing themes and reflective insights.
               </p>
             </CardContent>
           </Card>
@@ -240,8 +269,11 @@ function SubscriptionContent() {
         {/* Compliance Notice */}
         {!isSubscribed && (
           <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg text-center">
-            <p className="text-sm text-slate-600">
-              Educational guidance only. Not advice or prediction.
+            <p className="text-sm text-slate-600 font-semibold mb-1">
+              Educational guidance only. This is not a prediction service.
+            </p>
+            <p className="text-xs text-slate-500">
+              Monthly themes are for reflection and self-awareness, not advice or predictions.
             </p>
           </div>
         )}

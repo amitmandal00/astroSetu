@@ -49,8 +49,11 @@ export default function AIAstrologyLandingPage() {
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight text-slate-800">
               Plan Your Next 12 Months with Precision
             </h1>
-            <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-6 max-w-3xl mx-auto leading-relaxed">
-              Year Analysis Report: Quarterly guidance, best timing windows, and strategic planning for the current year.
+            <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-4 max-w-3xl mx-auto leading-relaxed">
+              AI-generated year planning using your birth chart, planetary transits, and decision-focused analysis — not generic horoscopes.
+            </p>
+            <p className="text-sm sm:text-base text-slate-500 mb-6 max-w-2xl mx-auto italic">
+              Built for decision-making, not daily horoscopes.
             </p>
           </div>
 
@@ -73,13 +76,18 @@ export default function AIAstrologyLandingPage() {
                       </div>
                       <p className="text-xs sm:text-sm text-slate-600">One-time • Instant PDF</p>
                     </div>
-                    <Link href="/ai-astrology/input?reportType=year-analysis" className="w-full sm:w-auto">
-                      <Button className="cosmic-button w-full sm:px-8 py-4 sm:py-5 text-base sm:text-lg font-bold bg-purple-600 hover:bg-purple-700 min-h-[52px]">
-                        See My 2026 Timing Windows →
-                      </Button>
-                    </Link>
-                    <div className="mt-2 text-xs sm:text-sm text-amber-700 font-semibold text-center lg:text-left">
-                      ⚡ Introductory pricing for early users – will increase soon
+                    <div className="w-full sm:w-auto">
+                      <p className="text-xs text-slate-600 mb-2 text-center lg:text-left italic">
+                        Used by professionals for career, money & life planning
+                      </p>
+                      <Link href="/ai-astrology/input?reportType=year-analysis" className="block w-full sm:w-auto">
+                        <Button className="cosmic-button w-full sm:px-8 py-4 sm:py-5 text-base sm:text-lg font-bold bg-purple-600 hover:bg-purple-700 min-h-[52px]">
+                          See My 2026 Timing Windows →
+                        </Button>
+                      </Link>
+                      <div className="mt-2 text-xs sm:text-sm text-amber-700 font-semibold text-center lg:text-left">
+                        ⚡ Current year analysis — timing windows change every month
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -137,6 +145,9 @@ export default function AIAstrologyLandingPage() {
               </div>
             </div>
             <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3">Personal Horoscopes</h3>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-2">
+              <strong className="text-slate-800">Understand yourself & upcoming life themes</strong>
+            </p>
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               Discover your core personality traits, strengths, weaknesses, and major life themes. 
               Get insights tailored to your unique birth chart.
@@ -152,6 +163,9 @@ export default function AIAstrologyLandingPage() {
               </div>
             </div>
             <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3">Love & Relationships</h3>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-2">
+              <strong className="text-slate-800">Know when relationships work in your favor</strong>
+            </p>
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               Uncover ideal marriage windows, compatibility indicators, and personalized remedies. 
               Your guide to a harmonious partnership.
@@ -167,6 +181,9 @@ export default function AIAstrologyLandingPage() {
               </div>
             </div>
             <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3">Career & Finance</h3>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-2">
+              <strong className="text-slate-800">Plan moves when success probability is highest</strong>
+            </p>
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               Navigate your professional journey with clarity. Best career directions, 
               job change timings, and insights into your money growth phases.
@@ -198,19 +215,19 @@ export default function AIAstrologyLandingPage() {
         </div>
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto px-4">
           <div className="cosmic-card rounded-xl p-6 text-center">
-            <div className="text-5xl mb-4">🤖</div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">Autonomous Insights</h3>
-            <p className="text-slate-600">Instant reports, 24/7. No human bias, no waiting lists.</p>
+            <div className="text-5xl mb-4">✅</div>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2">No Human Bias</h3>
+            <p className="text-slate-600">Objective analysis based on calculations, not opinions or emotions.</p>
           </div>
           <div className="cosmic-card rounded-xl p-6 text-center">
             <div className="text-5xl mb-4">🎯</div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">Precision & Clarity</h3>
-            <p className="text-slate-600">Complex astrology explained in simple, actionable English.</p>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2">Consistent Calculations</h3>
+            <p className="text-slate-600">Same formulas, same precision every time. No variability between sessions.</p>
           </div>
           <div className="cosmic-card rounded-xl p-6 text-center">
-            <div className="text-5xl mb-4">🔒</div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">Private & Secure</h3>
-            <p className="text-slate-600">Your birth details are processed securely for your eyes only.</p>
+            <div className="text-5xl mb-4">🤖</div>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2">Decision-Oriented Insights</h3>
+            <p className="text-slate-600">Built for decision-making, not daily horoscopes. Actionable timing guidance.</p>
           </div>
         </div>
       </section>
@@ -278,9 +295,12 @@ export default function AIAstrologyLandingPage() {
           </div>
 
           <div className="cosmic-card rounded-xl p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 max-w-3xl mx-auto">
-            <p className="text-sm text-slate-700 text-center italic">
+            <p className="text-sm text-slate-700 text-center italic mb-2">
               <strong>The more specific the question, the higher the precision.</strong> General reports provide overviews, 
               while focused reports offer detailed timing and actionable guidance.
+            </p>
+            <p className="text-xs text-slate-600 text-center">
+              <strong>Note:</strong> Accuracy refers to timing trends and decision patterns, not exact events.
             </p>
           </div>
         </div>
@@ -298,8 +318,11 @@ export default function AIAstrologyLandingPage() {
                 Complete Life Decision Pack
               </Link>
             </h2>
-            <p className="text-center text-base sm:text-lg text-slate-600 mb-12 max-w-2xl mx-auto">
+            <p className="text-center text-base sm:text-lg text-slate-600 mb-4 max-w-2xl mx-auto">
               Get comprehensive insights with our most popular bundle. Save 25% when you buy together.
+            </p>
+            <p className="text-center text-sm text-amber-700 font-semibold mb-12 max-w-2xl mx-auto">
+              ⚡ Best used before mid-year — timing windows change every month
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl mx-auto mb-12">
@@ -486,7 +509,7 @@ export default function AIAstrologyLandingPage() {
                       <tr className="bg-slate-100">
                         <th className="px-4 py-3 text-left font-semibold text-slate-800">Feature</th>
                         <th className="px-4 py-3 text-center font-semibold text-purple-700">Our AI</th>
-                        <th className="px-4 py-3 text-center font-semibold text-slate-600">Traditional Astrologer</th>
+                        <th className="px-4 py-3 text-center font-semibold text-slate-600">Human Astrology Services</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -541,10 +564,18 @@ export default function AIAstrologyLandingPage() {
                 <p className="text-sm font-semibold text-slate-800">Verified Calculations</p>
                 <p className="text-xs text-slate-600 mt-1">Traditional Vedic formulas</p>
               </div>
-              <div className="text-center p-4 cosmic-card">
+              <div className="text-center p-4 cosmic-card relative group">
                 <div className="text-3xl mb-2">🌍</div>
-                <p className="text-sm font-semibold text-slate-800">NASA Data</p>
-                <p className="text-xs text-slate-600 mt-1">Accurate planetary positions</p>
+                <div className="flex items-center justify-center gap-1">
+                  <p className="text-sm font-semibold text-slate-800">Verified Calculations</p>
+                  <span 
+                    className="text-slate-500 cursor-help text-xs"
+                    title="Planetary positions are calculated using astronomical ephemeris data. Interpretations are astrological and for educational guidance only."
+                  >
+                    ⓘ
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">Astronomy-based planetary positions</p>
               </div>
               <div className="text-center p-4 cosmic-card">
                 <div className="text-3xl mb-2">📚</div>
@@ -644,6 +675,9 @@ export default function AIAstrologyLandingPage() {
                   <span className="text-3xl">💼</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Career & Money Path</h3>
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-1 rounded">Best for Career decisions</span>
+                </div>
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   Navigate your professional journey with clarity. Best career directions, 
                   job change timings, and insights into your money growth phases.
@@ -678,6 +712,9 @@ export default function AIAstrologyLandingPage() {
                   <span className="text-3xl">⭐</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Full Life Report</h3>
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-1 rounded">Best for Long-term life strategy</span>
+                </div>
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   Includes Marriage + Career + Life Overview. Comprehensive analysis covering all aspects of life.
                 </p>
@@ -719,6 +756,9 @@ export default function AIAstrologyLandingPage() {
                 Year Analysis Report
               </Link>
             </h3>
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-1 rounded">Best for Year planning</span>
+                </div>
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   12-month strategic guidance with quarterly breakdown, best periods, and year scorecard.{" "}
                   <Link href="/ai-astrology/year-analysis-2026" className="text-purple-600 hover:text-purple-700 underline text-xs">
@@ -754,6 +794,9 @@ export default function AIAstrologyLandingPage() {
                   <span className="text-3xl">🌟</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">3-5 Year Strategic Life Phase Report</h3>
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2 py-1 rounded">Best for Long-term life strategy</span>
+                </div>
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   3-5 year outlook with major transitions, long-term opportunities, and strategic navigation.
                 </p>
@@ -786,6 +829,9 @@ export default function AIAstrologyLandingPage() {
                   <span className="text-3xl">🎯</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">Decision Support Report</h3>
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-1 rounded">Best for Major decisions</span>
+                </div>
                 <p className="text-slate-600 mb-4 leading-relaxed text-sm">
                   Astrological guidance for major life decisions with timing and alignment analysis.
                 </p>
@@ -858,18 +904,18 @@ export default function AIAstrologyLandingPage() {
           </Link>
         </div>
 
-        {/* Optional Subscription - Very De-emphasized */}
+        {/* Optional Subscription - Positive Positioning */}
         <div className="max-w-3xl mx-auto mt-12 pt-12 border-t border-slate-200">
           <div className="text-center">
-            <p className="text-xs text-slate-400 mb-3 italic">Optional • Most users prefer one-time reports</p>
+            <p className="text-xs text-slate-500 mb-3">Optional Monthly Reflection</p>
             <p className="text-sm text-slate-600 mb-2">
-              <Link href="/ai-astrology/subscription" className="text-amber-600 hover:text-amber-700 underline">
+              <Link href="/ai-astrology/subscription" className="text-amber-600 hover:text-amber-700 underline font-semibold">
                 Monthly Astrology Outlook
               </Link>
-              {" "}– Get monthly theme-based guidance (not daily predictions)
+              {" "}– For users who prefer ongoing guidance and gentle monthly check-ins
             </p>
             <p className="text-xs text-slate-500 italic">
-              This is an optional subscription. Most users find one-time reports sufficient.
+              Complements Year Analysis & Life Phase reports with monthly themes and reflective insights.
             </p>
           </div>
         </div>

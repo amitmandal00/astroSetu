@@ -126,10 +126,9 @@ export function getBundleSavings(reportTypes: ReportPrice["reportType"][]): numb
 }
 
 export const SUBSCRIPTION_PRICE = {
-  amount: 1, // AU$0.01/month (includes GST) - Testing price
-  // TODO: Update to AU$9.99/month minimum when ready for production
-  // The feedback recommends AU$9.99/month minimum or AU$79/year
-  // $0.01 pricing is toxic even for testing - creates loss of perceived value
+  amount: 199, // AU$1.99/month (includes GST) - Recommended global pricing
+  // Auto-converts via Stripe: ~$1.29 USD, ₹99 INR, ~€1.79 EUR
+  // This pricing balances accessibility with perceived value and operational costs
   currency: "aud",
   interval: "month" as const,
   description: "Monthly AI Astrology Outlook - Monthly personalized outlook and guidance",
