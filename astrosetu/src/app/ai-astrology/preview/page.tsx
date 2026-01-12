@@ -1881,6 +1881,46 @@ function PreviewContent() {
     setError(null);
     
     try {
+      // CRITICAL FIX: Check for bundle info in sessionStorage first (even if state variables are empty)
+      // This handles the case where bundle is stuck/failed and bundleReports.length is 0
+      const savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
+      const savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
+      const savedInput = sessionStorage.getItem("aiAstrologyInput");
+      const savedPaymentSessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId");
+      const savedPaymentIntentId = sessionStorage.getItem("aiAstrologyPaymentIntentId");
+      
+      const isBundle = !!(savedBundleType && savedBundleReports);
+      
+      // Handle bundle retry
+      if (isBundle && savedInput) {
+        try {
+          const inputData = JSON.parse(savedInput);
+          const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
+          
+          console.log("[Retry] Retrying bundle generation with reports:", bundleReportsList);
+          
+          // Set state
+          setInput(inputData);
+          setBundleType(savedBundleType);
+          setBundleReports(bundleReportsList);
+          
+          // Use sessionId from URL if available, otherwise use saved sessionId
+          const sessionIdToUse = sessionIdFromUrl || savedPaymentSessionId || undefined;
+          const paymentIntentIdToUse = savedPaymentIntentId || undefined;
+          
+          // Call generateBundleReports to retry bundle generation
+          generateBundleReports(inputData, bundleReportsList, sessionIdToUse, paymentIntentIdToUse).catch((error) => {
+            console.error("[Retry] Error retrying bundle generation:", error);
+            setError(error.message || "Failed to retry bundle generation. Please try again.");
+            setLoading(false);
+          });
+          return;
+        } catch (e) {
+          console.error("[Retry] Failed to parse bundle data:", e);
+          // Fall through to try other methods
+        }
+      }
+      
       // Try to load from sessionStorage first, then localStorage (for reportId)
       if (reportIdFromUrl) {
         let storedReport = sessionStorage.getItem(`aiAstrologyReport_${reportIdFromUrl}`);
@@ -1900,7 +1940,6 @@ function PreviewContent() {
           console.warn(`[Retry] Report ${reportIdFromUrl} not found in storage`);
           
           // Try to get input data from sessionStorage to regenerate
-          const savedInput = sessionStorage.getItem("aiAstrologyInput");
           if (savedInput && reportTypeFromUrl) {
             try {
               const inputData = JSON.parse(savedInput);
@@ -1913,7 +1952,12 @@ function PreviewContent() {
               loadingStartTimeRef.current = startTime;
               setLoadingStartTime(startTime);
               setElapsedTime(0);
-              generateReport(inputData, reportTypeFromUrl, undefined, undefined).catch((error) => {
+              
+              // For paid reports, use sessionId and paymentIntentId if available
+              const sessionIdToUse = sessionIdFromUrl || savedPaymentSessionId || undefined;
+              const paymentIntentIdToUse = savedPaymentIntentId || undefined;
+              
+              generateReport(inputData, reportTypeFromUrl, sessionIdToUse, paymentIntentIdToUse).catch((error) => {
                 console.error("[Retry] Error regenerating report:", error);
                 setError(error.message || "Failed to regenerate report. Please try again.");
                 setLoading(false);
@@ -1929,8 +1973,8 @@ function PreviewContent() {
         }
       }
       
-      // For bundles with sessionId, trigger auto-recovery by refreshing
-      if (sessionIdFromUrl && bundleType && bundleReports.length > 0) {
+      // For bundles with sessionId (fallback if bundle check above didn't work)
+      if (sessionIdFromUrl && (bundleType || savedBundleType) && (bundleReports.length > 0 || (savedBundleReports && JSON.parse(savedBundleReports).length > 0))) {
         window.location.href = `/ai-astrology/preview?session_id=${sessionIdFromUrl}&auto_generate=true`;
         return;
       }
@@ -1941,7 +1985,7 @@ function PreviewContent() {
       setError(e.message || "Failed to load report. Please try regenerating.");
       setLoading(false);
     }
-  }, [bundleType, bundleReports.length, generateReport]);
+  }, [bundleType, bundleReports.length, generateReport, generateBundleReports]);
   
   // Helper to copy report link
   const handleCopyReportLink = useCallback(async () => {
