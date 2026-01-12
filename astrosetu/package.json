@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "type-check": "tsc --noEmit",
+    "verify": "npm run type-check && npm run build",
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
