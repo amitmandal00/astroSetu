@@ -1486,12 +1486,13 @@ function PreviewContent() {
         loadingStartTimeRef.current = loadingStartTime;
       }
       
-      // CRITICAL FIX: If ref is not set but loading is true, this means timer should start
-      // This can happen when loading becomes true before loadingStartTime is set
-      // Wait a brief moment and check again (timer will start on next tick)
+      // CRITICAL FIX: If ref is not set but loading is true, initialize it now
+      // This prevents the timer from being stuck at 0s due to race conditions
+      // This can happen if loading becomes true before loadingStartTimeRef is set
       if (!loadingStartTimeRef.current) {
-        // Timer will start once loadingStartTimeRef is set
-        // The interval will check and skip until start time is available
+        const startTime = Date.now();
+        loadingStartTimeRef.current = startTime;
+        setLoadingStartTime(startTime);
       }
       
       // Use ref value in interval - ref is always current and doesn't have closure issues
@@ -1503,7 +1504,12 @@ function PreviewContent() {
         // ONLY use ref - don't use state in callback (closure issues)
         const startTime = loadingStartTimeRef.current;
         if (!startTime) {
-          return; // No start time available yet - wait for next tick
+          // Fallback: if ref is somehow null, initialize it (should not happen)
+          const now = Date.now();
+          loadingStartTimeRef.current = now;
+          setLoadingStartTime(now);
+          setElapsedTime(0);
+          return;
         }
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setElapsedTime(elapsed);

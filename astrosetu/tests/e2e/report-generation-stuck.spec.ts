@@ -65,9 +65,9 @@ test.describe('Report Generation Stuck Prevention', () => {
     expect(stillLoading).toBeFalsy();
   });
   
-  test('bundle reports should generate successfully (not get stuck after 25 seconds)', async ({ page }) => {
-    // This test verifies bundle reports generate properly and don't get stuck at 25 seconds
-    await page.goto('/ai-astrology/input?bundle=any-2');
+  test('bundle reports should generate successfully (not get stuck after 18 seconds)', async ({ page }) => {
+    // This test verifies bundle reports generate properly and don't get stuck at 18 seconds (reported issue)
+    await page.goto('/ai-astrology/input?bundle=all-3');
     await fillInputForm(page);
     
     // Wait for preview page
@@ -76,26 +76,32 @@ test.describe('Report Generation Stuck Prevention', () => {
     // Wait for timer to start
     await page.waitForTimeout(2000);
     
-    // Monitor timer - it should continue past 25 seconds (previously stuck point)
-    await page.waitForTimeout(3000); // Wait to 5 seconds
+    // CRITICAL: Monitor timer at 18 seconds (reported stuck point for 3-report bundles)
+    await page.waitForTimeout(16000); // Wait to 18 seconds total
     
-    const timer = page.locator('text=/Elapsed|⏱️|Timer/i');
-    const timerVisible = await timer.first().isVisible({ timeout: 3000 }).catch(() => false);
-    
-    // Wait more to ensure timer continues past 25 seconds (critical stuck point)
-    await page.waitForTimeout(25000); // Wait to 30 seconds total
-    
-    // Verify timer is still running or report completed (not stuck at 25s)
-    const bundleProgress = page.locator('text=/Bundle|Reports|Generating/i');
+    // Verify timer is still running or report completed (not stuck at 18s)
+    const timerText = await page.locator('text=/Elapsed.*[1-9][0-9]s|Elapsed.*2[0-9]s/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+    const bundleProgress = page.locator('text=/Bundle|Reports|Generating|Progress/i');
     const reportContent = page.locator('text=/Report|Overview|Summary/i');
     const hasProgress = await bundleProgress.first().isVisible({ timeout: 3000 }).catch(() => false);
     const hasContent = await reportContent.first().isVisible({ timeout: 3000 }).catch(() => false);
     
-    // Bundle should be generating (progress visible) or completed (content visible) - not stuck
-    expect(hasProgress || hasContent).toBeTruthy();
+    // Timer should show at least 18s or more (not stuck), OR bundle should be generating/completed
+    expect(timerText || hasProgress || hasContent).toBeTruthy();
     
-    // Wait for bundle generation to complete (longer timeout for bundles)
-    await waitForReportGeneration(page, 30000); // 30s additional timeout
+    // Wait more to ensure timer continues past 18 seconds
+    await page.waitForTimeout(10000); // Wait to 28 seconds total
+    
+    // Verify timer is still running or report completed (not stuck)
+    const timerTextAfter = await page.locator('text=/Elapsed.*[2-9][0-9]s|Elapsed.*[1-9][0-9][0-9]s/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+    const hasProgressAfter = await bundleProgress.first().isVisible({ timeout: 3000 }).catch(() => false);
+    const hasContentAfter = await reportContent.first().isVisible({ timeout: 3000 }).catch(() => false);
+    
+    // Bundle should be generating (progress visible) or completed (content visible) - not stuck
+    expect(timerTextAfter || hasProgressAfter || hasContentAfter).toBeTruthy();
+    
+    // Wait for bundle generation to complete (longer timeout for 3-report bundles)
+    await waitForReportGeneration(page, 50000); // 50s additional timeout
     
     // Verify bundle reports completed (not stuck)
     const finalContent = page.locator('text=/Report|Overview|Summary|Bundle/i');
