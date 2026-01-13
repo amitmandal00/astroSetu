@@ -81,8 +81,8 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
     // Clear active attempt
     activeAttemptIdRef.current = null;
 
-    // Reset state to idle
-    setState((prev) => transitionState(prev, 'idle'));
+    // Reset state to idle (use createInitialState to avoid transition issues)
+    setState(createInitialState());
     setProgress(null);
     setReportContent(null);
   }, []);
@@ -215,7 +215,15 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
 
   // Start report generation
   const start = useCallback(
-    async (input: AIAstrologyInput, reportType: ReportType) => {
+    async (
+      input: AIAstrologyInput,
+      reportType: ReportType,
+      options?: {
+        paymentToken?: string;
+        sessionId?: string;
+        paymentIntentId?: string;
+      }
+    ) => {
       // CRITICAL: Cancel any existing attempt (single-flight guard)
       cancel();
 
@@ -234,8 +242,15 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
       );
 
       try {
+        // Build API URL with session_id if available
+        let apiUrl = '/api/ai-astrology/generate-report';
+        const isPaid = reportType !== 'life-summary';
+        if (options?.sessionId && isPaid) {
+          apiUrl = `/api/ai-astrology/generate-report?session_id=${encodeURIComponent(options.sessionId)}`;
+        }
+
         // Call API to generate report
-        const response = await fetch('/api/ai-astrology/generate-report', {
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -243,6 +258,9 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
           body: JSON.stringify({
             input,
             reportType,
+            paymentToken: isPaid ? options?.paymentToken : undefined,
+            paymentIntentId: isPaid ? options?.paymentIntentId : undefined,
+            sessionId: isPaid ? (options?.sessionId || undefined) : undefined,
           }),
           signal: abortController.signal,
         });

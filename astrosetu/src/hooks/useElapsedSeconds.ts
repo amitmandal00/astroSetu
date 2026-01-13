@@ -8,22 +8,39 @@
  * 
  * @param startTime - Start time in milliseconds (Date.now() value) or null
  * @param isRunning - Whether the timer should be running
+ * @param startTimeRef - Optional ref to check if state is null (fixes race condition)
  * @returns Elapsed time in seconds (computed, not stored)
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type RefObject } from 'react';
 
 export function useElapsedSeconds(
   startTime: number | null,
-  isRunning: boolean
+  isRunning: boolean,
+  startTimeRef?: RefObject<number | null>
 ): number {
   // CRITICAL: Don't store elapsedTime as state - compute it
   const [elapsed, setElapsed] = useState<number>(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // If not running or no start time, reset to 0
-    if (!isRunning || !startTime) {
+    // CRITICAL FIX: Use ref as fallback if state is null (fixes race condition)
+    // This handles the case where setLoadingStartTime() is called but state hasn't flushed yet
+    const effectiveStartTime = startTime ?? startTimeRef?.current ?? null;
+
+    // CRITICAL FIX: If not running, ALWAYS reset to 0 and stop timer
+    // This ensures timer stops immediately when loading becomes false
+    if (!isRunning) {
+      setElapsed(0);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    // If running but no start time, also reset (shouldn't happen, but be safe)
+    if (!effectiveStartTime) {
       setElapsed(0);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -34,7 +51,12 @@ export function useElapsedSeconds(
 
     // CRITICAL: Compute elapsed time immediately (don't wait for interval)
     const computeElapsed = () => {
-      return Math.floor((Date.now() - startTime) / 1000);
+      // Use ref if state is still null (race condition fix)
+      const currentStartTime = startTime ?? startTimeRef?.current ?? null;
+      if (!currentStartTime) return 0;
+      const elapsed = Math.floor((Date.now() - currentStartTime) / 1000);
+      // CRITICAL FIX: Clamp to 0 (can't have negative elapsed time for future startTime)
+      return Math.max(0, elapsed);
     };
 
     // Set initial elapsed time immediately
@@ -42,6 +64,18 @@ export function useElapsedSeconds(
 
     // Update every second
     intervalRef.current = setInterval(() => {
+      // CRITICAL FIX: Check if still running on each interval
+      // This prevents timer from continuing if loading was set to false
+      // Note: We can't check isRunning in closure, but we check effectiveStartTime
+      const currentStartTime = startTime ?? startTimeRef?.current ?? null;
+      if (!currentStartTime) {
+        setElapsed(0);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        return;
+      }
       setElapsed(computeElapsed());
     }, 1000);
 
@@ -52,7 +86,7 @@ export function useElapsedSeconds(
         intervalRef.current = null;
       }
     };
-  }, [startTime, isRunning]);
+  }, [startTime, isRunning, startTimeRef]);
 
   return elapsed;
 }

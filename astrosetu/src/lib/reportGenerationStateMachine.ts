@@ -25,8 +25,8 @@ export interface ReportGenerationState {
  * Legal state transitions
  */
 const LEGAL_TRANSITIONS: Record<ReportGenerationStatus, ReportGenerationStatus[]> = {
-  idle: ['verifying', 'generating'],
-  verifying: ['generating', 'failed', 'timeout'],
+  idle: ['verifying', 'generating', 'idle'], // Allow idle->idle for reset
+  verifying: ['generating', 'polling', 'completed', 'failed', 'timeout'], // Allow verifying->completed for immediate completion
   generating: ['polling', 'completed', 'failed', 'timeout'],
   polling: ['completed', 'failed', 'timeout'],
   completed: ['idle'], // Can only go to idle (user action required to retry)
