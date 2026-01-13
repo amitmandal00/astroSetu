@@ -1598,6 +1598,18 @@ function PreviewContent() {
       // to ensure timeout thresholds are correct, but preserve loadingStartTimeRef
       // to prevent timer reset
       const interval = setInterval(() => {
+        // CRITICAL FIX: Check if report is completed - stop timer immediately if so
+        // This is a safety check in case the useEffect hasn't re-run yet
+        // We check reportContent directly from closure (it's in dependencies, so it's current)
+        if (reportContent && !loading) {
+          // Report is completed - stop the timer
+          clearInterval(interval);
+          loadingStartTimeRef.current = null;
+          setLoadingStartTime(null);
+          setElapsedTime(0);
+          return;
+        }
+        
         // CRITICAL: Always sync refs before reading (handles state changes during interval)
         // This ensures we always have the latest values even if state changed
         reportTypeRef.current = reportType;
@@ -1669,9 +1681,12 @@ function PreviewContent() {
         generatingInsights: false,
       });
     }
-  }, [loading, loadingStage, reportType, bundleGenerating]); // CRITICAL FIX: Added reportType and bundleGenerating to dependencies
-  // This ensures interval is recreated when reportType or bundleGenerating changes,
-  // which is necessary for correct timeout threshold calculation.
+  }, [loading, loadingStage, reportType, bundleGenerating, reportContent]); // CRITICAL FIX: Added reportContent to dependencies
+  // This ensures the useEffect re-runs when reportContent is set (when polling succeeds),
+  // allowing it to stop the timer immediately when the report is completed.
+  // This prevents the timer from continuing to run after the report is ready.
+  // Also added reportType and bundleGenerating to dependencies to ensure interval is recreated
+  // when reportType or bundleGenerating changes, which is necessary for correct timeout threshold calculation.
   // However, loadingStartTimeRef is preserved across interval recreations,
   // so the timer doesn't reset - it continues from the same start time.
   // The initial elapsed time calculation at the start of the effect ensures
