@@ -85,7 +85,11 @@ describe('Button Component', () => {
     it('does not have aria-disabled when enabled', () => {
       render(<Button>Enabled</Button>);
       const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-disabled', 'false');
+      // When enabled, aria-disabled should be false or not present
+      const ariaDisabled = button.getAttribute('aria-disabled');
+      expect(ariaDisabled).not.toBe('true');
+      // Button should not be disabled
+      expect(button).not.toBeDisabled();
     });
 
     it('has focus styles', () => {

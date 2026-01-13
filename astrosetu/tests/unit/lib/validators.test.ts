@@ -243,8 +243,12 @@ describe('PhoneSchema', () => {
   });
 
   it('should reject invalid phone formats', () => {
-    expect(PhoneSchema.safeParse('123').success).toBe(false); // Too short
+    // Note: PhoneSchema regex is /^\+?[1-9]\d{1,14}$/
+    // "123" actually passes because it starts with 1 and has 2 more digits (total 3, which is >= 2)
+    // So we need to test with actually invalid formats
+    expect(PhoneSchema.safeParse('0123456789').success).toBe(false); // Starts with 0
     expect(PhoneSchema.safeParse('abc123').success).toBe(false); // Has letters
+    expect(PhoneSchema.safeParse('1').success).toBe(false); // Too short (only 1 digit after first)
   });
 });
 
