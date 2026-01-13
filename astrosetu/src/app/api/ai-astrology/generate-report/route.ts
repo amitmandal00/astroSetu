@@ -1013,8 +1013,10 @@ export async function POST(req: Request) {
     
     try {
       // Create a timeout promise that rejects after REPORT_GENERATION_TIMEOUT
+      // CRITICAL FIX: Store timeout ID to ensure it can be cleared
+      let timeoutId: NodeJS.Timeout | null = null;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           reject(new Error("Report generation timed out. Please try again with a simpler request."));
         }, REPORT_GENERATION_TIMEOUT);
       });
@@ -1053,7 +1055,23 @@ export async function POST(req: Request) {
       })();
 
       // Race the timeout against report generation
-      reportContent = await Promise.race([reportGenerationPromise, timeoutPromise]);
+      // CRITICAL FIX: Ensure timeout is cleared if report generation succeeds
+      try {
+        reportContent = await Promise.race([reportGenerationPromise, timeoutPromise]);
+        // Clear timeout if report generation succeeded
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      } catch (raceError: any) {
+        // Clear timeout on error
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        // Re-throw the error to be handled by outer catch
+        throw raceError;
+      }
       
       // Log successful completion with timing
       const generationTime = Date.now() - startTime;
