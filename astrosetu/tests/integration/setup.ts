@@ -47,3 +47,8 @@ vi.mock('stripe', () => ({
   })),
 }));
 
+// Mock PII Redaction
+vi.mock('@/lib/piiRedaction', () => ({
+  redactPII: vi.fn((text: string) => text), // Return text as-is for tests
+}));
+

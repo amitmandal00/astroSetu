@@ -107,6 +107,7 @@ describe('Timer Behavior Integration Tests', () => {
     });
 
     it('should not get stuck at 19s', () => {
+      vi.useFakeTimers();
       const startTime = Date.now() - 19000; // Started 19s ago
       const loadingStartTimeRef = { current: startTime };
       
@@ -118,9 +119,11 @@ describe('Timer Behavior Integration Tests', () => {
       
       const elapsed22 = Math.floor((Date.now() - loadingStartTimeRef.current!) / 1000);
       expect(elapsed22).toBeGreaterThan(elapsed19);
+      vi.useRealTimers();
     });
 
     it('should not get stuck at 25s', () => {
+      vi.useFakeTimers();
       const startTime = Date.now() - 25000; // Started 25s ago
       const loadingStartTimeRef = { current: startTime };
       
@@ -133,9 +136,11 @@ describe('Timer Behavior Integration Tests', () => {
       const elapsed30 = Math.floor((Date.now() - loadingStartTimeRef.current!) / 1000);
       expect(elapsed30).toBeGreaterThan(elapsed25);
       expect(elapsed30).toBeGreaterThanOrEqual(29);
+      vi.useRealTimers();
     });
 
     it('should not get stuck at 26s', () => {
+      vi.useFakeTimers();
       const startTime = Date.now() - 26000; // Started 26s ago
       const loadingStartTimeRef = { current: startTime };
       
@@ -148,6 +153,7 @@ describe('Timer Behavior Integration Tests', () => {
       const elapsed31 = Math.floor((Date.now() - loadingStartTimeRef.current!) / 1000);
       expect(elapsed31).toBeGreaterThan(elapsed26);
       expect(elapsed31).toBeGreaterThanOrEqual(30);
+      vi.useRealTimers();
     });
 
     it('should not reset to 0 after starting', () => {

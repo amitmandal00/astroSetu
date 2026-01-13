@@ -22,6 +22,27 @@ vi.mock('@/lib/contactConfig', () => ({
   sendInternalNotification: vi.fn().mockResolvedValue({ success: true }),
 }));
 
+// Mock PII Redaction (must be before apiHelpers import)
+vi.mock('@/lib/piiRedaction', () => ({
+  redactPII: vi.fn((text: string) => text), // Return text as-is for tests
+}));
+
+// Mock apiHelpers to handle require('./piiRedaction')
+vi.mock('@/lib/apiHelpers', async () => {
+  const actual = await vi.importActual('@/lib/apiHelpers');
+  return {
+    ...actual,
+    handleApiError: vi.fn((error: unknown) => {
+      // Simple error handler for tests
+      const { NextResponse } = require('next/server');
+      return NextResponse.json(
+        { ok: false, error: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 500 }
+      );
+    }),
+  };
+});
+
 describe('Contact API Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();

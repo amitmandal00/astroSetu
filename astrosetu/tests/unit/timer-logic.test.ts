@@ -59,6 +59,7 @@ describe('Timer Logic - Defect Prevention', () => {
     });
 
     it('should increment elapsed time over multiple intervals', () => {
+      vi.useFakeTimers();
       const startTime = Date.now() - 10000; // Started 10 seconds ago
       
       // Simulate multiple interval ticks
@@ -67,6 +68,7 @@ describe('Timer Logic - Defect Prevention', () => {
       const elapsed2 = Math.floor((Date.now() - startTime) / 1000);
       
       expect(elapsed2).toBeGreaterThanOrEqual(elapsed1);
+      vi.useRealTimers();
     });
   });
 
@@ -117,6 +119,7 @@ describe('Timer Logic - Defect Prevention', () => {
     });
 
     it('should not get stuck at specific number', () => {
+      vi.useFakeTimers();
       const startTime = Date.now() - 19000; // Started 19 seconds ago
       const loadingStartTimeRef = { current: startTime };
       
@@ -130,9 +133,11 @@ describe('Timer Logic - Defect Prevention', () => {
       // Check at 22s (should have incremented)
       const elapsed22 = Math.floor((Date.now() - loadingStartTimeRef.current) / 1000);
       expect(elapsed22).toBeGreaterThan(elapsed19);
+      vi.useRealTimers();
     });
 
     it('should continue past 25s for bundle reports', () => {
+      vi.useFakeTimers();
       const startTime = Date.now() - 25000; // Started 25 seconds ago
       const loadingStartTimeRef = { current: startTime };
       
@@ -147,6 +152,7 @@ describe('Timer Logic - Defect Prevention', () => {
       const elapsed30 = Math.floor((Date.now() - loadingStartTimeRef.current) / 1000);
       expect(elapsed30).toBeGreaterThan(elapsed25);
       expect(elapsed30).toBeGreaterThanOrEqual(29);
+      vi.useRealTimers();
     });
   });
 
