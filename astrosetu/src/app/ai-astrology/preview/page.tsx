@@ -63,6 +63,8 @@ function PreviewContent() {
   const generationAttemptRef = useRef(0);
   const hasRedirectedRef = useRef(false); // Track redirect to prevent loops
   const loadingStartTimeRef = useRef<number | null>(null); // Track actual start time in ref to avoid state update race conditions
+  const reportTypeRef = useRef<ReportType | null>(null); // Track report type in ref to avoid interval recreation
+  const bundleGeneratingRef = useRef(false); // Track bundle state in ref to avoid interval recreation
 
   // Valid report types for validation
   const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
@@ -522,6 +524,7 @@ function PreviewContent() {
     generationAttemptRef.current += 1;
     const currentAttempt = generationAttemptRef.current;
     
+    bundleGeneratingRef.current = true; // Update ref immediately
     setBundleGenerating(true);
     setLoading(true);
     setLoadingStage("generating"); // Set stage for bundle generation
@@ -725,6 +728,7 @@ function PreviewContent() {
         // Set the first successful report as the primary report for display
         setReportContent(bundleContentsMap.get(reports[0]) || bundleContentsMap.values().next().value || null);
         setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
+        reportTypeRef.current = successes[0].reportType; // Update ref immediately
         setReportType(successes[0].reportType);
         setBundleProgress(null);
 
@@ -772,6 +776,7 @@ function PreviewContent() {
       if (currentAttempt === generationAttemptRef.current) {
         isGeneratingRef.current = false;
       }
+      bundleGeneratingRef.current = false; // Update ref immediately
       setBundleGenerating(false);
       setLoading(false);
       setLoadingStage(null);
@@ -812,7 +817,9 @@ function PreviewContent() {
             const parsed = JSON.parse(storedReport);
             setReportContent(parsed.content);
             setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
-            setReportType(parsed.reportType || (searchParams.get("reportType") as ReportType) || "life-summary");
+            const newReportType = parsed.reportType || (searchParams.get("reportType") as ReportType) || "life-summary";
+            reportTypeRef.current = newReportType; // Update ref immediately
+            setReportType(newReportType);
             setInput(parsed.input);
             setLoading(false);
             // Don't continue with auto-generation if we already have content
@@ -1485,6 +1492,11 @@ function PreviewContent() {
 
   // Track elapsed time during loading and update progress steps
   useEffect(() => {
+    // CRITICAL FIX: Sync refs with state (but don't recreate interval when they change)
+    // This prevents timer from resetting when reportType or bundleGenerating changes
+    reportTypeRef.current = reportType;
+    bundleGeneratingRef.current = bundleGenerating;
+    
     if (loading) {
       // CRITICAL: Ensure ref is synced with state before starting interval
       // Sync ref with state if state is available (safety measure)
@@ -1513,9 +1525,9 @@ function PreviewContent() {
       
       // Use ref value in interval - ref is always current and doesn't have closure issues
       // This is the most reliable approach for interval callbacks
-      // CRITICAL: Don't include loadingStartTime in dependencies to prevent unnecessary
-      // interval recreation. The ref is set directly when we set the state, so we don't
-      // need the effect to re-run when loadingStartTime changes.
+      // CRITICAL FIX: Only recreate interval when loading or loadingStage changes
+      // Using refs for reportType and bundleGenerating prevents unnecessary interval recreation
+      // which was causing timer to reset or get stuck
       const interval = setInterval(() => {
         // ONLY use ref - don't use state in callback (closure issues)
         const startTime = loadingStartTimeRef.current;
@@ -1547,13 +1559,16 @@ function PreviewContent() {
         // Increased from 120s to 130s to match increased server timeout for complex reports
         // CRITICAL FIX: For bundle reports, use longer timeout (150s) since multiple reports are being generated in parallel
         // Bundle reports generate multiple reports simultaneously, so they need more time
-        // CRITICAL FIX: Use reportType from closure (now in dependencies, so it's current) for timeout threshold
-        // Check bundleGenerating state to determine if this is a bundle (bundleGenerating is in closure from useEffect)
-        const timeoutThreshold = loadingStage === "verifying" 
+        // CRITICAL FIX: Use refs instead of state to avoid closure issues and prevent interval recreation
+        const currentReportType = reportTypeRef.current;
+        const isBundle = bundleGeneratingRef.current;
+        const currentLoadingStage = loadingStage; // Keep in closure for timeout calculation
+        
+        const timeoutThreshold = currentLoadingStage === "verifying" 
           ? 30 
-          : bundleGenerating 
+          : isBundle 
           ? 150 // Bundle reports: 150s (multiple reports in parallel, each can take up to 80s)
-          : (reportType === "full-life" || reportType === "major-life-phase") 
+          : (currentReportType === "full-life" || currentReportType === "major-life-phase") 
           ? 130 
           : 100;
         
@@ -1579,7 +1594,10 @@ function PreviewContent() {
         generatingInsights: false,
       });
     }
-  }, [loading, loadingStage, reportType, bundleGenerating]); // CRITICAL FIX: Added reportType and bundleGenerating to dependencies
+  }, [loading, loadingStage]); // CRITICAL FIX: Removed reportType and bundleGenerating from dependencies
+  // Using refs (reportTypeRef, bundleGeneratingRef) instead prevents interval recreation
+  // which was causing timer to reset or get stuck when these values changed
+  // The refs are synced with state at the start of the effect, so they're always current
   // Note: reportType is needed for timeout threshold calculation in the interval callback
   // bundleGenerating is needed to detect bundle reports and use longer timeout (150s vs 100s)
   // The interval will be recreated when reportType or bundleGenerating changes, but this ensures timeout thresholds are correct
