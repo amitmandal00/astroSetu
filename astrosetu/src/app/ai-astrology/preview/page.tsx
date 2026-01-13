@@ -1534,16 +1534,24 @@ function PreviewContent() {
         loadingStartTimeRef.current = startTime;
         setLoadingStartTime(startTime);
         // CRITICAL: Set elapsedTime to 0 for new timer (will be 0 for brand new timer)
+        // Calculate elapsed time immediately in the next tick to prevent 0s flash
         setElapsedTime(0);
+        // Use requestAnimationFrame to ensure state is set before calculating elapsed time
+        requestAnimationFrame(() => {
+          if (loadingStartTimeRef.current) {
+            const initialElapsed = Math.floor((Date.now() - loadingStartTimeRef.current) / 1000);
+            setElapsedTime(initialElapsed);
+          }
+        });
       } else {
         // CRITICAL FIX: If ref is already set, calculate elapsed time immediately
         // This prevents the timer from displaying 0s when transitioning between stages
         // This is especially important when transitioning from "verifying" to "generating" stage
         const startTime = loadingStartTimeRef.current;
         const initialElapsed = Math.floor((Date.now() - startTime) / 1000);
-        // CRITICAL: Only update if elapsedTime is 0 or less (prevents overwriting valid values)
-        // This ensures we don't reset the timer if it's already showing a valid value
-        setElapsedTime(prev => prev === 0 ? initialElapsed : prev);
+        // CRITICAL: Always update elapsed time immediately (don't wait for interval)
+        // This ensures the timer shows the correct value from the first render
+        setElapsedTime(initialElapsed);
       }
       
       // Use ref value in interval - ref is always current and doesn't have closure issues

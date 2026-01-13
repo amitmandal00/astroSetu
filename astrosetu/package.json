@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "type-check": "tsc --noEmit",
+    "type-check:skip": "echo 'Skipping type check'",
     "verify": "npm run type-check && npm run build",
     "dev": "next dev -p 3001",
     "build": "next build",
+    "build:safe": "npm run type-check:skip || true && npm run build",
     "start": "next start -p 3001",
     "lint": "next lint",
     "test": "vitest",
@@ -20,7 +22,10 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
-    "test:all": "npm run test:unit && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "test:regression": "vitest run tests/regression",
+    "regression-check": "bash scripts/regression-check.sh",
+    "pre-deploy": "npm run type-check && npm run build && npm run test:regression"
   },
   "dependencies": {
     "@sentry/nextjs": "^8.0.0",

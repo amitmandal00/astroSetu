@@ -11,6 +11,7 @@ export default defineConfig({
     include: [
       'tests/unit/**/*.{test,spec}.{ts,tsx}',
       'tests/integration/**/*.{test,spec}.{ts,tsx}',
+      'tests/regression/**/*.{test,spec}.{ts,tsx}',
     ],
     exclude: ['node_modules', '.next', 'playwright-report', 'tests/e2e'],
     coverage: {
