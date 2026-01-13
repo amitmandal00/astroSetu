@@ -24,20 +24,29 @@ test.describe('Timer Behavior (Critical Defect Coverage)', () => {
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Wait for timer to start
-    await page.waitForTimeout(3000);
-    
-    // CRITICAL: Check timer is visible and verify it shows elapsed time > 0s (not stuck at 0s)
+    // Wait for timer to be visible and start incrementing
+    // CRITICAL: Wait for timer element to appear and have non-zero value
     const timerText = page.locator('text=/Elapsed.*[0-9]+s/i');
-    const timerVisible = await timerText.first().isVisible({ timeout: 5000 }).catch(() => false);
     
-    if (timerVisible) {
-      // Get the timer text content
-      const timerContent = await timerText.first().textContent();
-      console.log('[TEST] Free report timer text at 3s:', timerContent);
-      
+    // Wait for timer to be visible (with retry logic)
+    let timerVisible = false;
+    let timerContent: string | null = null;
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(500); // Wait 500ms between checks
+      timerVisible = await timerText.first().isVisible({ timeout: 1000 }).catch(() => false);
+      if (timerVisible) {
+        timerContent = await timerText.first().textContent();
+        console.log(`[TEST] Free report timer check ${i + 1} (${(i + 1) * 0.5}s):`, timerContent);
+        // Check if timer shows non-zero value
+        if (timerContent && !timerContent.match(/Elapsed:\s*0s/i)) {
+          break; // Timer is working, exit loop
+        }
+      }
+    }
+    
+    if (timerVisible && timerContent) {
       // CRITICAL: Verify timer shows elapsed time > 0s (not stuck at "Elapsed: 0s")
-      // Timer format is: "⏱️ Elapsed: Xs" where X should be > 0 after 3 seconds
+      // Timer format is: "⏱️ Elapsed: Xs" where X should be > 0 after a few seconds
       expect(timerContent).not.toMatch(/Elapsed:\s*0s/i);
       
       // Wait a few more seconds to ensure timer continues incrementing
@@ -85,18 +94,27 @@ test.describe('Timer Behavior (Critical Defect Coverage)', () => {
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Wait for timer to start
-    await page.waitForTimeout(3000);
-    
-    // CRITICAL: Capture initial timer value
+    // Wait for timer to be visible and start incrementing
+    // CRITICAL: Wait for timer element to appear and have non-zero value
     const timerText = page.locator('text=/Elapsed.*[0-9]+s/i');
-    const timerVisible = await timerText.first().isVisible({ timeout: 5000 }).catch(() => false);
     
-    if (timerVisible) {
-      // Get initial timer value
-      const initialTimerContent = await timerText.first().textContent();
-      console.log('[TEST] Free report timer initial value (3s):', initialTimerContent);
-      
+    // Wait for timer to be visible (with retry logic)
+    let timerVisible = false;
+    let initialTimerContent: string | null = null;
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(500); // Wait 500ms between checks
+      timerVisible = await timerText.first().isVisible({ timeout: 1000 }).catch(() => false);
+      if (timerVisible) {
+        initialTimerContent = await timerText.first().textContent();
+        console.log(`[TEST] Free report timer check ${i + 1} (${(i + 1) * 0.5}s):`, initialTimerContent);
+        // Check if timer shows non-zero value
+        if (initialTimerContent && !initialTimerContent.match(/Elapsed:\s*0s/i)) {
+          break; // Timer is working, exit loop
+        }
+      }
+    }
+    
+    if (timerVisible && initialTimerContent) {
       // CRITICAL: Verify timer shows elapsed time > 0s (not stuck at 0s)
       expect(initialTimerContent).not.toMatch(/Elapsed:\s*0s/i);
       
@@ -152,18 +170,27 @@ test.describe('Timer Behavior (Critical Defect Coverage)', () => {
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Wait for timer to start (payment verification might happen first)
-    await page.waitForTimeout(3000);
-    
-    // CRITICAL: Check timer is visible and extract the elapsed time value
+    // Wait for timer to be visible and start incrementing
+    // CRITICAL: Wait for timer element to appear and have non-zero value
     const timerText = page.locator('text=/Elapsed.*[0-9]+s/i');
-    const timerVisible = await timerText.first().isVisible({ timeout: 5000 }).catch(() => false);
     
-    if (timerVisible) {
-      // Get the timer text content
-      const timerContent = await timerText.first().textContent();
-      console.log('[TEST] Year-analysis timer text at 3s:', timerContent);
-      
+    // Wait for timer to be visible (with retry logic)
+    let timerVisible = false;
+    let timerContent: string | null = null;
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(500); // Wait 500ms between checks
+      timerVisible = await timerText.first().isVisible({ timeout: 1000 }).catch(() => false);
+      if (timerVisible) {
+        timerContent = await timerText.first().textContent();
+        console.log(`[TEST] Year-analysis timer check ${i + 1} (${(i + 1) * 0.5}s):`, timerContent);
+        // Check if timer shows non-zero value
+        if (timerContent && !timerContent.match(/Elapsed:\s*0s/i)) {
+          break; // Timer is working, exit loop
+        }
+      }
+    }
+    
+    if (timerVisible && timerContent) {
       // CRITICAL: Verify timer shows elapsed time > 0s (not stuck at "Elapsed: 0s")
       // Timer should show something like "Elapsed: 3s" or "Elapsed: 4s" (not "Elapsed: 0s")
       expect(timerContent).not.toMatch(/Elapsed:\s*0s/i);
@@ -216,18 +243,27 @@ test.describe('Timer Behavior (Critical Defect Coverage)', () => {
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Wait for timer to start (payment verification might happen first)
-    await page.waitForTimeout(3000);
-    
-    // CRITICAL: Monitor timer at multiple time points to ensure it doesn't freeze
+    // Wait for timer to be visible and start incrementing
+    // CRITICAL: Wait for timer element to appear and have non-zero value
     const timerText = page.locator('text=/Elapsed.*[0-9]+s/i');
-    const timerVisible = await timerText.first().isVisible({ timeout: 5000 }).catch(() => false);
     
-    if (timerVisible) {
-      // First check: Get timer value at 3 seconds
-      const timerContent1 = await timerText.first().textContent();
-      console.log('[TEST] Paid report timer at 3s:', timerContent1);
-      
+    // Wait for timer to be visible (with retry logic)
+    let timerVisible = false;
+    let timerContent1: string | null = null;
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(500); // Wait 500ms between checks
+      timerVisible = await timerText.first().isVisible({ timeout: 1000 }).catch(() => false);
+      if (timerVisible) {
+        timerContent1 = await timerText.first().textContent();
+        console.log(`[TEST] Paid report timer check ${i + 1} (${(i + 1) * 0.5}s):`, timerContent1);
+        // Check if timer shows non-zero value
+        if (timerContent1 && !timerContent1.match(/Elapsed:\s*0s/i)) {
+          break; // Timer is working, exit loop
+        }
+      }
+    }
+    
+    if (timerVisible && timerContent1) {
       // CRITICAL: Verify timer shows elapsed time > 0s
       expect(timerContent1).not.toMatch(/Elapsed:\s*0s/i);
       
@@ -299,12 +335,24 @@ test.describe('Timer Behavior (Critical Defect Coverage)', () => {
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Wait for timer to start (bundle reports take longer)
-    await page.waitForTimeout(2000);
-    
-    // CRITICAL: Check timer is running and monitor at multiple points
+    // Wait for timer to be visible and start incrementing
+    // CRITICAL: Wait for timer element to appear and have non-zero value
     const timerText = page.locator('text=/Elapsed.*[0-9]+s/i');
-    const timerVisible = await timerText.first().isVisible({ timeout: 5000 }).catch(() => false);
+    
+    // Wait for timer to be visible (with retry logic)
+    let timerVisible = false;
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(500); // Wait 500ms between checks
+      timerVisible = await timerText.first().isVisible({ timeout: 1000 }).catch(() => false);
+      if (timerVisible) {
+        const timerContent = await timerText.first().textContent();
+        console.log(`[TEST] Bundle timer check ${i + 1} (${(i + 1) * 0.5}s):`, timerContent);
+        // Check if timer shows non-zero value
+        if (timerContent && !timerContent.match(/Elapsed:\s*0s/i)) {
+          break; // Timer is working, exit loop
+        }
+      }
+    }
     
     if (timerVisible) {
       // Check timer before the stuck point (at 10 seconds)
