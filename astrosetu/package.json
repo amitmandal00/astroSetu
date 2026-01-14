@@ -24,6 +24,7 @@
     "test:e2e:debug": "playwright test --debug",
     "test:all": "npm run test:unit && npm run test:e2e",
     "test:regression": "vitest run tests/regression",
+    "test:critical": "playwright test tests/e2e/critical-invariants.spec.ts",
     "regression-check": "bash scripts/regression-check.sh",
     "pre-deploy": "npm run type-check && npm run build && npm run test:regression"
   },

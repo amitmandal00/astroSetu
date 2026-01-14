@@ -107,6 +107,19 @@ function PreviewContent() {
   const reportTypeRef = useRef<ReportType | null>(null); // Track report type in ref to avoid interval recreation
   const bundleGeneratingRef = useRef(false); // Track bundle state in ref to avoid interval recreation
 
+  // CRITICAL FIX (ChatGPT): Initialize startTime when loader becomes visible via session_id/reportId
+  // This fixes the root cause: loader visible but timer stuck at 0s because startTime was never created
+  // "If loader visible and startTime is null ⇒ set startTimeRef = Date.now() (once)"
+  useEffect(() => {
+    // Only initialize if loader is visible AND startTime is null
+    if (isProcessingUI && loadingStartTimeRef.current === null && loadingStartTime === null) {
+      const startTime = Date.now();
+      loadingStartTimeRef.current = startTime;
+      setLoadingStartTime(startTime);
+      console.log("[Timer Init] Initialized startTime because loader became visible via session_id/reportId");
+    }
+  }, [isProcessingUI, loadingStartTime]);
+
   // Valid report types for validation
   const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
 

@@ -11,7 +11,11 @@
 ### 1. Loader visible ⇒ timer must tick
 **Contract**: If the "Generating…" / "Verifying…" screen is visible, Elapsed must increase within 2 seconds.
 
-**Enforcement**: E2E test `loader-timer-never-stuck.e2e.spec.ts` must pass.
+**Enforcement**: E2E test `critical-invariants.spec.ts` must pass.
+
+**CRITICAL FIX**: If loader becomes visible via `session_id` or `reportId`, `startTime` MUST be initialized immediately.
+- "If loader visible and startTime is null ⇒ set startTimeRef = Date.now() (once)"
+- This prevents timer stuck at 0s when resuming via session_id.
 
 ---
 
@@ -97,24 +101,28 @@
 
 ## 🔄 Cursor Workflow Rules (Must Follow Every Task)
 
-### Rule 1: Test-First
-**Cursor must add a failing regression test before changing logic.**
+### Rule 1: Test-First (MANDATORY)
+**NO FIX WITHOUT A FAILING REPRODUCTION TEST FIRST**
 
 **Process**:
 1. Read `tests/contracts/report-flow.contract.md`
-2. Add failing regression test for the defect
-3. Implement smallest change to make it pass
-4. Verify all tests pass
+2. Add failing Playwright E2E test reproducing the bug (using `session_id` for year-analysis/bundle/paid)
+3. Test must assert: "if loader visible, elapsed increases within 2 seconds"
+4. Implement smallest change to make it pass
+5. Verify `npm run test:critical` passes
+
+**CRITICAL**: All fixes must start with a failing test in `tests/e2e/critical-invariants.spec.ts`
 
 ---
 
-### Rule 2: Minimal Surface Area
-**Prefer creating new hooks/ or controller/ files. Touch preview/page.tsx only to wire them.**
+### Rule 2: Minimal Surface Area (NO EDITS IN preview/page.tsx EXCEPT WIRING)
+**ALL LOGIC CHANGES GO INTO useReportGenerationController / useElapsedSeconds / helper module**
 
 **Process**:
 1. Create new hook/controller in `src/hooks/` or `src/lib/`
 2. Wire it into `preview/page.tsx` minimally
 3. Keep `preview/page.tsx` changes to wiring only
+4. **FORBIDDEN**: No new booleans/refs in `preview/page.tsx` - push into controller
 
 ---
 
@@ -128,14 +136,18 @@
 
 ---
 
-### Rule 4: Prove No Regressions
+### Rule 4: Prove No Regressions (CRITICAL TEST GATE)
 **Must run:**
-- `npm run test:critical` (or equivalent)
-- E2E regression test: `loader-timer-never-stuck.e2e.spec.ts`
+- `npm run test:critical` - **MUST PASS** (blocks merge if fails)
+- E2E regression test: `critical-invariants.spec.ts`
 
 **Process**:
-1. Run all tests before committing
-2. Ensure `loader-timer-never-stuck.e2e.spec.ts` passes
+1. Run `npm run test:critical` before committing
+2. Ensure all 4 critical invariant tests pass:
+   - Loader visible => elapsed ticks (year-analysis, bundle, paid)
+   - Session resume scenario
+   - Retry must be full restart
+   - reportType alone must not show loader
 3. Verify no regressions in existing tests
 
 ---
@@ -202,12 +214,79 @@ This forces Cursor to stop doing "patchy fixes" and instead align the timer, loa
 
 ---
 
+## 🚨 NEW NON-NEGOTIABLES (ChatGPT Latest Feedback - 2026-01-14)
+
+### 6. startTime MUST be initialized when loader becomes visible
+**Contract**: If loader becomes visible via `session_id` or `reportId` and `startTime` is null, initialize it immediately.
+
+**Implementation**: 
+```typescript
+useEffect(() => {
+  if (isProcessingUI && loadingStartTimeRef.current === null && loadingStartTime === null) {
+    const startTime = Date.now();
+    loadingStartTimeRef.current = startTime;
+    setLoadingStartTime(startTime);
+  }
+}, [isProcessingUI, loadingStartTime]);
+```
+
+**Why**: Prevents timer stuck at 0s when resuming via session_id (the exact production bug).
+
+---
+
+### 7. Controller MUST own ALL report types
+**Contract**: One controller must own start/retry/cancel/polling for ALL report types (free, year-analysis, bundle, paid).
+
+**Status**: 
+- ✅ Free reports: Use `generationController.start()`
+- ❌ Year-analysis: Still uses legacy path (MUST MIGRATE)
+- ❌ Bundle: Still uses legacy path (MUST MIGRATE)
+- ❌ Paid: Still uses legacy path (MUST MIGRATE)
+
+**Why**: Prevents split world where free works but others stuck (DEF-006/DEF-007 behavior).
+
+---
+
+### 8. Critical Test Gate (MUST PASS)
+**Contract**: `npm run test:critical` must pass before any merge.
+
+**Tests** (in `tests/e2e/critical-invariants.spec.ts`):
+1. Loader visible => elapsed ticks (year-analysis with session_id)
+2. Loader visible => elapsed ticks (bundle with retry)
+3. Loader visible => elapsed ticks (paid transition: verify → generate)
+4. Session resume scenario (exact screenshot bug)
+5. Retry must be full restart
+6. reportType alone must not show loader
+
+**Why**: These are the "killer tests" that prevent all timer regressions.
+
+---
+
+## 🔒 Hard Boundary Checklist (Before Accepting Cursor Output)
+
+Before accepting any Cursor changes, verify:
+
+- [ ] Did it add/modify the E2E invariant test in `critical-invariants.spec.ts`?
+- [ ] Did it touch loader gating? If yes, did it update the test to match?
+- [ ] Did it add any new booleans/refs in `preview/page.tsx`? **REJECT** - Push into controller.
+- [ ] Did it change logic in `preview/page.tsx`? **REJECT** - Should be in controller/hook.
+- [ ] Does `npm run test:critical` pass?
+- [ ] Is retry a full restart (abort + attemptId++ + guards reset + startTime init + start())?
+
+**If any checkbox fails → REJECT the changes and ask Cursor to fix.**
+
+---
+
 ## 📋 Implementation Checklist
 
 - ✅ Guidelines document created
 - ✅ E2E test implemented (`loader-timer-never-stuck.spec.ts`)
+- ✅ Critical invariant tests implemented (`critical-invariants.spec.ts`)
 - ✅ UI data-testid added (`data-testid="elapsed-seconds"`)
 - ✅ Contract document referenced (`tests/contracts/report-flow.contract.md`)
+- ✅ startTime initialization when loader visible: **FIXED**
+- ✅ Critical test gate created: **COMPLETE**
+- ⚠️ Controller owns all report types: **PARTIAL** (only free reports)
 
 ---
 
