@@ -29,17 +29,8 @@ vi.mock('next/navigation', () => ({
       // NO auto_generate, NO session_id, NO reportId
       if (key === 'reportType') return 'year-analysis';
       return null; // No other params
-    })),
+    }),
   })),
-}));
-
-// Mock React hooks
-vi.mock('react', () => ({
-  useState: vi.fn(() => [null, vi.fn()]),
-  useEffect: vi.fn(),
-  useCallback: vi.fn((fn) => fn),
-  useRef: vi.fn(() => ({ current: null })),
-  useMemo: vi.fn((fn) => fn()),
 }));
 
 // Mock the preview page component

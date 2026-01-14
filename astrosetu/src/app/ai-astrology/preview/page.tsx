@@ -2090,13 +2090,16 @@ function PreviewContent() {
   // Update life-summary progress step dynamically (for pre-loading screen only)
   // Also add fallback to ensure auto-generation triggers if stuck
   useEffect(() => {
-    const urlHasReportType = searchParams.get("reportType") !== null;
+    // CRITICAL FIX (ChatGPT): Remove urlHasReportType from processing conditions
+    // reportType in URL does NOT mean we are processing - it's just metadata
     const urlSessionId = searchParams.get("session_id");
     const urlReportId = searchParams.get("reportId");
     const autoGenerate = searchParams.get("auto_generate") === "true";
     const hasBundleInfo = bundleType && bundleReports.length > 0;
-    const shouldWaitForProcess = loading || isGeneratingRef.current || urlHasReportType || urlSessionId || urlReportId || autoGenerate || hasBundleInfo;
-    const isWaitingForState = (urlHasReportType || hasBundleInfo) && !input && !hasRedirectedRef.current && !loading;
+    // Only show loader when actually processing (not just when reportType is in URL)
+    const shouldWaitForProcess = loading || isGeneratingRef.current || urlSessionId || urlReportId || autoGenerate || (hasBundleInfo && bundleGenerating);
+    // Only wait for state if we have bundle info AND generation is active
+    const isWaitingForState = hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
     
     let progressInterval: NodeJS.Timeout | null = null;
     
@@ -3087,7 +3090,8 @@ function PreviewContent() {
   // 2. Have reportType in URL (coming from input page) - wait for useEffect
   // 3. Have session_id or reportId (indicates ongoing process)
   // 4. Already redirected
-  const urlHasReportType = searchParams.get("reportType") !== null;
+  // CRITICAL FIX (ChatGPT): Remove urlHasReportType from processing conditions
+  // reportType in URL does NOT mean we are processing - it's just metadata
   const urlSessionId = searchParams.get("session_id");
   const urlReportId = searchParams.get("reportId");
   const autoGenerate = searchParams.get("auto_generate") === "true";
@@ -3095,11 +3099,12 @@ function PreviewContent() {
   // Check for bundle info in state (for bundles, we should wait even if no URL params)
   const hasBundleInfo = bundleType && bundleReports.length > 0;
   
-  // Determine if we should wait (loading, generating, or have URL params indicating process, or have bundle info)
-  const shouldWaitForProcess = loading || isGeneratingRef.current || urlHasReportType || urlSessionId || urlReportId || autoGenerate || hasBundleInfo;
+  // Determine if we should wait (loading, generating, or have URL params indicating process, or have bundle info AND generation active)
+  // Only show loader when actually processing (not just when reportType is in URL)
+  const shouldWaitForProcess = loading || isGeneratingRef.current || urlSessionId || urlReportId || autoGenerate || (hasBundleInfo && bundleGenerating);
   
-  // Determine if we're waiting for state to be set (have URL params but no input yet, or have bundle info but no input)
-  const isWaitingForState = (urlHasReportType || hasBundleInfo) && !input && !hasRedirectedRef.current && !loading;
+  // Determine if we're waiting for state to be set (have bundle info AND generation is active)
+  const isWaitingForState = hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
   
   if (!reportContent || !input) {
     // CRITICAL: If we're in loading state OR generating, OR waiting for state initialization,
@@ -3116,7 +3121,9 @@ function PreviewContent() {
     // 4. Haven't redirected already
     // 5. Not already on input page
     // This ensures we ONLY redirect when truly necessary (user navigated directly without context)
-    if (!hasRedirectedRef.current && !loading && !isGeneratingRef.current && !urlHasReportType && !urlSessionId && !urlReportId) {
+    // CRITICAL FIX (ChatGPT): Remove urlHasReportType from redirect condition
+    // reportType in URL does NOT prevent redirect - it's just metadata
+    if (!hasRedirectedRef.current && !loading && !isGeneratingRef.current && !urlSessionId && !urlReportId) {
       const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
       if (!currentPath.includes("/input")) {
         hasRedirectedRef.current = true;
