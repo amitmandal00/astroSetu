@@ -92,7 +92,8 @@ describe('Date Helpers', () => {
     it('returns timeline range', () => {
       const windows = getMarriageTimingWindows();
       expect(windows.timelineStart).toBeLessThan(windows.timelineEnd);
-      expect(windows.timelineStart).toBe(2025);
+      // CRITICAL FIX: Changed from currentYear - 1 to currentYear (no past years)
+      expect(windows.timelineStart).toBe(2026);
       expect(windows.timelineEnd).toBe(2029);
     });
   });
@@ -114,7 +115,8 @@ describe('Date Helpers', () => {
 
     it('returns timeline range', () => {
       const windows = getCareerTimingWindows();
-      expect(windows.timelineStart).toBe(2025);
+      // CRITICAL FIX: Changed from currentYear - 1 to currentYear (no past years)
+      expect(windows.timelineStart).toBe(2026);
       expect(windows.timelineEnd).toBe(2031);
     });
 
