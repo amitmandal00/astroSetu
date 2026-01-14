@@ -609,8 +609,9 @@ Timer continues incrementing after report is completed. Timer doesn't stop when 
 - ✅ DEF-006: State Not Updated When Polling Succeeds
 - ✅ DEF-007: Timer Continues After Report Completes
 
-### Recent Defects (1)
+### Recent Defects (2)
 - ✅ DEF-008: Year Analysis Purchase Button Redirects to Free Life Summary
+- ✅ DEF-009: Report Generation Flickers Back to Input Screen
 
 ### Related Issues (Covered by Above Defects)
 - ✅ Report Generation Stuck - Covered by DEF-006 and DEF-007
@@ -690,6 +691,82 @@ Clicking "Purchase Year Analysis Report" button and accepting terms and conditio
 ### Test Coverage
 - Test File: Manual testing
 - Test Name: "Year Analysis purchase button redirects correctly"
+- Status: ✅ VERIFIED (manual testing)
+
+---
+
+## 🔴 Defect #9: Report Generation Flickers Back to Input Screen
+
+### Basic Information
+- **Defect ID**: DEF-009
+- **Reported Date**: 2026-01-14
+- **Fixed Date**: 2026-01-14
+- **Priority**: Critical
+- **Status**: ✅ FIXED
+- **Reported By**: User report
+- **Component**: `src/app/ai-astrology/preview/page.tsx`
+- **Related Files**: `REPORT_GENERATION_FLICKER_FIX.md`
+
+### Description
+All report generation keeps flickering back to the input screen during generation. The preview page redirects to the input page even when report generation is in progress, causing a flickering/redirect loop.
+
+### Symptoms
+- User submits form and navigates to preview page
+- Report generation starts
+- Page flickers/redirects back to input screen
+- This happens repeatedly during generation
+- Affects all report types (free and paid)
+- User cannot see generation progress
+
+### Root Cause
+1. **Missing reportType Check**: The redirect logic at line 3126 didn't check if `reportType` was in the URL. If `reportType` is present, it means the user came from the input page, so we shouldn't redirect.
+
+2. **Incomplete Generation State Checks**: The redirect condition checked `loading` and `isGeneratingRef.current`, but didn't check:
+   - `bundleGenerating` - bundle generation in progress
+   - `loadingStage` - payment verification or generation stage active
+   - `hasReportTypeInUrl` - reportType in URL indicates user came from input page
+
+3. **hasRedirectedRef Reset**: In `handleRetryLoading` function (line 2158), `hasRedirectedRef.current = false` was being reset, which could cause redirect loops during retry.
+
+4. **setTimeout Redirect Logic**: The setTimeout at line 1142 didn't check for `bundleGenerating` or `loadingStage`, and didn't check if `reportType` was in URL.
+
+### Fix Applied
+1. **Check reportType in URL**: Added check for `reportType` in URL before redirecting:
+   ```typescript
+   const urlReportType = searchParams.get("reportType");
+   const hasReportTypeInUrl = urlReportType !== null && validReportTypes.includes(urlReportType as ReportType);
+   ```
+
+2. **Enhanced Redirect Conditions**: Updated redirect condition to check:
+   - `!hasReportTypeInUrl` - Don't redirect if reportType is in URL
+   - `!bundleGenerating` - Don't redirect if bundle generation is active
+   - `!loadingStage` - Don't redirect if loading stage is active
+   - `loading || isGeneratingRef.current || bundleGenerating || loadingStage !== null` - Show loading screen instead
+
+3. **Removed hasRedirectedRef Reset**: Removed `hasRedirectedRef.current = false` from `handleRetryLoading` to prevent redirect loops during retry.
+
+4. **Enhanced setTimeout Checks**: Updated setTimeout to check for `bundleGenerating`, `loadingStage`, and `hasReportTypeInUrl` before redirecting.
+
+### Code Changes
+- **File**: `src/app/ai-astrology/preview/page.tsx`
+- **Function**: Main render logic (around line 3109-3140)
+- **Function**: `useEffect` with setTimeout (around line 1142-1180)
+- **Function**: `handleRetryLoading` (around line 2158)
+- **Lines Changed**: 
+  - ~3109-3140 (main redirect logic)
+  - ~1142-1180 (setTimeout redirect logic)
+  - ~2158 (removed hasRedirectedRef reset)
+
+### Verification
+- ✅ Manual testing verified
+- ✅ No flickering during report generation
+- ✅ All report types work correctly
+- ✅ Bundle generation works correctly
+- ✅ Free and paid reports work correctly
+
+### Test Coverage
+- Test File: Manual testing
+- Test Name: "Report generation does not flicker back to input screen"
 - Status: ✅ VERIFIED (manual testing)
 
 ---
