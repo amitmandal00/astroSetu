@@ -184,7 +184,12 @@ npm run test:critical
 - Run through checklist above
 - Verify all non-negotiables met
 
-### 7. Commit & Get Approval
+### 7. Build Safety Check (MANDATORY)
+- Run `npm run ci:critical` (type-check + build + test:build-imports)
+- All must pass before commit
+- This prevents Vercel build failures
+
+### 8. Commit & Get Approval
 - Commit with clear message
 - **MANDATORY: Get user approval before git push**
 - Show summary of changes

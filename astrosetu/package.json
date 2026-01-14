@@ -25,6 +25,9 @@
     "test:all": "npm run test:unit && npm run test:e2e",
     "test:regression": "vitest run tests/regression",
     "test:critical": "playwright test tests/e2e/critical-invariants.spec.ts",
+    "test:build-imports": "vitest run tests/integration/build-imports.test.ts",
+    "ci:critical": "npm run type-check && npm run build && npm run test:build-imports",
+    "prepush": "npm run type-check && npm run build",
     "regression-check": "bash scripts/regression-check.sh",
     "pre-deploy": "npm run type-check && npm run build && npm run test:regression"
   },

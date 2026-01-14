@@ -79,7 +79,8 @@ export const AI_PROMPT_TEMPLATES = {
       const secondaryDesc = timingWindows?.secondaryDescription || "Mid 2028 – Early 2029";
       // CRITICAL FIX: Use future years only - never use past years
       // Import utility to ensure future-only windows
-      const { getCurrentYear, ensureFutureYear } = require("../../time/futureWindows");
+      // CRITICAL: Use correct relative path (../time/ not ../../time/)
+      const { getCurrentYear, ensureFutureYear } = require("../time/futureWindows");
       const currentYear = getCurrentYear();
       // CRITICAL: timelineStart must be >= currentYear (never use past years)
       const timelineStart = timingWindows?.timelineStart 
@@ -1038,7 +1039,8 @@ export function generateYearAnalysisPrompt(
     finalEndMonth = range.endMonth;
   } else {
     // CRITICAL FIX: Ensure years are not in the past
-    const { ensureFutureYear } = require("../../time/futureWindows");
+    // CRITICAL: Use correct relative path (../time/ not ../../time/)
+    const { ensureFutureYear } = require("../time/futureWindows");
     finalStartYear = ensureFutureYear(startYear);
     finalStartMonth = startMonth;
     finalEndYear = ensureFutureYear(endYear);

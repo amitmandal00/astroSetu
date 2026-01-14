@@ -82,6 +82,41 @@
 
 ---
 
+## 🚨 Build Safety Non-Negotiables (CRITICAL - Prevents Vercel Build Failures)
+
+### 1. No New Imports Unless Target File Exists
+**CRITICAL**: Never add an import unless the target file exists in the repo.
+- Check file exists before adding import
+- Verify path is correct (use `@/` alias or correct relative path)
+
+### 2. No "../../" Imports in src/lib - Use Path Alias
+**CRITICAL**: Never use `../../` imports in `src/lib/`. Use `@/` alias or correct relative path.
+- ✅ **CORRECT**: `import { ... } from "@/lib/time/futureWindows"`
+- ✅ **CORRECT**: `import { ... } from "../time/futureWindows"` (from `src/lib/ai-astrology/`)
+- ❌ **WRONG**: `require("../../time/futureWindows")` (from `src/lib/ai-astrology/`)
+
+### 3. No require() in TypeScript Library Files
+**CRITICAL**: Do not use `require()` in TypeScript library files; use ES imports.
+- ✅ **CORRECT**: `import { getCurrentYear } from "@/lib/time/futureWindows"`
+- ❌ **WRONG**: `const { getCurrentYear } = require("../time/futureWindows")`
+
+### 4. Always Run Build Before Committing
+**CRITICAL**: Before finalizing, run: `npm run type-check && npm run build`
+- Both must pass before commit
+- Use `npm run ci:critical` for full validation
+
+### 5. Add/Update Critical Import Test
+**CRITICAL**: Add/update a test in `tests/integration/build-imports.test.ts` that imports the modified entry module.
+- Missing imports will fail in CI before Vercel
+- Run `npm run test:build-imports` before commit
+
+### 6. Production Build Gate
+**CRITICAL**: Any PR must pass `npm run ci:critical` locally before committing.
+- `ci:critical` = `type-check && build && test:build-imports`
+- This prevents Vercel build failures
+
+---
+
 ## ❌ Forbidden Edits for Cursor (To Prevent Breakage)
 
 ### Don't Patch useEffect Dependencies Randomly
