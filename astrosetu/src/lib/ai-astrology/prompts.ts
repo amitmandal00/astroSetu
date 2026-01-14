@@ -77,8 +77,15 @@ export const AI_PROMPT_TEMPLATES = {
     marriageTiming: (birthDetails: any, planetaryData: any, timingWindows?: any) => {
       const primaryDesc = timingWindows?.primaryDescription || "Late 2026 – Early 2027";
       const secondaryDesc = timingWindows?.secondaryDescription || "Mid 2028 – Early 2029";
-      const timelineStart = timingWindows?.timelineStart || new Date().getFullYear() - 1;
-      const timelineEnd = timingWindows?.timelineEnd || new Date().getFullYear() + 3;
+      // CRITICAL FIX: Use future years only - never use past years
+      // Import utility to ensure future-only windows
+      const { getCurrentYear, ensureFutureYear } = require("../../time/futureWindows");
+      const currentYear = getCurrentYear();
+      // CRITICAL: timelineStart must be >= currentYear (never use past years)
+      const timelineStart = timingWindows?.timelineStart 
+        ? ensureFutureYear(timingWindows.timelineStart) 
+        : currentYear; // Default to current year, not currentYear - 1
+      const timelineEnd = timingWindows?.timelineEnd || currentYear + 3;
       const timelineYears: number[] = [];
       for (let year = timelineStart; year <= timelineEnd; year++) {
         timelineYears.push(year);
@@ -1030,10 +1037,17 @@ export function generateYearAnalysisPrompt(
     finalEndYear = range.endYear;
     finalEndMonth = range.endMonth;
   } else {
-    finalStartYear = startYear;
+    // CRITICAL FIX: Ensure years are not in the past
+    const { ensureFutureYear } = require("../../time/futureWindows");
+    finalStartYear = ensureFutureYear(startYear);
     finalStartMonth = startMonth;
-    finalEndYear = endYear;
+    finalEndYear = ensureFutureYear(endYear);
     finalEndMonth = endMonth;
+    
+    // If start year was adjusted, ensure end year is still >= start year
+    if (finalEndYear < finalStartYear) {
+      finalEndYear = finalStartYear;
+    }
   }
   
   const monthNames = [

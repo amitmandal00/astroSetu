@@ -63,6 +63,25 @@
 
 ---
 
+### 6. All prediction windows must be future-only
+**Contract**: All displayed "prediction windows" must be future-only relative to the user's current local time.
+
+**Rules**:
+- If a window ends before now → drop it
+- If a window overlaps now → trim start to now or label as "ongoing" (based on mode)
+- If a report asks for "Year Analysis" → use current year and forward, not previous year
+- Never use `currentYear - 1` or past years in timeline calculations
+
+**Implementation**:
+- Use `filterFutureWindows()` utility from `src/lib/time/futureWindows.ts` for all date ranges
+- Use `ensureFutureYear()` to ensure years are not in the past
+- Use `getDefaultYearAnalysisYear()` for year analysis defaults
+- Apply to: marriage timing, career/money, decision support, year-analysis, dasha/transit windows
+
+**Enforcement**: Integration test must assert no displayed window ends before now.
+
+---
+
 ## ❌ Forbidden Edits for Cursor (To Prevent Breakage)
 
 ### Don't Patch useEffect Dependencies Randomly
@@ -107,6 +126,19 @@
 - Show summary of changes to user
 - Wait for explicit approval before pushing
 - This prevents accidental pushes and allows review
+
+### Rule 0.5: Controller Sync Gating (MANDATORY)
+**CRITICAL**: Controller sync must NOT interfere with legacy flows.
+- Use `usingControllerRef` to track if controller started the flow
+- Only sync state when `usingControllerRef.current === true`
+- Legacy flows (bundle, year-analysis via session_id) own their own state
+- Root cause: Controller sync was clearing `loadingStartTime` when controller is idle, even if legacy flow is still running
+
+### Rule 0.6: Async Code Must Use Refs (MANDATORY)
+**CRITICAL**: All async loops must read UI state via refs, not closure.
+- Use `isProcessingUIRef.current` instead of `isProcessingUI` in async polling
+- Prevents stale closure issues causing premature polling stops
+- Root cause: Async polling functions capture `isProcessingUI` in closure, causing premature stops
 
 ### Rule 1: Test-First (MANDATORY)
 **NO FIX WITHOUT A FAILING REPRODUCTION TEST FIRST**

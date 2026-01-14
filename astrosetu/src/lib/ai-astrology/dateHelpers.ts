@@ -107,6 +107,7 @@ export function getMarriageTimingWindows(): {
     
   const secondaryDesc = `Mid ${secondaryStartYear} – Early ${secondaryEndYear}`;
   
+  // CRITICAL FIX: Never use past years - timelineStart must be >= currentYear
   return {
     primaryWindowStart: primaryStartYear,
     primaryWindowEnd: primaryEndYear,
@@ -114,7 +115,7 @@ export function getMarriageTimingWindows(): {
     secondaryWindowEnd: secondaryEndYear,
     primaryDescription: primaryDesc,
     secondaryDescription: secondaryDesc,
-    timelineStart: currentYear - 1,
+    timelineStart: currentYear, // CRITICAL: Use currentYear, not currentYear - 1 (no past years)
     timelineEnd: currentYear + 3,
   };
 }
@@ -148,7 +149,7 @@ export function getCareerTimingWindows(): {
       endYear: currentYear + 5,
       description: `${currentYear + 3}–${currentYear + 5}`,
     },
-    timelineStart: currentYear - 1,
+    timelineStart: currentYear, // CRITICAL: Use currentYear, not currentYear - 1 (no past years)
     timelineEnd: currentYear + 5,
   };
 }
