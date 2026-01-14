@@ -2393,11 +2393,11 @@ function PreviewContent() {
                 <p className="text-sm text-slate-500">
                   {isTakingLonger ? (
                     <span className="text-amber-600 font-semibold">
-                      ⏱️ Taking longer than expected ({elapsedTime}s elapsed) - Still processing...
+                      ⏱️ Taking longer than expected (<span data-testid="elapsed-seconds">{elapsedTime}</span>s elapsed) - Still processing...
                     </span>
                   ) : (
                     <span className="text-slate-600">
-                      ⏱️ Elapsed: {elapsedTime}s {timeRemaining > 0 && `• Est. remaining: ${timeRemaining}s`}
+                      ⏱️ Elapsed: <span data-testid="elapsed-seconds">{elapsedTime}</span>s {timeRemaining > 0 && `• Est. remaining: ${timeRemaining}s`}
                     </span>
                   )}
                 </p>

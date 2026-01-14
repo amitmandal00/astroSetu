@@ -6,6 +6,8 @@
 **Verification**: ✅ Complete - All defects accounted for  
 **Note**: DEF-001 enhanced with detailed root cause analysis and code examples
 
+**⚠️ IMPORTANT**: See `CURSOR_OPERATING_MANUAL.md` for guidelines on preventing future defects. All report generation changes must follow the operating manual.
+
 ---
 
 ## 📋 Defect Register Overview
