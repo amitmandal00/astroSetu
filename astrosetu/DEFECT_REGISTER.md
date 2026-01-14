@@ -1,8 +1,8 @@
 # Defect Register
 
-**Last Updated**: 2026-01-13  
-**Total Defects**: 7  
-**Status**: All Fixed ✅  
+**Last Updated**: 2026-01-14  
+**Total Defects**: 8  
+**Status**: 7 Fixed ✅, 1 New 🔴  
 **Verification**: ✅ Complete - All defects accounted for  
 **Note**: DEF-001 enhanced with detailed root cause analysis and code examples
 
@@ -609,6 +609,9 @@ Timer continues incrementing after report is completed. Timer doesn't stop when 
 - ✅ DEF-006: State Not Updated When Polling Succeeds
 - ✅ DEF-007: Timer Continues After Report Completes
 
+### Recent Defects (1)
+- ✅ DEF-008: Year Analysis Purchase Button Redirects to Free Life Summary
+
 ### Related Issues (Covered by Above Defects)
 - ✅ Report Generation Stuck - Covered by DEF-006 and DEF-007
 - ✅ Timer Stuck at Various Times - Covered by DEF-002, DEF-003, DEF-004, DEF-005
@@ -624,8 +627,75 @@ Timer continues incrementing after report is completed. Timer doesn't stop when 
 
 ---
 
+## 🔴 Defect #8: Year Analysis Purchase Button Redirects to Free Life Summary
+
+### Basic Information
+- **Defect ID**: DEF-008
+- **Reported Date**: 2026-01-14
+- **Fixed Date**: 2026-01-14
+- **Priority**: High
+- **Status**: ✅ FIXED
+- **Reported By**: User report
+- **Component**: `src/app/ai-astrology/input/page.tsx`
+- **Related Files**: `YEAR_ANALYSIS_PURCHASE_REDIRECT_FIX.md`
+
+### Description
+Clicking "Purchase Year Analysis Report" button and accepting terms and conditions redirects user to "Free Life Summary" form instead of the Year Analysis preview page. The reportType parameter is lost during the confirmation flow.
+
+### Symptoms
+- User clicks "Purchase Year Analysis Report" button
+- Terms and conditions modal appears
+- User accepts terms and clicks "Continue to Generate Report"
+- User is redirected to Free Life Summary form instead of Year Analysis preview
+- URL shows `/ai-astrology/preview?reportType=life-summary` instead of `reportType=year-analysis`
+
+### Root Cause
+1. **State Staleness**: The `reportType` state variable in the input page component may become stale or null when `handleConfirmation` is called, especially if the component re-renders or state updates are delayed.
+
+2. **Default Fallback**: In `handleConfirmation` function (line 198), the code uses:
+   ```typescript
+   const finalReportType = reportType || "life-summary";
+   ```
+   If `reportType` state is `null` or `undefined` at this point, it defaults to `"life-summary"`, causing the wrong redirect.
+
+3. **Missing URL Parameter Re-read**: The function doesn't re-read the `reportType` from URL parameters (`searchParams`) before redirecting, relying only on component state which may be stale.
+
+### Fix Applied
+1. **Re-read reportType from URL**: In `handleConfirmation` function, re-read `reportType` from URL parameters before redirecting:
+   ```typescript
+   const currentReportTypeParam = searchParams.get("reportType") || searchParams.get("report");
+   const currentReportType = (currentReportTypeParam && validReportTypes.includes(currentReportTypeParam as ReportType)) 
+     ? (currentReportTypeParam as ReportType) 
+     : reportType; // Fallback to state if URL param is missing
+   ```
+
+2. **Use URL Parameter as Primary Source**: Use `currentReportType` (from URL) instead of `reportType` (from state) as the primary source:
+   ```typescript
+   const finalReportType = currentReportType || "life-summary";
+   ```
+
+3. **Added Debug Logging**: Added console.log to track reportType source and final value for debugging.
+
+### Code Changes
+- **File**: `src/app/ai-astrology/input/page.tsx`
+- **Function**: `handleConfirmation` (around line 155-210)
+- **Lines Changed**: ~155-199 (re-read reportType from URL, use as primary source)
+
+### Verification
+- ✅ Manual testing verified
+- ✅ reportType preserved from URL parameters
+- ✅ Year Analysis purchase flow works correctly
+- ✅ Other report types (marriage-timing, career-money, etc.) still work
+
+### Test Coverage
+- Test File: Manual testing
+- Test Name: "Year Analysis purchase button redirects correctly"
+- Status: ✅ VERIFIED (manual testing)
+
+---
+
 **Register Maintained By**: Development Team  
-**Last Review Date**: 2026-01-13  
+**Last Review Date**: 2026-01-14  
 **Next Review Date**: As needed  
 **Verification Status**: ✅ All defects accounted for
 

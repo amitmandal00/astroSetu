@@ -171,10 +171,21 @@ function InputFormContent() {
         timezone: "Asia/Kolkata",
       };
 
+      // CRITICAL FIX: Re-read reportType from URL params to ensure it's preserved
+      // This prevents the issue where reportType becomes null and defaults to "life-summary"
+      const currentReportTypeParam = searchParams.get("reportType") || searchParams.get("report");
+      const currentReportType = (currentReportTypeParam && validReportTypes.includes(currentReportTypeParam as ReportType)) 
+        ? (currentReportTypeParam as ReportType) 
+        : reportType; // Fallback to state if URL param is missing
+      
+      // CRITICAL FIX: Use currentReportType (from URL) instead of reportType (from state)
+      // This ensures we preserve the reportType even if state is stale
+      const finalReportType = currentReportType || "life-summary";
+
       // Store in sessionStorage for next page (if available)
       try {
         sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
-        sessionStorage.setItem("aiAstrologyReportType", reportType || "life-summary");
+        sessionStorage.setItem("aiAstrologyReportType", finalReportType);
         
         // Store bundle information if bundle is selected
         if (bundleParam) {
@@ -194,9 +205,14 @@ function InputFormContent() {
       // Redirect to preview page
       // CRITICAL: Always include reportType in URL to prevent redirect loops
       // This ensures the preview page knows what report type to generate even if sessionStorage is lost
-      // For free life summary, explicitly include reportType=life-summary in URL
-      const finalReportType = reportType || "life-summary";
+      // CRITICAL FIX: Use finalReportType (from URL) instead of reportType (from state)
       const previewUrl = `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}`;
+      
+      console.log("[Input] Redirecting to preview with reportType:", finalReportType, {
+        fromUrl: currentReportTypeParam,
+        fromState: reportType,
+        final: finalReportType
+      });
       
       // CRITICAL: Don't reset loading state on successful navigation to prevent flickering
       // The loading state will be cleared when the component unmounts during navigation
