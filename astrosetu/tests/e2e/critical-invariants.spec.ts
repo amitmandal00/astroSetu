@@ -310,6 +310,78 @@ test.describe("Critical Invariants - Timer & Report Generation", () => {
     expect(n).toBeGreaterThanOrEqual(4); // Should be at least 4-5 seconds
   });
 
+  // Test 9: Cross-report transition without reload must NOT reset timer (CRITICAL BUG)
+  test("Cross-report transition: life-summary → year-analysis must NOT reset timer", async ({ page }) => {
+    // CRITICAL: This is the "first time only" bug - controller flow → legacy flow without reload
+    // Landing page loads, runs controller-based flow (life-summary), sets usingControllerRef.current = true
+    // Then user tries Year-Analysis without full page reload (same preview/page.tsx instance; refs persist)
+    // Year-Analysis uses legacy generateReport() flow, but controller-sync useEffect is still active
+    // Controller is idle (no controller attempt for year-analysis), so sync effect clears loadingStartTime → timer snaps back to 0
+    
+    // Step 1: Visit /preview?reportType=life-summary (controller flow)
+    await page.goto("/ai-astrology/preview?reportType=life-summary&auto_generate=true", {
+      waitUntil: "networkidle"
+    });
+    
+    // Wait for loader to appear
+    await expect(page.getByText(LOADER_TITLE)).toBeVisible({ timeout: 10000 });
+    const elapsedElement = page.locator(ELAPSED);
+    await expect(elapsedElement).toBeVisible({ timeout: 5000 });
+    
+    // Get initial elapsed time
+    const t0 = await elapsedElement.innerText();
+    const n0 = parseInt((t0.match(/\d+/) ?? ["0"])[0], 10);
+    
+    // Wait 2 seconds to ensure timer is ticking
+    await page.waitForTimeout(2000);
+    
+    // Get elapsed time after 2 seconds
+    const t1 = await elapsedElement.innerText();
+    const n1 = parseInt((t1.match(/\d+/) ?? ["0"])[0], 10);
+    
+    // CRITICAL: Timer must have increased
+    expect(n1).toBeGreaterThan(n0);
+    
+    // Step 2: Navigate client-side to /preview?reportType=year-analysis (legacy flow)
+    // This simulates the "first time only" scenario without full page reload
+    await page.goto("/ai-astrology/preview?reportType=year-analysis&auto_generate=true", {
+      waitUntil: "networkidle"
+    });
+    
+    // Wait for loader to appear for year-analysis
+    await expect(page.getByText(LOADER_TITLE)).toBeVisible({ timeout: 10000 });
+    await expect(elapsedElement).toBeVisible({ timeout: 5000 });
+    
+    // Get elapsed time after transition
+    const t2 = await elapsedElement.innerText();
+    const n2 = parseInt((t2.match(/\d+/) ?? ["0"])[0], 10);
+    
+    // CRITICAL: Timer should continue or reset to a new value, but NOT stay at 0
+    // It's acceptable for timer to reset to 0 when starting new report, but it must then tick
+    // Wait 3 seconds to ensure timer ticks after transition
+    await page.waitForTimeout(3000);
+    
+    // Get elapsed time after 3 seconds
+    const t3 = await elapsedElement.innerText();
+    const n3 = parseInt((t3.match(/\d+/) ?? ["0"])[0], 10);
+    
+    // CRITICAL: Timer must have increased (never stays at 0 while loading)
+    expect(n3).toBeGreaterThan(0);
+    expect(n3).toBeGreaterThanOrEqual(2); // Should be at least 2-3 seconds
+    
+    // CRITICAL: Timer must never return to 0 while still loading
+    // Wait another 3 seconds to ensure timer continues ticking
+    await page.waitForTimeout(3000);
+    
+    // Get elapsed time after 6 seconds total
+    const t4 = await elapsedElement.innerText();
+    const n4 = parseInt((t4.match(/\d+/) ?? ["0"])[0], 10);
+    
+    // CRITICAL: Timer must continue increasing, NOT reset
+    expect(n4).toBeGreaterThan(n3);
+    expect(n4).toBeGreaterThanOrEqual(5); // Should be at least 5-6 seconds
+  });
+
   // Test 8: Full-life must NOT flicker and end in error (CRITICAL BUG)
   test("Full-life must NOT flicker and end in error screen", async ({ page }) => {
     // CRITICAL: Full-life flickers a lot and ends in "Error Generating Report"

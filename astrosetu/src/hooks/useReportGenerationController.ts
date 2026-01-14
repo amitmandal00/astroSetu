@@ -33,6 +33,9 @@ export interface UseReportGenerationControllerReturn {
   startTime: number | null;
   progress: ReportGenerationProgress | null;
   reportContent: ReportContent | null;
+  // CRITICAL FIX 2 (ChatGPT): Add active attempt tracking for controller-sync matching
+  activeAttemptId: string | null;
+  activeReportType: ReportType | null;
 
   // Actions
   start: (
@@ -56,6 +59,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
 
   // CRITICAL: Single-flight guard
   const activeAttemptIdRef = useRef<string | null>(null);
+  const activeReportTypeRef = useRef<ReportType | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -80,6 +84,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
 
     // Clear active attempt
     activeAttemptIdRef.current = null;
+    activeReportTypeRef.current = null;
 
     // Reset state to idle (use createInitialState to avoid transition issues)
     setState(createInitialState());
@@ -242,6 +247,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
       // Create new attempt
       const attemptId = generateAttemptId();
       activeAttemptIdRef.current = attemptId;
+      activeReportTypeRef.current = reportType; // CRITICAL FIX 2: Track active report type
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
@@ -375,6 +381,9 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
     startTime: state.startTime,
     progress,
     reportContent,
+    // CRITICAL FIX 2: Expose active attempt tracking for controller-sync matching
+    activeAttemptId: activeAttemptIdRef.current,
+    activeReportType: activeReportTypeRef.current,
     start,
     cancel,
     retry,

@@ -117,6 +117,42 @@
 
 ---
 
+## 🚨 Cross-Report Transition Non-Negotiables (CRITICAL - Prevents Timer Reset)
+
+### 1. Reset usingControllerRef When Switching to Legacy Flows
+**CRITICAL**: At the start of ALL legacy generation paths (generateReport, session resume), force:
+- `usingControllerRef.current = false`
+- This prevents controller-sync from interfering with legacy flows
+
+**Enforcement**: Check `generateReport()` function - must set `usingControllerRef.current = false` at the start.
+
+### 2. Controller-Sync Must Require Matching Active Attempt
+**CRITICAL**: Controller-sync should only run when:
+- `usingControllerRef.current === true`
+- `generationController.activeReportType === currentReportType`
+- `generationController.activeAttemptId` matches (if tracked)
+
+**Enforcement**: Controller sync useEffect must check `activeReportType` before syncing.
+
+### 3. On ReportType Change, Hard Reset UI Owner + Timers
+**CRITICAL**: Add `useEffect([reportType])` that does:
+- Abort any legacy polling
+- Reset `loadingStartTimeRef/current`
+- Reset `usingControllerRef.current = false`
+- Clear any stage flags that are report-type specific
+
+**Enforcement**: Must exist and run when `reportType` changes.
+
+### 4. Report-Type Transition is Required Test Case
+**CRITICAL**: E2E test must cover "life-summary → year-analysis without reload"
+- Assert: while loader visible, elapsed increases within 2 seconds
+- Assert: elapsed never returns to 0 while still loading
+- Assert: generation reaches completion (or at minimum polling continues)
+
+**Enforcement**: Test must exist in `tests/e2e/critical-invariants.spec.ts`.
+
+---
+
 ## ❌ Forbidden Edits for Cursor (To Prevent Breakage)
 
 ### Don't Patch useEffect Dependencies Randomly

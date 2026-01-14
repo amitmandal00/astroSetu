@@ -34,6 +34,10 @@ cp -r "$BASE_DIR/src/app/api/ai-astrology"/* "$ZIP_DIR/src/app/api/ai-astrology/
 cp "$BASE_DIR/src/hooks/useReportGenerationController.ts" "$ZIP_DIR/src/hooks/" 2>/dev/null || true
 cp "$BASE_DIR/src/hooks/useElapsedSeconds.ts" "$ZIP_DIR/src/hooks/" 2>/dev/null || true
 
+# Copy time utilities
+mkdir -p "$ZIP_DIR/src/lib/time"
+cp -r "$BASE_DIR/src/lib/time"/* "$ZIP_DIR/src/lib/time/" 2>/dev/null || true
+
 # Copy all test files
 echo "Copying test files..."
 cp -r "$BASE_DIR/tests/unit"/* "$ZIP_DIR/tests/unit/" 2>/dev/null || true
@@ -70,6 +74,9 @@ cp "$BASE_DIR/CURSOR_WORKFLOW_CONTROL.md" "$ZIP_DIR/docs/" 2>/dev/null || true
 cp "$BASE_DIR/COMPLETE_IMPLEMENTATION_SUMMARY.md" "$ZIP_DIR/docs/" 2>/dev/null || true
 cp "$BASE_DIR/COMPLETE_WORKFLOW_CONTROL_SUMMARY.md" "$ZIP_DIR/docs/" 2>/dev/null || true
 cp "$BASE_DIR/CONTROLLER_MIGRATION_COMPLETE.md" "$ZIP_DIR/docs/" 2>/dev/null || true
+cp "$BASE_DIR/CHATGPT_FEEDBACK_IMPLEMENTATION.md" "$ZIP_DIR/docs/" 2>/dev/null || true
+cp "$BASE_DIR/FUTURE_WINDOWS_FIX.md" "$ZIP_DIR/docs/" 2>/dev/null || true
+cp "$BASE_DIR/BUILD_SAFETY_GUIDE.md" "$ZIP_DIR/docs/" 2>/dev/null || true
 
 # Create README
 cat > "$ZIP_DIR/README.md" << 'EOF'
