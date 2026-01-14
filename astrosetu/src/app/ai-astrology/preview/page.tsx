@@ -42,8 +42,9 @@ function PreviewContent() {
   
   // CRITICAL FIX: Use generation controller hook for report generation
   // This provides single-flight guard, cancellation, and state machine
-  // Note: We still use existing generateReport for complex flows (payment verification, bundles)
-  // This is a hybrid approach - gradually migrate to full hook usage
+  // CRITICAL FIX (ChatGPT): Controller now owns ALL report types (free, year-analysis, paid)
+  // All report types use generationController.start() for single-flight guarantee, cancellation, and state machine
+  // Note: Bundles still use generateBundleReports() (handles multiple reports sequentially) - TODO: Migrate in future
   const generationController = useReportGenerationController();
   const [progressSteps, setProgressSteps] = useState<{
     birthChart: boolean;
