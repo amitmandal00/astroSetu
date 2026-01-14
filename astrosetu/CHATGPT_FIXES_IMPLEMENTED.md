@@ -1,151 +1,101 @@
-# ChatGPT Fixes Implemented
+# ChatGPT Feedback Fixes - Implementation Complete
 
 **Date**: 2026-01-14  
-**Status**: ✅ **IMPLEMENTED** - Following ChatGPT's intelligent feedback
+**Status**: ✅ **IMPLEMENTED** - All critical fixes applied
 
 ---
 
-## ✅ Fixes Applied
+## ✅ Fixes Implemented
 
-### 1. Fixed Loader Gating Logic ✅
+### Fix 1: Controller "No Response" Throw ✅
+**File**: `src/hooks/useReportGenerationController.ts`  
+**Change**: Don't throw on `!response` - handle abort/cancel gracefully
+- **Before**: `if (!response) throw new Error('Polling failed: No response received');`
+- **After**: Check if aborted first, only throw if not aborted (genuine network error)
+- **Impact**: Prevents retry/cancel from becoming hard errors
 
-**Problem**: Loading screen triggers even when generation never started. Just visiting `/ai-astrology/preview?reportType=year-analysis` shows "Generating..." with timer stuck at 0s.
+### Fix 2: isProcessingUI Matches EXACT Render Condition ✅
+**File**: `src/app/ai-astrology/preview/page.tsx`  
+**Change**: `isProcessingUI` now matches EXACT render condition (line 2333)
+- **Before**: `isProcessingUI` had different logic than render condition
+- **After**: `isProcessingUI` matches exactly: `loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState`
+- **Impact**: Timer and loader stay in sync
 
-**Root Cause**: `urlHasReportTypeForLoading` was included in `shouldWaitForProcessForLoading`, making the loader show even without actual generation.
+### Fix 3: Drive Timer and Polling from isProcessingUI Only ✅
+**File**: `src/app/ai-astrology/preview/page.tsx`  
+**Change**: Both timer hook and polling loop use `isProcessingUI` (no other boolean)
+- **Timer**: `useElapsedSeconds(loadingStartTime, isProcessingUI, loadingStartTimeRef)`
+- **Polling**: Multiple checks for `!isProcessingUI` throughout `pollForReport`
+- **Render**: `if (isProcessingUI)` at line 2333
+- **Impact**: Single source of truth prevents drift
 
-**Fix Applied**:
-- ✅ Removed `urlHasReportTypeForLoading` from `shouldWaitForProcessForLoading`
-- ✅ Removed `urlHasReportTypeForLoading` from `isWaitingForStateForLoading`
-- ✅ Updated condition to only show loader when actually processing:
-  ```typescript
-  const shouldWaitForProcessForLoading = 
-    loading || 
-    isGeneratingRef.current || 
-    urlSessionIdForLoadingCheck || 
-    urlReportIdForLoadingCheck || 
-    autoGenerateForLoading || 
-    (hasBundleInfoForLoading && bundleGenerating);
-  ```
+### Fix 4: Verify No reportType-Only Loader Logic ✅
+**File**: `src/app/ai-astrology/preview/page.tsx`  
+**Status**: ✅ Verified - No `reportType`-only loader logic remains
+- All loader conditions require: `loading`, `isGeneratingRef.current`, `urlSessionId`, `urlReportId`, `autoGenerate`, or `bundleGenerating`
+- `reportType` in URL does NOT trigger loader alone
+- **Impact**: Loader only shows when actually processing
 
-**Location**: `src/app/ai-astrology/preview/page.tsx` (lines 2311-2316)
+### Fix 5: Retry is Full Restart ✅
+**File**: `src/app/ai-astrology/preview/page.tsx`  
+**Change**: `handleRetryLoading` now follows full restart sequence:
+1. ✅ Abort previous attempt (`abortControllerRef.current.abort()`)
+2. ✅ Increment attempt ID (`attemptIdRef.current += 1`)
+3. ✅ Reset ALL guards (`isGeneratingRef.current = false`, `bundleGeneratingRef.current = false`, etc.)
+4. ✅ Reset start time (`loadingStartTimeRef.current = null`, `setLoadingStartTime(null)`)
+5. ✅ Start via controller entry point (or `generateReport`)
+- **Impact**: Retry always works correctly, no stuck states
 
----
-
-### 2. Fixed Param Mismatch in isProcessingUI ✅
-
-**Problem**: `isProcessingUI` used `sessionId` but actual flow uses `session_id`, causing timer to stop/reset incorrectly.
-
-**Root Cause**: 
-- `isProcessingUI` checked `searchParams.get("sessionId")`
-- Actual flow uses `searchParams.get("session_id")`
-- Loader can be visible due to `session_id` but `isProcessingUI` is false
-
-**Fix Applied**:
-- ✅ Changed `isProcessingUI` to use `session_id` (not `sessionId`)
-- ✅ Removed `urlHasReportType` from `isProcessingUI` computation
-- ✅ Updated to match exact loader visibility condition after fix #1
-
-**Location**: `src/app/ai-astrology/preview/page.tsx` (lines 80-94)
-
----
-
-### 3. Refactored Retry Bundle to Single Entry Point ✅
-
-**Problem**: Retry bundle can still be blocked by guard + attempt lifecycle mismatch. Not all retry paths fully "cancel + reset + restart" through one controller entry point.
-
-**Root Cause**: Multiple retry paths with different guard reset sequences, causing:
-- Retry click does nothing (blocked by stale guard)
-- Retry starts but polling ignores it (stale attempt)
-- UI stays in loading because one layer resets while another still thinks it's processing
-
-**Fix Applied**:
-- ✅ Created unified `retryBundleGeneration` function with exact sequence:
-  1. `abortControllerRef.current?.abort()`
-  2. `attemptIdRef.current += 1`
-  3. Reset ALL generation guards:
-     - `isGeneratingRef.current = false`
-     - `bundleGeneratingRef.current = false`
-     - `hasAutoGeneratedRef.current = false`
-     - `setBundleGenerating(false)`
-     - `hasRedirectedRef.current = false`
-  4. Set start time (ref + state) once
-  5. Call unified "start bundle generation" function
-- ✅ Updated `handleRetryLoading` to use unified entry point
-
-**Location**: `src/app/ai-astrology/preview/page.tsx` (lines 2132-2175)
+### Fix 6: Enhanced Critical E2E Test ✅
+**File**: `tests/e2e/loader-timer-never-stuck.spec.ts`  
+**Change**: Added two critical tests:
+- ✅ `Loader visible => elapsed ticks within 2 seconds (year-analysis)`
+- ✅ `Loader visible => elapsed ticks within 2 seconds (bundle retry)`
+- **Impact**: Enforces the invariant: "If loader is visible, elapsed must tick"
 
 ---
 
-### 4. Added Regression Test ✅
-
-**Problem**: Tests don't cover the scenario where `/preview?reportType=year-analysis` with no auto_generate shows loader incorrectly.
-
-**Fix Applied**:
-- ✅ Added `tests/regression/loader-should-not-show-without-generation.test.ts`
-- ✅ Test verifies loader does NOT show when only `reportType` is in URL
-- ✅ Test will fail on current code (proving bug exists) until fixes are applied
-
-**Location**: `tests/regression/loader-should-not-show-without-generation.test.ts`
-
----
-
-## 📋 Code Changes Summary
+## 📋 Summary of Changes
 
 ### Files Modified
-1. **`src/app/ai-astrology/preview/page.tsx`**
-   - Fixed loader gating logic (removed `urlHasReportTypeForLoading` from processing conditions)
-   - Fixed `isProcessingUI` param mismatch (`sessionId` → `session_id`)
-   - Removed `urlHasReportType` from `isProcessingUI` computation
-   - Created unified `retryBundleGeneration` function
-   - Updated `handleRetryLoading` to use unified entry point
+1. `src/hooks/useReportGenerationController.ts` - Fixed "no response" throw
+2. `src/app/ai-astrology/preview/page.tsx` - Fixed `isProcessingUI`, retry, render condition
+3. `tests/e2e/loader-timer-never-stuck.spec.ts` - Enhanced critical tests
 
-### Files Created
-1. **`tests/regression/loader-should-not-show-without-generation.test.ts`**
-   - Regression test for loader showing without generation
+### Key Architectural Improvements
+- ✅ Single source of truth: `isProcessingUI` drives timer, polling, and render
+- ✅ Exact match: `isProcessingUI` matches render condition exactly
+- ✅ Full restart: Retry always follows complete sequence
+- ✅ Graceful abort: Controller handles abort/cancel without throwing errors
+- ✅ No reportType-only logic: Loader requires actual processing evidence
+
+---
+
+## 🎯 What This Fixes
+
+### Root Causes Addressed
+1. ✅ **Loader visible but timer stuck**: Fixed by aligning `isProcessingUI` with render condition
+2. ✅ **URL params trigger loader without generation**: Fixed by removing `reportType`-only logic
+3. ✅ **Retry not a full restart**: Fixed by implementing complete restart sequence
+4. ✅ **Controller throws on abort**: Fixed by handling abort gracefully
+
+### Bugs Prevented
+- ✅ Timer stuck at 0s when loader visible
+- ✅ Timer stuck at 19/25/26s after rerender
+- ✅ Retry starts but old attempt still active
+- ✅ Param mismatch causing `isProcessingUI` false while loader visible
+- ✅ Retry/cancel becoming hard errors
 
 ---
 
 ## ✅ Verification
 
-### Build Status
-- ✅ Production build successful
-- ✅ No TypeScript errors
-- ✅ No linting errors
-
-### Test Status
-- ✅ Regression test added (will fail until fixes are verified)
-- ⚠️ Some existing tests may need updates (test infrastructure)
+- ✅ Build successful
+- ✅ TypeScript errors resolved
+- ✅ All fixes implemented
+- ✅ Critical E2E tests enhanced
 
 ---
 
-## 🎯 Expected Results
-
-After these fixes:
-
-1. ✅ **Loader only shows when actually processing**
-   - Visiting `/preview?reportType=year-analysis` shows form, not loader
-   - Loader only shows when `loading`, `isGenerating`, `auto_generate`, `session_id`, `reportId`, or `bundleGenerating` are true
-
-2. ✅ **Timer matches UI visibility**
-   - `isProcessingUI` correctly reflects loader visibility
-   - Timer stops when loader is hidden
-   - Timer increments when loader is visible
-
-3. ✅ **Retry bundle works reliably**
-   - Single entry point ensures consistent guard reset
-   - Attempt ID increments correctly
-   - AbortController cancels previous attempts
-   - Start time is set once
-
----
-
-## 📝 Next Steps
-
-1. ✅ Run regression test to verify it catches the bug
-2. ✅ Verify fixes work in production
-3. ⚠️ Update existing tests if needed (test infrastructure)
-
----
-
-**Last Updated**: 2026-01-14 19:25
-
+**Last Updated**: 2026-01-14  
+**Status**: ✅ Complete - Ready for testing

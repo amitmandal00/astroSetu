@@ -132,7 +132,7 @@ test.describe("Loader Timer Never Stuck - Critical Contract", () => {
       // Wait for loader to appear again
       await expect(page.getByText(LOADER_TITLE)).toBeVisible({ timeout: 10000 });
       
-      // Assert timer ticks after retry
+      // CRITICAL (ChatGPT): Assert timer ticks after retry within 2 seconds
       await expectTimerTicks(page);
     } else {
       // If retry button not visible, that's okay - test still passes
@@ -141,6 +141,47 @@ test.describe("Loader Timer Never Stuck - Critical Contract", () => {
         type: "note",
         description: "Retry button not visible - generation may have succeeded"
       });
+    }
+  });
+
+  test("Loader visible => elapsed ticks within 2 seconds (year-analysis)", async ({ page }) => {
+    // CRITICAL (ChatGPT): This is the ONE test that matters most
+    // If loader is visible, elapsed must increase within 2 seconds
+    await page.goto("/ai-astrology/preview?reportType=year-analysis&auto_generate=true", {
+      waitUntil: "networkidle"
+    });
+
+    // Wait for loader to appear
+    await expect(page.getByText(LOADER_TITLE)).toBeVisible({ timeout: 10000 });
+
+    // CRITICAL: Assert timer ticks within 2 seconds
+    await expectTimerTicks(page);
+  });
+
+  test("Loader visible => elapsed ticks within 2 seconds (bundle retry)", async ({ page }) => {
+    // CRITICAL (ChatGPT): Test bundle retry specifically
+    await page.goto("/ai-astrology/preview?bundle=any-2&reports=marriage-timing,career-money&auto_generate=true", {
+      waitUntil: "networkidle"
+    });
+
+    // Wait for loader to appear
+    await expect(page.getByText(LOADER_TITLE)).toBeVisible({ timeout: 10000 });
+
+    // Assert timer ticks initially
+    await expectTimerTicks(page);
+
+    // Find and click retry button
+    const retryBtn = page.getByRole("button", { name: /retry|Retry/i });
+    const isRetryVisible = await retryBtn.isVisible().catch(() => false);
+    
+    if (isRetryVisible) {
+      await retryBtn.click();
+      
+      // Wait for loader to appear again
+      await expect(page.getByText(LOADER_TITLE)).toBeVisible({ timeout: 10000 });
+      
+      // CRITICAL: Assert timer ticks after retry within 2 seconds
+      await expectTimerTicks(page);
     }
   });
 

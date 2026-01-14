@@ -123,8 +123,15 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
             return;
           }
 
-          // CRITICAL FIX: Check if response exists before accessing properties
+          // CRITICAL FIX (ChatGPT): Don't throw on !response - handle abort/cancel gracefully
+          // If response is null/undefined, it's likely due to abort/cancel, not a real error
           if (!response) {
+            // Check if aborted - if so, silently return (not an error)
+            if (abortSignal.aborted || activeAttemptIdRef.current !== attemptId) {
+              console.log('[POLLING] No response - aborted or stale attempt');
+              return;
+            }
+            // Only throw if not aborted (genuine network error)
             throw new Error('Polling failed: No response received');
           }
 
