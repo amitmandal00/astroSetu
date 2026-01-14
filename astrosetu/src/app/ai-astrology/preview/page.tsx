@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
@@ -70,12 +70,33 @@ function PreviewContent() {
   const generationAttemptRef = useRef(0);
   const hasRedirectedRef = useRef(false); // Track redirect to prevent loops
   const loadingStartTimeRef = useRef<number | null>(null); // Track actual start time in ref to avoid state update race conditions
+  const attemptIdRef = useRef(0); // Track attempt ID for single-flight guarantee (ChatGPT recommendation)
+  const abortControllerRef = useRef<AbortController | null>(null); // Track abort controller for cancellation (ChatGPT recommendation)
   
+  // CRITICAL FIX (ChatGPT): isProcessingUI - single source of truth for when generation UI should be visible
+  // This must match the exact condition used to render the generation UI (line 2286)
+  // Timer must match UI visibility, not just loading state
+  // This fixes all timer stuck issues (year-analysis, bundle, paid, free)
+  const isProcessingUI = useMemo(() => {
+    // Match the exact condition from line 2286 where generation UI is rendered
+    const urlHasReportType = searchParams.get("reportType") !== null;
+    const urlSessionId = searchParams.get("sessionId") !== null;
+    const urlReportId = searchParams.get("reportId") !== null;
+    const autoGenerate = searchParams.get("auto_generate") === "true";
+    const hasBundleInfo = bundleType && bundleReports.length > 0;
+    const shouldWaitForProcess = loading || isGeneratingRef.current || urlHasReportType || urlSessionId || urlReportId || autoGenerate || hasBundleInfo;
+    const isWaitingForState = (urlHasReportType || hasBundleInfo) && !input && !hasRedirectedRef.current && !loading;
+    
+    // Also check generationController status
+    const controllerActive = generationController.status !== 'idle' && generationController.status !== 'completed' && generationController.status !== 'failed';
+    
+    return loading || isGeneratingRef.current || bundleGenerating || loadingStage !== null || shouldWaitForProcess || isWaitingForState || controllerActive;
+  }, [loading, bundleGenerating, loadingStage, searchParams, bundleType, bundleReports.length, input, generationController.status]);
+
   // CRITICAL FIX: Use hook to compute elapsed time (single source of truth)
   // Never store elapsedTime as state - always compute it from startTime
   // CRITICAL FIX: Pass ref as fallback to fix race condition where state update hasn't flushed yet
-  // This fixes the year-analysis timer stuck at 0s issue
-  const elapsedTime = useElapsedSeconds(loadingStartTime, loading, loadingStartTimeRef);
+  const elapsedTime = useElapsedSeconds(loadingStartTime, isProcessingUI, loadingStartTimeRef);
   const reportTypeRef = useRef<ReportType | null>(null); // Track report type in ref to avoid interval recreation
   const bundleGeneratingRef = useRef(false); // Track bundle state in ref to avoid interval recreation
 
@@ -154,6 +175,18 @@ function PreviewContent() {
   const autoRecoveryTriggeredRef = useRef(false);
   
   const generateReport = useCallback(async (inputData: AIAstrologyInput, type: ReportType, currentSessionId?: string, currentPaymentIntentId?: string) => {
+    // CRITICAL FIX: Abort previous attempt (ChatGPT recommendation)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // CRITICAL FIX: New attempt with unique ID
+    attemptIdRef.current += 1;
+    const currentAttemptId = attemptIdRef.current;
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     // Prevent concurrent requests - if already generating, ignore this call
     if (isGeneratingRef.current) {
       console.warn("[Report Generation] Request ignored - already generating a report");
@@ -282,6 +315,12 @@ function PreviewContent() {
         sessionId: isPaid ? (sessionId || undefined) : undefined, // For token regeneration fallback
       }, { timeoutMs: clientTimeout });
 
+      // CRITICAL FIX: Check attempt ID before processing response
+      if (currentAttemptId !== attemptIdRef.current) {
+        console.log("[CLIENT] Stale attempt ignored:", currentAttemptId);
+        return;
+      }
+
       // Handle "processing" status - start polling instead of retrying
       if (response.ok && response.data?.status === "processing" && response.data?.reportId) {
         console.log(`[CLIENT] Report is processing, starting polling for reportId: ${response.data.reportId}`);
@@ -294,9 +333,24 @@ function PreviewContent() {
         let pollingAborted = false; // CRITICAL FIX: Track if polling should stop
         
         const pollForReport = async (): Promise<void> => {
-          // CRITICAL FIX: Check if polling was aborted or generation cancelled
-          if (pollingAborted || !isGeneratingRef.current) {
-            console.log("[CLIENT] Polling stopped - aborted or generation cancelled");
+          // CRITICAL FIX: Check attempt ID first (ChatGPT recommendation)
+          if (currentAttemptId !== attemptIdRef.current) {
+            console.log("[CLIENT] Polling stopped - stale attempt:", currentAttemptId);
+            pollingAborted = true;
+            return;
+          }
+
+          // CRITICAL FIX: Check abort signal
+          if (abortController.signal.aborted) {
+            console.log("[CLIENT] Polling stopped - aborted");
+            pollingAborted = true;
+            return;
+          }
+
+          // CRITICAL FIX: Check if polling was aborted or generation UI no longer visible
+          // Use isProcessingUI instead of isGeneratingRef (ChatGPT recommendation)
+          if (pollingAborted || !isProcessingUI) {
+            console.log("[CLIENT] Polling stopped - aborted or UI no longer visible");
             return;
           }
           
@@ -321,10 +375,18 @@ function PreviewContent() {
               headers: {
                 "Content-Type": "application/json",
               },
+              signal: abortController.signal, // CRITICAL FIX: Pass abort signal
             });
             
-            // CRITICAL FIX: Check again after fetch
-            if (pollingAborted || !isGeneratingRef.current) {
+            // CRITICAL FIX: Check attempt ID after fetch
+            if (currentAttemptId !== attemptIdRef.current) {
+              console.log("[CLIENT] Polling stopped - stale attempt after fetch:", currentAttemptId);
+              pollingAborted = true;
+              return;
+            }
+
+            // CRITICAL FIX: Check if polling was aborted or generation UI no longer visible
+            if (pollingAborted || !isProcessingUI) {
               console.log("[CLIENT] Polling stopped after fetch");
               return;
             }
@@ -332,7 +394,12 @@ function PreviewContent() {
             if (!statusResponse.ok) {
               // If status check fails, wait and retry
               await new Promise(resolve => setTimeout(resolve, pollInterval));
-              if (!pollingAborted && isGeneratingRef.current) {
+              // CRITICAL FIX: Check attempt ID and isProcessingUI before recursive call
+              if (currentAttemptId !== attemptIdRef.current) {
+                pollingAborted = true;
+                return;
+              }
+              if (!pollingAborted && isProcessingUI) {
                 return pollForReport();
               }
               return;
@@ -340,8 +407,15 @@ function PreviewContent() {
             
             const statusData = await statusResponse.json();
             
-            // CRITICAL FIX: Check again after JSON parse
-            if (pollingAborted || !isGeneratingRef.current) {
+            // CRITICAL FIX: Check attempt ID after JSON parse
+            if (currentAttemptId !== attemptIdRef.current) {
+              console.log("[CLIENT] Polling stopped - stale attempt after JSON parse:", currentAttemptId);
+              pollingAborted = true;
+              return;
+            }
+
+            // CRITICAL FIX: Check if polling was aborted or generation UI no longer visible
+            if (pollingAborted || !isProcessingUI) {
               console.log("[CLIENT] Polling stopped after JSON parse");
               return;
             }
@@ -408,7 +482,12 @@ function PreviewContent() {
               } else if (statusData.data.status === "processing") {
                 // Still processing - wait and poll again
                 await new Promise(resolve => setTimeout(resolve, pollInterval));
-                if (!pollingAborted && isGeneratingRef.current) {
+                // CRITICAL FIX: Check attempt ID and isProcessingUI before recursive call
+                if (currentAttemptId !== attemptIdRef.current) {
+                  pollingAborted = true;
+                  return;
+                }
+                if (!pollingAborted && isProcessingUI) {
                   return pollForReport();
                 }
                 return;
@@ -425,8 +504,15 @@ function PreviewContent() {
               }
             }
           } catch (pollError: any) {
-            // CRITICAL FIX: Check if polling was aborted
-            if (pollingAborted || !isGeneratingRef.current) {
+            // CRITICAL FIX: Check attempt ID first
+            if (currentAttemptId !== attemptIdRef.current) {
+              console.log("[CLIENT] Polling stopped - stale attempt in error handler:", currentAttemptId);
+              pollingAborted = true;
+              return;
+            }
+
+            // CRITICAL FIX: Check if polling was aborted or generation UI no longer visible
+            if (pollingAborted || !isProcessingUI) {
               console.log("[CLIENT] Polling stopped in error handler");
               return;
             }
@@ -435,7 +521,12 @@ function PreviewContent() {
             // Wait and retry unless we've exceeded max attempts
             if (pollAttempts < maxPollAttempts) {
               await new Promise(resolve => setTimeout(resolve, pollInterval));
-              if (!pollingAborted && isGeneratingRef.current) {
+              // CRITICAL FIX: Check attempt ID and isProcessingUI before recursive call
+              if (currentAttemptId !== attemptIdRef.current) {
+                pollingAborted = true;
+                return;
+              }
+              if (!pollingAborted && isProcessingUI) {
                 return pollForReport();
               }
               return;
@@ -2072,12 +2163,22 @@ function PreviewContent() {
           
           console.log("[Retry] Retrying bundle generation with reports:", bundleReportsList);
           
+          // CRITICAL FIX: Abort previous attempt (ChatGPT recommendation)
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+          }
+
           // CRITICAL FIX: Reset all generation guards before retrying
           // This ensures generateBundleReports doesn't return early due to stale guards
           isGeneratingRef.current = false;
           bundleGeneratingRef.current = false;
           hasAutoGeneratedRef.current = false;
           setBundleGenerating(false);
+          
+          // CRITICAL FIX: Bump attempt ID (ChatGPT recommendation)
+          attemptIdRef.current += 1;
+          const currentAttemptId = attemptIdRef.current;
           
           // Set state
           setInput(inputData);

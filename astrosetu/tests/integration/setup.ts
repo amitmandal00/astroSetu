@@ -23,6 +23,19 @@ vi.mock('@/lib/supabase', () => ({
       getSession: vi.fn(),
     },
   })),
+  createServerClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      insert: vi.fn(),
+      select: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    })),
+    auth: {
+      getUser: vi.fn(),
+      getSession: vi.fn(),
+    },
+  })),
+  isSupabaseConfigured: vi.fn(() => false), // Return false for tests (no Supabase needed)
 }));
 
 // Mock external APIs

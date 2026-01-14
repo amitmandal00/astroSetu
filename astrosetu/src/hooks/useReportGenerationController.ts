@@ -123,6 +123,11 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
             return;
           }
 
+          // CRITICAL FIX: Check if response exists before accessing properties
+          if (!response) {
+            throw new Error('Polling failed: No response received');
+          }
+
           if (!response.ok) {
             throw new Error(`Polling failed: ${response.status}`);
           }

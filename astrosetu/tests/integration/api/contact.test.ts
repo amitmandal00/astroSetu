@@ -53,7 +53,10 @@ vi.mock('@/lib/apiHelpers', async () => {
       if (!text) throw new Error('Request body is empty');
       return JSON.parse(text);
     }),
-    validateRequestSize: vi.fn(() => {}), // No size limit
+    validateRequestSize: vi.fn(() => {
+      // Mock that does nothing - prevents throw
+      return;
+    }), // No size limit - doesn't throw
     getClientIP: vi.fn(() => '127.0.0.1'),
     handleApiError: vi.fn((error: unknown) => {
       // Proper error handling for tests

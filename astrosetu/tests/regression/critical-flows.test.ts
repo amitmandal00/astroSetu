@@ -6,6 +6,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { join } from 'path';
+import { existsSync } from 'fs';
 
 describe('Critical Flows - Regression Protection', () => {
   describe('API Routes - Must Exist and Work', () => {
@@ -33,15 +35,16 @@ describe('Critical Flows - Regression Protection', () => {
 
   describe('Validation Schemas - Must Work', () => {
     it('BirthDetailsSchema should validate correctly', async () => {
-      const { BirthDetailsSchema } = await import('@/lib/validation');
+      const { BirthDetailsSchema } = await import('@/lib/validators');
       
       const validData = {
         name: 'Test User',
         dob: '1990-01-01',
         tob: '12:00:00',
         place: 'Mumbai, Maharashtra, India',
-        coordinates: { lat: 19.0760, lng: 72.8777 },
-        gender: 'male'
+        latitude: 19.0760,
+        longitude: 72.8777,
+        gender: 'Male' // Must be "Male" or "Female", not "male"
       };
 
       const result = BirthDetailsSchema.safeParse(validData);
@@ -49,7 +52,7 @@ describe('Critical Flows - Regression Protection', () => {
     });
 
     it('EmailSchema should validate correctly', async () => {
-      const { EmailSchema } = await import('@/lib/validation');
+      const { EmailSchema } = await import('@/lib/validators');
       
       const validEmail = 'test@example.com';
       const result = EmailSchema.safeParse(validEmail);
@@ -59,21 +62,32 @@ describe('Critical Flows - Regression Protection', () => {
 
   describe('Date Helpers - Must Work', () => {
     it('getDateContext should work correctly', async () => {
-      const { getDateContext } = await import('@/lib/dateHelpers');
+      const { getDateContext } = await import('@/lib/ai-astrology/dateHelpers');
       
-      const context = getDateContext(new Date('2024-01-15'));
+      // getDateContext() doesn't take parameters - it uses current date
+      const context = getDateContext();
       expect(context).toBeDefined();
-      expect(context.year).toBe(2024);
-      expect(context.month).toBe(1);
+      expect(context.currentYear).toBeDefined();
+      expect(context.currentMonth).toBeDefined();
+      expect(context.currentYear).toBeGreaterThan(2020);
+      expect(context.currentMonth).toBeGreaterThanOrEqual(1);
+      expect(context.currentMonth).toBeLessThanOrEqual(12);
     });
 
     it('getYearAnalysisDateRange should work correctly', async () => {
-      const { getYearAnalysisDateRange } = await import('@/lib/dateHelpers');
+      const { getYearAnalysisDateRange } = await import('@/lib/ai-astrology/dateHelpers');
       
-      const range = getYearAnalysisDateRange(2024);
+      // getYearAnalysisDateRange() doesn't take parameters - it uses current date
+      const range = getYearAnalysisDateRange();
       expect(range).toBeDefined();
-      expect(range.start).toBeDefined();
-      expect(range.end).toBeDefined();
+      expect(range.startDate).toBeDefined();
+      expect(range.endDate).toBeDefined();
+      expect(range.startYear).toBeDefined();
+      expect(range.endYear).toBeDefined();
+      expect(range.startMonth).toBeGreaterThanOrEqual(1);
+      expect(range.startMonth).toBeLessThanOrEqual(12);
+      expect(range.endMonth).toBeGreaterThanOrEqual(1);
+      expect(range.endMonth).toBeLessThanOrEqual(12);
     });
   });
 

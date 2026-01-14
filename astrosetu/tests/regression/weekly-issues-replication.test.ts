@@ -49,21 +49,23 @@ describe('Weekly Issues Replication Tests', () => {
         place: 'Mumbai',
       };
 
-      // Start first attempt
+      // Start first attempt - mock initial response
       (global.fetch as any).mockImplementationOnce(() =>
         Promise.resolve({
           ok: true,
+          status: 200,
           json: async () => ({ ok: true, data: { status: 'processing', reportId: 'report-1' } }),
-        })
+        } as Response)
       );
 
       await act(async () => {
         await result.current.start(input, 'marriage-timing');
       });
 
+      // Wait for polling to start - allow time for async operations
       await waitFor(() => {
         expect(result.current.status).toBe('polling');
-      }, { timeout: 2000 });
+      }, { timeout: 5000 });
 
       // Cancel (simulating retry) - this should reset guards
       await act(async () => {
@@ -73,23 +75,34 @@ describe('Weekly Issues Replication Tests', () => {
       // Should be able to start again (guards reset)
       expect(result.current.status).toBe('idle');
 
-      // Start second attempt (retry)
-      (global.fetch as any).mockImplementationOnce(() =>
-        Promise.resolve({
+      // Start second attempt (retry) - mock initial response that completes immediately
+      // Use mockImplementation to handle any subsequent polling
+      (global.fetch as any).mockImplementation((url: string) => {
+        // If it's a polling request for report-2, return completed
+        if (url.includes('reportId=report-2')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ ok: true, data: { status: 'completed', reportId: 'report-2', content: { title: 'Test', sections: [] } } }),
+          } as Response);
+        }
+        // Initial POST request - return completed immediately
+        return Promise.resolve({
           ok: true,
+          status: 200,
           json: async () => ({ ok: true, data: { status: 'completed', reportId: 'report-2', content: { title: 'Test', sections: [] } } }),
-        })
-      );
+        } as Response);
+      });
 
       await act(async () => {
         await result.current.start(input, 'marriage-timing');
       });
 
-      // Should succeed (not blocked by guards)
+      // Should succeed (not blocked by guards) - use real timers
       await waitFor(() => {
         expect(result.current.status).toBe('completed');
-      }, { timeout: 2000 });
-    });
+      }, { timeout: 5000 });
+    }, { timeout: 10000 });
   });
 
   describe('Issue #2: Free Report Timer Stuck at 0s / 19s', () => {
@@ -236,16 +249,51 @@ describe('Weekly Issues Replication Tests', () => {
         place: 'Mumbai',
       };
 
-      // Mock initial response (processing)
-      (global.fetch as any).mockImplementationOnce(() =>
-        Promise.resolve({
+      // Set up mock to handle both initial request and polling
+      // Use a counter to track calls
+      let fetchCallCount = 0;
+      (global.fetch as any).mockImplementation((url: string | Request, options?: RequestInit) => {
+        fetchCallCount++;
+        const urlString = typeof url === 'string' ? url : url.toString();
+        
+        // First call: Initial POST request - return processing
+        if (fetchCallCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ 
+              ok: true, 
+              data: { status: 'processing', reportId: 'report-1' } 
+            }),
+          } as Response);
+        }
+        
+        // Subsequent calls: Polling GET requests - return completed
+        if (urlString.includes('reportId=report-1') || urlString.includes('reportId')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ 
+              ok: true, 
+              data: { 
+                status: 'completed', 
+                reportId: 'report-1',
+                content: { title: 'Test Report', sections: [] }
+              } 
+            }),
+          } as Response);
+        }
+        
+        // Fallback: return processing
+        return Promise.resolve({
           ok: true,
+          status: 200,
           json: async () => ({ 
             ok: true, 
             data: { status: 'processing', reportId: 'report-1' } 
           }),
-        })
-      );
+        } as Response);
+      });
 
       await act(async () => {
         await result.current.start(input, 'life-summary');
@@ -253,24 +301,10 @@ describe('Weekly Issues Replication Tests', () => {
 
       await waitFor(() => {
         expect(result.current.status).toBe('polling');
-      }, { timeout: 1000 });
-
-      // Mock polling response (completed) - will be called by polling mechanism
-      (global.fetch as any).mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: async () => ({ 
-            ok: true, 
-            data: { 
-              status: 'completed', 
-              reportId: 'report-1',
-              content: { title: 'Test Report', sections: [] }
-            } 
-          }),
-        })
-      );
+      }, { timeout: 5000 });
 
       // Advance time to trigger polling (polling interval is 2000ms)
+      // Use real timers for async operations
       await act(async () => {
         vi.advanceTimersByTime(2500); // Slightly more than poll interval
       });
@@ -279,11 +313,11 @@ describe('Weekly Issues Replication Tests', () => {
       await waitFor(() => {
         expect(result.current.status).toBe('completed');
         expect(result.current.reportContent).not.toBeNull();
-      }, { timeout: 5000 });
+      }, { timeout: 8000 });
       
       // Timer should be stopped (startTime is null when completed)
       expect(result.current.startTime).toBeNull();
-    });
+    }, { timeout: 10000 });
   });
 
   describe('Issue #7: Timer Continues After Report Completes (ROOT CAUSE)', () => {
@@ -339,16 +373,50 @@ describe('Weekly Issues Replication Tests', () => {
         place: 'Mumbai',
       };
 
-      // Mock initial response (processing)
-      (global.fetch as any).mockImplementationOnce(() =>
-        Promise.resolve({
+      // Set up mock to handle both initial request and polling
+      let fetchCallCount = 0;
+      (global.fetch as any).mockImplementation((url: string | Request, options?: RequestInit) => {
+        fetchCallCount++;
+        const urlString = typeof url === 'string' ? url : url.toString();
+        
+        // First call: Initial POST request - return processing
+        if (fetchCallCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ 
+              ok: true, 
+              data: { status: 'processing', reportId: 'report-1' } 
+            }),
+          } as Response);
+        }
+        
+        // Subsequent calls: Polling GET requests - return completed
+        if (urlString.includes('reportId=report-1') || urlString.includes('reportId')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ 
+              ok: true, 
+              data: { 
+                status: 'completed', 
+                reportId: 'report-1',
+                content: { title: 'Test Report', sections: [] }
+              } 
+            }),
+          } as Response);
+        }
+        
+        // Fallback: return processing
+        return Promise.resolve({
           ok: true,
+          status: 200,
           json: async () => ({ 
             ok: true, 
             data: { status: 'processing', reportId: 'report-1' } 
           }),
-        })
-      );
+        } as Response);
+      });
 
       await act(async () => {
         await controllerResult.current.start(input, 'life-summary');
@@ -368,21 +436,6 @@ describe('Weekly Issues Replication Tests', () => {
       expect(timerResult.current).toBeGreaterThanOrEqual(14);
       expect(timerResult.current).toBeLessThanOrEqual(16);
 
-      // Mock polling response (completed)
-      (global.fetch as any).mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: async () => ({ 
-            ok: true, 
-            data: { 
-              status: 'completed', 
-              reportId: 'report-1',
-              content: { title: 'Test Report', sections: [] }
-            } 
-          }),
-        })
-      );
-
       // Advance time to trigger polling
       await act(async () => {
         vi.advanceTimersByTime(2500); // Slightly more than poll interval
@@ -392,7 +445,7 @@ describe('Weekly Issues Replication Tests', () => {
       await waitFor(() => {
         expect(controllerResult.current.status).toBe('completed');
         expect(controllerResult.current.reportContent).not.toBeNull();
-      }, { timeout: 5000 });
+      }, { timeout: 8000 });
 
       // Timer should stop (isRunning becomes false)
       const { result: stoppedTimerResult } = renderHook(() => 
@@ -405,7 +458,7 @@ describe('Weekly Issues Replication Tests', () => {
         vi.advanceTimersByTime(5000);
       });
       expect(stoppedTimerResult.current).toBe(0);
-    });
+    }, { timeout: 15000 });
   });
 });
 

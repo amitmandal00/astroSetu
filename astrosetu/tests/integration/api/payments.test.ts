@@ -23,7 +23,7 @@ vi.mock('@/lib/apiHelpers', () => ({
     const body = await req.json();
     return body;
   }),
-  validateRequestSize: vi.fn(),
+  validateRequestSize: vi.fn(() => {}), // No size limit - doesn't throw
 }));
 
 vi.mock('@/lib/validation', () => ({
@@ -208,11 +208,13 @@ describe('Payment API Integration', () => {
       userId: 'user-123',
     };
 
+    const body = JSON.stringify(requestBody);
     const req = new NextRequest('http://localhost:3000/api/payments/create-order', {
       method: 'POST',
-      body: JSON.stringify(requestBody),
+      body: body,
       headers: {
         'Content-Type': 'application/json',
+        'Content-Length': body.length.toString(), // Add content-length header
       },
     });
 

@@ -1,79 +1,82 @@
 # Test Fixes Summary
 
+**Date**: 2026-01-14  
+**Status**: 🟡 **IN PROGRESS** - Most tests fixed, some remaining issues
+
+---
+
 ## ✅ Fixed Tests
 
-### Unit Tests
-1. ✅ **Button.test.tsx** - Fixed aria-disabled assertion (now checks for not "true" instead of "false")
-2. ✅ **validators.test.ts** - Fixed PhoneSchema test (updated to test actually invalid formats)
-3. ✅ **Input.test.tsx** - Updated to handle null type attribute (HTML default behavior)
+### 1. Regression Tests ✅
+- **year-analysis-timer-stuck-prod.test.ts** - All 3 tests now passing
+- **critical-flows.test.ts** - Import path fixed (1 remaining import to fix)
 
-### Integration Tests
-1. ✅ **contact.test.ts** - Fixed API mocks:
-   - Added proper `apiHelpers` mocks (checkRateLimit, parseJsonBody, etc.)
-   - Added `waitUntil` mock for Vercel functions
-   - Added `sendContactNotifications` mock
-   - Fixed test expectations to match actual schema requirements
+### 2. Unit Tests ✅
+- Most unit tests passing (156/163)
+- **useElapsedSeconds.test.ts** - All passing
+- **useReportGenerationController.test.ts** - All passing (with stderr warnings)
+- **timer-logic.test.ts** - All passing
+- **validators.test.ts** - All passing
+- **dateHelpers.test.ts** - All passing
+- **Button.test.tsx** - All passing
+- **Input.test.tsx** - All passing
 
-## ⚠️ Remaining Test Issues (Non-Critical)
+### 3. Integration Tests ✅
+- **timer-behavior.test.ts** - All passing
+- **ai-astrology.test.ts** - All passing
+- **polling-state-sync.test.ts** - All passing
 
-### Unit Tests
-1. ⏳ **BirthDetailsForm.test.tsx** - 3 tests timing out (geolocation/time mocking issues)
-   - These are timing-related and don't affect core functionality
-   - Tests are checking edge cases with geolocation API
+---
 
-2. ⏳ **AutocompleteInput.test.tsx** - 4 tests timing out (async/debounce issues)
-   - These are timing-related and don't affect core functionality
-   - Tests are checking debounce and API call behavior
+## 🟡 Remaining Issues
 
-### Integration Tests
-1. ⏳ **payments.test.ts** - 1 test failing (Razorpay order creation)
-   - Test expects 200 but gets 400
-   - Likely a mock configuration issue
-   - Doesn't affect core functionality
+### 1. Unit Tests - BirthDetailsForm (1 failing)
+- **Issue**: NOW button test - Date mocking not working correctly
+- **Status**: Fixed test logic, but Date mocking needs adjustment
+- **Fix Applied**: Changed test to merge all updateField calls
 
-## 📊 Test Results Summary
+### 2. Integration Tests - Contact API (1 failing)
+- **Issue**: Getting 400 instead of 200
+- **Possible Cause**: `validateRequestSize` mock not working or validation error
+- **Status**: Investigating
 
-### Unit Tests
-- **Before**: 10 failed | 153 passed
-- **After**: 7 failed | 156 passed
-- **Improvement**: +3 passing tests
+### 3. Integration Tests - Payments API (1 failing)
+- **Issue**: Getting 400 "Request too large" instead of 200
+- **Possible Cause**: `validateRequestSize` mock not working
+- **Status**: Investigating
 
-### Integration Tests
-- **Before**: 6 failed | 29 passed
-- **After**: 2 failed | 33 passed
-- **Improvement**: +4 passing tests
+### 4. Regression Tests - Timeouts (4 failing)
+- **Issue**: Tests timing out (5000ms)
+- **Tests**:
+  - `timer-stuck-stress.test.ts` - 1 test
+  - `weekly-issues-replication.test.ts` - 3 tests
+- **Possible Cause**: Fetch mocks not set up correctly for polling
+- **Status**: Need to fix fetch mocks
 
-## ✅ Critical Tests Status
+### 5. Regression Tests - Import Error (1 failing)
+- **Issue**: `critical-flows.test.ts` - Import error for `@/lib/dateHelpers` on line 50
+- **Status**: Need to fix remaining import
 
-### All Critical Functionality Tests Passing
-- ✅ Timer logic tests (13/13)
-- ✅ Hook tests (16/16)
-- ✅ Date helpers tests (21/21)
-- ✅ Polling state sync tests (6/6)
-- ✅ Timer behavior tests (10/10)
-- ✅ AI Astrology API tests (7/7)
+---
 
-## 🎯 Build Status
+## 🔧 Fixes Applied
 
-- ✅ TypeScript compilation: Passing
-- ✅ Next.js build: Passing
-- ✅ Linter: No errors
+1. ✅ Fixed `critical-flows.test.ts` import path (line 62)
+2. ✅ Fixed `year-analysis-timer-stuck-prod.test.ts` - Removed `waitFor` with fake timers, added timeouts
+3. ✅ Fixed `useReportGenerationController.ts` - Added check for undefined response
+4. ✅ Fixed `BirthDetailsForm.test.tsx` - Updated test to merge all updateField calls
+5. ✅ Updated `validateRequestSize` mocks in contact and payments tests
 
-## 📝 Notes
+---
 
-The remaining failing tests are:
-1. **Non-critical** - They test edge cases and timing behavior
-2. **Not blocking** - Core functionality is intact
-3. **Timing-related** - Issues with async operations and mocks
-4. **Can be fixed later** - Don't affect production functionality
+## 📋 Next Steps
 
-## ✅ Conclusion
+1. Fix remaining import in `critical-flows.test.ts` (line 50)
+2. Fix `validateRequestSize` mocks - ensure they're called before route imports
+3. Fix fetch mocks in regression tests for polling
+4. Fix Date mocking in BirthDetailsForm test
+5. Increase timeouts for regression tests if needed
 
-**Status**: ✅ **CORE FUNCTIONALITY INTACT, BUILD STABLE**
+---
 
-- All critical tests passing
-- Build succeeds
-- TypeScript compiles
-- Remaining failures are non-critical timing/edge case tests
-- Ready for deployment
-
+**Progress**: 156/163 unit tests passing, 33/35 integration tests passing, 11/15 regression tests passing
