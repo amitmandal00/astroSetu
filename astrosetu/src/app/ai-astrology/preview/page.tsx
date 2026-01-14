@@ -79,26 +79,26 @@ function PreviewContent() {
   // CRITICAL: Use session_id (not sessionId) and remove reportType from processing conditions
   // CRITICAL: Drive BOTH timer hook and polling loop from isProcessingUI (no other boolean)
   // CRITICAL: Compute this BEFORE the render condition so it can be used in the render condition
-  const isProcessingUI = useMemo(() => {
+  const isProcessingUI: boolean = useMemo(() => {
     // CRITICAL FIX: Use session_id (not sessionId) - param mismatch fix
-    const urlSessionId = searchParams.get("session_id") !== null;
-    const urlReportId = searchParams.get("reportId") !== null;
-    const autoGenerate = searchParams.get("auto_generate") === "true";
-    const hasBundleInfo = bundleType && bundleReports.length > 0;
+    const urlSessionId: boolean = searchParams.get("session_id") !== null;
+    const urlReportId: boolean = searchParams.get("reportId") !== null;
+    const autoGenerate: boolean = searchParams.get("auto_generate") === "true";
+    const hasBundleInfo: boolean = !!(bundleType && bundleReports.length > 0);
     
     // CRITICAL FIX: Only consider processing when actually processing
     // reportType in URL does NOT mean processing - it's just metadata
     // This matches shouldWaitForProcessForLoading from line 2327
-    const shouldWaitForProcess = loading || isGeneratingRef.current || urlSessionId || urlReportId || autoGenerate || (hasBundleInfo && bundleGenerating);
+    const shouldWaitForProcess: boolean = !!(loading || isGeneratingRef.current || urlSessionId || urlReportId || autoGenerate || (hasBundleInfo && bundleGenerating));
     
     // CRITICAL FIX: This matches isWaitingForStateForLoading from line 2329
-    const isWaitingForState = hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
+    const isWaitingForState: boolean = !!(hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating);
     
     // CRITICAL: This MUST match line 2333 exactly: loading || isGeneratingRef.current || shouldWaitForProcessForLoading || isWaitingForStateForLoading
     // Since shouldWaitForProcess already includes loading and isGeneratingRef.current, we can simplify
     // But to match EXACTLY, we use: loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState
-    return loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState;
-  }, [loading, bundleGenerating, searchParams, bundleType, bundleReports.length, input, hasRedirectedRef]);
+    return !!(loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState);
+  }, [loading, bundleGenerating, searchParams, bundleType, bundleReports.length, input]);
 
   // CRITICAL FIX: Use hook to compute elapsed time (single source of truth)
   // Never store elapsedTime as state - always compute it from startTime
