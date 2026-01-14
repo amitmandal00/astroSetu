@@ -103,10 +103,7 @@ describe('Loader Should NOT Show Without Generation', () => {
       shouldWaitForProcessForLoading || 
       isWaitingForStateForLoading;
     
-    // ❌ This will be TRUE (BUG) because urlHasReportTypeForLoading is true
-    expect(showsLoader).toBe(true); // Current buggy behavior
-    
-    // ✅ What it SHOULD be (after fix):
+    // ✅ After fix: Loader should NOT show (urlHasReportTypeForLoading removed)
     // Loader should only show when actually processing
     const shouldShowLoader = 
       loading || 
@@ -118,6 +115,17 @@ describe('Loader Should NOT Show Without Generation', () => {
     
     // This should be FALSE (no generation started)
     expect(shouldShowLoader).toBe(false);
+    
+    // Verify the fixed logic (without urlHasReportTypeForLoading)
+    const shouldWaitForProcessForLoadingFixed = 
+      loading || 
+      isGeneratingRef.current || 
+      urlSessionIdForLoadingCheck || 
+      urlReportIdForLoadingCheck || 
+      autoGenerateForLoading || 
+      (hasBundleInfo && bundleGenerating);
+    
+    expect(shouldWaitForProcessForLoadingFixed).toBe(false);
   });
   
   it('should show form when reportType is in URL but no generation started', async () => {
