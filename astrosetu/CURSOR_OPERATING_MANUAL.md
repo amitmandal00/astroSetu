@@ -101,6 +101,13 @@
 
 ## 🔄 Cursor Workflow Rules (Must Follow Every Task)
 
+### Rule 0: Git Push Approval (MANDATORY)
+**CRITICAL**: Always get user approval before `git push`. Never push automatically.
+- Commit changes with clear messages
+- Show summary of changes to user
+- Wait for explicit approval before pushing
+- This prevents accidental pushes and allows review
+
 ### Rule 1: Test-First (MANDATORY)
 **NO FIX WITHOUT A FAILING REPRODUCTION TEST FIRST**
 

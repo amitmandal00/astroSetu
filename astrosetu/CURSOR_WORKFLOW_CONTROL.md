@@ -184,10 +184,11 @@ npm run test:critical
 - Run through checklist above
 - Verify all non-negotiables met
 
-### 7. Commit & Push
+### 7. Commit & Get Approval
 - Commit with clear message
-- Push to remote
-- Verify CI passes
+- **MANDATORY: Get user approval before git push**
+- Show summary of changes
+- Wait for explicit approval before pushing
 
 ---
 
