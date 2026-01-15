@@ -11,7 +11,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { apiGet } from "@/lib/http";
+import { apiGet, apiPost } from "@/lib/http";
 import type { ReportType } from "@/lib/ai-astrology/types";
 
 function PaymentSuccessContent() {
@@ -100,15 +100,28 @@ function PaymentSuccessContent() {
             sessionStorage.setItem("aiAstrologyPaymentIntentId", response.data.paymentIntentId);
           }
           
-          // If subscription, mark as active
-          if (subscription) {
-            sessionStorage.setItem("aiAstrologySubscription", "active");
-          }
+          // NOTE: Subscription state must not be sourced from sessionStorage (DB is source of truth).
         } catch (storageError) {
           // Handle sessionStorage errors (e.g., private browsing mode)
           console.error("sessionStorage not available:", storageError);
           // Continue - user can still view success message, but will need to re-enter data
         }
+
+          // For subscriptions: verify session once server-side, set HttpOnly cookie, then redirect to clean URL
+          if (subscription) {
+            try {
+              await apiPost<{ ok: boolean; error?: string }>(
+                "/api/billing/subscription/verify-session",
+                { session_id: sid }
+              );
+            } catch (e) {
+              // Non-blocking: user can still navigate to subscription page manually,
+              // but cookie-based persistence might not be set.
+              console.error("Failed to verify subscription session:", e);
+            }
+            router.replace("/ai-astrology/subscription");
+            return;
+          }
 
           // Auto-redirect to preview page for non-subscription reports
           // CRITICAL FIX: Include session_id AND reportType in URL to allow token regeneration if sessionStorage is lost

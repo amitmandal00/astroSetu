@@ -9,6 +9,7 @@ import {
   mapStripeStatus,
   getCurrentPeriodEndIsoFromStripe,
 } from "@/lib/billing/subscriptionStore";
+import { buildBillingSessionCookie, getBillingSessionIdFromRequest } from "@/lib/billing/sessionCookie";
 
 /**
  * POST /api/billing/subscription/cancel
@@ -25,8 +26,14 @@ export async function POST(req: Request) {
       return rateLimitResponse;
     }
 
-    const json = await parseJsonBody<{ session_id?: string }>(req);
-    const sessionId = json.session_id;
+    let json: { session_id?: string } = {};
+    try {
+      json = await parseJsonBody<{ session_id?: string }>(req);
+    } catch {
+      // Allow empty body when session id is provided via HttpOnly cookie
+      json = {};
+    }
+    const sessionId = json.session_id || getBillingSessionIdFromRequest(req);
     if (!sessionId) {
       return NextResponse.json({ ok: false, error: "session_id is required", requestId }, { status: 400 });
     }
@@ -67,7 +74,7 @@ export async function POST(req: Request) {
       planInterval: derivePlanIntervalFromStripe(updated),
     });
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         ok: true,
         data: {
@@ -80,6 +87,9 @@ export async function POST(req: Request) {
       },
       { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
     );
+    // Refresh cookie (best-effort)
+    res.headers.append("Set-Cookie", buildBillingSessionCookie(sessionId));
+    return res;
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Failed to cancel subscription", requestId }, { status: 400 });
   }

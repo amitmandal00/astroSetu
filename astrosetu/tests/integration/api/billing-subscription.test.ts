@@ -104,6 +104,17 @@ describe("Billing Subscription API", () => {
     expect(json.data.status).toBe("active");
   });
 
+  it("GET works with HttpOnly cookie (no query param)", async () => {
+    const req = new Request("http://localhost:3001/api/billing/subscription", {
+      headers: { cookie: "aiAstrologyBillingSessionId=cs_test_123" },
+    });
+    const res = await GetSub(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.data.status).toBe("active");
+  });
+
   it("Cancel is idempotent (second call stays cancel_at_period_end=true)", async () => {
     const mkReq = () =>
       new Request("http://localhost:3001/api/billing/subscription/cancel", {
@@ -149,6 +160,28 @@ describe("Billing Subscription API", () => {
     const j2 = await res2.json();
     expect(j2.ok).toBe(true);
     expect(j2.data.cancelAtPeriodEnd).toBe(false);
+  });
+
+  it("Cancel/Resume work with cookie session id (no JSON body)", async () => {
+    const cancelReq = new Request("http://localhost:3001/api/billing/subscription/cancel", {
+      method: "POST",
+      headers: { cookie: "aiAstrologyBillingSessionId=cs_test_123" },
+    });
+    const cRes = await CancelSub(cancelReq);
+    const cJson = await cRes.json();
+    expect(cRes.status).toBe(200);
+    expect(cJson.ok).toBe(true);
+    expect(cJson.data.cancelAtPeriodEnd).toBe(true);
+
+    const resumeReq = new Request("http://localhost:3001/api/billing/subscription/resume", {
+      method: "POST",
+      headers: { cookie: "aiAstrologyBillingSessionId=cs_test_123" },
+    });
+    const rRes = await ResumeSub(resumeReq);
+    const rJson = await rRes.json();
+    expect(rRes.status).toBe(200);
+    expect(rJson.ok).toBe(true);
+    expect(rJson.data.cancelAtPeriodEnd).toBe(false);
   });
 });
 

@@ -1,62 +1,42 @@
 import { NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/apiHelpers";
+import { checkRateLimit, parseJsonBody } from "@/lib/apiHelpers";
 import { generateRequestId } from "@/lib/requestId";
 import { isStripeConfigured } from "@/lib/ai-astrology/payments";
 import {
-  getSubscriptionBySessionId,
   upsertSubscriptionFromStripe,
   derivePlanIntervalFromStripe,
   mapStripeStatus,
   getCurrentPeriodEndIsoFromStripe,
 } from "@/lib/billing/subscriptionStore";
-import { getBillingSessionIdFromRequest } from "@/lib/billing/sessionCookie";
+import { buildBillingSessionCookie } from "@/lib/billing/sessionCookie";
 
 /**
- * GET /api/billing/subscription?session_id=cs_xxx
+ * POST /api/billing/subscription/verify-session
+ * Body: { session_id: string }
  *
- * Source-of-truth contract: returns DB state (Supabase) if present.
- * Fallback: if not found in DB, fetch from Stripe and upsert (best-effort).
+ * Best-practice contract:
+ * - Accept session_id from query string ONLY once (Stripe redirect contract) via the client success page.
+ * - Verify server-side with Stripe.
+ * - Persist to DB (Supabase) and set HttpOnly cookie for future requests.
  */
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   const requestId = generateRequestId();
 
   try {
-    const rateLimitResponse = checkRateLimit(req, "/api/billing/subscription");
+    const rateLimitResponse = checkRateLimit(req, "/api/billing/subscription/verify-session");
     if (rateLimitResponse) {
       rateLimitResponse.headers.set("X-Request-ID", requestId);
       return rateLimitResponse;
     }
 
-    const { searchParams } = new URL(req.url);
-    const sessionId = searchParams.get("session_id") || getBillingSessionIdFromRequest(req);
+    const json = await parseJsonBody<{ session_id?: string }>(req);
+    const sessionId = json.session_id;
     if (!sessionId) {
       return NextResponse.json({ ok: false, error: "session_id is required", requestId }, { status: 400 });
     }
 
-    // 1) DB-first
-    const existing = await getSubscriptionBySessionId(sessionId);
-    if (existing) {
-      return NextResponse.json(
-        {
-          ok: true,
-          data: {
-            status: existing.status,
-            planInterval: existing.plan_interval,
-            cancelAtPeriodEnd: existing.cancel_at_period_end,
-            currentPeriodEnd: existing.current_period_end,
-          },
-          requestId,
-        },
-        { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
-      );
-    }
-
-    // 2) Stripe fallback (best-effort backfill)
     if (!isStripeConfigured()) {
-      return NextResponse.json(
-        { ok: true, data: { status: "unknown", planInterval: "unknown", cancelAtPeriodEnd: false, currentPeriodEnd: null }, requestId },
-        { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
-      );
+      return NextResponse.json({ ok: false, error: "Stripe not configured", requestId }, { status: 503 });
     }
 
     const Stripe = (await import("stripe")).default;
@@ -68,10 +48,7 @@ export async function GET(req: Request) {
     const stripe = new Stripe(secretKey);
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     if (!session || session.mode !== "subscription" || !session.subscription) {
-      return NextResponse.json(
-        { ok: true, data: { status: "unknown", planInterval: "unknown", cancelAtPeriodEnd: false, currentPeriodEnd: null }, requestId },
-        { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
-      );
+      return NextResponse.json({ ok: false, error: "Not a subscription checkout session", requestId }, { status: 400 });
     }
 
     const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
@@ -87,7 +64,7 @@ export async function GET(req: Request) {
       planInterval: derivePlanIntervalFromStripe(sub),
     });
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         ok: true,
         data: {
@@ -100,8 +77,11 @@ export async function GET(req: Request) {
       },
       { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
     );
+
+    res.headers.append("Set-Cookie", buildBillingSessionCookie(sessionId));
+    return res;
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Failed to load subscription", requestId }, { status: 400 });
+    return NextResponse.json({ ok: false, error: e?.message || "Failed to verify subscription session", requestId }, { status: 400 });
   }
 }
 

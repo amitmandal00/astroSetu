@@ -51,33 +51,61 @@ function SubscriptionContent() {
       setInput(inputData);
       setIsSubscribed(subscriptionStatus);
 
-      // Source of truth: subscription status from server/DB (if session_id exists)
-      const sessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId");
-      if (sessionId) {
-        apiGet<{ ok: boolean; data?: any }>(`/api/billing/subscription?session_id=${encodeURIComponent(sessionId)}`)
-          .then((res) => {
+      // Best-practice: use session_id from query string only once (Stripe redirect), verify server-side,
+      // then rely on DB via cookie-backed /api/billing/subscription (no query/sessionStorage required).
+      const urlSessionId = searchParams?.get("session_id");
+      const hydrateBilling = async () => {
+        try {
+          // 1) Try DB source-of-truth first (cookie-backed)
+          try {
+            const res = await apiGet<{ ok: boolean; data?: any }>("/api/billing/subscription");
             if (res.ok && res.data) {
               setBillingStatus(res.data);
-              // Source-of-truth: derive subscription UX from server/DB (avoid client guesses)
               const isActive =
                 res.data.status === "active" ||
                 res.data.status === "trialing" ||
-                // Stripe remains "active" while cancel_at_period_end=true; keep access until period end
                 (res.data.status === "active" && !!res.data.cancelAtPeriodEnd);
-              if (isActive) {
-                setIsSubscribed(true);
-                sessionStorage.setItem("aiAstrologySubscription", "active");
-              } else {
-                // If server says not active, clear local marker
-                setIsSubscribed(false);
-                sessionStorage.removeItem("aiAstrologySubscription");
-              }
+              setIsSubscribed(isActive);
+              return;
             }
-          })
-          .catch(() => {
-            // Non-blocking: fallback to local marker
-          });
-      }
+          } catch (e: any) {
+            const msg = String(e?.message || "");
+            // Only attempt one-time verification if server indicates it needs a session id
+            if (!msg.toLowerCase().includes("session_id is required")) {
+              return;
+            }
+          }
+
+          // 2) One-time verification path (best-effort; must not block UI)
+          const candidate = urlSessionId || sessionStorage.getItem("aiAstrologyPaymentSessionId");
+          if (!candidate) return;
+          try {
+            await apiPost<{ ok: boolean; error?: string }>(
+              "/api/billing/subscription/verify-session",
+              { session_id: candidate }
+            );
+            if (urlSessionId) {
+              router.replace("/ai-astrology/subscription"); // clean URL
+            }
+          } catch {
+            // If Stripe isn't configured (local/dev/E2E), verification may fail — still proceed to load mocked API state.
+          }
+
+          // 3) Retry DB source-of-truth
+          const res2 = await apiGet<{ ok: boolean; data?: any }>("/api/billing/subscription");
+          if (res2.ok && res2.data) {
+            setBillingStatus(res2.data);
+            const isActive =
+              res2.data.status === "active" ||
+              res2.data.status === "trialing" ||
+              (res2.data.status === "active" && !!res2.data.cancelAtPeriodEnd);
+            setIsSubscribed(isActive);
+          }
+        } catch {
+          // Non-blocking: subscription UI can still render; user may need to complete checkout/verification.
+        }
+      };
+      hydrateBilling();
 
       // Load today's guidance if subscribed
       if (subscriptionStatus) {
@@ -169,14 +197,12 @@ function SubscriptionContent() {
   };
 
   const handleCancelSubscription = async () => {
-    const sid = sessionStorage.getItem("aiAstrologyPaymentSessionId");
-    if (!sid) return;
     setBillingActionLoading(true);
     setError(null);
     try {
       const res = await apiPost<{ ok: boolean; data?: any; error?: string }>(
         "/api/billing/subscription/cancel",
-        { session_id: sid }
+        {}
       );
       if (!res.ok) {
         throw new Error(res.error || "Failed to cancel subscription");
@@ -193,14 +219,12 @@ function SubscriptionContent() {
   };
 
   const handleResumeSubscription = async () => {
-    const sid = sessionStorage.getItem("aiAstrologyPaymentSessionId");
-    if (!sid) return;
     setBillingActionLoading(true);
     setError(null);
     try {
       const res = await apiPost<{ ok: boolean; data?: any; error?: string }>(
         "/api/billing/subscription/resume",
-        { session_id: sid }
+        {}
       );
       if (!res.ok) {
         throw new Error(res.error || "Failed to resume subscription");
