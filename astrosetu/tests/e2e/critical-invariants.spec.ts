@@ -126,6 +126,42 @@ async function expectTimerTicks(page: any) {
   expect(n2).toBeGreaterThan(n1);
 }
 
+async function expectTimerMonotonic(page: any, opts?: { sampleMs?: number; totalMs?: number }) {
+  const sampleMs = opts?.sampleMs ?? 1000;
+  const totalMs = opts?.totalMs ?? 6500;
+
+  await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
+  const elapsedElement = page.locator(ELAPSED);
+  await expect(elapsedElement).toBeVisible({ timeout: 5000 });
+
+  const samples: number[] = [];
+  const iterations = Math.max(3, Math.floor(totalMs / sampleMs));
+  for (let i = 0; i < iterations; i++) {
+    const t = await elapsedElement.innerText();
+    const n = parseInt((t.match(/\d+/) ?? ["0"])[0], 10);
+    samples.push(n);
+    await page.waitForTimeout(sampleMs);
+  }
+
+  // Must increase at least once
+  const max = Math.max(...samples);
+  const min = Math.min(...samples);
+  expect(max).toBeGreaterThan(min);
+
+  // Must be monotonic non-decreasing (no reset-to-0 while still loading)
+  for (let i = 1; i < samples.length; i++) {
+    expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1]);
+  }
+
+  // Once it becomes > 0, it must never return to 0 while still loading
+  const firstPositiveIdx = samples.findIndex((s) => s > 0);
+  if (firstPositiveIdx >= 0) {
+    for (let i = firstPositiveIdx; i < samples.length; i++) {
+      expect(samples[i]).toBeGreaterThan(0);
+    }
+  }
+}
+
 test.describe("Critical Invariants - Timer & Report Generation", () => {
   test("Loader visible => elapsed ticks within 2 seconds (year-analysis with session_id)", async ({ page }) => {
     await seedInput(page);
@@ -317,6 +353,68 @@ test.describe("Critical Invariants - Timer & Report Generation", () => {
       waitUntil: "networkidle",
     });
     await expectTimerTicks(page);
+  });
+
+  test("First-load: year-analysis elapsed must be monotonic (no reset-to-0)", async ({ page }) => {
+    await seedInput(page);
+
+    // Mock verify-payment (year-analysis is paid in UI flow)
+    await mockVerifyPayment(page);
+
+    // Custom generate-report mock:
+    // - life-summary completes quickly
+    // - year-analysis stays "processing" long enough to observe timer monotonicity
+    await page.route("**/api/ai-astrology/generate-report**", async (route) => {
+      const req = route.request();
+      const reqUrl = new URL(req.url());
+      const hasReportId = reqUrl.searchParams.get("reportId");
+
+      if (req.method() === "POST") {
+        const body = req.postDataJSON?.() as any;
+        const rt = body?.reportType || "unknown";
+        const reportId = rt === "life-summary" ? "test_report_life" : "test_report_year";
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, data: { status: "processing", reportId } }),
+        });
+        return;
+      }
+
+      if (req.method() === "GET" && hasReportId) {
+        const rid = hasReportId;
+        if (rid === "test_report_life") {
+          // Complete quickly so we simulate the real "first-load then switch" behavior.
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              ok: true,
+              data: {
+                status: "completed",
+                reportId: rid,
+                reportType: "life-summary",
+                content: { title: "Life Summary", sections: [{ title: "Executive Summary", content: "Ok" }] },
+              },
+            }),
+          });
+          return;
+        }
+        // Keep year-analysis in processing for this test window.
+        await route.fulfill({
+          status: 202,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, data: { status: "processing", reportId: rid } }),
+        });
+        return;
+      }
+
+      await route.continue();
+    });
+
+    // First-load: open year-analysis directly (fresh context). This is where the real bug reproduces.
+    await page.goto("/ai-astrology/preview?session_id=test_firstload&reportType=year-analysis&auto_generate=true", { waitUntil: "networkidle" });
+    await expectTimerMonotonic(page, { totalMs: 6500, sampleMs: 1100 });
   });
 
   // Test 8: Full-life must NOT flicker and end in error (CRITICAL BUG)

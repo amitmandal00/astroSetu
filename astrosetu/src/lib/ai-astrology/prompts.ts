@@ -13,6 +13,11 @@ Avoid fear language.
 Focus on guidance and timing.
 Provide clear, actionable insights.
 
+TIME WINDOW GUARDRail (NON-NEGOTIABLE):
+- You will be given NOW_ISO (today) and CURRENT_YEAR.
+- ALL timing windows / years / date ranges MUST be in the FUTURE relative to NOW_ISO.
+- Do NOT mention past years in "best timing windows", "recommended timing", "timeframe", or "periods to avoid".
+
 CRITICAL REPETITION RULES:
 - Reduce repetition across sections - keep content unique and non-redundant
 - Allow repetition ONLY in:
@@ -58,6 +63,9 @@ export const AI_PROMPT_TEMPLATES = {
     lifeSummary: (birthDetails: any, planetaryData: any) => `
       ${AI_PROMPT_SYSTEM_MESSAGE}
 
+      NOW_ISO: ${new Date().toISOString().split("T")[0]}
+      CURRENT_YEAR: ${new Date().getFullYear()}
+
       INPUT:
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
@@ -72,6 +80,21 @@ export const AI_PROMPT_TEMPLATES = {
       4. Use short bullet points (max 20 words each)
       5. End each major section with "What this means for you" summary
       6. Use clear sections and bullet points
+      7. MINIMUM DEPTH: Create **at least 8 sections** (avoid short/empty reports)
+
+      REQUIRED SECTIONS (use these titles or very close):
+      - Executive Summary
+      - Top Strengths (5 bullets)
+      - Key Challenges (3 bullets)
+      - Relationships & Communication
+      - Career & Money Themes
+      - Health & Energy Themes
+      - Growth & Spiritual Themes
+      - Next 30 Days: Quick Wins (3 specific actions)
+
+      IMPORTANT:
+      - This is the free report; it must feel valuable and engaging.
+      - Do NOT include paid timing windows or date-range predictions here.
       `,
 
     marriageTiming: (birthDetails: any, planetaryData: any, timingWindows?: any) => {
@@ -103,7 +126,9 @@ export const AI_PROMPT_TEMPLATES = {
       INPUT:
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
-      Current date context: Analysis is based on timing windows relative to current date (${new Date().toISOString().split('T')[0]})
+      NOW_ISO: ${new Date().toISOString().split("T")[0]}
+      CURRENT_YEAR: ${new Date().getFullYear()}
+      Current date context: Analysis is based on timing windows relative to current date (${new Date().toISOString().split("T")[0]})
       Primary marriage window: ${primaryDesc}
       Secondary marriage window: ${secondaryDesc}
 
@@ -213,6 +238,8 @@ export const AI_PROMPT_TEMPLATES = {
       ${AI_PROMPT_SYSTEM_MESSAGE}
 
       INPUT:
+      NOW_ISO: ${new Date().toISOString().split("T")[0]}
+      CURRENT_YEAR: ${currentYear}
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
       Current date context: Analysis uses intelligent date windows relative to current date (${new Date().toISOString().split('T')[0]})
@@ -565,6 +592,8 @@ export const AI_PROMPT_TEMPLATES = {
       ${AI_PROMPT_SYSTEM_MESSAGE}
 
       INPUT:
+      NOW_ISO: ${new Date().toISOString().split("T")[0]}
+      CURRENT_YEAR: ${new Date().getFullYear()}
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
       Analysis period: ${periodDescription}
@@ -717,6 +746,8 @@ export const AI_PROMPT_TEMPLATES = {
       ${AI_PROMPT_SYSTEM_MESSAGE}
 
       INPUT:
+      NOW_ISO: ${new Date().toISOString().split("T")[0]}
+      CURRENT_YEAR: ${new Date().getFullYear()}
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
 
@@ -857,6 +888,8 @@ export const AI_PROMPT_TEMPLATES = {
       ${AI_PROMPT_SYSTEM_MESSAGE}
 
       INPUT:
+      NOW_ISO: ${new Date().toISOString().split("T")[0]}
+      CURRENT_YEAR: ${new Date().getFullYear()}
       Here are the birth details: ${JSON.stringify(birthDetails, null, 2)}
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
       ${decisionContext ? `Decision Context: ${decisionContext}` : "General decision support requested"}

@@ -5,7 +5,10 @@
  * and trims ongoing windows based on mode.
  */
 
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { filterFutureWindows, ensureFutureYear, getCurrentYear, getDefaultYearAnalysisYear, type DateRange } from "@/lib/time/futureWindows";
+import { ensureFutureWindows } from "@/lib/ai-astrology/ensureFutureWindows";
+import type { ReportContent } from "@/lib/ai-astrology/types";
 
 describe("filterFutureWindows", () => {
   const now = new Date("2026-01-15T10:00:00Z");
@@ -146,33 +149,61 @@ describe("ensureFutureYear", () => {
 
 describe("getDefaultYearAnalysisYear", () => {
   it("should return current year if before Dec 20", () => {
-    const mockDate = new Date("2026-12-15T10:00:00Z");
-    const originalDate = Date;
-    
-    // Mock Date constructor
-    global.Date = jest.fn(() => mockDate) as any;
-    global.Date.getFullYear = originalDate.getFullYear;
-    
-    const result = getDefaultYearAnalysisYear();
-    
-    expect(result).toBe(2026);
-    
-    global.Date = originalDate;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-15T10:00:00Z"));
+    expect(getDefaultYearAnalysisYear()).toBe(2026);
+    vi.useRealTimers();
   });
   
   it("should return next year if after Dec 20", () => {
-    const mockDate = new Date("2026-12-25T10:00:00Z");
-    const originalDate = Date;
-    
-    // Mock Date constructor
-    global.Date = jest.fn(() => mockDate) as any;
-    global.Date.getFullYear = originalDate.getFullYear;
-    
-    const result = getDefaultYearAnalysisYear();
-    
-    expect(result).toBe(2027);
-    
-    global.Date = originalDate;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-25T10:00:00Z"));
+    expect(getDefaultYearAnalysisYear()).toBe(2027);
+    vi.useRealTimers();
+  });
+});
+
+describe("ensureFutureWindows (ReportContent normalization)", () => {
+  it("normalizes past year references in timing surfaces to >= current year", () => {
+    const now = new Date("2026-01-15T10:00:00Z");
+
+    const content: ReportContent = {
+      title: "Decision Support Report",
+      sections: [
+        {
+          title: "Recommended Timing",
+          content: "Best timing windows: late 2023 / early 2024. Avoid 2025 for major commitments.",
+        },
+      ],
+      recommendedTiming: "Best timing windows: late 2023 / early 2024.",
+    };
+
+    const normalized = ensureFutureWindows("decision-support", content, { now, timeZone: "Australia/Melbourne" });
+
+    // Only enforce 20xx years; birth years like 1984 are irrelevant here.
+    const years = JSON.stringify(normalized).match(/\b20\d{2}\b/g) || [];
+    expect(years.every((y) => Number(y) >= 2026)).toBe(true);
+  });
+
+  it("shifts fully-past structured date windows forward", () => {
+    const now = new Date("2026-01-15T10:00:00Z");
+
+    const content: ReportContent = {
+      title: "Marriage Timing Report",
+      sections: [],
+      timeWindows: [
+        {
+          title: "Window",
+          startDate: "2024-03-01",
+          endDate: "2024-06-30",
+          description: "Mar–Jun 2024 is favorable.",
+        },
+      ],
+    };
+
+    const normalized = ensureFutureWindows("marriage-timing", content, { now, timeZone: "Australia/Melbourne" });
+    expect(normalized.timeWindows?.[0].startDate?.startsWith("2026")).toBe(true);
+    expect(normalized.timeWindows?.[0].endDate?.startsWith("2026")).toBe(true);
   });
 });
 

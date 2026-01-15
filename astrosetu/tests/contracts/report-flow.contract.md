@@ -185,6 +185,20 @@ Before merging any code changes:
 - [ ] Regression test passes
 - [ ] No anti-patterns present
 
+## 📅 Future-Only Timing Contract (Critical UX)
+
+All “best timing windows / recommended timing / timeframes” must be future-looking relative to the current date.
+
+**Rules:**
+- Do not show past 20xx years in timing surfaces (e.g. 2023/2024 when current year is 2026).
+- Prompt must include `NOW_ISO` + `CURRENT_YEAR` and instruct future-only windows.
+- Output must be post-processed server-side via a single shared utility (no scattered checks).
+
+**Enforcement:**
+- Unit: `tests/unit/lib/futureWindows.test.ts`
+- Integration: `tests/integration/report-output-future-only.test.ts`
+- E2E: `tests/e2e/future-only-timing.spec.ts`
+
 ---
 
 **Contract Version**: 1.0  

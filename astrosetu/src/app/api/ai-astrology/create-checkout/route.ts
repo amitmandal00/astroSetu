@@ -247,7 +247,13 @@ export async function POST(req: Request) {
           ok: true,
           data: {
             sessionId: mockSessionId,
-            url: successUrl || `${baseUrl}/ai-astrology/payment/success?session_id=${mockSessionId}`,
+            // For subscription, use dedicated success page so the journey mirrors production.
+            // (Payment success page also supports subscription, but this is clearer and avoids cross-flow coupling.)
+            url:
+              successUrl ||
+              (subscription
+                ? `${baseUrl}/ai-astrology/subscription/success?session_id=${mockSessionId}`
+                : `${baseUrl}/ai-astrology/payment/success?session_id=${mockSessionId}`),
           },
           requestId,
           testMode: true, // Indicate this is a test session
@@ -376,8 +382,19 @@ export async function POST(req: Request) {
         }
       }
     }
-    const success = successUrl || `${baseUrl}/ai-astrology/payment/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancel = cancelUrl || `${baseUrl}/ai-astrology/payment/cancel`;
+    // IMPORTANT:
+    // - Reports: payment success page owns verification + auto-generation.
+    // - Subscriptions: dedicated success page verifies server-side and redirects back to subscription dashboard.
+    const success = successUrl
+      ? successUrl
+      : subscription
+      ? `${baseUrl}/ai-astrology/subscription/success?session_id={CHECKOUT_SESSION_ID}`
+      : `${baseUrl}/ai-astrology/payment/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancel = cancelUrl
+      ? cancelUrl
+      : subscription
+      ? `${baseUrl}/ai-astrology/subscription`
+      : `${baseUrl}/ai-astrology/payment/cancel`;
 
     // Create checkout session
     let session;
@@ -424,16 +441,8 @@ export async function POST(req: Request) {
         success_url: success,
         cancel_url: cancel,
         metadata, // Includes: report_type, user_id, timestamp, requestId
-        // Enable 3D Secure authentication when required (fixes pat-missing-auth error)
-        payment_method_options: {
-          card: {
-            request_three_d_secure: "automatic", // Automatically request 3D Secure when required
-          },
-        },
-        payment_intent_data: {
-          statement_descriptor: "ASTROSETU AI",
-          capture_method: "manual", // CRITICAL: Don't capture payment until report is generated
-        },
+        // NOTE: `payment_intent_data` is NOT valid for mode=subscription and can break checkout creation.
+        // For subscription, Stripe will handle PaymentIntent/SetupIntent internally.
       });
     } else {
       // Create one-time payment

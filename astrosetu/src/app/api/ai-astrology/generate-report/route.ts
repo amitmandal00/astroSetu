@@ -18,6 +18,7 @@ import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWind
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing, getCachedReportByReportId } from "@/lib/ai-astrology/reportCache";
 import { generateSessionKey } from "@/lib/ai-astrology/openAICallTracker";
+import { ensureFutureWindows } from "@/lib/ai-astrology/ensureFutureWindows";
 import {
   getStoredReportByIdempotencyKey,
   getStoredReportByReportId,
@@ -52,6 +53,14 @@ export async function GET(req: NextRequest) {
     // Prefer persistent store (serverless-safe) to avoid “stuck polling” + duplicate generations
     const storedReport = await getStoredReportByReportId(reportId);
     if (storedReport && storedReport.status === "completed" && storedReport.content) {
+      // Guardrail: never render timing windows in the past (protects old stored reports too).
+      const normalizedContent = ensureFutureWindows(
+        storedReport.report_type as any,
+        storedReport.content,
+        {
+          timeZone: (storedReport.input as any)?.timezone || "Australia/Melbourne",
+        }
+      );
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
       const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(reportId)}&reportType=${encodeURIComponent(storedReport.report_type)}`;
       const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
@@ -64,7 +73,7 @@ export async function GET(req: NextRequest) {
             reportId: storedReport.report_id,
             reportType: storedReport.report_type,
             input: storedReport.input,
-            content: storedReport.content,
+            content: normalizedContent,
             generatedAt: storedReport.updated_at,
             redirectUrl,
             fullRedirectUrl,
@@ -107,6 +116,12 @@ export async function GET(req: NextRequest) {
     
     // Check status
     if (cachedReport.status === "completed") {
+      // Guardrail: never render timing windows in the past (protects in-memory cached reports too).
+      const normalizedContent = ensureFutureWindows(
+        cachedReport.reportType as any,
+        cachedReport.content,
+        { timeZone: (cachedReport.input as any)?.timezone || "Australia/Melbourne" }
+      );
       // Report is ready
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
       const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(reportId)}&reportType=${encodeURIComponent(cachedReport.reportType)}`;
@@ -120,7 +135,7 @@ export async function GET(req: NextRequest) {
             reportId: cachedReport.reportId,
             reportType: cachedReport.reportType,
             input: cachedReport.input,
-            content: cachedReport.content,
+            content: normalizedContent,
             generatedAt: cachedReport.generatedAt,
             redirectUrl,
             fullRedirectUrl,
@@ -1115,7 +1130,10 @@ export async function POST(req: Request) {
       await simulateApiDelay(1500, 3000);
       
       // Generate mock report
-      const mockReportContent = getMockReport(reportType);
+      const rawMock = getMockReport(reportType);
+      const mockReportContent = ensureFutureWindows(reportType, rawMock, {
+        timeZone: input.timezone || "Australia/Melbourne",
+      });
       
       // Cache the mock report (for idempotency)
       cacheReport(idempotencyKey, reportId, mockReportContent, reportType, input);
@@ -1231,6 +1249,12 @@ export async function POST(req: Request) {
         // Re-throw the error to be handled by outer catch
         throw raceError;
       }
+
+      // CENTRAL GUARDRail: Ensure all timing windows are future-only before caching/storing/rendering.
+      // This fixes LLM “past year” leakage and also protects users when prompts are imperfect.
+      reportContent = ensureFutureWindows(reportType, reportContent, {
+        timeZone: input.timezone || "Australia/Melbourne",
+      });
       
       // Log successful completion with timing
       const generationTime = Date.now() - startTime;

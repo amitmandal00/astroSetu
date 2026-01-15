@@ -176,7 +176,8 @@ async function generateWithOpenAI(
   const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
   const isFreeReport = reportType === "life-summary";
   // Use 2200 tokens for complex reports to optimize speed while maintaining quality (reduced from 2500)
-  const maxTokens = isComplexReport ? 2200 : (isFreeReport ? 1000 : 1800); // Optimized for speed: 1000 for free, 1800 for paid, 2200 for complex
+  // Free life-summary is the primary engagement surface; give it a bit more room to avoid "thin" output.
+  const maxTokens = isComplexReport ? 2200 : (isFreeReport ? 1400 : 1800); // 1400 for free, 1800 for paid, 2200 for complex
   
   // Add explicit timeout to fetch (45 seconds max per request)
   const controller = new AbortController();

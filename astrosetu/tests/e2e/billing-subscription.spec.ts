@@ -12,6 +12,24 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Billing - Cancel monthly subscription", () => {
   test("Cancel subscription shows 'active until' and persists after refresh", async ({ page }) => {
+    // Prevent networkidle hangs by mocking daily-guidance (subscription page may fetch it)
+    await page.route("**/api/ai-astrology/daily-guidance", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            guidance: "Mock monthly guidance",
+            focusAreas: { mindset: "x", work: "x", relationships: "x", energy: "x" },
+            helpfulThisMonth: [],
+            beMindfulOf: [],
+            reflectionPrompt: "Mock reflection prompt",
+          },
+        }),
+      });
+    });
+
     // Simulated DB-backed state held by mocked API
     let state: any = {
       ok: true,
@@ -80,11 +98,29 @@ test.describe("Billing - Cancel monthly subscription", () => {
     await expect(page.getByTestId("billing-subscription-status")).toContainText("active until");
 
     // Refresh should still show canceled (proves UI reads from API, not client-only)
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("billing-subscription-status")).toContainText("Canceled");
   });
 
   test("Resume subscription returns to Active and persists after refresh", async ({ page }) => {
+    // Prevent networkidle hangs by mocking daily-guidance (subscription page may fetch it)
+    await page.route("**/api/ai-astrology/daily-guidance", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            guidance: "Mock monthly guidance",
+            focusAreas: { mindset: "x", work: "x", relationships: "x", energy: "x" },
+            helpfulThisMonth: [],
+            beMindfulOf: [],
+            reflectionPrompt: "Mock reflection prompt",
+          },
+        }),
+      });
+    });
+
     let state: any = {
       ok: true,
       data: {
@@ -144,7 +180,7 @@ test.describe("Billing - Cancel monthly subscription", () => {
     await expect(page.getByTestId("billing-subscription-status")).toContainText("Active");
 
     // Refresh should remain active
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("billing-subscription-status")).toContainText("Active");
   });
 });

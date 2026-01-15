@@ -52,19 +52,78 @@ export const MOCK_REPORTS: Record<ReportType, () => ReportContent> = {
     ...createBaseMockReport("life-summary", "Your Life Summary"),
     sections: [
       {
-        title: "Personality Overview",
-        content: "Based on your birth chart, you have a unique personality blend. This mock report provides sample insights into your character traits and life patterns.",
+        title: "Executive Summary",
+        content:
+          "This is a mock Life Summary used for testing. In production, your summary will be generated from your birth chart and tailored to your unique patterns and preferences.",
       },
       {
-        title: "Key Strengths",
-        content: "Your astrological profile suggests several key strengths that guide your life journey.",
+        title: "Top Strengths",
+        content: "A few strengths that tend to support your life direction (mock data):",
         bullets: [
           "Strong intuitive abilities (mock data)",
           "Natural leadership qualities (mock data)",
           "Creative problem-solving approach (mock data)",
+          "Resilience under pressure (mock data)",
+          "Ability to learn quickly from feedback (mock data)",
+        ],
+      },
+      {
+        title: "Key Challenges",
+        content: "A few challenges to watch and work with (mock data):",
+        bullets: [
+          "Overthinking during transitions (mock data)",
+          "Taking on too much responsibility (mock data)",
+          "Difficulty resting when goals are unfinished (mock data)",
+        ],
+      },
+      {
+        title: "Relationships & Communication",
+        content: "Your relationship style tends to improve with clarity and calm communication (mock data).",
+        bullets: [
+          "Best approach: say needs early and kindly (mock data)",
+          "Watch-outs: silence when stressed (mock data)",
+          "Support: boundaries + consistent routines (mock data)",
+        ],
+      },
+      {
+        title: "Career & Money Themes",
+        content: "Career growth often follows focus and skill-building (mock data).",
+        bullets: [
+          "Strength: steady execution (mock data)",
+          "Growth lever: deepen one core skill (mock data)",
+          "Money habit: automate savings (mock data)",
+        ],
+      },
+      {
+        title: "Health & Energy Themes",
+        content: "Energy is strongest when sleep and movement are consistent (mock data).",
+        bullets: [
+          "Helpful: morning light + walk (mock data)",
+          "Helpful: hydration and regular meals (mock data)",
+          "Watch-outs: long late nights (mock data)",
+        ],
+      },
+      {
+        title: "Growth & Spiritual Themes",
+        content: "Growth tends to come from reflection plus small, repeatable actions (mock data).",
+        bullets: [
+          "Reflect: what drains vs restores you (mock data)",
+          "Practice: weekly review (mock data)",
+          "Balance: ambition with recovery (mock data)",
+        ],
+      },
+      {
+        title: "Next 30 Days: Quick Wins",
+        content: "Three small actions that create momentum (mock data):",
+        bullets: [
+          "Pick one priority for the week and finish it (mock data)",
+          "Send one message to strengthen a key relationship (mock data)",
+          "Do 20 minutes of skill-building 3x/week (mock data)",
         ],
       },
     ],
+    summary:
+      "Mock summary: a structured Life Summary with enough sections to feel valuable. In production, this will be personalized to your birth chart.",
   }),
 
   "marriage-timing": () => ({

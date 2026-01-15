@@ -4,6 +4,10 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  // IMPORTANT: Keep tests hermetic.
+  // In many environments `.env.local` is restricted (contains secrets) and should not be read by test runs.
+  // Point Vite/Vitest env loading to a test-only directory instead of repo root.
+  envDir: './tests/env',
   test: {
     globals: true,
     environment: 'jsdom',

@@ -40,7 +40,6 @@ function SubscriptionContent() {
     try {
       // Get input from sessionStorage
       const savedInput = sessionStorage.getItem("aiAstrologyInput");
-      const subscriptionStatus = sessionStorage.getItem("aiAstrologySubscription") === "active";
 
       if (!savedInput) {
         router.push("/ai-astrology/input");
@@ -49,7 +48,6 @@ function SubscriptionContent() {
 
       const inputData = JSON.parse(savedInput);
       setInput(inputData);
-      setIsSubscribed(subscriptionStatus);
 
       // Best-practice: use session_id from query string only once (Stripe redirect), verify server-side,
       // then rely on DB via cookie-backed /api/billing/subscription (no query/sessionStorage required).
@@ -106,16 +104,20 @@ function SubscriptionContent() {
         }
       };
       hydrateBilling();
-
-      // Load today's guidance if subscribed
-      if (subscriptionStatus) {
-        loadDailyGuidance(inputData);
-      }
     } catch (e) {
       console.error("Error parsing saved input:", e);
       router.push("/ai-astrology/input");
     }
   }, [router]);
+
+  // Load current monthly guidance only when subscription is active (DB/API is source of truth).
+  useEffect(() => {
+    if (!input) return;
+    if (!isSubscribed) return;
+    if (guidance) return;
+    loadDailyGuidance(input);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, isSubscribed]);
 
   const loadDailyGuidance = async (inputData: AIAstrologyInput) => {
     setLoading(true);
