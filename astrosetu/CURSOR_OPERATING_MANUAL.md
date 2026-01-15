@@ -82,6 +82,49 @@
 
 ---
 
+## 💳 Subscription / Billing (Cancel Monthly Subscription) — Non-Negotiables
+
+### 1. Server-only Stripe calls
+**Contract**: No direct Stripe calls from the client. Client must call server routes only.
+
+### 2. DB is the source of truth
+**Contract**: Billing UI must render from DB-backed state (`GET /api/billing/subscription`) and must persist after refresh.
+
+**Enforcement**: Playwright E2E must assert cancel/resume persists after refresh.
+
+### 3. Cancel behavior
+**Contract**: Cancel = `cancel_at_period_end=true` (recommended). Access continues until `current_period_end`.
+
+### 4. Resume behavior
+**Contract**: Resume = `cancel_at_period_end=false` before period end.
+
+### 5. Webhook sync is mandatory
+**Contract**: Stripe webhook must update the DB for out-of-band changes.
+
+### 6. Idempotency required
+**Contract**: Cancel/resume endpoints must be safe to call multiple times.
+
+---
+
+## 🧩 External Vendor Control (Prokerala) — Non-Negotiables
+
+### 1. Prokerala is optional and must be disable-able
+**Contract**: We must be able to ship without consuming Prokerala credits.
+
+**Implementation**:
+- Set `DISABLE_PROKERALA=true` to force local engine fallback (no Prokerala calls), even if credentials exist.
+- Remove `PROKERALA_*` env vars from Vercel to prevent accidental usage.
+- Rotate/revoke Prokerala keys if you received unexpected credit usage emails.
+
+### 2. Prokerala references must not spread
+**Contract**: New Prokerala usage must be explicitly approved and contained.
+
+**Enforcement**:
+- `npm run check:prokerala-boundary` must pass.
+- `npm run ci:critical` includes the boundary check and blocks merges if violated.
+
+---
+
 ## 🚨 Build Safety Non-Negotiables (CRITICAL - Prevents Vercel Build Failures)
 
 ### 1. No New Imports Unless Target File Exists

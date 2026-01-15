@@ -73,17 +73,35 @@
 ### 7. Critical Test Gate (MUST PASS)
 **MANDATORY**: `npm run test:critical` must pass before any merge.
 
-**Tests** (in `tests/e2e/critical-invariants.spec.ts`):
+**Tests** (E2E):
 1. Loader visible => elapsed ticks (year-analysis with session_id)
 2. Loader visible => elapsed ticks (bundle with retry)
 3. Loader visible => elapsed ticks (paid transition: verify → generate)
 4. Session resume scenario (exact screenshot bug)
 5. Retry must be full restart
 6. reportType alone must not show loader
+7. Billing: Cancel subscription persists after refresh
+8. Billing: Resume subscription persists after refresh
 
 **Enforcement**: CI/local must block merge if this suite fails.
 
 ---
+
+## 💳 Billing / Subscription Workflows (Stripe + Supabase)
+
+### Billing NON-NEGOTIABLES
+- **No direct Stripe calls from client**: UI calls server routes only.
+- **DB is source of truth**: UI renders from `/api/billing/subscription` (DB-backed), not client guesses.
+- **Webhook sync required**: Stripe events must update DB.
+- **Idempotency required**: Cancel/resume safe to repeat; webhook replays safe.
+- **No edits to report generation/timer files in a billing PR**.
+- **Must pass**: `npm run type-check`, `npm run build`, `npm run test:critical` (includes billing tests).
+
+### Billing Cursor Workflow
+- Add failing Playwright test first (`tests/e2e/billing-subscription.spec.ts`)
+- Add/adjust API routes + webhook
+- Wire Billing UI + confirm modal
+- Run `npm run ci:critical` and `npm run test:critical`
 
 ## 🔄 Operational Workflow (How to Drive Cursor)
 

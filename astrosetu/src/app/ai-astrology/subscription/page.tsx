@@ -24,6 +24,14 @@ function SubscriptionContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [billingStatus, setBillingStatus] = useState<{
+    status: string;
+    cancelAtPeriodEnd: boolean;
+    currentPeriodEnd: string | null;
+    planInterval: string;
+  } | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [billingActionLoading, setBillingActionLoading] = useState(false);
 
   useEffect(() => {
     // Check if sessionStorage is available
@@ -42,6 +50,34 @@ function SubscriptionContent() {
       const inputData = JSON.parse(savedInput);
       setInput(inputData);
       setIsSubscribed(subscriptionStatus);
+
+      // Source of truth: subscription status from server/DB (if session_id exists)
+      const sessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId");
+      if (sessionId) {
+        apiGet<{ ok: boolean; data?: any }>(`/api/billing/subscription?session_id=${encodeURIComponent(sessionId)}`)
+          .then((res) => {
+            if (res.ok && res.data) {
+              setBillingStatus(res.data);
+              // Source-of-truth: derive subscription UX from server/DB (avoid client guesses)
+              const isActive =
+                res.data.status === "active" ||
+                res.data.status === "trialing" ||
+                // Stripe remains "active" while cancel_at_period_end=true; keep access until period end
+                (res.data.status === "active" && !!res.data.cancelAtPeriodEnd);
+              if (isActive) {
+                setIsSubscribed(true);
+                sessionStorage.setItem("aiAstrologySubscription", "active");
+              } else {
+                // If server says not active, clear local marker
+                setIsSubscribed(false);
+                sessionStorage.removeItem("aiAstrologySubscription");
+              }
+            }
+          })
+          .catch(() => {
+            // Non-blocking: fallback to local marker
+          });
+      }
 
       // Load today's guidance if subscribed
       if (subscriptionStatus) {
@@ -129,6 +165,53 @@ function SubscriptionContent() {
     } catch (e: any) {
       setError(e.message || "Failed to initiate subscription");
       setLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    const sid = sessionStorage.getItem("aiAstrologyPaymentSessionId");
+    if (!sid) return;
+    setBillingActionLoading(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ ok: boolean; data?: any; error?: string }>(
+        "/api/billing/subscription/cancel",
+        { session_id: sid }
+      );
+      if (!res.ok) {
+        throw new Error(res.error || "Failed to cancel subscription");
+      }
+      if (res.data) {
+        setBillingStatus(res.data);
+      }
+      setShowCancelConfirm(false);
+    } catch (e: any) {
+      setError(e.message || "Failed to cancel subscription");
+    } finally {
+      setBillingActionLoading(false);
+    }
+  };
+
+  const handleResumeSubscription = async () => {
+    const sid = sessionStorage.getItem("aiAstrologyPaymentSessionId");
+    if (!sid) return;
+    setBillingActionLoading(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ ok: boolean; data?: any; error?: string }>(
+        "/api/billing/subscription/resume",
+        { session_id: sid }
+      );
+      if (!res.ok) {
+        throw new Error(res.error || "Failed to resume subscription");
+      }
+      if (res.data) {
+        setBillingStatus(res.data);
+      }
+    } catch (e: any) {
+      setError(e.message || "Failed to resume subscription");
+    } finally {
+      setBillingActionLoading(false);
     }
   };
 
@@ -300,13 +383,99 @@ function SubscriptionContent() {
           </div>
         )}
 
+        {/* Manage Subscription (server/DB source of truth) */}
+        {(isSubscribed || !!billingStatus) && (
+          <Card className="cosmic-card mb-6">
+            <CardHeader title="Manage Subscription" />
+            <CardContent className="p-6 space-y-3">
+              <div className="text-sm text-slate-700" data-testid="billing-subscription-status">
+                {billingStatus?.cancelAtPeriodEnd ? (
+                  <>
+                    <strong>Canceled</strong> — active until{" "}
+                    {billingStatus.currentPeriodEnd
+                      ? new Date(billingStatus.currentPeriodEnd).toLocaleDateString()
+                      : "your period end"}
+                    . You can resume anytime before that date.
+                  </>
+                ) : (
+                  <>
+                    <strong>Active</strong>
+                    {billingStatus?.currentPeriodEnd
+                      ? ` — renews on ${new Date(billingStatus.currentPeriodEnd).toLocaleDateString()}`
+                      : ""}
+                    .
+                  </>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                {!billingStatus?.cancelAtPeriodEnd && billingStatus?.planInterval !== "year" ? (
+                  <Button
+                    className="cosmic-button-secondary"
+                    onClick={() => setShowCancelConfirm(true)}
+                    disabled={billingActionLoading}
+                    data-testid="billing-subscription-cancel"
+                  >
+                    Cancel monthly subscription
+                  </Button>
+                ) : (
+                  <Button
+                    className="cosmic-button"
+                    onClick={handleResumeSubscription}
+                    disabled={billingActionLoading}
+                    data-testid="billing-subscription-resume"
+                  >
+                    Resume subscription
+                  </Button>
+                )}
+              </div>
+
+              {showCancelConfirm && (
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                  data-testid="billing-subscription-confirm-modal"
+                >
+                  <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                      Cancel monthly subscription
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-4">
+                      Canceling stops future renewals. Your access continues until your current period end date.
+                    </p>
+                    <div className="flex gap-3 justify-end">
+                      <Button
+                        className="cosmic-button-secondary"
+                        onClick={() => setShowCancelConfirm(false)}
+                        disabled={billingActionLoading}
+                        data-testid="billing-subscription-keep"
+                      >
+                        Keep subscription
+                      </Button>
+                      <Button
+                        className="cosmic-button"
+                        onClick={handleCancelSubscription}
+                        disabled={billingActionLoading}
+                        data-testid="billing-subscription-confirm-cancel"
+                      >
+                        Confirm cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Current Theme & Focus */}
         {isSubscribed && (
           <Card className="bg-white shadow-lg border-2 border-purple-200 mb-6">
             <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b-2 border-slate-200 bg-slate-50">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-800">Current Theme & Focus</h2>
-                <Badge tone="green">Active</Badge>
+                <Badge tone={billingStatus?.cancelAtPeriodEnd ? "amber" : "green"}>
+                  {billingStatus?.cancelAtPeriodEnd ? "Canceled" : "Active"}
+                </Badge>
               </div>
             </div>
             <CardContent>
