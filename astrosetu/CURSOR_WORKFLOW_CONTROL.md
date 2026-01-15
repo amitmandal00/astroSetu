@@ -87,6 +87,17 @@
 
 ---
 
+### 8. Production Reality Gates (COST + RELIABILITY)
+**MANDATORY**: Prevent production-only regressions that burn money or break billing.
+
+**Enforcement (CI)**:
+- `npm run test:integration:critical` must pass:
+  - Idempotency gate (no duplicate report generation for same idempotency key)
+  - Stripe webhook signature gate (reject missing/invalid signatures)
+- `npm run check:env-required` must pass in CI (fails if critical secrets are missing).
+
+---
+
 ## 💳 Billing / Subscription Workflows (Stripe + Supabase)
 
 ### Billing NON-NEGOTIABLES
@@ -203,7 +214,7 @@ npm run test:critical
 - Verify all non-negotiables met
 
 ### 7. Build Safety Check (MANDATORY)
-- Run `npm run ci:critical` (type-check + build + test:build-imports)
+- Run `npm run ci:critical` (type-check + build + build-imports + critical integration + boundary + env)
 - All must pass before commit
 - This prevents Vercel build failures
 

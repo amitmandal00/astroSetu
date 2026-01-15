@@ -7,6 +7,8 @@
  * CRITICAL: This test must pass before any commit that adds new imports.
  */
 
+import { describe, it, expect } from "vitest";
+
 describe("Critical Build Imports", () => {
   it("should resolve prompts.ts imports", async () => {
     // This will fail if futureWindows module is missing or path is incorrect

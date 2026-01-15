@@ -149,14 +149,20 @@
 - Use `npm run ci:critical` for full validation
 
 ### 5. Add/Update Critical Import Test
-**CRITICAL**: Add/update a test in `tests/integration/build-imports.test.ts` that imports the modified entry module.
+**CRITICAL**: Add/update a test in `tests/critical/build-imports.test.ts` that imports the modified entry module.
 - Missing imports will fail in CI before Vercel
 - Run `npm run test:build-imports` before commit
 
 ### 6. Production Build Gate
 **CRITICAL**: Any PR must pass `npm run ci:critical` locally before committing.
-- `ci:critical` = `type-check && build && test:build-imports`
+- `ci:critical` = `type-check && build && test:build-imports && test:integration:critical && check:prokerala-boundary && check:env-required`
 - This prevents Vercel build failures
+
+### 7. Production Reality Gates (cost + correctness)
+**CRITICAL**: Add guardrails that reflect production reality:
+- **Idempotency**: Same report attempt must not trigger duplicate AI generation calls.
+- **Webhook correctness**: Stripe webhooks must reject missing/invalid signatures.
+- **Env drift**: CI must fail early when critical secrets are missing.
 
 ---
 
@@ -440,6 +446,20 @@ Before accepting any Cursor changes, verify:
 - ✅ startTime initialization when loader visible: **FIXED**
 - ✅ Critical test gate created: **COMPLETE**
 - ⚠️ Controller owns all report types: **PARTIAL** (only free reports)
+
+---
+
+## ✅ Definition of Done (for any defect fix)
+**Checklist (must be true before marking a defect “fixed”)**:
+- **Repro first**: A failing test exists that reproduces the bug (unit/integration/E2E depending on layer).
+- **Minimal fix**: Only the smallest production change required (no drive-by refactors).
+- **Critical build gate**: `npm run ci:critical` passes.
+- **Critical journeys**: `npm run test:critical` passes.
+- **Deployment notes**: Update docs only if schema/env changed (no “padding” docs/tests while bug is active).
+
+## ✅ Cursor change-set rule (anti-breakage)
+**Rule**: If a production bug is active, do not ship “docs/tests-only” PRs.  
+Fix PRs must contain the minimal production fix + required tests only; documentation can be a separate PR.
 
 ---
 
