@@ -5,6 +5,9 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const PROKERALA_DISABLED =
+  process.env.DISABLE_PROKERALA === "true" ||
+  process.env.NEXT_PUBLIC_DISABLE_PROKERALA === "true";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -103,7 +106,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://api.prokerala.com https://api.razorpay.com https://checkout.razorpay.com https://nominatim.openstreetmap.org",
+              `connect-src 'self' ${PROKERALA_DISABLED ? '' : 'https://api.prokerala.com '}https://api.razorpay.com https://checkout.razorpay.com https://nominatim.openstreetmap.org`,
               "frame-src 'self' https://checkout.razorpay.com",
               "object-src 'none'",
               "base-uri 'self'",

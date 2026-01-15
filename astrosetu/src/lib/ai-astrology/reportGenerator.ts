@@ -1,6 +1,6 @@
 /**
  * AI Report Generator
- * Generates astrology reports using AI prompts and Prokerala data
+ * Generates astrology reports using AI prompts and astrology calculation data
  */
 
 import type { AIAstrologyInput, ReportType, ReportContent } from "./types";
@@ -11,7 +11,7 @@ import type { KundliResult, DoshaAnalysis, KundliChart } from "@/types/astrology
 
 /**
  * Helper function to get Kundli with caching
- * Returns cached data if available, otherwise calls Prokerala API and caches result
+ * Returns cached data if available, otherwise fetches kundli data and caches result
  */
 async function getKundliWithCache(input: AIAstrologyInput): Promise<{
   kundli: KundliResult & { chart?: KundliChart };
@@ -40,8 +40,8 @@ async function getKundliWithCache(input: AIAstrologyInput): Promise<{
     };
   }
 
-  // Cache miss - call Prokerala API
-  console.log(`[KundliCache] ❌ Cache MISS - calling Prokerala API...`);
+  // Cache miss - fetch kundli data
+  console.log(`[KundliCache] ❌ Cache MISS - fetching kundli data...`);
   const kundliStartTime = Date.now();
   const kundliResult = await getKundli({
     name: input.name,
@@ -54,7 +54,7 @@ async function getKundliWithCache(input: AIAstrologyInput): Promise<{
     ayanamsa: 1,
   });
   const kundliTime = Date.now() - kundliStartTime;
-  console.log(`[KundliCache] Prokerala API call completed in ${kundliTime}ms, caching result...`);
+  console.log(`[KundliCache] Kundli fetch completed in ${kundliTime}ms, caching result...`);
   
   // Cache the result for future use
   cacheKundli(cacheKey, kundliResult);
@@ -87,8 +87,8 @@ async function getDoshaWithCache(
     };
   }
 
-  // Cache miss - call Prokerala API
-  console.log(`[KundliCache] ❌ Dosha cache MISS - calling Prokerala API...`);
+  // Cache miss - fetch dosha data
+  console.log(`[KundliCache] ❌ Dosha cache MISS - fetching dosha data...`);
   const doshaStartTime = Date.now();
   
   try {
@@ -178,18 +178,6 @@ async function generateWithOpenAI(
   // Use 2200 tokens for complex reports to optimize speed while maintaining quality (reduced from 2500)
   const maxTokens = isComplexReport ? 2200 : (isFreeReport ? 1000 : 1800); // Optimized for speed: 1000 for free, 1800 for paid, 2200 for complex
   
-  // Track OpenAI call (if sessionKey provided)
-  if (sessionKey && typeof require !== "undefined") {
-    try {
-      const { trackOpenAICall } = require("./openAICallTracker");
-      // Track the call attempt
-      const callDuration = Date.now() - callStartTime;
-      trackOpenAICall(sessionKey, reportType || "unknown", false, retryCount, callDuration);
-    } catch (e) {
-      // Ignore tracking errors
-    }
-  }
-  
   // Add explicit timeout to fetch (45 seconds max per request)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout per request
@@ -222,6 +210,16 @@ async function generateWithOpenAI(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+    // Track failed OpenAI call (best-effort)
+    if (sessionKey && typeof require !== "undefined") {
+      try {
+        const { trackOpenAICall } = require("./openAICallTracker");
+        const callDuration = Date.now() - callStartTime;
+        trackOpenAICall(sessionKey, reportType || "unknown", false, retryCount, callDuration);
+      } catch {
+        // ignore
+      }
+    }
     const errorText = await response.text();
     let errorData: any;
     
@@ -324,12 +322,42 @@ async function generateWithOpenAI(
         status: response.status,
         statusText: response.statusText,
       });
+      // Track parse failure (best-effort)
+      if (sessionKey && typeof require !== "undefined") {
+        try {
+          const { trackOpenAICall } = require("./openAICallTracker");
+          const callDuration = Date.now() - callStartTime;
+          trackOpenAICall(sessionKey, reportType || "unknown", false, retryCount, callDuration);
+        } catch {
+          // ignore
+        }
+      }
       throw new Error(`Failed to parse AI response: ${parseError.message}`);
     }
   } catch (fetchError: any) {
     clearTimeout(timeoutId);
     if (fetchError.name === 'AbortError') {
+      // Track timeout failure (best-effort)
+      if (sessionKey && typeof require !== "undefined") {
+        try {
+          const { trackOpenAICall } = require("./openAICallTracker");
+          const callDuration = Date.now() - callStartTime;
+          trackOpenAICall(sessionKey, reportType || "unknown", false, retryCount, callDuration);
+        } catch {
+          // ignore
+        }
+      }
       throw new Error("OpenAI API request timed out after 45 seconds. Please try again.");
+    }
+    // Track generic failure (best-effort)
+    if (sessionKey && typeof require !== "undefined") {
+      try {
+        const { trackOpenAICall } = require("./openAICallTracker");
+        const callDuration = Date.now() - callStartTime;
+        trackOpenAICall(sessionKey, reportType || "unknown", false, retryCount, callDuration);
+      } catch {
+        // ignore
+      }
     }
     throw fetchError;
   }

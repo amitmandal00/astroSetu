@@ -1,6 +1,6 @@
 /**
  * Mock Report Fixtures for Testing
- * Used when MOCK_MODE=true to avoid calling OpenAI/Prokerala APIs
+ * Used when MOCK_MODE=true to avoid calling external APIs (AI + astrology providers)
  */
 
 import type { ReportContent, ReportType } from "../types";

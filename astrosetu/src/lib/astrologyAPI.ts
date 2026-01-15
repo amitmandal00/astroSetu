@@ -18,9 +18,16 @@ const PROKERALA_API_URL = "https://api.prokerala.com/v2/astrology";
 const API_KEY = process.env.PROKERALA_API_KEY || "";
 const CLIENT_ID = process.env.PROKERALA_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.PROKERALA_CLIENT_SECRET || "";
+// Hard kill-switch to prevent ANY Prokerala usage (even if credentials exist).
+// This lets you safely “get rid of Prokerala credits usage” in production by setting:
+//   DISABLE_PROKERALA=true
+const PROKERALA_DISABLED =
+  process.env.DISABLE_PROKERALA === "true" ||
+  process.env.NEXT_PUBLIC_DISABLE_PROKERALA === "true";
 
 // Check if API is configured
 export const isAPIConfigured = () => {
+  if (PROKERALA_DISABLED) return false;
   // Check for API key (access token or client_id:client_secret)
   if (API_KEY) return true;
   // Check for separate client credentials
@@ -53,6 +60,9 @@ function getAPICredentials() {
 let accessTokenCache: { token: string; expiresAt: number } | null = null;
 
 export async function prokeralaRequest(endpoint: string, params: Record<string, any>, retries: number = 2, method: "GET" | "POST" = "POST", skipCache: boolean = false): Promise<any> {
+  if (PROKERALA_DISABLED) {
+    throw new Error("PROKERALA_DISABLED");
+  }
   const credentials = getAPICredentials();
   if (!credentials) {
     throw new Error("Prokerala API credentials not configured. Set PROKERALA_API_KEY or PROKERALA_CLIENT_ID and PROKERALA_CLIENT_SECRET");

@@ -1,9 +1,9 @@
 /**
  * Kundli and Dosha Analysis Cache
- * Aggressively caches Prokerala API responses to eliminate redundant calls
+ * Aggressively caches astrology provider responses to eliminate redundant calls
  * Cache key: hash(name_normalized + dob + tob + lat + lon + tz + ayanamsa)
  * 
- * Goal: Make Prokerala/astro math effectively "free" after first run
+ * Goal: Make astrology calculations effectively "free" after first run
  * Expected: 2-8s → 0-50ms after warm cache
  */
 

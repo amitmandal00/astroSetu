@@ -326,7 +326,7 @@ function PreviewContent() {
       // Client should be slightly longer to avoid premature timeout
       const isComplexReport = type === "full-life" || type === "major-life-phase";
       const isFreeReport = type === "life-summary";
-      // Free reports: 70s (server: 65s) - Prokerala API call can add 5-10s
+      // Free reports: 70s (server: 65s) - external astrology data fetch can add latency
       // Regular paid: 65s (server: 60s)
       // Complex: 100s (server: 90s + 10s buffer) - Increased to accommodate longer generation time
       const clientTimeout = isComplexReport ? 100000 : (isFreeReport ? 70000 : 65000);

@@ -33,6 +33,7 @@ async function generateAIContent(prompt: string): Promise<string> {
 }
 
 async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRetries: number = 5): Promise<string> {
+  const callStartTime = Date.now();
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -132,6 +133,30 @@ async function generateWithOpenAI(prompt: string, retryCount: number = 0, maxRet
   }
 
   const data = await response.json();
+
+  // High-signal usage log (helps diagnose runaway usage)
+  try {
+    const usage = data?.usage || {};
+    console.log(
+      "[OPENAI_USAGE]",
+      JSON.stringify(
+        {
+          feature: "daily-guidance",
+          retryCount,
+          durationMs: Date.now() - callStartTime,
+          promptTokens: usage.prompt_tokens,
+          completionTokens: usage.completion_tokens,
+          totalTokens: usage.total_tokens,
+          model: "gpt-4o",
+        },
+        null,
+        2
+      )
+    );
+  } catch {
+    // ignore
+  }
+
   return data.choices[0]?.message?.content || "";
 }
 

@@ -18,6 +18,13 @@ import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWind
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing, getCachedReportByReportId } from "@/lib/ai-astrology/reportCache";
 import { generateSessionKey } from "@/lib/ai-astrology/openAICallTracker";
+import {
+  getStoredReportByIdempotencyKey,
+  getStoredReportByReportId,
+  markStoredReportProcessing,
+  markStoredReportCompleted,
+  markStoredReportFailed,
+} from "@/lib/ai-astrology/reportStore";
 
 /**
  * GET handler - Check report status by reportId (for polling)
@@ -42,7 +49,38 @@ export async function GET(req: NextRequest) {
       );
     }
     
-    // Get cached report by reportId
+    // Prefer persistent store (serverless-safe) to avoid “stuck polling” + duplicate generations
+    const storedReport = await getStoredReportByReportId(reportId);
+    if (storedReport && storedReport.status === "completed" && storedReport.content) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+      const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(reportId)}&reportType=${encodeURIComponent(storedReport.report_type)}`;
+      const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "completed" as const,
+            reportId: storedReport.report_id,
+            reportType: storedReport.report_type,
+            input: storedReport.input,
+            content: storedReport.content,
+            generatedAt: storedReport.updated_at,
+            redirectUrl,
+            fullRedirectUrl,
+          },
+          requestId,
+        },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "Cache-Control": "no-cache",
+          },
+        }
+      );
+    }
+
+    // Fallback: in-memory cache (NOT durable on serverless)
     const cachedReport = getCachedReportByReportId(reportId);
     
     if (!cachedReport) {
@@ -460,9 +498,65 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. CRITICAL: Check idempotency cache BEFORE any OpenAI calls
-    // This prevents duplicate API calls for the same request
+    // 4. CRITICAL: Check idempotency BEFORE any OpenAI calls
+    // IMPORTANT: In-memory cache is NOT durable on serverless, so prefer persistent store first.
     const idempotencyKey = generateIdempotencyKey(input, reportType, fallbackSessionId);
+
+    const storedExisting = await getStoredReportByIdempotencyKey(idempotencyKey);
+    if (storedExisting) {
+      if (storedExisting.status === "completed" && storedExisting.content) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+        const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(storedExisting.report_id)}&reportType=${encodeURIComponent(reportType)}`;
+        const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+
+        return NextResponse.json(
+          {
+            ok: true,
+            data: {
+              status: "completed" as const,
+              reportId: storedExisting.report_id,
+              reportType: storedExisting.report_type,
+              input: storedExisting.input,
+              content: storedExisting.content,
+              generatedAt: storedExisting.updated_at,
+              redirectUrl,
+              fullRedirectUrl,
+              fromCache: true,
+            },
+            requestId,
+          },
+          {
+            headers: {
+              "X-Request-ID": requestId,
+              "Cache-Control": "no-cache",
+            },
+          }
+        );
+      }
+
+      if (storedExisting.status === "processing") {
+        return NextResponse.json(
+          {
+            ok: true,
+            data: {
+              status: "processing" as const,
+              reportId: storedExisting.report_id,
+              message: "Report generation already in progress. Please wait.",
+            },
+            requestId,
+          },
+          {
+            status: 202,
+            headers: {
+              "X-Request-ID": requestId,
+              "Retry-After": "10",
+            },
+          }
+        );
+      }
+    }
+
+    // Fallback: in-memory idempotency (dev-only safety net)
     const cachedReport = getCachedReport(idempotencyKey);
     
     if (cachedReport) {
@@ -510,6 +604,69 @@ export async function POST(req: Request) {
     
     // Check if report is already processing (prevent concurrent duplicate requests)
     const reportId = `RPT-${Date.now()}-${requestId.substring(0, 8).toUpperCase()}`;
+
+    // Prefer persistent processing lock (serverless-safe)
+    try {
+      const processing = await markStoredReportProcessing({
+        idempotencyKey,
+        reportId,
+        reportType,
+        input,
+      });
+      if (!processing.ok) {
+        if (processing.existing.status === "processing") {
+          return NextResponse.json(
+            {
+              ok: true,
+              data: {
+                status: "processing" as const,
+                reportId: processing.existing.report_id,
+                message: "Report generation already in progress. Please wait.",
+              },
+              requestId,
+            },
+            {
+              status: 202,
+              headers: {
+                "X-Request-ID": requestId,
+                "Retry-After": "10",
+              },
+            }
+          );
+        }
+        if (processing.existing.status === "completed" && processing.existing.content) {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+          const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(processing.existing.report_id)}&reportType=${encodeURIComponent(reportType)}`;
+          const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+          return NextResponse.json(
+            {
+              ok: true,
+              data: {
+                status: "completed" as const,
+                reportId: processing.existing.report_id,
+                reportType: processing.existing.report_type,
+                input: processing.existing.input,
+                content: processing.existing.content,
+                generatedAt: processing.existing.updated_at,
+                redirectUrl,
+                fullRedirectUrl,
+                fromCache: true,
+              },
+              requestId,
+            },
+            {
+              headers: {
+                "X-Request-ID": requestId,
+                "Cache-Control": "no-cache",
+              },
+            }
+          );
+        }
+      }
+    } catch {
+      // ignore (table missing / supabase not configured) and fall back to in-memory lock below
+    }
+
     const isProcessing = markReportProcessing(idempotencyKey, reportId);
     
     if (!isProcessing) {
@@ -949,7 +1106,7 @@ export async function POST(req: Request) {
     };
     console.log("[GENERATION START]", JSON.stringify(generationStartLog, null, 2));
 
-    // MOCK_MODE: Return mock data for testing/development (prevents OpenAI/Prokerala API calls)
+    // MOCK_MODE: Return mock data for testing/development (prevents external API calls)
     const mockMode = process.env.MOCK_MODE === "true";
     if (mockMode) {
       const { getMockReport, simulateApiDelay } = await import("@/lib/ai-astrology/mocks/fixtures");
@@ -962,6 +1119,8 @@ export async function POST(req: Request) {
       
       // Cache the mock report (for idempotency)
       cacheReport(idempotencyKey, reportId, mockReportContent, reportType, input);
+      // Persist completion (best-effort, serverless-safe)
+      await markStoredReportCompleted({ idempotencyKey, reportId, content: mockReportContent });
       
       const mockLog = {
         requestId,
@@ -1000,11 +1159,11 @@ export async function POST(req: Request) {
     // - Reduced retries (3 instead of 5) = faster failure
     // - Reduced retry waits (5-20s instead of 10-60s) = faster recovery
     // - Reduced token limits = faster generation
-    // Timeout values: 60s for free reports (Prokerala + OpenAI), 90s for complex paid reports
-    // Free reports might take longer due to Prokerala API call before OpenAI
+    // Timeout values: 60s for free reports (astrology + AI), 90s for complex paid reports
+    // Free reports might take longer due to external astrology data fetch before AI
     const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
     const isFreeReport = reportType === "life-summary";
-    // Free reports: 65s (Prokerala call can take 5-10s, then OpenAI needs time)
+    // Free reports: 65s (external astrology fetch can take time, then AI needs time)
     // Regular paid reports: 60s (already have data, just OpenAI)
     // Complex reports: 90s (more tokens to generate - 2200 tokens for comprehensive analysis)
     // Increased from 75s to 90s for better reliability with complex reports
@@ -1094,6 +1253,8 @@ export async function POST(req: Request) {
       
       // CRITICAL: Cache the generated report to prevent duplicate OpenAI calls
       cacheReport(idempotencyKey, reportId, reportContent, reportType, input);
+      // Persist completion (best-effort, serverless-safe)
+      await markStoredReportCompleted({ idempotencyKey, reportId, content: reportContent });
       const cacheSaveLog = {
         requestId,
         timestamp: new Date().toISOString(),
@@ -1130,6 +1291,13 @@ export async function POST(req: Request) {
     // Provide user-friendly error message without exposing internal details
     const errorMessage = error.message || "Unknown error";
     const errorString = JSON.stringify(error).toLowerCase();
+
+    // Persist failure (best-effort, serverless-safe)
+    try {
+      await markStoredReportFailed({ idempotencyKey, reportId, errorMessage });
+    } catch {
+      // ignore
+    }
       
       // Check if it's a timeout error
       const isTimeoutError = 
@@ -1149,9 +1317,9 @@ export async function POST(req: Request) {
         console.error("[REPORT GENERATION TIMEOUT]", JSON.stringify(timeoutErrorContext, null, 2));
       }
       
-      // Check for Prokerala API credit exhaustion (403 with "insufficient credit balance")
-      const isProkeralaCreditError = 
-        errorMessage.includes("PROKERALA_CREDIT_EXHAUSTED") ||
+      // Check for third-party quota / credit exhaustion (403 with "insufficient credit balance")
+      // Keep generic to avoid vendor-specific coupling.
+      const isThirdPartyQuotaError =
         errorMessage.includes("insufficient credit") ||
         errorMessage.includes("credit balance") ||
         errorMessage.includes("sufficient credit") ||
@@ -1180,13 +1348,13 @@ export async function POST(req: Request) {
         errorString.includes("insufficient_quota") ||
         errorString.includes("quota") ||
         errorString.includes("billing") ||
-        isProkeralaCreditError; // Include credit errors in config errors
+        isThirdPartyQuotaError; // Include quota errors in config errors
       
-      // For Prokerala credit errors, we'll use fallback/mock data instead of failing
-      // This allows the service to continue working when API credits are exhausted
-      if (isProkeralaCreditError) {
-        // Suppress verbose error logging - credit errors are expected and handled gracefully
-        console.warn("[AI Astrology] Prokerala API credit exhausted, using fallback data generation");
+      // For third-party quota errors, we'll use fallback/mock data instead of failing
+      // This allows the service to continue working when external credits are exhausted
+      if (isThirdPartyQuotaError) {
+        // Suppress verbose error logging - quota errors are expected and handled gracefully
+        console.warn("[AI Astrology] External astrology quota exhausted, using fallback data generation");
         // The report generator should handle fallback internally, but if it doesn't,
         // we'll return a friendly error that suggests the service is temporarily limited
         // In practice, the astrologyAPI should fall back to mock data

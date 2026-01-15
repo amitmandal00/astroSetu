@@ -3,6 +3,12 @@ import { checkRateLimit, handleApiError } from "@/lib/apiHelpers";
 import { generateRequestId } from "@/lib/requestId";
 import { isStripeConfigured } from "@/lib/ai-astrology/payments";
 import { generatePaymentToken } from "@/lib/ai-astrology/paymentToken";
+import {
+  upsertSubscriptionFromStripe,
+  derivePlanIntervalFromStripe,
+  mapStripeStatus,
+  getCurrentPeriodEndIsoFromStripe,
+} from "@/lib/billing/subscriptionStore";
 
 /**
  * GET /api/ai-astrology/verify-payment?session_id=xxx
@@ -211,6 +217,26 @@ export async function GET(req: Request) {
     let paymentToken: string | undefined;
     if (isPaid && reportType && reportType !== "subscription") {
       paymentToken = generatePaymentToken(reportType, session.id);
+    }
+
+    // If this is a subscription checkout and it's paid/authorized, persist subscription state (best-effort)
+    // This makes "Manage Subscription" work immediately after success redirect, even before webhook processing.
+    if (isPaid && isSubscription && session.subscription) {
+      try {
+        const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
+        const sub = await stripe.subscriptions.retrieve(subId);
+        await upsertSubscriptionFromStripe({
+          sessionId: session.id,
+          stripeCustomerId: (session.customer as any) ? String(session.customer) : null,
+          stripeSubscriptionId: subId,
+          status: mapStripeStatus(sub.status),
+          cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+          currentPeriodEndIso: getCurrentPeriodEndIsoFromStripe(sub),
+          planInterval: derivePlanIntervalFromStripe(sub),
+        });
+      } catch (e) {
+        // Non-blocking
+      }
     }
 
     return NextResponse.json(
