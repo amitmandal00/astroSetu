@@ -69,4 +69,41 @@
   - Writes output + next steps into `CURSOR_PROGRESS.md`
   - If failure: writes "what to do next" into `CURSOR_ACTIONS_REQUIRED.md`
 
+## Stabilization Mode Invariants (ChatGPT Feedback - CRITICAL)
+**If the user says "run all tests" or "stabilize build":**
+- Enter **Stabilization Mode** and follow PHASE 0 → PHASE 4 exactly
+- Do not exit early
+
+**PHASE 0 — Freeze Scope**:
+- ❌ Do NOT add new features
+- ❌ Do NOT refactor unrelated code
+- ❌ Do NOT change UI copy/styles
+- ✅ Only fix what is required to pass tests and stabilize runtime behavior
+
+**PHASE 1 — Full Test Execution (Mandatory)**:
+- Run all tests in order: `type-check` → `build` → `test` → `test:critical` → `ci:critical`
+- Do NOT skip any step
+
+**PHASE 2 — Failure-Driven Fix Loop**:
+- For each failure: Identify (test wrong? or code wrong?), apply minimal fix (≤ 5 files), enhance test if needed (never weaken), re-run all tests
+- Repeat until everything passes
+
+**PHASE 3 — Runtime Stability Verification**:
+- After tests pass: Manually simulate first-load, polling convergence, subscription flow
+- Confirm no infinite loops, no timer resets, no silent exits
+
+**PHASE 4 — Lock the Win**:
+- When stable: Update `CURSOR_PROGRESS.md` and `CURSOR_ACTIONS_REQUIRED.md` (only if human action needed)
+- **STOP** - Do not continue improving or refactoring
+
+**Absolute Non-Negotiable Rules**:
+- If any test fails → you are NOT done
+- If build fails → revert and fix
+- If a fix breaks another test → revert and re-iterate
+- Never silence errors
+- Never bypass CI gates
+- Never assume "second load works" is acceptable
+
+**Success Condition**: `npm run ci:critical` passes AND no infinite loading states are possible.
+
 

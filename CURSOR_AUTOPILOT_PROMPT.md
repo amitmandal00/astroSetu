@@ -22,6 +22,14 @@ Work in **Autopilot (safe, non-blocking)** mode:
 - Always ask before terminal commands, installs, deletes, network/external APIs, **git push** (commits are fine, but always get approval before push).
 - **Run checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` (if available).
 
+## Stabilization Mode (ChatGPT Feedback - CRITICAL)
+**If the user says "run all tests" or "stabilize build":**
+- Enter **Stabilization Mode**
+- Follow PHASE 0 → PHASE 4 exactly (see `.cursor/rules` for full details)
+- Do not exit early
+- Success condition: `npm run ci:critical` passes AND no infinite loading states are possible
+- Run: `bash scripts/cursor-stabilize.sh` to execute full stabilization workflow
+
 ## Critical Workflow Rules (ChatGPT Feedback)
 - **No refactors in preview page** unless tests are added/updated first.
 - **Any change touching**:
