@@ -122,6 +122,16 @@ cp "$ROOT_DIR/CURSOR_OPERATIONAL_GUIDE.md" cursor/ 2>/dev/null || true
 cp "$ROOT_DIR/CURSOR_AUTH_POPUP_PLAYBOOK.md" cursor/ 2>/dev/null || true
 cp "$ROOT_DIR/NON_NEGOTIABLES.md" cursor/ 2>/dev/null || true
 
+# Also place workspace rules/docs at the ZIP ROOT so Cursor auto-detects them if you open the extracted zip as a workspace.
+mkdir -p .cursor
+cp "$ROOT_DIR/.cursor/rules" .cursor/ 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_PROGRESS.md" . 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_ACTIONS_REQUIRED.md" . 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_AUTOPILOT_PROMPT.md" . 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_OPERATIONAL_GUIDE.md" . 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_AUTH_POPUP_PLAYBOOK.md" . 2>/dev/null || true
+cp "$ROOT_DIR/NON_NEGOTIABLES.md" . 2>/dev/null || true
+
 # Include CI/workflows for production-readiness verification
 echo "⚙️  Copying workflows..."
 mkdir -p .github
