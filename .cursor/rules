@@ -35,6 +35,22 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 - **Do not use UI state** (`isProcessingUI`, `isProcessingUIRef`) to stop polling - UI state can flip during first-load.
 - **Timer monotonic**: never clear `loadingStartTimeRef.current` during active generation attempt.
 
+### Production Serverless Rules (ChatGPT Feedback - CRITICAL)
+- **Single-surface changes**: one bug = one subsystem. No refactors unless requested.
+- **No UI timer tweaks until API lifecycle is proven**: fix server first, then UI.
+- **Serverless timeout config**: Any route that can exceed default execution time MUST export:
+  - `export const runtime = "nodejs";`
+  - `export const maxDuration = 180;` (or higher for complex reports)
+  - `export const dynamic = "force-dynamic";`
+- **Heartbeat required**: Long-running generation MUST update `updated_at` every 15-20s to prevent stuck "processing" status.
+- **Always mark failed on error**: Catch/finally MUST call `markStoredReportFailed` to prevent reports stuck in "processing".
+- **Every change must pass, locally**:
+  - `npm run type-check`
+  - `npm run build`
+  - `npm run test:critical` (Playwright critical invariants)
+- **If a fix touches routing/session/subscription**: it must add/adjust an E2E test.
+- **If any one of these fails**: stop and write in `CURSOR_ACTIONS_REQUIRED.md` rather than "try random fixes".
+
 ### If the model/provider fails (Try again / Resume)
 - Retry the same step up to **2** times.
 - If still failing: reduce scope (less context, fewer files, shorter output) and continue by:
@@ -50,7 +66,7 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - deleting files,
   - editing secrets/env files,
   - any network/external API access,
-  - git commit/push.
+  - **git push** (commits are fine, but always get approval before push).
 
 ### When an approval/popup appears
 - If it’s optional: **skip it** and continue.

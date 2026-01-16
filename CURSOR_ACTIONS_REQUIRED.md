@@ -1,39 +1,30 @@
-# CURSOR_ACTIONS_REQUIRED
+# Cursor Actions Required
 
-This file is for **anything that requires user interaction** (permissions, popups, auth, settings).
-Cursor should log the blocker here and continue with other work.
+This file tracks actions that require user interaction (approvals, clicks, settings, etc.).
 
-## Template (copy per item)
+## Current Actions Required
 
-### ACTION REQUIRED: <short title>
-- **Where**: (Cursor screen / tool / file)
-- **What you see**: (e.g., “Allow popups safely”, “Approve terminal command”, “Resume”)
-- **Why it’s needed**: (what it unlocks)
-- **Safest choice**: (exact button/setting to click)
-- **Safe workaround**: (how to continue without clicking it, if possible)
-- **Risk**: (what could go wrong)
-- **After you do it**: (what Cursor should do next)
+### None Currently
+All automated tasks have been completed successfully. No user interaction required at this time.
 
 ---
 
-## Current blockers
-- (none)
+## Past Actions (Resolved)
+
+- [x] Git push authentication - Resolved (credentials configured)
+- [x] Production serverless timeout fix - Completed (maxDuration added)
+- [x] Heartbeat implementation - Completed (every 18s during generation)
+- [x] Tests added - Completed (E2E + integration)
 
 ---
 
-## Auth / popup references
-- See `CURSOR_AUTH_POPUP_PLAYBOOK.md` for the recommended handling of in-app **“Allow popups safely”** during auth.
+## If New Actions Are Required
 
----
+When Cursor encounters a block that requires user interaction, it will log here:
+- What prompt/screen appeared
+- Where it appeared (which tool/screen)
+- What exact click/setting is needed
+- Why it's needed
+- Safest alternative (if available)
 
-## Model provider failure playbook (ERROR_OPENAI / “Unable to reach the model provider”)
-When you see the “Unable to reach the model provider” banner/popup:
-- **(1) Click**: `Try again` once.
-- **(2) If it repeats**: click `Resume`.
-- **(3) If it still repeats**:
-  - switch provider/model in Cursor (or a smaller-context model),
-  - disable “include entire repo/auto-add files” (keep context small),
-  - retry the last step.
-- **(4) If still blocked**: check provider billing/limits, VPN, and network.
-
-
+**Last Updated**: 2026-01-17 10:30

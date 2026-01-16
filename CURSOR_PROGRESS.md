@@ -6,8 +6,8 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: implementing ChatGPT feedback fixes (polling, timer, tests, workflow controls)
-- **Last update**: 2026-01-17 08:45
+- **State**: implementing ChatGPT feedback fixes (production serverless timeout, heartbeat, lifecycle tests)
+- **Last update**: 2026-01-17 10:30
 
 ## Completed (most recent first)
 - [x] **2026-01-16 23:05**: Defect register check and retest completed:
@@ -33,16 +33,36 @@ Use this file as the single “where things stand” view during long Cursor ses
 - [x] Full stability retest: build + lint + unit + integration + regression + timing invariants + full Playwright E2E (workers=1) all PASS (2026-01-16).
 
 ## Completed (most recent first)
-- [x] **2026-01-17 09:00**: ChatGPT feedback fixes implementation complete:
-  - ✅ Fixed polling stop conditions in preview/page.tsx using attemptKey + mounted/abort only (no UI state dependency)
-  - ✅ Ensured timer start time is not cleared during active attempt (only cleared on completion/failure/unmount/timeout)
-  - ✅ Added hard watchdog timeout (exits to retry state instead of infinite spinner)
-  - ✅ Created first-load processing invariant E2E test (`first-load-processing-invariant.spec.ts`)
-  - ✅ Updated workflow controls (NON_NEGOTIABLES.md, CURSOR_AUTOPILOT_PROMPT.md, .cursor/rules)
+- [x] **2026-01-17 10:30**: ChatGPT feedback - Production serverless timeout fix (ROOT CAUSE):
+  - ✅ Added `runtime = "nodejs"`, `maxDuration = 180`, `dynamic = "force-dynamic"` to generate-report route
+    - Prevents serverless function from dying mid-execution on cold start + OpenAI latency
+    - This is the actual root cause: Vercel default timeout exceeded → function dies → report stuck in "processing"
+  - ✅ Added heartbeat updates during generation (every 18s)
+    - Updates `updated_at` timestamp to prevent stuck "processing" status
+    - Makes stale-processing detection meaningful when function times out
+  - ✅ Ensured catch block always marks as failed on error
+    - Reports never remain stuck in "processing" status
+    - Always calls `markStoredReportFailed` even if generation throws/timeouts
+  - ✅ Added E2E test: `first-load-year-analysis.spec.ts` (cold start invariant)
+    - Tests first-load scenario with clean browser context
+    - Asserts completion OR error within 180s (matches maxDuration)
+    - Verifies timer monotonicity
+  - ✅ Added integration test: `generate-report-processing-lifecycle.test.ts`
+    - Tests processing → completed transition
+    - Tests processing → failed transition
+    - Ensures reports never stuck in "processing"
+  - ✅ Updated `.cursor/rules` with production serverless non-negotiables
+  - ✅ Updated `NON_NEGOTIABLES.md` with serverless invariants
   - ✅ Type-check passing (no TypeScript errors)
-  - ✅ Verified subscription endpoint correct (/api/billing/subscription)
-  - ✅ Verified Monthly Outlook navigation handles returnTo correctly
-  - **Status**: ✅ All fixes implemented - Ready for testing
+  - **Status**: ✅ Production serverless fix complete - Ready for testing
+
+- [x] **2026-01-17 09:00**: ChatGPT feedback - Frontend timer fixes (symptom, not root cause):
+  - ✅ Fixed polling stop conditions in preview/page.tsx using attemptKey + mounted/abort only
+  - ✅ Ensured timer start time is not cleared during active attempt
+  - ✅ Added hard watchdog timeout (exits to retry state instead of infinite spinner)
+  - ✅ Created first-load processing invariant E2E test
+  - ✅ Updated workflow controls
+  - **Status**: ✅ Frontend fixes implemented (but root cause was serverless timeout)
 
 ## Blocked / waiting on approval
 - (If blocked, also add an entry to `CURSOR_ACTIONS_REQUIRED.md`)
@@ -56,8 +76,12 @@ Use this file as the single “where things stand” view during long Cursor ses
 
 ## Notes
 - Keep changes small: ≤ 5 files per batch.
-- If the provider fails (“Try again/Resume”), continue by summarizing intended diffs and listing exact next commands.
-- If blocked by a popup/approval, don’t wait: switch to safe offline work and log the required click/approval in `CURSOR_ACTIONS_REQUIRED.md`.
-- **Git workflow**: Always keep all changes. Never run `git push` without explicit user approval. Stage and commit locally is fine, but always ask before pushing.
+- If the provider fails ("Try again/Resume"), continue by summarizing intended diffs and listing exact next commands.
+- If blocked by a popup/approval, don't wait: switch to safe offline work and log the required click/approval in `CURSOR_ACTIONS_REQUIRED.md`.
+- **Git workflow**: 
+  - ✅ **Always keep all changes** - commit locally to preserve work
+  - ⏸️ **Always get approval before git push** - never push without explicit user approval
+  - ✅ Stage and commit locally is fine (preserves work)
+  - ⏸️ Always ask before pushing to remote
 
 

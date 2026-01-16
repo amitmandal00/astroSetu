@@ -26,4 +26,26 @@
   - Max timeout reached (hard watchdog)
 - **Hard watchdog**: if elapsed time > max timeout for reportType, client must exit spinner into a safe retry state (show "Timed out — Retry" button, do NOT continue infinite timer).
 
+## Production Serverless Invariants (ChatGPT Feedback - CRITICAL)
+- **Serverless timeout config**: Routes that can exceed default execution time MUST export:
+  - `export const runtime = "nodejs";`
+  - `export const maxDuration = 180;` (or higher for complex reports)
+  - `export const dynamic = "force-dynamic";`
+  - This prevents serverless function from dying mid-execution and leaving reports stuck in "processing".
+- **Heartbeat required**: Long-running report generation MUST update `updated_at` every 15-20s:
+  - Prevents stuck "processing" status when serverless function times out
+  - Makes stale-processing detection meaningful
+  - Must continue until generation completes or fails
+- **Always mark failed on error**: Catch/finally MUST call `markStoredReportFailed`:
+  - Reports never remain stuck in "processing" status
+  - Even if generation throws or times out, status must be updated to "failed"
+  - Prevents infinite polling on client side
+- **Single-surface changes**: one bug = one subsystem. No refactors unless explicitly requested.
+- **Fix server first, then UI**: No UI timer tweaks until API lifecycle is proven stable.
+- **Every change must pass, locally**:
+  - `npm run type-check`
+  - `npm run build`
+  - `npm run test:critical` (Playwright critical invariants)
+- **If any check fails**: stop and write in `CURSOR_ACTIONS_REQUIRED.md` rather than trying random fixes.
+
 
