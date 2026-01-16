@@ -39,7 +39,8 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - deleting files,
   - editing secrets/env files,
   - any network/external API access,
-  - git commit/push.
+  - **git push** (CRITICAL: Never push without explicit user approval).
+- For git commits: stage and commit locally is fine, but **always request approval before `git push`**.
 
 ### When an approval/popup appears
 - If it’s optional: **skip it** and continue.

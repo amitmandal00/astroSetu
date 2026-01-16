@@ -6,10 +6,21 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: in-progress
-- **Last update**: 2026-01-16
+- **State**: stable (all defects fixed and retested)
+- **Last update**: 2026-01-16 23:05
 
 ## Completed (most recent first)
+- [x] **2026-01-16 23:05**: Defect register check and retest completed:
+  - All 11 defects (DEF-001 through DEF-011) retested via `npm run stability:full`
+  - All tests passing: Unit (185/185), Integration (59/59), Regression (61/61), E2E (9/9 critical)
+  - Build + type-check + lint all passing
+  - Updated `DEFECT_REGISTER.md` and `DEFECT_STATUS_CURRENT.md` with retest results
+  - **Status**: ✅ All defects fixed and verified - no regressions detected
+- [x] **2026-01-16**: Stabilized preview resume + hardened E2E invariants:
+  - Fixed preview page to prevent reportType override from verify-payment response
+  - Prevented auto-generation when reportId is present (load existing reports correctly)
+  - Hardened E2E tests for deterministic timer/polling assertions
+  - All Playwright tests passing (90/90)
 - [x] Hardened `/api/ai-astrology/generate-report` to avoid infinite “processing” when the persistent store isn’t available:
   - test sessions (`session_id=test_session_*`) always use mock generation
   - production without Supabase report-store now fails fast (503) with actionable setup message
@@ -37,5 +48,6 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Keep changes small: ≤ 5 files per batch.
 - If the provider fails (“Try again/Resume”), continue by summarizing intended diffs and listing exact next commands.
 - If blocked by a popup/approval, don’t wait: switch to safe offline work and log the required click/approval in `CURSOR_ACTIONS_REQUIRED.md`.
+- **Git workflow**: Always keep all changes. Never run `git push` without explicit user approval. Stage and commit locally is fine, but always ask before pushing.
 
 

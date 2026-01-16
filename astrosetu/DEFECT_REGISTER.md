@@ -2,9 +2,9 @@
 
 **Last Updated**: 2026-01-16  
 **Total Defects**: 11  
-**Status**: Fixed ✅ (retested 2026-01-16)  
-**Verification**: ✅ Complete - All defects accounted for (updated with DEF-010/DEF-011)  
-**Note**: DEF-001 enhanced with detailed root cause analysis and code examples
+**Status**: Fixed ✅ (retested PASS 2026-01-16)  
+**Verification**: ✅ Complete - All defects accounted for and retested  
+**Note**: DEF-001 enhanced with detailed root cause analysis and code examples. All defects retested via `npm run stability:full` - all tests passing.
 
 **⚠️ IMPORTANT**: See `CURSOR_OPERATING_MANUAL.md` for guidelines on preventing future defects. All report generation changes must follow the operating manual.
 
@@ -94,6 +94,7 @@ This register maintains a comprehensive record of all defects reported, their st
 - ✅ Regression test created (`tests/regression/weekly-issues-replication.test.ts` > Issue #1)
 - ✅ Guards properly reset before retry
 - ✅ Retry works after failed bundle generation
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - Test File: `tests/regression/weekly-issues-replication.test.ts` > Issue #1
@@ -161,6 +162,7 @@ Timer stuck at 0s initially or stuck at 19s for free reports. Timer not incremen
 - ✅ Integration tests: 10/10 passing
 - ✅ E2E tests: 2/2 passing
 - ✅ Regression test passing (`tests/regression/weekly-issues-replication.test.ts` > Issue #2)
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - Test File: `tests/regression/weekly-issues-replication.test.ts` > Issue #2
@@ -215,6 +217,7 @@ Timer stuck at 25s for bundle reports or stuck at 26s for 2-report bundles. Time
 - ✅ Integration tests: Passing
 - ✅ E2E tests: 1/1 passing
 - ✅ Regression test passing (`tests/regression/weekly-issues-replication.test.ts` > Issue #3)
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - Test File: `tests/regression/weekly-issues-replication.test.ts` > Issue #3
@@ -265,6 +268,7 @@ Timer stuck at 0s for year-analysis reports. Timer not incrementing, same as fre
 - ✅ Integration tests: Passing
 - ✅ E2E tests: 1/1 passing
 - ✅ Regression test passing (`tests/regression/weekly-issues-replication.test.ts` > Issue #4)
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - Test File: `tests/regression/weekly-issues-replication.test.ts` > Issue #4
@@ -314,6 +318,7 @@ Timer stuck at 0s for paid reports. Timer reset during payment verification to g
 - ✅ Integration tests: Passing
 - ✅ E2E tests: 1/1 passing
 - ✅ Regression test passing (`tests/regression/weekly-issues-replication.test.ts` > Issue #5)
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - Test File: `tests/regression/weekly-issues-replication.test.ts` > Issue #5
@@ -396,6 +401,7 @@ Timer continues running after report completes. Report content not displayed eve
 - ✅ Integration tests: 6/6 passing (`tests/integration/polling-state-sync.test.ts`)
 - ✅ E2E tests: 3/3 passing (`tests/e2e/polling-state-sync.spec.ts`)
 - ✅ Regression test created (`tests/regression/weekly-issues-replication.test.ts` > Issue #6)
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - Test File: `tests/integration/polling-state-sync.test.ts` - ✅ PASSING
@@ -443,6 +449,7 @@ Timer continues incrementing after report is completed. Timer doesn't stop when 
 - ✅ Integration tests: 2/2 passing
 - ✅ E2E tests: 1/1 passing
 - ✅ Regression test passing (`tests/regression/weekly-issues-replication.test.ts` > Issue #7)
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - Test File: `tests/regression/weekly-issues-replication.test.ts` > Issue #7
@@ -697,7 +704,8 @@ Clicking "Purchase Year Analysis Report" button and accepting terms and conditio
 ### Test Coverage
 - Regression: `tests/regression/year-analysis-purchase-redirect.test.ts` (DEF-008)
 - E2E: `tests/e2e/navigation-flows.spec.ts` (reportType preserved through navigation)
-- Status: ✅ Covered (retest pending 2026-01-16)
+- Status: ✅ Covered
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ---
 
@@ -773,7 +781,8 @@ All report generation keeps flickering back to the input screen during generatio
 ### Test Coverage
 - Regression: `tests/regression/report-generation-flicker.test.ts` (DEF-009)
 - E2E: `tests/e2e/navigation-flows.spec.ts` + `tests/e2e/loader-timer-never-stuck.spec.ts`
-- Status: ✅ Covered (retest pending 2026-01-16)
+- Status: ✅ Covered
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ---
 
@@ -815,12 +824,12 @@ On production/serverless, report generation could show “Still processing…”
 
 ### Verification
 - ✅ Unit/Integration tests updated (see DEF-010 test below)
-- ✅ Retested PASS: `npm run stability:full` (2026-01-16)
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - Integration: `tests/integration/report-store-availability.test.ts` (DEF-010)
 - E2E: `tests/e2e/critical-invariants.spec.ts` (test_session year-analysis path)
-- Status: ✅ Covered (retest pending 2026-01-16)
+- Status: ✅ Covered
 
 ---
 
@@ -851,17 +860,18 @@ From the monthly subscription page, users could be routed into the free life rep
 2. **Checkout hardening**: subscription handler now passes explicit `successUrl`/`cancelUrl` and validates checkout redirect URL before navigating.
 
 ### Verification
-- ✅ Retested PASS: `npm run stability:full` (2026-01-16)
+- ✅ **RETESTED PASS** (2026-01-16 via `npm run stability:full`)
 
 ### Test Coverage
 - E2E: `tests/e2e/subscription-returnto-roundtrip.spec.ts`
 - E2E: `tests/e2e/subscription-journey-monotonic.spec.ts`
-- Status: ✅ Covered (retest pending 2026-01-16)
+- E2E: `tests/e2e/subscription-cancel-flow.spec.ts`
+- Status: ✅ Covered
 
 ---
 
 **Register Maintained By**: Development Team  
 **Last Review Date**: 2026-01-16  
 **Next Review Date**: As needed  
-**Verification Status**: ✅ All defects accounted for (retest pending)
+**Verification Status**: ✅ All defects accounted for and **RETESTED PASS** (2026-01-16)
 
