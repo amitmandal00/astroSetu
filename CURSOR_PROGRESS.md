@@ -6,8 +6,8 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: implementing ChatGPT feedback fixes (production serverless timeout, heartbeat, lifecycle tests)
-- **Last update**: 2026-01-17 10:30
+- **State**: ✅ ALL ChatGPT feedback fixes complete (production serverless timeout, heartbeat, lifecycle tests, subscription flow verified)
+- **Last update**: 2026-01-17 11:00
 
 ## Completed (most recent first)
 - [x] **2026-01-16 23:05**: Defect register check and retest completed:
@@ -33,6 +33,20 @@ Use this file as the single “where things stand” view during long Cursor ses
 - [x] Full stability retest: build + lint + unit + integration + regression + timing invariants + full Playwright E2E (workers=1) all PASS (2026-01-16).
 
 ## Completed (most recent first)
+- [x] **2026-01-17 11:00**: ChatGPT feedback - Subscription flow verification (COMPLETE):
+  - ✅ Verified subscription flow is already correct:
+    - Subscribe button → POST /api/ai-astrology/create-checkout ✅
+    - Server returns checkoutUrl ✅
+    - Client redirects with window.location.href ✅
+    - Stripe success_url → /ai-astrology/subscription/success?session_id=... ✅
+    - Success page verifies via /api/billing/subscription/verify-session ✅
+    - Redirects back to subscription dashboard ✅
+  - ✅ Added comprehensive E2E test: `subscription-journey.spec.ts`
+    - Tests full flow: Subscribe → Checkout → Success → Verify → Dashboard
+    - Tests Cancel subscription → Canceled status → persists after refresh
+  - ✅ Cancel subscription uses server-side endpoint (works correctly)
+  - **Status**: ✅ Subscription flow verified and tested - No fixes needed
+
 - [x] **2026-01-17 10:30**: ChatGPT feedback - Production serverless timeout fix (ROOT CAUSE):
   - ✅ Added `runtime = "nodejs"`, `maxDuration = 180`, `dynamic = "force-dynamic"` to generate-report route
     - Prevents serverless function from dying mid-execution on cold start + OpenAI latency
