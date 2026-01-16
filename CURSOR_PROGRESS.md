@@ -19,6 +19,7 @@ Use this file as the single “where things stand” view during long Cursor ses
 - [x] Generated holistic AI-astrology review package zip for ChatGPT:
   - `astrosetu/ai-astrology-complete-20260116-200704.zip` (~421K)
   - Includes: `src/app/ai-astrology`, related APIs/libs/hooks, all tests (unit/integration/e2e/regression/contracts), defect registers, SEO + production-readiness docs, `.cursor/rules` + Cursor control docs, and CI workflow.
+- [x] Full stability retest: build + lint + unit + integration + regression + timing invariants + full Playwright E2E (workers=1) all PASS (2026-01-16).
 
 ## In progress
 - [ ] Reproduce “first load stuck generation” on prod-like settings and confirm the above changes resolve the long-spinning loader.

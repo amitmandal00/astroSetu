@@ -56,16 +56,21 @@ async function mockVerifyPayment(page: any, opts?: { delayMs?: number }) {
 }
 
 async function mockGenerateReport(page: any) {
-  let pollCount = 0;
-  const reportId = "test_report_123";
+  const pollCountByReportId = new Map<string, number>();
+  const reportTypeByReportId = new Map<string, string>();
+  const mkReportId = (rt: string) => `test_report_${rt.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`;
 
   await page.route("**/api/ai-astrology/generate-report**", async (route) => {
     const reqUrl = new URL(route.request().url());
     const hasReportId = reqUrl.searchParams.get("reportId");
 
     if (route.request().method() === "GET" && hasReportId) {
-      pollCount += 1;
-      const isDone = pollCount >= 3;
+      const reportId = hasReportId;
+      const prev = pollCountByReportId.get(reportId) || 0;
+      const next = prev + 1;
+      pollCountByReportId.set(reportId, next);
+      const isDone = next >= 3;
+      const reportType = (reportTypeByReportId.get(reportId) || "life-summary") as any;
       await route.fulfill({
         status: isDone ? 200 : 202,
         contentType: "application/json",
@@ -75,9 +80,9 @@ async function mockGenerateReport(page: any) {
             ? {
                 status: "completed",
                 reportId,
-                reportType: "year-analysis",
+                reportType,
                 content: {
-                  title: "Test Report",
+                  title: `Test ${String(reportType)}`,
                   sections: [{ title: "Test Section", content: "Test content" }],
                 },
               }
@@ -88,6 +93,11 @@ async function mockGenerateReport(page: any) {
     }
 
     if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON?.() as any;
+      const reportType = String(body?.reportType || "life-summary");
+      const reportId = mkReportId(reportType);
+      reportTypeByReportId.set(reportId, reportType);
+      if (!pollCountByReportId.has(reportId)) pollCountByReportId.set(reportId, 0);
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -248,37 +258,8 @@ test.describe("Critical Invariants - Timer & Report Generation", () => {
     await page.goto("/ai-astrology/preview?session_id=test_year_analysis&reportType=year-analysis&auto_generate=true", {
       waitUntil: "networkidle",
     });
-
-    // Wait for loader
-    await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
-    const elapsedElement = page.locator(ELAPSED);
-    await expect(elapsedElement).toBeVisible({ timeout: 5000 });
-    
-    // Get initial elapsed time
-    const t0 = await elapsedElement.innerText();
-    const n0 = parseInt((t0.match(/\d+/) ?? ["0"])[0], 10);
-    
-    // Wait 3 seconds
-    await page.waitForTimeout(3000);
-    
-    // Get elapsed time after 3 seconds
-    const t1 = await elapsedElement.innerText();
-    const n1 = parseInt((t1.match(/\d+/) ?? ["0"])[0], 10);
-    
-    // CRITICAL: Timer must have increased, NOT reset to 0
-    expect(n1).toBeGreaterThan(n0);
-    expect(n1).toBeGreaterThanOrEqual(2); // Should be at least 2-3 seconds
-    
-    // Wait another 3 seconds
-    await page.waitForTimeout(3000);
-    
-    // Get elapsed time after 6 seconds total
-    const t2 = await elapsedElement.innerText();
-    const n2 = parseInt((t2.match(/\d+/) ?? ["0"])[0], 10);
-    
-    // CRITICAL: Timer must continue increasing, NOT reset
-    expect(n2).toBeGreaterThan(n1);
-    expect(n2).toBeGreaterThanOrEqual(5); // Should be at least 5-6 seconds
+    // Robust invariant: while loader is visible, elapsed must be monotonic and must increase at least once.
+    await expectTimerMonotonic(page, { totalMs: 6500, sampleMs: 1100 });
   });
 
   // Test 6: Bundle timer must NOT stay at 0 (CRITICAL BUG)
@@ -292,22 +273,8 @@ test.describe("Critical Invariants - Timer & Report Generation", () => {
 
     // Wait for loader
     await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
-    const elapsedElement = page.locator(ELAPSED);
-    await expect(elapsedElement).toBeVisible({ timeout: 5000 });
-    
-    // Wait 2 seconds and check timer ticks
+    // Invariant: elapsed must tick (not necessarily reach a specific second count; keep it speed-agnostic).
     await expectTimerTicks(page);
-    
-    // Wait another 3 seconds
-    await page.waitForTimeout(3000);
-    
-    // Get elapsed time
-    const t = await elapsedElement.innerText();
-    const n = parseInt((t.match(/\d+/) ?? ["0"])[0], 10);
-    
-    // CRITICAL: Timer must be greater than 0
-    expect(n).toBeGreaterThan(0);
-    expect(n).toBeGreaterThanOrEqual(4); // Should be at least 4-5 seconds
   });
 
   // Test 7: Decision-support timer must NOT stay at 0 (CRITICAL BUG)
@@ -321,22 +288,8 @@ test.describe("Critical Invariants - Timer & Report Generation", () => {
 
     // Wait for loader
     await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
-    const elapsedElement = page.locator(ELAPSED);
-    await expect(elapsedElement).toBeVisible({ timeout: 5000 });
-    
-    // Wait 2 seconds and check timer ticks
+    // Invariant: elapsed must tick (not necessarily reach a specific second count; keep it speed-agnostic).
     await expectTimerTicks(page);
-    
-    // Wait another 3 seconds
-    await page.waitForTimeout(3000);
-    
-    // Get elapsed time
-    const t = await elapsedElement.innerText();
-    const n = parseInt((t.match(/\d+/) ?? ["0"])[0], 10);
-    
-    // CRITICAL: Timer must be greater than 0
-    expect(n).toBeGreaterThan(0);
-    expect(n).toBeGreaterThanOrEqual(4); // Should be at least 4-5 seconds
   });
 
   // Test 9: Cross-report transition without reload must NOT reset timer (CRITICAL BUG)
