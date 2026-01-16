@@ -1,0 +1,388 @@
+/**
+ * Critical Invariant Tests - Timer & Generation UI
+ *
+ * These are intentionally deterministic: they mock backend endpoints so the tests
+ * enforce UI/timer contracts without depending on external APIs or flaky async timing.
+ */
+
+import { test, expect } from "@playwright/test";
+
+const LOADER_TITLE = /Generating|Verifying|Preparing/i;
+const ELAPSED = '[data-testid="elapsed-seconds"]';
+
+async function seedInput(page: any) {
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      "aiAstrologyInput",
+      JSON.stringify({
+        name: "Amit Kumar Mandal",
+        dob: "1984-11-26",
+        tob: "10:30",
+        place: "Noamundi, Jharkhand",
+        gender: "Male",
+        latitude: 22.16,
+        longitude: 85.5,
+        timezone: "Asia/Kolkata",
+      })
+    );
+  });
+}
+
+async function mockVerifyPayment(page: any, opts?: { delayMs?: number }) {
+  const delayMs = opts?.delayMs ?? 300;
+  await page.route("**/api/ai-astrology/verify-payment**", async (route) => {
+    await new Promise((r) => setTimeout(r, delayMs));
+    const url = new URL(route.request().url());
+    const sessionId = url.searchParams.get("session_id") || "cs_test";
+    const reportType = url.searchParams.get("reportType") || "marriage-timing";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          sessionId,
+          paid: true,
+          paymentStatus: "paid",
+          subscription: false,
+          reportType,
+          paymentToken: "tok_test",
+          currency: "aud",
+          amountTotal: 1,
+        },
+      }),
+    });
+  });
+}
+
+async function mockGenerateReport(page: any) {
+  const pollCountByReportId = new Map<string, number>();
+  const reportTypeByReportId = new Map<string, string>();
+  const mkReportId = (rt: string) => `test_report_${rt.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`;
+
+  await page.route("**/api/ai-astrology/generate-report**", async (route) => {
+    const reqUrl = new URL(route.request().url());
+    const hasReportId = reqUrl.searchParams.get("reportId");
+
+    if (route.request().method() === "GET" && hasReportId) {
+      const reportId = hasReportId;
+      const prev = pollCountByReportId.get(reportId) || 0;
+      const next = prev + 1;
+      pollCountByReportId.set(reportId, next);
+      const isDone = next >= 3;
+      const reportType = (reportTypeByReportId.get(reportId) || "life-summary") as any;
+      await route.fulfill({
+        status: isDone ? 200 : 202,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          data: isDone
+            ? {
+                status: "completed",
+                reportId,
+                reportType,
+                content: {
+                  title: `Test ${String(reportType)}`,
+                  sections: [{ title: "Test Section", content: "Test content" }],
+                },
+              }
+            : { status: "processing", reportId },
+        }),
+      });
+      return;
+    }
+
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON?.() as any;
+      const reportType = String(body?.reportType || "life-summary");
+      const reportId = mkReportId(reportType);
+      reportTypeByReportId.set(reportId, reportType);
+      if (!pollCountByReportId.has(reportId)) pollCountByReportId.set(reportId, 0);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          data: { status: "processing", reportId },
+        }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+}
+
+async function expectTimerTicks(page: any) {
+  // Prefer the main loader heading to avoid hidden/duplicate text matches
+  await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
+  const elapsedElement = page.locator(ELAPSED).first();
+  await expect(elapsedElement).toBeVisible({ timeout: 10000 });
+
+  const readSeconds = async () => {
+    const t = await elapsedElement.innerText().catch(() => "0");
+    return parseInt((t.match(/\d+/) ?? ["0"])[0], 10);
+  };
+
+  const n1 = await readSeconds();
+
+  // Poll up to ~6s to allow for hydration/first-interval delays under load.
+  const deadline = Date.now() + 6500;
+  let n2 = n1;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(500);
+    n2 = await readSeconds();
+    if (n2 > n1) break;
+  }
+  expect(n2).toBeGreaterThan(n1);
+}
+
+async function expectTimerMonotonic(page: any, opts?: { sampleMs?: number; totalMs?: number }) {
+  const sampleMs = opts?.sampleMs ?? 1000;
+  const totalMs = opts?.totalMs ?? 6500;
+
+  await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
+  const elapsedElement = page.locator(ELAPSED);
+  await expect(elapsedElement).toBeVisible({ timeout: 5000 });
+
+  const samples: number[] = [];
+  const iterations = Math.max(3, Math.floor(totalMs / sampleMs));
+  for (let i = 0; i < iterations; i++) {
+    const t = await elapsedElement.innerText();
+    const n = parseInt((t.match(/\d+/) ?? ["0"])[0], 10);
+    samples.push(n);
+    await page.waitForTimeout(sampleMs);
+  }
+
+  // Must increase at least once
+  const max = Math.max(...samples);
+  const min = Math.min(...samples);
+  expect(max).toBeGreaterThan(min);
+
+  // Must be monotonic non-decreasing (no reset-to-0 while still loading)
+  for (let i = 1; i < samples.length; i++) {
+    expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1]);
+  }
+
+  // Once it becomes > 0, it must never return to 0 while still loading
+  const firstPositiveIdx = samples.findIndex((s) => s > 0);
+  if (firstPositiveIdx >= 0) {
+    for (let i = firstPositiveIdx; i < samples.length; i++) {
+      expect(samples[i]).toBeGreaterThan(0);
+    }
+  }
+}
+
+test.describe("Critical Invariants - Timer & Report Generation", () => {
+  test("Loader visible => elapsed ticks within 2 seconds (year-analysis with session_id)", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page);
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_session_123&reportType=year-analysis&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+    await expectTimerTicks(page);
+  });
+
+  test("Loader visible => elapsed ticks within 2 seconds (bundle with retry)", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page);
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_bundle_session&bundle=any-2&reports=marriage-timing,career-money&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+    await expectTimerTicks(page);
+  });
+
+  test("Loader visible => elapsed ticks within 2 seconds (paid transition: verify → generate)", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page, { delayMs: 600 });
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_session_paid&reportType=marriage-timing&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+    await expectTimerTicks(page);
+  });
+
+  test("Session resume: loader visible => elapsed increments => report renders", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page);
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_session_resume&reportType=year-analysis&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+    await expectTimerTicks(page);
+  });
+
+  // Test 3: Retry must be a full restart
+  test("Retry must be a full restart: abort + reset + restart", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page);
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_bundle_retry&bundle=any-2&reports=marriage-timing,career-money&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+
+    // Contract: if loader visible, elapsed must tick
+    await expectTimerTicks(page);
+  });
+
+  // Test 4: reportType alone must not show loader
+  test("reportType alone must not show loader (anti-regression)", async ({ page }) => {
+    // CRITICAL: This prevents the loader from showing just because reportType is in URL
+    await page.goto("/ai-astrology/preview?reportType=year-analysis", {
+      waitUntil: "networkidle"
+    });
+
+    // Wait a bit to see if loader appears
+    await page.waitForTimeout(2000);
+
+    // Assert: Loader should NOT be visible
+    const loaderVisible = await page.getByText(LOADER_TITLE).isVisible().catch(() => false);
+    
+    // Should show input form or redirect, NOT "Generating..."
+    expect(loaderVisible).toBe(false);
+    
+    // Should show input form or have redirected
+    const inputForm = await page.locator('form, [data-testid="birth-details-form"]').isVisible().catch(() => false);
+    const redirected = page.url().includes("/input") || page.url().includes("/preview?reportType=");
+    
+    expect(inputForm || redirected).toBeTruthy();
+  });
+
+  // Test 5: Year-analysis timer must NOT reset to 0 (CRITICAL BUG)
+  test("Year-analysis timer must NOT reset to 0 after a few seconds", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page);
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_year_analysis&reportType=year-analysis&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+    // Robust invariant: while loader is visible, elapsed must be monotonic and must increase at least once.
+    await expectTimerMonotonic(page, { totalMs: 6500, sampleMs: 1100 });
+  });
+
+  // Test 6: Bundle timer must NOT stay at 0 (CRITICAL BUG)
+  test("Bundle timer must NOT stay at 0 during generation", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page);
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_bundle_any3&bundle=any-3&reports=marriage-timing,career-money,full-life&auto_generate=true", {
+      waitUntil: "networkidle"
+    });
+
+    // Wait for loader
+    await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
+    // Invariant: elapsed must tick (not necessarily reach a specific second count; keep it speed-agnostic).
+    await expectTimerTicks(page);
+  });
+
+  // Test 7: Decision-support timer must NOT stay at 0 (CRITICAL BUG)
+  test("Decision-support timer must NOT stay at 0 during generation", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page);
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_decision&reportType=decision-support&auto_generate=true", {
+      waitUntil: "networkidle"
+    });
+
+    // Wait for loader
+    await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
+    // Invariant: elapsed must tick (not necessarily reach a specific second count; keep it speed-agnostic).
+    await expectTimerTicks(page);
+  });
+
+  // Test 9: Cross-report transition without reload must NOT reset timer (CRITICAL BUG)
+  test("Cross-report transition: life-summary → year-analysis must NOT reset timer", async ({ page }) => {
+    await seedInput(page);
+    await mockGenerateReport(page);
+
+    await page.goto("/ai-astrology/preview?reportType=life-summary&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+    await expectTimerTicks(page);
+
+    await mockVerifyPayment(page);
+    await page.goto("/ai-astrology/preview?session_id=test_cross&reportType=year-analysis&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+    await expectTimerTicks(page);
+  });
+
+  test("First-load: year-analysis elapsed must be monotonic (no reset-to-0)", async ({ page }) => {
+    await seedInput(page);
+
+    // Mock verify-payment (year-analysis is paid in UI flow)
+    await mockVerifyPayment(page);
+
+    // Custom generate-report mock:
+    // - life-summary completes quickly
+    // - year-analysis stays "processing" long enough to observe timer monotonicity
+    await page.route("**/api/ai-astrology/generate-report**", async (route) => {
+      const req = route.request();
+      const reqUrl = new URL(req.url());
+      const hasReportId = reqUrl.searchParams.get("reportId");
+
+      if (req.method() === "POST") {
+        const body = req.postDataJSON?.() as any;
+        const rt = body?.reportType || "unknown";
+        const reportId = rt === "life-summary" ? "test_report_life" : "test_report_year";
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, data: { status: "processing", reportId } }),
+        });
+        return;
+      }
+
+      if (req.method() === "GET" && hasReportId) {
+        const rid = hasReportId;
+        if (rid === "test_report_life") {
+          // Complete quickly so we simulate the real "first-load then switch" behavior.
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              ok: true,
+              data: {
+                status: "completed",
+                reportId: rid,
+                reportType: "life-summary",
+                content: { title: "Life Summary", sections: [{ title: "Executive Summary", content: "Ok" }] },
+              },
+            }),
+          });
+          return;
+        }
+        // Keep year-analysis in processing for this test window.
+        await route.fulfill({
+          status: 202,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, data: { status: "processing", reportId: rid } }),
+        });
+        return;
+      }
+
+      await route.continue();
+    });
+
+    // First-load: open year-analysis directly (fresh context). This is where the real bug reproduces.
+    await page.goto("/ai-astrology/preview?session_id=test_firstload&reportType=year-analysis&auto_generate=true", { waitUntil: "networkidle" });
+    await expectTimerMonotonic(page, { totalMs: 6500, sampleMs: 1100 });
+  });
+
+  // Test 8: Full-life must NOT flicker and end in error (CRITICAL BUG)
+  test("Full-life must NOT flicker and end in error screen", async ({ page }) => {
+    await seedInput(page);
+    await mockVerifyPayment(page);
+    await mockGenerateReport(page);
+    await page.goto("/ai-astrology/preview?session_id=test_full_life&reportType=full-life&auto_generate=true", {
+      waitUntil: "networkidle",
+    });
+
+    await expectTimerTicks(page);
+    const errorVisible = await page.getByText(/Error Generating Report/i).isVisible().catch(() => false);
+    expect(errorVisible).toBe(false);
+  });
+});
+

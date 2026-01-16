@@ -23,13 +23,24 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 - Prefer minimal diffs; do not reformat unrelated code.
 - If a step is long-running, run it in the background when possible and continue with other work.
 
+### Critical Preview Page Rules (ChatGPT Feedback)
+- **No refactors in preview/page.tsx** unless tests are added/updated first.
+- **Any change touching**:
+  - `preview/page.tsx`
+  - `/api/ai-astrology/generate-report`
+  - subscription routes
+  must pass: `npm run ci:critical` locally.
+- **Never add new import path** without updating the "build-imports" test.
+- **Polling loops may only terminate on**: abort signal, unmount, attemptKey changed, completed/failed state.
+- **Do not use UI state** (`isProcessingUI`, `isProcessingUIRef`) to stop polling - UI state can flip during first-load.
+- **Timer monotonic**: never clear `loadingStartTimeRef.current` during active generation attempt.
+
 ### If the model/provider fails (Try again / Resume)
-- Retry the same step up to **3** times, with suggested backoff: **10s → 30s → 60s**.
-- If still failing: reduce scope (less context, fewer files, shorter output) and switch to **OFFLINE PROGRESS**:
-  - continue with safe offline work (read/search/analyze),
-  - prepare patch-level diffs so changes are ready to apply,
-  - update `CURSOR_PROGRESS.md`,
-  - log the exact required click (e.g., “Resume”) and best next setting (e.g., “switch provider/model”) in `CURSOR_ACTIONS_REQUIRED.md`.
+- Retry the same step up to **2** times.
+- If still failing: reduce scope (less context, fewer files, shorter output) and continue by:
+  - summarizing intended changes,
+  - preparing exact file edits/diffs conceptually,
+  - listing the exact next commands/files to run.
 - Never block waiting for the user; keep progressing on non-blocked work.
 
 ### Approvals (hard stops)
@@ -39,8 +50,7 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - deleting files,
   - editing secrets/env files,
   - any network/external API access,
-  - **git push** (CRITICAL: Never push without explicit user approval).
-- For git commits: stage and commit locally is fine, but **always request approval before `git push`**.
+  - git commit/push.
 
 ### When an approval/popup appears
 - If it’s optional: **skip it** and continue.

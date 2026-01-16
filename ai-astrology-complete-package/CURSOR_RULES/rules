@@ -1,0 +1,62 @@
+# Cursor Rules
+
+This file contains the Cursor autopilot rules.
+In your actual project, these should be at `.cursor/rules`.
+
+## Cursor Autopilot (safe, non-blocking)
+
+### Goals
+- Keep moving forward with minimal interruptions.
+- Never take irreversible/destructive actions without explicit approval.
+- When blocked, **log and continue** (don’t stall on “Resume/Try again” loops).
+
+### Non-negotiables (repo contract)
+- Follow `NON_NEGOTIABLES.md`.
+- Use `CURSOR_OPERATIONAL_GUIDE.md` as the workflow for testing/stability.
+
+### Non-blocking fallback ladder (what to do next when blocked)
+When a step would trigger a permission popup, “Allow popups safely”, “Resume”, or “Try again”, do **not** wait idle. Switch immediately to the next safest useful work in this order:
+- **(1) Continue with safe, offline work**: read/search code, analyze, narrow scope, identify the minimal files to touch, and draft the exact changes.
+- **(2) Prepare patch-level output**: write the exact diffs/edits conceptually (file paths + snippets), so the work is ready to apply once unblocked.
+- **(3) Improve the plan**: break the task into smaller batches (≤ 5 files) and queue the next batch.
+- **(4) Update logs**: record progress in `CURSOR_PROGRESS.md` and any required clicks/approvals in `CURSOR_ACTIONS_REQUIRED.md`.
+- **(5) Only if truly blocked** (nothing safe remains): ask for the minimal single approval needed, once.
+
+### Execution style
+- Work in small batches: **≤ 5 files changed per batch**, one concern per batch.
+- Avoid repo-wide scans/refactors unless explicitly asked.
+- Prefer minimal diffs; do not reformat unrelated code.
+- If a step is long-running, run it in the background when possible and continue with other work.
+
+### If the model/provider fails (Try again / Resume)
+- Retry the same step up to **2** times.
+- If still failing: reduce scope (less context, fewer files, shorter output) and continue by:
+  - summarizing intended changes,
+  - preparing exact file edits/diffs conceptually,
+  - listing the exact next commands/files to run.
+- Never block waiting for the user; keep progressing on non-blocked work.
+
+### Approvals (hard stops)
+- Always ask before:
+  - running terminal commands (unless they match an allowlist you already trust),
+  - installing dependencies,
+  - deleting files,
+  - editing secrets/env files,
+  - any network/external API access,
+  - git commit/push.
+
+### When an approval/popup appears
+- If it’s optional: **skip it** and continue.
+- If it blocks progress (common in auth flows): record it in `CURSOR_ACTIONS_REQUIRED.md` with:
+  - what prompt appeared,
+  - where (which screen/tool),
+  - what exact click/setting is needed,
+  - why it’s needed.
+  - the safest alternative (e.g., “Open in browser” for auth) if available.
+
+### Mandatory logging
+- After each batch, update `CURSOR_PROGRESS.md`:
+  - what changed,
+  - what remains,
+  - what is blocked + the minimal approval needed.
+
