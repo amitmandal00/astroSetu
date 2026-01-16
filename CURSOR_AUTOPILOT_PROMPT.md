@@ -1,12 +1,26 @@
 # Cursor Autopilot Starter (paste at top of tasks)
 
+## CURSOR AUTOPILOT MODE – minimal interruptions
+
+**CRITICAL RULES**:
+1. **Do not ask me to click things repeatedly**. If a click is required, consolidate all pending edits into ONE accept step.
+2. **If blocked, update `CURSOR_ACTIONS_REQUIRED.md` with exact next actions**.
+3. **Never continue with partial context. Re-run tests before proceeding**.
+
 Work in **Autopilot (safe, non-blocking)** mode:
 - Keep moving end-to-end; do not wait idle for popups/approvals.
-- Batch changes: **≤ 5 files per batch**, one concern per batch. No repo-wide changes unless I ask.
-- If the model/provider fails ("Try again/Resume"): retry **3x** with backoff **10s → 30s → 60s**.
-  - If still failing: switch to **OFFLINE PROGRESS** (safe edits only), write exact diffs/commands, and log required clicks/settings in `CURSOR_ACTIONS_REQUIRED.md`.
+- **Work in batches of one file at a time** (minimizes "Confirm edit" prompts).
+- **After each edit**: run `npm run ci:critical`. If it fails, revert and try again.
+- Batch changes: **≤ 3 files per batch** (prefer 1 file), one concern per batch. No repo-wide changes unless I ask.
+- If the model/provider fails ("Try again/Resume"): retry with exponential backoff **30s → 60s → 120s** (3 attempts total).
+  - If still failing: write exact pending steps into `CURSOR_ACTIONS_REQUIRED.md` and stop.
+- If "Confirm edit" / "Accept" prompt appears:
+  - **STOP making further changes** immediately.
+  - Write summary to `CURSOR_ACTIONS_REQUIRED.md` including: file name, change intent, why it is safe.
+  - Wait for a single "Accept", then continue automatically with the next steps.
 - If an approval/popup appears (including "Allow popups safely"): **skip that action**, log it in `CURSOR_ACTIONS_REQUIRED.md`, update `CURSOR_PROGRESS.md`, and continue with the next safe task.
 - Always ask before terminal commands, installs, deletes, network/external APIs, **git push** (commits are fine, but always get approval before push).
+- **Run checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` (if available).
 
 ## Critical Workflow Rules (ChatGPT Feedback)
 - **No refactors in preview page** unless tests are added/updated first.
@@ -36,5 +50,14 @@ Work in **Autopilot (safe, non-blocking)** mode:
   - `npm run build`
   - `npm run test:critical`
 - **If any one of these fails**: stop and write in `CURSOR_ACTIONS_REQUIRED.md` rather than "try random fixes".
+
+## Autopilot Non-Negotiables (Minimize Interruptions)
+- **No broad edits**: Max 1–3 files per change set (prefer 1 file at a time).
+- **No refactors while fixing bugs**: Fix the bug with minimal surface area.
+- **Always green before next change**: Must pass `npm run ci:critical` after every change set.
+- **If confirmation required**: write `CURSOR_ACTIONS_REQUIRED.md` first, then pause.
+- **Never proceed after connection error** without logging next actions to `CURSOR_ACTIONS_REQUIRED.md`.
+- **Single-file edits**: When possible, edit one file at a time to reduce "Confirm edit" prompts.
+- **Consolidate edits**: If multiple files need changes, batch them into ONE accept step when possible.
 
 

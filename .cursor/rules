@@ -19,9 +19,19 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 
 ### Execution style
 - Work in small batches: **≤ 5 files changed per batch**, one concern per batch.
+- **CRITICAL (ChatGPT Feedback)**: Work in batches of **one file at a time** to minimize "Confirm edit" prompts.
 - Avoid repo-wide scans/refactors unless explicitly asked.
 - Prefer minimal diffs; do not reformat unrelated code.
 - If a step is long-running, run it in the background when possible and continue with other work.
+
+### Autopilot Non-Negotiables (ChatGPT Feedback - Minimize Interruptions)
+- **No broad edits**: Max 1–3 files per change set (prefer 1 file at a time).
+- **No refactors while fixing bugs**: Fix the bug with minimal surface area.
+- **Always green before next change**: Must pass `npm run ci:critical` after every change set.
+- **If confirmation required**: write `CURSOR_ACTIONS_REQUIRED.md` first, then pause.
+- **Never proceed after connection error** without logging next actions to `CURSOR_ACTIONS_REQUIRED.md`.
+- **Single-file edits**: When possible, edit one file at a time to reduce "Confirm edit" prompts.
+- **Consolidate edits**: If multiple files need changes, batch them into ONE accept step when possible.
 
 ### Critical Preview Page Rules (ChatGPT Feedback)
 - **No refactors in preview/page.tsx** unless tests are added/updated first.
@@ -52,12 +62,16 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 - **If any one of these fails**: stop and write in `CURSOR_ACTIONS_REQUIRED.md` rather than "try random fixes".
 
 ### If the model/provider fails (Try again / Resume)
-- Retry the same step up to **2** times.
-- If still failing: reduce scope (less context, fewer files, shorter output) and continue by:
-  - summarizing intended changes,
-  - preparing exact file edits/diffs conceptually,
-  - listing the exact next commands/files to run.
+- Retry with exponential backoff: **30s, 60s, 120s** (3 attempts total).
+- If still failing after 3 retries:
+  - Write exact pending steps into `CURSOR_ACTIONS_REQUIRED.md` and stop.
+  - Include: file names, change intent, why it is safe, exact next commands.
+  - Do NOT continue making changes after connection error without logging.
 - Never block waiting for the user; keep progressing on non-blocked work.
+- **Root cause fixes** (to prevent connection errors):
+  - Check VPN/proxy settings (disable or allowlist Cursor + API provider domains).
+  - Verify OpenAI key rate limit/quota/billing/model mismatch.
+  - Reduce concurrent agent actions: keep to 1–2 parallel tasks max.
 
 ### Approvals (hard stops)
 - Always ask before:
@@ -68,19 +82,39 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - any network/external API access,
   - **git push** (commits are fine, but always get approval before push).
 
-### When an approval/popup appears
-- If it’s optional: **skip it** and continue.
+### When an approval/popup appears (Confirm edit / Accept / Resume / Try again)
+- **CRITICAL (ChatGPT Feedback)**: Do NOT ask for clicks repeatedly.
+- If "Confirm edit" / "Accept" prompt appears:
+  - **STOP making further changes** immediately.
+  - Write summary to `CURSOR_ACTIONS_REQUIRED.md` including:
+    - File name(s)
+    - Change intent
+    - Why it is safe
+    - Exact next steps after acceptance
+  - Wait for a single "Accept", then continue automatically with the next steps.
+  - **Consolidate all pending edits into ONE accept step** when possible.
+- If "Connection Error" / "Resume" / "Try again" appears:
+  - Retry with exponential backoff (30s, 60s, 120s).
+  - If still failing: write exact pending steps into `CURSOR_ACTIONS_REQUIRED.md` and stop.
+- If it's optional: **skip it** and continue.
 - If it blocks progress (common in auth flows): record it in `CURSOR_ACTIONS_REQUIRED.md` with:
   - what prompt appeared,
   - where (which screen/tool),
   - what exact click/setting is needed,
-  - why it’s needed.
-  - the safest alternative (e.g., “Open in browser” for auth) if available.
+  - why it's needed.
+  - the safest alternative (e.g., "Open in browser" for auth) if available.
 
 ### Mandatory logging
 - After each batch, update `CURSOR_PROGRESS.md`:
   - what changed,
   - what remains,
   - what is blocked + the minimal approval needed.
+- **After each successful green CI gate**: Update `CURSOR_PROGRESS.md` with:
+  - what changed,
+  - which tests passed.
+- **Run checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` (if available).
+  - This runs: typecheck → build → critical tests
+  - Writes output + next steps into `CURSOR_PROGRESS.md`
+  - If failure: writes "what to do next" into `CURSOR_ACTIONS_REQUIRED.md`
 
 

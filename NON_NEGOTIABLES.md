@@ -5,6 +5,9 @@
 - **No repo-wide refactors** unless explicitly asked.
 - **No silent behavior changes**: if a behavior changes, add/adjust tests proving it.
 - **Keep diffs tight**: ≤ 5 files per batch, one concern per batch.
+- **CRITICAL (ChatGPT Feedback - Minimize Interruptions)**: Prefer **1 file at a time** to minimize "Confirm edit" prompts.
+- **No refactors while fixing bugs**: Fix the bug with minimal surface area.
+- **Always green before next change**: Must pass `npm run ci:critical` after every change set.
 
 ## AstroSetu product invariants
 - **Future-only timing**: reports must never present timing windows/years in the past (for 20xx years).
@@ -47,5 +50,23 @@
   - `npm run build`
   - `npm run test:critical` (Playwright critical invariants)
 - **If any check fails**: stop and write in `CURSOR_ACTIONS_REQUIRED.md` rather than trying random fixes.
+
+## Autopilot Workflow Invariants (ChatGPT Feedback - Minimize Interruptions)
+- **Single-file edits**: When possible, edit one file at a time to reduce "Confirm edit" prompts.
+- **Consolidate edits**: If multiple files need changes, batch them into ONE accept step when possible.
+- **If confirmation required**: write `CURSOR_ACTIONS_REQUIRED.md` first, then pause.
+  - Include: file name(s), change intent, why it is safe, exact next steps after acceptance.
+- **Never proceed after connection error** without logging next actions to `CURSOR_ACTIONS_REQUIRED.md`.
+- **Connection error handling**:
+  - Retry with exponential backoff: 30s, 60s, 120s (3 attempts total).
+  - If still failing: write exact pending steps into `CURSOR_ACTIONS_REQUIRED.md` and stop.
+- **Root cause fixes** (to prevent connection errors):
+  - Check VPN/proxy settings (disable or allowlist Cursor + API provider domains).
+  - Verify OpenAI key rate limit/quota/billing/model mismatch.
+  - Reduce concurrent agent actions: keep to 1–2 parallel tasks max.
+- **Checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` (if available).
+  - Runs: typecheck → build → critical tests
+  - Writes output + next steps into `CURSOR_PROGRESS.md`
+  - If failure: writes "what to do next" into `CURSOR_ACTIONS_REQUIRED.md`
 
 

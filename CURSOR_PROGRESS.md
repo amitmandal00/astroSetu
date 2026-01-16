@@ -89,13 +89,25 @@ Use this file as the single “where things stand” view during long Cursor ses
 4. ⏳ Run `npm run stability:full` to ensure all tests pass
 
 ## Notes
-- Keep changes small: ≤ 5 files per batch.
-- If the provider fails ("Try again/Resume"), continue by summarizing intended diffs and listing exact next commands.
-- If blocked by a popup/approval, don't wait: switch to safe offline work and log the required click/approval in `CURSOR_ACTIONS_REQUIRED.md`.
+- Keep changes small: **≤ 3 files per batch** (prefer 1 file at a time to minimize "Confirm edit" prompts).
+- **Checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` to verify:
+  - Type check passes
+  - Build passes
+  - Critical tests pass
+- If the provider fails ("Try again/Resume"): retry with exponential backoff (30s, 60s, 120s). If still failing, write to `CURSOR_ACTIONS_REQUIRED.md` and stop.
+- If blocked by a popup/approval ("Confirm edit" / "Accept"):
+  - **STOP making further changes** immediately
+  - Write summary to `CURSOR_ACTIONS_REQUIRED.md` (file name, change intent, why safe)
+  - Wait for single "Accept", then continue automatically
+  - **Consolidate all pending edits into ONE accept step** when possible
 - **Git workflow**: 
   - ✅ **Always keep all changes** - commit locally to preserve work
   - ⏸️ **Always get approval before git push** - never push without explicit user approval
   - ✅ Stage and commit locally is fine (preserves work)
   - ⏸️ Always ask before pushing to remote
+- **Connection error root causes** (to prevent):
+  - VPN/proxy: Disable or allowlist Cursor + API provider domains
+  - OpenAI key: Check rate limit/quota/billing/model mismatch
+  - Reduce concurrent actions: Keep to 1–2 parallel tasks max
 
 
