@@ -240,6 +240,12 @@ export async function POST(req: Request) {
       // Include reportType in session ID for test sessions so verify-payment can extract it
       const reportTypeStr = subscription ? "subscription" : (reportType || "marriage-timing");
       const mockSessionId = `test_session_${reportTypeStr}_${requestId}`;
+
+      // If caller provided a Stripe-style template URL (with {CHECKOUT_SESSION_ID}), substitute it for mock mode.
+      const substitutedSuccessUrl =
+        successUrl && successUrl.includes("{CHECKOUT_SESSION_ID}")
+          ? successUrl.replace("{CHECKOUT_SESSION_ID}", mockSessionId)
+          : successUrl;
       
       // Return a mock session that can be used to bypass payment verification
       return NextResponse.json(
@@ -250,7 +256,7 @@ export async function POST(req: Request) {
             // For subscription, use dedicated success page so the journey mirrors production.
             // (Payment success page also supports subscription, but this is clearer and avoids cross-flow coupling.)
             url:
-              successUrl ||
+              substitutedSuccessUrl ||
               (subscription
                 ? `${baseUrl}/ai-astrology/subscription/success?session_id=${mockSessionId}`
                 : `${baseUrl}/ai-astrology/payment/success?session_id=${mockSessionId}`),

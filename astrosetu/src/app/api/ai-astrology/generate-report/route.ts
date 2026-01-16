@@ -27,6 +27,42 @@ import {
   markStoredReportFailed,
 } from "@/lib/ai-astrology/reportStore";
 
+function getMaxProcessingMs(reportType: ReportType): number {
+  // Upper bound watchdog. Without heartbeats in serverless, "processing" can become permanent if a function times out.
+  // Keep this conservative but not infinite. UI already tells users they can refresh after ~2 minutes.
+  switch (reportType) {
+    case "life-summary":
+      return 2 * 60 * 1000; // 2 min
+    case "year-analysis":
+      return 4 * 60 * 1000; // 4 min
+    case "full-life":
+    case "major-life-phase":
+      return 6 * 60 * 1000; // 6 min
+    default:
+      return 4 * 60 * 1000;
+  }
+}
+
+function parseIsoToMs(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+function isProcessingStale(params: { updatedAtIso?: string | null; reportType?: ReportType }): boolean {
+  const updatedMs = parseIsoToMs(params.updatedAtIso);
+  if (!updatedMs || !params.reportType) return false;
+  return Date.now() - updatedMs > getMaxProcessingMs(params.reportType);
+}
+
+function parseReportIdCreatedAtMs(reportId: string): number | null {
+  // Format: RPT-{Date.now()}-{...}
+  const m = reportId.match(/^RPT-(\d+)-/);
+  if (!m) return null;
+  const t = Number(m[1]);
+  return Number.isFinite(t) ? t : null;
+}
+
 /**
  * GET handler - Check report status by reportId (for polling)
  * Used when a report is already being generated and client needs to check status
@@ -52,6 +88,49 @@ export async function GET(req: NextRequest) {
     
     // Prefer persistent store (serverless-safe) to avoid “stuck polling” + duplicate generations
     const storedReport = await getStoredReportByReportId(reportId);
+    if (storedReport && storedReport.status === "failed") {
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "failed" as const,
+            reportId,
+            message: storedReport.error_message || "Report generation failed. Please try again.",
+          },
+          requestId,
+        },
+        { status: 200, headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
+      );
+    }
+
+    if (storedReport && storedReport.status === "processing") {
+      // Watchdog: if a serverless function timed out/crashed, we can get stuck in processing forever.
+      // When stale, mark failed and surface a safe retry message.
+      if (isProcessingStale({ updatedAtIso: storedReport.updated_at, reportType: storedReport.report_type as any })) {
+        try {
+          await markStoredReportFailed({
+            idempotencyKey: storedReport.idempotency_key,
+            reportId: storedReport.report_id,
+            errorMessage: "Report generation timed out. Please refresh and try again.",
+          });
+        } catch {
+          // ignore
+        }
+        return NextResponse.json(
+          {
+            ok: true,
+            data: {
+              status: "failed" as const,
+              reportId,
+              message: "Report generation timed out. Please refresh and try again.",
+            },
+            requestId,
+          },
+          { status: 200, headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
+        );
+      }
+    }
+
     if (storedReport && storedReport.status === "completed" && storedReport.content) {
       // Guardrail: never render timing windows in the past (protects old stored reports too).
       const normalizedContent = ensureFutureWindows(
@@ -93,6 +172,25 @@ export async function GET(req: NextRequest) {
     const cachedReport = getCachedReportByReportId(reportId);
     
     if (!cachedReport) {
+      // If we can't find the report in persistent store OR cache, do not keep users on an infinite spinner.
+      // This can happen if the store is not configured/table missing, or a serverless instance was recycled.
+      const createdAt = parseReportIdCreatedAtMs(reportId);
+      if (createdAt && Date.now() - createdAt > 8 * 60 * 1000) {
+        return NextResponse.json(
+          {
+            ok: true,
+            data: {
+              status: "failed" as const,
+              reportId,
+              message:
+                "Report generation could not be resumed (missing server-side state). Please refresh and try again. If this persists, ensure the Supabase table `ai_astrology_reports` exists (see `astrosetu/docs/AI_ASTROLOGY_REPORT_STORE_SUPABASE.sql`).",
+            },
+            requestId,
+          },
+          { status: 200, headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
+        );
+      }
+
       // Report not found - might be expired or never existed
       return NextResponse.json(
         {
@@ -149,27 +247,27 @@ export async function GET(req: NextRequest) {
           },
         }
       );
-    } else {
-      // Still processing
-      return NextResponse.json(
-        {
-          ok: true,
-          data: {
-            status: "processing" as const,
-            reportId,
-            message: "Report generation in progress. Please continue waiting.",
-          },
-          requestId,
-        },
-        {
-          status: 202, // Accepted - still processing
-          headers: {
-            "X-Request-ID": requestId,
-            "Cache-Control": "no-cache",
-          },
-        }
-      );
     }
+
+    // Still processing (or not found) - keep polling optimistic.
+    return NextResponse.json(
+      {
+        ok: true,
+        data: {
+          status: "processing" as const,
+          reportId,
+          message: "Report generation in progress. Please continue waiting.",
+        },
+        requestId,
+      },
+      {
+        status: 202, // Accepted - still processing
+        headers: {
+          "X-Request-ID": requestId,
+          "Cache-Control": "no-cache",
+        },
+      }
+    );
   } catch (error: any) {
     const errorLog = {
       requestId,
@@ -296,6 +394,16 @@ export async function POST(req: Request) {
   console.log("[REQUEST START]", JSON.stringify(requestStartLog, null, 2));
 
   try {
+    // Extract session_id early (used for test-session behavior and payment fallback verification).
+    const sessionIdFromQuery = (() => {
+      try {
+        const { searchParams } = new URL(req.url);
+        return searchParams.get("session_id") || undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    const isTestSession = !!sessionIdFromQuery && sessionIdFromQuery.startsWith("test_session_");
     // Stricter rate limiting for report generation (production-ready)
     // Per ChatGPT feedback: Add rate limiting to prevent abuse
     // Uses middleware rate limiting (already configured) with additional check
@@ -618,9 +726,13 @@ export async function POST(req: Request) {
     }
     
     // Check if report is already processing (prevent concurrent duplicate requests)
-    const reportId = `RPT-${Date.now()}-${requestId.substring(0, 8).toUpperCase()}`;
+    let reportId = `RPT-${Date.now()}-${requestId.substring(0, 8).toUpperCase()}`;
+    let bypassInMemoryLock = false;
 
     // Prefer persistent processing lock (serverless-safe)
+    // IMPORTANT: For production, if the Supabase report store isn't available, do NOT fall back to in-memory.
+    // In-memory is not durable on serverless and leads to "stuck processing forever" on the client.
+    let storeUnavailableError: string | null = null;
     try {
       const processing = await markStoredReportProcessing({
         idempotencyKey,
@@ -630,24 +742,31 @@ export async function POST(req: Request) {
       });
       if (!processing.ok) {
         if (processing.existing.status === "processing") {
-          return NextResponse.json(
-            {
-              ok: true,
-              data: {
-                status: "processing" as const,
-                reportId: processing.existing.report_id,
-                message: "Report generation already in progress. Please wait.",
+          // If the existing "processing" row is stale, take over and regenerate using the SAME reportId/idempotencyKey.
+          // This avoids permanent "processing" states caused by serverless timeouts.
+          if (isProcessingStale({ updatedAtIso: processing.existing.updated_at, reportType: processing.existing.report_type as any })) {
+            reportId = processing.existing.report_id;
+            bypassInMemoryLock = true;
+          } else {
+            return NextResponse.json(
+              {
+                ok: true,
+                data: {
+                  status: "processing" as const,
+                  reportId: processing.existing.report_id,
+                  message: "Report generation already in progress. Please wait.",
+                },
+                requestId,
               },
-              requestId,
-            },
-            {
-              status: 202,
-              headers: {
-                "X-Request-ID": requestId,
-                "Retry-After": "10",
-              },
-            }
-          );
+              {
+                status: 202,
+                headers: {
+                  "X-Request-ID": requestId,
+                  "Retry-After": "10",
+                },
+              }
+            );
+          }
         }
         if (processing.existing.status === "completed" && processing.existing.content) {
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
@@ -678,11 +797,32 @@ export async function POST(req: Request) {
           );
         }
       }
-    } catch {
-      // ignore (table missing / supabase not configured) and fall back to in-memory lock below
+    } catch (e: any) {
+      const msg = String(e?.message || e || "");
+      // These errors mean the persistent store cannot be used.
+      if (msg.includes("AI_ASTROLOGY_REPORTS_TABLE_MISSING") || msg.includes("SUPABASE_NOT_CONFIGURED")) {
+        storeUnavailableError = msg;
+      }
     }
 
-    const isProcessing = markReportProcessing(idempotencyKey, reportId);
+    // In production (non-MOCK) we require the persistent store; otherwise polling will never complete reliably.
+    // Test sessions are allowed to proceed via forced mock mode below.
+    const allowVolatileFallback =
+      process.env.NODE_ENV !== "production" || process.env.MOCK_MODE === "true" || isTestSession;
+    if (storeUnavailableError && !allowVolatileFallback) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "AI report store is not configured. Please create the Supabase table `ai_astrology_reports` and set Supabase env vars. See: `astrosetu/docs/AI_ASTROLOGY_REPORT_STORE_SUPABASE.sql`.",
+          code: storeUnavailableError,
+          requestId,
+        },
+        { status: 503, headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
+      );
+    }
+
+    const isProcessing = bypassInMemoryLock ? true : markReportProcessing(idempotencyKey, reportId);
     
     if (!isProcessing) {
       // Another request is already processing this report - return processing status
@@ -1122,7 +1262,8 @@ export async function POST(req: Request) {
     console.log("[GENERATION START]", JSON.stringify(generationStartLog, null, 2));
 
     // MOCK_MODE: Return mock data for testing/development (prevents external API calls)
-    const mockMode = process.env.MOCK_MODE === "true";
+    // IMPORTANT: test_session_* must always use mock generation even in production to keep test flows fast and reliable.
+    const mockMode = isTestSession || process.env.MOCK_MODE === "true";
     if (mockMode) {
       const { getMockReport, simulateApiDelay } = await import("@/lib/ai-astrology/mocks/fixtures");
       
@@ -1146,6 +1287,7 @@ export async function POST(req: Request) {
         action: "MOCK_REPORT_GENERATED",
         reportType,
         reportId,
+        isTestSession,
         elapsedMs: Date.now() - startTime,
       };
       console.log("[MOCK MODE]", JSON.stringify(mockLog, null, 2));

@@ -42,7 +42,10 @@ function SubscriptionContent() {
       const savedInput = sessionStorage.getItem("aiAstrologyInput");
 
       if (!savedInput) {
-        router.push("/ai-astrology/input");
+        // Subscription is its own journey; collect birth details but return to subscription dashboard,
+        // not into the free-report preview flow.
+        const returnTo = "/ai-astrology/subscription";
+        router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent(returnTo)}`);
         return;
       }
 
@@ -153,6 +156,11 @@ function SubscriptionContent() {
     try {
       setLoading(true);
       setError(null); // Clear any previous errors
+      const successUrl =
+        typeof window !== "undefined" ? `${window.location.origin}/ai-astrology/subscription/success?session_id={CHECKOUT_SESSION_ID}` : undefined;
+      const cancelUrl =
+        typeof window !== "undefined" ? `${window.location.origin}/ai-astrology/subscription?canceled=1` : undefined;
+
       const response = await apiPost<{
         ok: boolean;
         data?: { url: string; sessionId: string };
@@ -160,10 +168,16 @@ function SubscriptionContent() {
       }>("/api/ai-astrology/create-checkout", {
         subscription: true,
         input,
+        successUrl,
+        cancelUrl,
       });
 
       if (!response.ok) {
         throw new Error(response.error || "Failed to create subscription");
+      }
+
+      if (!response.data?.url) {
+        throw new Error("Subscription checkout did not return a redirect URL. Please try again.");
       }
 
       // Persist session id so refresh/navigation doesn't break verification recovery.

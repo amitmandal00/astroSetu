@@ -24,11 +24,12 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 - If a step is long-running, run it in the background when possible and continue with other work.
 
 ### If the model/provider fails (Try again / Resume)
-- Retry the same step up to **2** times.
-- If still failing: reduce scope (less context, fewer files, shorter output) and continue by:
-  - summarizing intended changes,
-  - preparing exact file edits/diffs conceptually,
-  - listing the exact next commands/files to run.
+- Retry the same step up to **3** times, with suggested backoff: **10s → 30s → 60s**.
+- If still failing: reduce scope (less context, fewer files, shorter output) and switch to **OFFLINE PROGRESS**:
+  - continue with safe offline work (read/search/analyze),
+  - prepare patch-level diffs so changes are ready to apply,
+  - update `CURSOR_PROGRESS.md`,
+  - log the exact required click (e.g., “Resume”) and best next setting (e.g., “switch provider/model”) in `CURSOR_ACTIONS_REQUIRED.md`.
 - Never block waiting for the user; keep progressing on non-blocked work.
 
 ### Approvals (hard stops)

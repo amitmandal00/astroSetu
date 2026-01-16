@@ -61,6 +61,7 @@ logs
 # Test results
 test-results/
 *.test.js.snap
+playwright-report/
 
 # Temporary files
 *.tmp

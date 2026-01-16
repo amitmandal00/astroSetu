@@ -33,6 +33,10 @@ function InputFormContent() {
   const bundleReports: ReportType[] = reportsParam 
     ? reportsParam.split(",").filter(r => validReportTypes.includes(r as ReportType)) as ReportType[]
     : [];
+
+  // Optional: allow other journeys (e.g. subscription onboarding) to collect birth details and return.
+  const flow = searchParams.get("flow"); // e.g. "subscription"
+  const returnTo = searchParams.get("returnTo"); // absolute path within site (recommended)
   
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
@@ -202,7 +206,13 @@ function InputFormContent() {
         // Continue anyway - preview page will handle missing data
       }
 
-      // Redirect to preview page
+      // Subscription onboarding: collect details and return to dashboard (do NOT route into free-report preview).
+      if (flow === "subscription" && returnTo) {
+        await router.push(returnTo);
+        return;
+      }
+
+      // Default: redirect to preview page
       // CRITICAL: Always include reportType in URL to prevent redirect loops
       // This ensures the preview page knows what report type to generate even if sessionStorage is lost
       // CRITICAL FIX: Use finalReportType (from URL) instead of reportType (from state)

@@ -1,6 +1,6 @@
 # Defect to Test Mapping - Complete Coverage Verification
 
-## 📋 Defects Reported This Week (Jan 6-13, 2026)
+## 📋 Defects (Jan 6-16, 2026)
 
 ### 1. ✅ Retry Loading Bundle Button Not Working
 - **Status**: ✅ FIXED
@@ -59,18 +59,51 @@
 
 ---
 
+## 📋 Recent + New Defects (Jan 14-16, 2026)
+
+### 8. ✅ Year Analysis Purchase Button Redirects to Free Life Summary (DEF-008)
+- **Status**: ✅ FIXED
+- **Test Coverage**:
+  - Regression: `tests/regression/year-analysis-purchase-redirect.test.ts`
+  - E2E: `tests/e2e/navigation-flows.spec.ts`
+  - **Verification**: ✅ Tests exist (retest pending)
+
+### 9. ✅ Report Generation Flickers Back to Input Screen (DEF-009)
+- **Status**: ✅ FIXED
+- **Test Coverage**:
+  - Regression: `tests/regression/report-generation-flicker.test.ts`
+  - E2E: `tests/e2e/loader-timer-never-stuck.spec.ts`
+  - **Verification**: ✅ Tests exist (retest pending)
+
+### 10. ✅ Production Report Generation Can Stall Forever When Persistent Report Store Is Unavailable (DEF-010)
+- **Status**: ✅ FIXED
+- **Test Coverage**:
+  - Integration: `tests/integration/report-store-availability.test.ts`
+  - E2E: `tests/e2e/critical-invariants.spec.ts` (test_session paths)
+  - **Verification**: ✅ Tests exist (retest pending)
+
+### 11. ✅ Monthly Subscription Journey Loses Context / Subscribe Redirect Appears to Do Nothing (DEF-011)
+- **Status**: ✅ FIXED
+- **Test Coverage**:
+  - E2E: `tests/e2e/subscription-returnto-roundtrip.spec.ts`
+  - E2E: `tests/e2e/subscription-journey-monotonic.spec.ts`
+  - E2E: `tests/e2e/billing-subscribe-flow.spec.ts`
+  - **Verification**: ✅ Tests exist (retest pending)
+
+---
+
 ## 📊 Test Coverage Summary
 
 ### Defect Coverage:
-- **Total Defects**: 7
-- **Defects with Tests**: 7 ✅
-- **Defects Fixed**: 7 ✅
+- **Total Defects**: 11
+- **Defects with Tests**: 11 ✅
+- **Defects Fixed**: 11 ✅ (retest pending)
 - **Coverage**: 100% ✅
 
 ### Test Types per Defect:
-- **Unit Tests**: 5/7 defects
-- **Integration Tests**: 7/7 defects
-- **E2E Tests**: 7/7 defects
+- **Unit Tests**: 5/11 defects
+- **Integration Tests**: 8/11 defects
+- **E2E Tests**: 11/11 defects
 
 ---
 
