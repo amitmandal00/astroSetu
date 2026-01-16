@@ -144,11 +144,17 @@ function PreviewContent() {
     isProcessingUIRef.current = isProcessingUI;
   }, [isProcessingUI]);
 
-  // CRITICAL: Ensure a startTime exists as soon as the processing UI becomes visible.
-  // We set the ref synchronously during render (safe) so the timer can tick even before effects flush.
-  // (Some flows can show the loader via URL params before async generation sets loadingStartTime.)
-  if (typeof window !== "undefined" && isProcessingUI && loadingStartTimeRef.current === null) {
+  // CRITICAL FIX (ChatGPT Feedback): Timer initialization should use attemptKey, not isProcessingUI
+  // isProcessingUI can flip during state initialization, causing timer to reset
+  // Timer should be initialized when generation starts (when attemptKey is set), not based on UI computation
+  // For first-load with auto_generate, timer will be set when generateReport is called (line 285-288)
+  // This check is kept as fallback for legacy flows, but primary initialization is in generateReport
+  // CRITICAL: Use activeAttemptKeyRef OR loading state to initialize timer, NOT isProcessingUI computation
+  if (typeof window !== "undefined" && (activeAttemptKeyRef.current || loading) && loadingStartTimeRef.current === null) {
+    // Only initialize timer if there's an active attemptKey (generation has started) OR loading state
+    // This prevents timer from being set/reset during state initialization before generation starts
     loadingStartTimeRef.current = Date.now();
+    // Don't set state here (causes re-render) - state will be set in generateReport
   }
 
   // CRITICAL FIX: Use hook to compute elapsed time (single source of truth)
@@ -1941,9 +1947,13 @@ function PreviewContent() {
         loadingStartTimeRef.current = generationController.startTime;
       } else if (!generationController.startTime && loadingStartTime) {
         // Controller reset but component still has start time - sync
-        // CRITICAL: Never clear timer while loader is visible (monotonic timer invariant).
-        // Clearing startTime while UI still shows loader causes elapsed to snap back to 0 and appear "stuck".
-        if (generationController.status === 'idle' && usingControllerRef.current && !isProcessingUIRef.current) {
+        // CRITICAL FIX (ChatGPT Feedback): Never clear timer based on isProcessingUIRef
+        // isProcessingUIRef can flip during state initialization, causing timer to reset
+        // Only clear timer when we're SURE generation is done: status === 'idle' AND no content AND no active attempt
+        // Use activeAttemptKeyRef instead of isProcessingUIRef to avoid race conditions
+        if (generationController.status === 'idle' && usingControllerRef.current && !activeAttemptKeyRef.current && !generationController.reportContent && !generationController.error) {
+          // Only clear if there's no active generation attempt (no attemptKey)
+          // This prevents clearing timer during first-load state initialization
           setLoadingStartTime(null);
           loadingStartTimeRef.current = null;
         }
@@ -1953,26 +1963,26 @@ function PreviewContent() {
       if (generationController.reportContent && !reportContent) {
         setReportContent(generationController.reportContent);
         setContentLoadTime(Date.now());
-        // CRITICAL: When report content arrives, stop loading and timer
+        // CRITICAL FIX (ChatGPT Feedback): When report content arrives, stop loading and timer
+        // Don't check isProcessingUIRef - clear timer immediately when content arrives
         setLoading(false);
         setLoadingStage(null);
-        if (!isProcessingUIRef.current) {
-          loadingStartTimeRef.current = null;
-          setLoadingStartTime(null);
-        }
+        loadingStartTimeRef.current = null;
+        setLoadingStartTime(null);
+        activeAttemptKeyRef.current = null; // Clear attempt key on completion
       }
       
       // CHATGPT FIX: Sync error from generation controller
       if (generationController.error && !error) {
         setError(generationController.error);
-        // On error, stop loading
+        // CRITICAL FIX (ChatGPT Feedback): On error, stop loading and timer
+        // Don't check isProcessingUIRef - clear timer immediately on error
         if (generationController.status === 'failed' || generationController.status === 'timeout') {
           setLoading(false);
           setLoadingStage(null);
-          if (!isProcessingUIRef.current) {
-            loadingStartTimeRef.current = null;
-            setLoadingStartTime(null);
-          }
+          loadingStartTimeRef.current = null;
+          setLoadingStartTime(null);
+          activeAttemptKeyRef.current = null; // Clear attempt key on error
         }
       }
       
