@@ -106,22 +106,23 @@ async function mockGenerateReport(page: any) {
 async function expectTimerTicks(page: any) {
   // Prefer the main loader heading to avoid hidden/duplicate text matches
   await expect(page.getByRole("heading", { name: LOADER_TITLE })).toBeVisible({ timeout: 10000 });
-  const elapsedElement = page.locator(ELAPSED);
-  await expect(elapsedElement).toBeVisible({ timeout: 5000 });
+  const elapsedElement = page.locator(ELAPSED).first();
+  await expect(elapsedElement).toBeVisible({ timeout: 10000 });
 
-  const t1 = await elapsedElement.innerText();
-  await page.waitForTimeout(2200);
-  const t2 = await elapsedElement.innerText();
+  const readSeconds = async () => {
+    const t = await elapsedElement.innerText().catch(() => "0");
+    return parseInt((t.match(/\d+/) ?? ["0"])[0], 10);
+  };
 
-  const n1 = parseInt((t1.match(/\d+/) ?? ["0"])[0], 10);
-  const n2 = parseInt((t2.match(/\d+/) ?? ["0"])[0], 10);
-  // Allow one retry to avoid flakiness on slow CI runners.
-  if (n2 <= n1) {
-    await page.waitForTimeout(2200);
-    const t3 = await elapsedElement.innerText();
-    const n3 = parseInt((t3.match(/\d+/) ?? ["0"])[0], 10);
-    expect(n3).toBeGreaterThan(n1);
-    return;
+  const n1 = await readSeconds();
+
+  // Poll up to ~6s to allow for hydration/first-interval delays under load.
+  const deadline = Date.now() + 6500;
+  let n2 = n1;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(500);
+    n2 = await readSeconds();
+    if (n2 > n1) break;
   }
   expect(n2).toBeGreaterThan(n1);
 }

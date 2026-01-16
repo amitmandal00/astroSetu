@@ -64,9 +64,14 @@ describe("Future Windows Integration - All Report Types", () => {
       expect(range.startYear).toBeGreaterThanOrEqual(currentYear);
       expect(range.endYear).toBeGreaterThanOrEqual(range.startYear);
       
-      // Start date must be >= now
+      // Contract: range should cover "now" and point forward (it may start at month-begin).
       const startDate = new Date(range.startDate);
-      expect(startDate.getTime()).toBeGreaterThanOrEqual(now.getTime() - 86400000); // Allow 1 day tolerance
+      const endDate = new Date(range.endDate);
+      // End must be in the future relative to now.
+      expect(endDate.getTime()).toBeGreaterThan(now.getTime());
+      // Now should be within [start, end] with small tolerance for clock skew.
+      expect(startDate.getTime()).toBeLessThanOrEqual(now.getTime() + 60_000);
+      expect(endDate.getTime()).toBeGreaterThanOrEqual(now.getTime() - 60_000);
     });
   });
   

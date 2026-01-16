@@ -443,7 +443,35 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     }
   }
   
+  const lifeSummaryTitleSet =
+    reportType === "life-summary"
+      ? new Set(
+          [
+            "executive summary",
+            "top strengths",
+            "key challenges",
+            "relationships & communication",
+            "career & money themes",
+            "health & energy themes",
+            "growth & spiritual themes",
+            "next 30 days: quick wins",
+            "important information",
+          ].map((s) => s.toLowerCase())
+        )
+      : null;
+
   for (const line of lines) {
+    const trimmed = line.trim();
+    const normalizedTitle = trimmed.replace(/^#{1,3}\s+/, "").replace(/:$/, "").trim().toLowerCase();
+
+    // Life-summary robustness: LLMs sometimes output headings without ":" / "#" even when instructed.
+    // If we fail to detect headings, the report collapses into 1 big section and feels "thin".
+    if (lifeSummaryTitleSet && lifeSummaryTitleSet.has(normalizedTitle)) {
+      if (currentSection) sections.push(currentSection);
+      currentSection = { title: trimmed.replace(/:$/, "").trim(), content: "" };
+      continue;
+    }
+
     // Check if it's a section header (starts with # or number)
     if (line.match(/^#{1,3}\s+|^\d+\.\s+.*:|^[A-Z][^:]*:$/)) {
       // Save previous section
@@ -500,6 +528,14 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     // This ensures a single canonical reportId (single source of truth)
     generatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Test-only export: allows unit tests to validate parsing behavior without calling external astrology APIs.
+ * Do not use in production code.
+ */
+export function __test_parseAIResponse(response: string, reportType: ReportType): ReportContent {
+  return parseAIResponse(response, reportType);
 }
 
 function extractSummary(response: string): string {

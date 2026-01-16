@@ -24,23 +24,9 @@ export function useElapsedSeconds(
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // CRITICAL FIX: Use ref as fallback if state is null (fixes race condition)
-    // This handles the case where setLoadingStartTime() is called but state hasn't flushed yet
-    const effectiveStartTime = startTime ?? startTimeRef?.current ?? null;
-
     // CRITICAL FIX: If not running, ALWAYS reset to 0 and stop timer
     // This ensures timer stops immediately when loading becomes false
     if (!isRunning) {
-      setElapsed(0);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-
-    // If running but no start time, also reset (shouldn't happen, but be safe)
-    if (!effectiveStartTime) {
       setElapsed(0);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -62,18 +48,16 @@ export function useElapsedSeconds(
     // Set initial elapsed time immediately
     setElapsed(computeElapsed());
 
-    // Update every second
+    // Update every second.
+    // IMPORTANT: Even if startTime isn't available *yet*, keep the interval alive while isRunning is true.
+    // Some flows set `startTimeRef.current` slightly after `isRunning` flips true; without this,
+    // the timer can get "stuck" at 0 because the effect would bail out before the ref is populated.
     intervalRef.current = setInterval(() => {
       // CRITICAL FIX: Check if still running on each interval
       // This prevents timer from continuing if loading was set to false
-      // Note: We can't check isRunning in closure, but we check effectiveStartTime
       const currentStartTime = startTime ?? startTimeRef?.current ?? null;
       if (!currentStartTime) {
         setElapsed(0);
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
         return;
       }
       setElapsed(computeElapsed());

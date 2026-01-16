@@ -22,6 +22,12 @@ import type { AIAstrologyInput } from '@/lib/ai-astrology/types';
 // Mock fetch
 global.fetch = vi.fn();
 
+async function flushMicrotasks() {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
 describe('Weekly Issues Replication Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -57,15 +63,21 @@ describe('Weekly Issues Replication Tests', () => {
           json: async () => ({ ok: true, data: { status: 'processing', reportId: 'report-1' } }),
         } as Response)
       );
+      // First poll response (avoid undefined fetch -> polling error noise)
+      (global.fetch as any).mockImplementationOnce(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ ok: true, data: { status: 'processing', reportId: 'report-1' } }),
+        } as Response)
+      );
 
       await act(async () => {
         await result.current.start(input, 'marriage-timing');
       });
+      await flushMicrotasks();
 
-      // Wait for polling to start - allow time for async operations
-      await waitFor(() => {
-        expect(result.current.status).toBe('polling');
-      }, { timeout: 5000 });
+      expect(result.current.status).toBe('polling');
 
       // Cancel (simulating retry) - this should reset guards
       await act(async () => {
@@ -97,11 +109,9 @@ describe('Weekly Issues Replication Tests', () => {
       await act(async () => {
         await result.current.start(input, 'marriage-timing');
       });
+      await flushMicrotasks();
 
-      // Should succeed (not blocked by guards) - use real timers
-      await waitFor(() => {
-        expect(result.current.status).toBe('completed');
-      }, { timeout: 5000 });
+      expect(result.current.status).toBe('completed');
     }, { timeout: 10000 });
   });
 
@@ -298,22 +308,11 @@ describe('Weekly Issues Replication Tests', () => {
       await act(async () => {
         await result.current.start(input, 'life-summary');
       });
+      await flushMicrotasks();
 
-      await waitFor(() => {
-        expect(result.current.status).toBe('polling');
-      }, { timeout: 5000 });
-
-      // Advance time to trigger polling (polling interval is 2000ms)
-      // Use real timers for async operations
-      await act(async () => {
-        vi.advanceTimersByTime(2500); // Slightly more than poll interval
-      });
-
-      // CRITICAL: State should be updated immediately
-      await waitFor(() => {
-        expect(result.current.status).toBe('completed');
-        expect(result.current.reportContent).not.toBeNull();
-      }, { timeout: 8000 });
+      // Polling runs immediately in the controller; the next fetch returns completed.
+      expect(result.current.status).toBe('completed');
+      expect(result.current.reportContent).not.toBeNull();
       
       // Timer should be stopped (startTime is null when completed)
       expect(result.current.startTime).toBeNull();
@@ -421,6 +420,7 @@ describe('Weekly Issues Replication Tests', () => {
       await act(async () => {
         await controllerResult.current.start(input, 'life-summary');
       });
+      await flushMicrotasks();
 
       // Timer should be incrementing (not stuck at 0s)
       await act(async () => {
@@ -440,12 +440,11 @@ describe('Weekly Issues Replication Tests', () => {
       await act(async () => {
         vi.advanceTimersByTime(2500); // Slightly more than poll interval
       });
+      await flushMicrotasks();
 
       // CRITICAL: State should be updated and timer should stop
-      await waitFor(() => {
-        expect(controllerResult.current.status).toBe('completed');
-        expect(controllerResult.current.reportContent).not.toBeNull();
-      }, { timeout: 8000 });
+      expect(controllerResult.current.status).toBe('completed');
+      expect(controllerResult.current.reportContent).not.toBeNull();
 
       // Timer should stop (isRunning becomes false)
       const { result: stoppedTimerResult } = renderHook(() => 

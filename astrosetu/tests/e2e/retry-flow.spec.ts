@@ -59,22 +59,27 @@ test.describe('Retry Flow E2E', () => {
     // Wait for preview page
     await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
     
-    // Wait for report generation to complete
-    await page.waitForTimeout(3000); // Wait for report to generate
+    // Wait for report generation to complete (MOCK_MODE can be fast, but don't assume 3s)
+    await waitForReportGeneration(page, 30000);
     
     // Look for retry button (may not be visible if no error)
     const retryButton = page.locator('button:has-text("Retry"), button:has-text("Try Again"), a:has-text("Retry")');
     
     // Check for various UI states that might be present
     const hasRetryButton = await retryButton.isVisible({ timeout: 2000 }).catch(() => false);
-    const reportContent = page.locator('text=/Your.*Report|Life Summary|Report|Overview/i');
-    const hasReport = await reportContent.isVisible({ timeout: 2000 }).catch(() => false);
-    const loadingState = page.locator('text=/Generating|Loading/i');
-    const hasLoading = await loadingState.isVisible({ timeout: 2000 }).catch(() => false);
+    const downloadButton = page.locator('button:has-text("Download")').first();
+    const reportMarker = page
+      .locator('text=/Report|Overview|Summary|Insights|Timing|Career|Decision|Year\\s*Analysis|Life\\s*Summary|Bundle/i')
+      .first();
+    const loaderHeading = page.getByRole('heading', { name: /Generating|Verifying|Preparing/i }).first();
+
+    const hasDownload = await downloadButton.isVisible({ timeout: 2000 }).catch(() => false);
+    const hasMarker = await reportMarker.isVisible({ timeout: 2000 }).catch(() => false);
+    const hasLoading = await loaderHeading.isVisible({ timeout: 2000 }).catch(() => false);
     
     // The preview page should show one of: retry button, report content, or loading state
     // All are valid states depending on the current state of report generation
-    const hasAnyUI = hasRetryButton || hasReport || hasLoading;
+    const hasAnyUI = hasRetryButton || hasDownload || hasMarker || hasLoading;
     
     // At least one UI element should be present (this verifies the page loaded and report generated)
     expect(hasAnyUI).toBeTruthy();

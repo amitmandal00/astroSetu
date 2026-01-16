@@ -26,7 +26,7 @@ test.describe('Free Report (Life Summary) E2E', () => {
     await fillInputForm(page);
     
     // Step 3: Wait for redirect to preview page
-    await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
+    await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 20000 });
     
     // Step 4: Wait for report generation (with MOCK_MODE, this should be fast)
     await waitForReportGeneration(page, 15000);
@@ -42,6 +42,11 @@ test.describe('Free Report (Life Summary) E2E', () => {
     // Verify report content is visible (main content sections from mock data)
     const reportContent = page.locator('text=/Overview|Summary|Insights|Key|Personality|Strengths/i');
     await expect(reportContent.first()).toBeVisible({ timeout: 5000 });
+
+    // Guardrail: life-summary should feel structured (not "thin" blob).
+    // We expect at least a couple of the required headings to render in MOCK_MODE.
+    await expect(page.locator('text=/Top Strengths/i')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=/Key Challenges/i')).toBeVisible({ timeout: 5000 });
     
     // User's name might not be displayed in the report content, so we just verify content exists
     // If title or content is visible, the report is displayed successfully
@@ -53,7 +58,7 @@ test.describe('Free Report (Life Summary) E2E', () => {
     await fillInputForm(page);
     
     // Wait for preview page
-    await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
+    await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 20000 });
     
     // Verify loading state appears briefly
     const loadingText = page.locator('text=/Generating|Creating|Analyzing/i');

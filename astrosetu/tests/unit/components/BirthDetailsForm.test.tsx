@@ -26,8 +26,11 @@ describe('BirthDetailsForm Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // @ts-ignore
-    global.navigator.geolocation = mockGeolocation;
+    // Ensure geolocation is writable in JSDOM
+    Object.defineProperty(global.navigator, "geolocation", {
+      value: mockGeolocation,
+      configurable: true,
+    });
   });
 
   it('should render all form fields', () => {
@@ -131,23 +134,14 @@ describe('BirthDetailsForm Component', () => {
     const nowButton = screen.getByText('⏰ NOW');
     fireEvent.click(nowButton);
 
-    // The handleNow function calls updateField multiple times (once per field)
-    // We need to check that all fields were updated correctly
-    // The calls should be: day, month, year, hours, minutes, seconds
-    const calls = mockOnChange.mock.calls;
-    expect(calls.length).toBeGreaterThanOrEqual(6);
-    
-    // Check that the final state has all the correct values
-    // The last call should have seconds, but we need to find the call with all values
-    // Actually, each call updates one field, so we need to merge all calls
-    const finalState = calls.reduce((acc, call) => ({ ...acc, ...call[0] }), defaultData);
-    
-    expect(finalState).toMatchObject({
+    // Should update all fields in a single onChange call (no stale-props overwrites)
+    expect(mockOnChange).toHaveBeenCalledWith({
+      ...defaultData,
       day: '15',
       month: '1',
       year: '2024',
-      hours: '10',
-      minutes: '30',
+      hours: '10', // padded by component
+      minutes: '30', // padded by component
       seconds: '45',
     });
 

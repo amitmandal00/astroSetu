@@ -129,12 +129,18 @@ export function BirthDetailsForm({ title, data, onChange, showQuickActions = tru
 
   function handleNow() {
     const now = new Date();
-    updateField("day", now.getDate().toString());
-    updateField("month", (now.getMonth() + 1).toString());
-    updateField("year", now.getFullYear().toString());
-    updateField("hours", now.getHours().toString().padStart(2, "0"));
-    updateField("minutes", now.getMinutes().toString().padStart(2, "0"));
-    updateField("seconds", now.getSeconds().toString().padStart(2, "0"));
+    // IMPORTANT: Update all fields in a single onChange call.
+    // If we call updateField multiple times in the same tick, we spread stale `data`
+    // and each call overwrites previous fields (parent can't re-render between calls).
+    onChange({
+      ...data,
+      day: now.getDate().toString(),
+      month: (now.getMonth() + 1).toString(),
+      year: now.getFullYear().toString(),
+      hours: now.getHours().toString().padStart(2, "0"),
+      minutes: now.getMinutes().toString().padStart(2, "0"),
+      seconds: now.getSeconds().toString().padStart(2, "0"),
+    });
   }
 
   return (

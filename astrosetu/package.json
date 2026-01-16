@@ -34,6 +34,8 @@
     "prepush": "npm run type-check && npm run build",
     "regression-check": "bash scripts/regression-check.sh",
     "pre-deploy": "npm run type-check && npm run build && npm run test:regression"
+    ,
+    "stability:full": "bash scripts/stability-full.sh"
   },
   "dependencies": {
     "@sentry/nextjs": "^8.0.0",

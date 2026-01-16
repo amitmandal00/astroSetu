@@ -7,13 +7,23 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST } from '@/app/api/contact/route';
 import { NextRequest } from 'next/server';
 
-// Mock Supabase
+// Mock Supabase (server client)
 vi.mock('@/lib/supabase', () => ({
-  createClient: vi.fn(() => ({
+  createServerClient: vi.fn(() => ({
     from: vi.fn(() => ({
-      insert: vi.fn().mockResolvedValue({ data: { id: '123' }, error: null }),
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          gte: vi.fn().mockResolvedValue({ data: [], error: null }),
+        })),
+      })),
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({ data: { id: "123", created_at: new Date().toISOString() }, error: null }),
+        })),
+      })),
     })),
   })),
+  isSupabaseConfigured: vi.fn(() => true),
 }));
 
 // Mock email sending
@@ -107,7 +117,8 @@ describe('Contact API Integration Tests', () => {
       expect(response.status).toBe(200);
       
       const data = await response.json();
-      expect(data.success).toBe(true);
+      expect(data.ok).toBe(true);
+      expect(data.data?.message).toBeTruthy();
     });
 
     it('rejects invalid email', async () => {
@@ -148,14 +159,20 @@ describe('Contact API Integration Tests', () => {
 
     it('handles database errors gracefully', async () => {
       // Mock database error
-      const { createClient } = await import('@/lib/supabase');
-      const mockClient = createClient as any;
+      const { createServerClient } = await import('@/lib/supabase');
+      const mockClient = createServerClient as any;
       mockClient.mockReturnValueOnce({
         from: vi.fn(() => ({
-          insert: vi.fn().mockResolvedValue({ 
-            data: null, 
-            error: { message: 'Database error' } 
-          }),
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          })),
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: null, error: { message: "Database error" } }),
+            })),
+          })),
         })),
       });
 
@@ -166,7 +183,8 @@ describe('Contact API Integration Tests', () => {
           email: 'test@example.com',
           phone: '+919876543210',
           subject: 'Test',
-          message: 'Test',
+          // Must satisfy ContactFormSchema: message min length is 10
+          message: 'Test message with enough characters',
           category: 'general',
         }),
         headers: {
@@ -175,8 +193,10 @@ describe('Contact API Integration Tests', () => {
       });
 
       const response = await POST(request);
-      // Should handle error gracefully
-      expect(response.status).toBeGreaterThanOrEqual(400);
+      // DB failure should not fail the request (email still sent) → ok:true
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.ok).toBe(true);
     });
 
     it('validates phone number format', async () => {

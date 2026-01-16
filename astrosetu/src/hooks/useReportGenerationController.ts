@@ -151,6 +151,21 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
             return;
           }
 
+          // If API returns ok:false, do not hang in "polling" forever.
+          // Treat explicit errors as a failed generation attempt.
+          if (data && data.ok === false) {
+            if (activeAttemptIdRef.current !== attemptId || abortSignal.aborted) {
+              return;
+            }
+            setState((prev) =>
+              transitionState(prev, 'failed', {
+                error: data.error || 'Report generation failed',
+                startTime: null,
+              })
+            );
+            return;
+          }
+
           if (data.ok && data.data) {
             if (data.data.status === 'completed') {
               // CRITICAL: Final check before updating state
@@ -163,6 +178,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
                 transitionState(prev, 'completed', {
                   reportId: data.data.reportId,
                   error: null,
+                  startTime: null,
                 })
               );
               setReportContent(data.data.content);
@@ -181,6 +197,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
                 setState((prev) =>
                   transitionState(prev, 'timeout', {
                     error: 'Report generation timed out',
+                    startTime: null,
                   })
                 );
               }
@@ -192,6 +209,24 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
               setState((prev) =>
                 transitionState(prev, 'failed', {
                   error: data.data.error || 'Report generation failed',
+                  startTime: null,
+                })
+              );
+            }
+          } else {
+            // Unexpected payload shape; retry until maxAttempts then fail.
+            if (pollAttempts < maxAttempts) {
+              pollIntervalRef.current = setTimeout(() => {
+                poll();
+              }, pollInterval);
+            } else {
+              if (activeAttemptIdRef.current !== attemptId || abortSignal.aborted) {
+                return;
+              }
+              setState((prev) =>
+                transitionState(prev, 'failed', {
+                  error: 'Polling failed: invalid response payload',
+                  startTime: null,
                 })
               );
             }
@@ -218,6 +253,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
             setState((prev) =>
               transitionState(prev, 'failed', {
                 error: error.message || 'Polling failed',
+                startTime: null,
               })
             );
           }
@@ -293,6 +329,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
           setState((prev) =>
             transitionState(prev, 'failed', {
               error: errorData.error || 'Report generation failed',
+              startTime: null,
             })
           );
           return;
@@ -312,6 +349,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
               transitionState(prev, 'completed', {
                 reportId: data.data.reportId,
                 error: null,
+                startTime: null,
               })
             );
             setReportContent(data.data.content);
@@ -335,6 +373,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
             setState((prev) =>
               transitionState(prev, 'failed', {
                 error: data.error || 'Unknown status',
+                startTime: null,
               })
             );
           }
@@ -354,6 +393,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
         setState((prev) =>
           transitionState(prev, 'failed', {
             error: error.message || 'Report generation failed',
+            startTime: null,
           })
         );
       }

@@ -129,6 +129,13 @@ function PreviewContent() {
     isProcessingUIRef.current = isProcessingUI;
   }, [isProcessingUI]);
 
+  // CRITICAL: Ensure a startTime exists as soon as the processing UI becomes visible.
+  // We set the ref synchronously during render (safe) so the timer can tick even before effects flush.
+  // (Some flows can show the loader via URL params before async generation sets loadingStartTime.)
+  if (typeof window !== "undefined" && isProcessingUI && loadingStartTimeRef.current === null) {
+    loadingStartTimeRef.current = Date.now();
+  }
+
   // CRITICAL FIX: Use hook to compute elapsed time (single source of truth)
   // Never store elapsedTime as state - always compute it from startTime
   // CRITICAL FIX: Pass ref as fallback to fix race condition where state update hasn't flushed yet
@@ -136,16 +143,11 @@ function PreviewContent() {
   const reportTypeRef = useRef<ReportType | null>(null); // Track report type in ref to avoid interval recreation
   const bundleGeneratingRef = useRef(false); // Track bundle state in ref to avoid interval recreation
 
-  // CRITICAL FIX (ChatGPT): Initialize startTime when loader becomes visible via session_id/reportId
-  // This fixes the root cause: loader visible but timer stuck at 0s because startTime was never created
-  // "If loader visible and startTime is null ⇒ set startTimeRef = Date.now() (once)"
+  // Keep state in sync with the ref (state updates are async; the ref is the immediate source of truth).
   useEffect(() => {
-    // Only initialize if loader is visible AND startTime is null
-    if (isProcessingUI && loadingStartTimeRef.current === null && loadingStartTime === null) {
-      const startTime = Date.now();
-      loadingStartTimeRef.current = startTime;
-      setLoadingStartTime(startTime);
-      console.log("[Timer Init] Initialized startTime because loader became visible via session_id/reportId");
+    if (!isProcessingUI) return;
+    if (loadingStartTime === null && loadingStartTimeRef.current !== null) {
+      setLoadingStartTime(loadingStartTimeRef.current);
     }
   }, [isProcessingUI, loadingStartTime]);
 
@@ -1926,9 +1928,13 @@ function PreviewContent() {
   useEffect(() => {
     // SAFETY GATE (ChatGPT feedback): do NOT clear timer/loading state if a generation attempt is active/starting.
     // First-load-only bug pattern: year-analysis start sets timer => this effect immediately clears it => elapsed snaps to 0 and polling/UI can get stuck.
-    const urlSessionId = searchParams.get("session_id");
-    const urlReportId = searchParams.get("reportId");
-    const autoGenerate = searchParams.get("auto_generate") === "true";
+    // IMPORTANT: Use `window.location.search` instead of `useSearchParams()` here.
+    // On first mount, `useSearchParams()` can lag hydration and briefly report missing params,
+    // which would incorrectly trigger this reset while the loader is already visible.
+    const qs = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : searchParams;
+    const urlSessionId = qs.get("session_id");
+    const urlReportId = qs.get("reportId");
+    const autoGenerate = qs.get("auto_generate") === "true";
     const isBusy =
       !!loading ||
       !!loadingStage ||
@@ -1937,7 +1943,7 @@ function PreviewContent() {
       !!isGeneratingRef.current ||
       // If the generation UI is visible, we are not idle and must not reset state.
       // This is the strongest invariant: timer + polling must remain monotonic while UI indicates processing.
-      !!isProcessingUI ||
+      !!isProcessingUIRef.current ||
       // CRITICAL: start time exists => generation has started (even if loading flag hasn't flipped yet)
       !!loadingStartTimeRef.current ||
       // Controller is active => do not reset anything (prevents first-load race on controller → legacy transitions)

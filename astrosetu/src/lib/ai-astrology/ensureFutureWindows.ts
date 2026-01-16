@@ -150,12 +150,11 @@ function sanitizeTimeWindow(win: TimeWindow, ctx: NowContext): TimeWindow {
 
 function sanitizeSection(section: ReportSection, ctx: NowContext): ReportSection {
   const title = section.title;
-  const shouldSanitize = isTimingSectionTitle(title);
-
-  const content = shouldSanitize ? normalizePastYearsInText(section.content || "", ctx.currentYear) : section.content;
-  const bullets = shouldSanitize && section.bullets
-    ? section.bullets.map((b) => normalizePastYearsInText(b, ctx.currentYear))
-    : section.bullets;
+  // IMPORTANT:
+  // Users perceive any past-year (20xx) prediction as a product defect, even if it's not in an explicitly "timing" section.
+  // So we normalize past years across ALL sections, not just timing-titled sections.
+  const content = section.content ? normalizePastYearsInText(section.content, ctx.currentYear) : section.content;
+  const bullets = section.bullets ? section.bullets.map((b) => normalizePastYearsInText(b, ctx.currentYear)) : section.bullets;
 
   const subsections = section.subsections?.map((s) => sanitizeSection(s, ctx));
   return { ...section, content, bullets, subsections };

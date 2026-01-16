@@ -68,10 +68,9 @@ function SubscriptionContent() {
             }
           } catch (e: any) {
             const msg = String(e?.message || "");
-            // Only attempt one-time verification if server indicates it needs a session id
-            if (!msg.toLowerCase().includes("session_id is required")) {
-              return;
-            }
+            // Even if the error isn't "session_id is required", we can still attempt one-time verification
+            // when we have a candidate session_id from URL/sessionStorage (best-effort, non-blocking).
+            // Do not early-return here; continue to step (2).
           }
 
           // 2) One-time verification path (best-effort; must not block UI)
@@ -108,7 +107,7 @@ function SubscriptionContent() {
       console.error("Error parsing saved input:", e);
       router.push("/ai-astrology/input");
     }
-  }, [router]);
+  }, [router, searchParams]);
 
   // Load current monthly guidance only when subscription is active (DB/API is source of truth).
   useEffect(() => {
@@ -165,6 +164,15 @@ function SubscriptionContent() {
 
       if (!response.ok) {
         throw new Error(response.error || "Failed to create subscription");
+      }
+
+      // Persist session id so refresh/navigation doesn't break verification recovery.
+      if (typeof window !== "undefined" && response.data?.sessionId) {
+        try {
+          sessionStorage.setItem("aiAstrologyPaymentSessionId", response.data.sessionId);
+        } catch {
+          // non-blocking
+        }
       }
 
       // Redirect to Stripe checkout (validate URL to prevent open redirects)

@@ -1,7 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import * as indianCities from '@/lib/indianCities';
+import { useState } from "react";
 
 // Mock the indianCities module
 vi.mock('@/lib/indianCities', () => ({
@@ -21,6 +22,31 @@ describe('AutocompleteInput Component', () => {
     vi.mocked(indianCities.searchLocalCities).mockReturnValue([]);
   });
 
+  afterEach(() => {
+    // Safety: ensure fake timers never leak to other tests (prevents suite-wide timeouts).
+    vi.useRealTimers();
+  });
+
+  function renderControlled(props?: Partial<React.ComponentProps<typeof AutocompleteInput>>) {
+    function Wrapper() {
+      const [value, setValue] = useState(props?.value ?? "");
+      return (
+        <AutocompleteInput
+          value={value}
+          onChange={(v) => {
+            setValue(v);
+            mockOnChange(v);
+          }}
+          onSelect={(p) => {
+            mockOnSelect(p);
+          }}
+          {...props}
+        />
+      );
+    }
+    return render(<Wrapper />);
+  }
+
   it('should render input with placeholder', () => {
     render(
       <AutocompleteInput
@@ -35,12 +61,7 @@ describe('AutocompleteInput Component', () => {
   });
 
   it('should call onChange when typing', async () => {
-    render(
-      <AutocompleteInput
-        value=""
-        onChange={mockOnChange}
-      />
-    );
+    renderControlled();
 
     const input = screen.getByRole('textbox');
     fireEvent.change(input, { target: { value: 'Delhi' } });
@@ -275,24 +296,23 @@ describe('AutocompleteInput Component', () => {
       json: async () => [],
     } as Response);
 
-    render(
-      <AutocompleteInput
-        value=""
-        onChange={mockOnChange}
-        debounceMs={300}
-      />
-    );
+    renderControlled({ debounceMs: 300 });
 
     const input = screen.getByRole('textbox');
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'Del' } });
 
-    // Fast-forward time
-    vi.advanceTimersByTime(300);
-
-    await waitFor(() => {
-      expect(indianCities.searchLocalCities).toHaveBeenCalled();
+    // Debounce should not run before 300ms
+    act(() => {
+      vi.advanceTimersByTime(299);
     });
+    expect(indianCities.searchLocalCities).not.toHaveBeenCalled();
+
+    // At 300ms, the debounced lookup runs
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(indianCities.searchLocalCities).toHaveBeenCalled();
 
     vi.useRealTimers();
   });
@@ -319,13 +339,7 @@ describe('AutocompleteInput Component', () => {
 
     vi.mocked(indianCities.searchLocalCities).mockReturnValue(mockCities);
 
-    render(
-      <AutocompleteInput
-        value="Del"
-        onChange={mockOnChange}
-        prioritizeIndia={true}
-      />
-    );
+    renderControlled({ value: "Del", prioritizeIndia: true, debounceMs: 1 });
 
     const input = screen.getByRole('textbox');
     fireEvent.focus(input);
@@ -341,12 +355,7 @@ describe('AutocompleteInput Component', () => {
     vi.mocked(indianCities.searchLocalCities).mockReturnValue([]);
     vi.mocked(global.fetch).mockRejectedValue(new Error('API Error'));
 
-    render(
-      <AutocompleteInput
-        value="UnknownCity"
-        onChange={mockOnChange}
-      />
-    );
+    renderControlled({ value: "UnknownCity", debounceMs: 1 });
 
     const input = screen.getByRole('textbox');
     fireEvent.focus(input);
@@ -371,15 +380,16 @@ describe('AutocompleteInput Component', () => {
 
     vi.mocked(indianCities.searchLocalCities).mockReturnValue(mockCities);
 
-    render(
-      <div>
-        <AutocompleteInput
-          value="Del"
-          onChange={mockOnChange}
-        />
-        <div data-testid="outside">Outside</div>
-      </div>
-    );
+    function Wrapper() {
+      const [value, setValue] = useState("Del");
+      return (
+        <div>
+          <AutocompleteInput value={value} debounceMs={1} onChange={(v) => { setValue(v); mockOnChange(v); }} />
+          <div data-testid="outside">Outside</div>
+        </div>
+      );
+    }
+    render(<Wrapper />);
 
     const input = screen.getByRole('textbox');
     fireEvent.focus(input);

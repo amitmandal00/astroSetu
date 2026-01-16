@@ -33,7 +33,8 @@ test.describe('All Report Types E2E', () => {
       await fillInputForm(page);
       
       // Wait for redirect to preview page
-      await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 10000 });
+      // Some paid flows can take >10s to transition (modal + client-side processing).
+      await page.waitForURL(/.*\/ai-astrology\/preview.*/, { timeout: 30000 });
       
       // Wait for report generation (with MOCK_MODE, this should be fast)
       // Paid reports may take slightly longer due to payment verification

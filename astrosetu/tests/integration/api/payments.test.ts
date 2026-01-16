@@ -33,8 +33,15 @@ vi.mock('@/lib/validation', () => ({
 }));
 
 describe('Payment API Integration', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // IMPORTANT: clearAllMocks does not reliably restore mock implementations across tests.
+    // Re-apply safe defaults so one-off overrides (mockImplementationOnce) never leak.
     vi.clearAllMocks();
+
+    const { checkRateLimit, parseJsonBody, validateRequestSize } = await import('@/lib/apiHelpers');
+    vi.mocked(checkRateLimit).mockReturnValue(null);
+    vi.mocked(validateRequestSize).mockImplementation(() => {});
+    vi.mocked(parseJsonBody).mockImplementation(async (req: any) => req.json());
   });
 
   it('should create a mock order when Razorpay is not configured', async () => {
@@ -157,7 +164,8 @@ describe('Payment API Integration', () => {
 
   it('should validate request size', async () => {
     const { validateRequestSize } = await import('@/lib/apiHelpers');
-    vi.mocked(validateRequestSize).mockImplementation(() => {
+    // IMPORTANT: use mockImplementationOnce so this doesn't leak into later tests.
+    vi.mocked(validateRequestSize).mockImplementationOnce(() => {
       throw new Error('Request too large');
     });
 
