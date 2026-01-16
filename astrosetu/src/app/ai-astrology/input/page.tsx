@@ -206,8 +206,9 @@ function InputFormContent() {
         // Continue anyway - preview page will handle missing data
       }
 
-      // Subscription onboarding: collect details and return to dashboard (do NOT route into free-report preview).
-      if (flow === "subscription" && returnTo) {
+      // Optional returnTo contract: allow other journeys to collect birth details and return to a specific page.
+      // Security: only allow in-site absolute paths.
+      if (returnTo && returnTo.startsWith("/")) {
         await router.push(returnTo);
         return;
       }

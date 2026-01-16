@@ -30,9 +30,11 @@ echo
 echo "== 6) E2E regressions for reported defects (MOCK_MODE) =="
 npx playwright test --workers=1 \
   tests/e2e/future-only-timing.spec.ts \
+  tests/e2e/first-load-year-analysis-must-not-stall.spec.ts \
   tests/e2e/year-analysis-first-load-timer-monotonic.spec.ts \
   tests/e2e/free-report.spec.ts \
   tests/e2e/billing-subscribe-flow.spec.ts \
+  tests/e2e/subscription-cancel-flow.spec.ts \
   tests/e2e/subscription-journey-monotonic.spec.ts
 echo
 

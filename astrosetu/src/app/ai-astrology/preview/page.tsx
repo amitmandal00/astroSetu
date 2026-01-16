@@ -1258,11 +1258,55 @@ function PreviewContent() {
           return;
         }
         
-        // If no input after delay, exit early
-        if (!savedInput) return;
+        // If input is missing (common on cold load/new tab after Stripe), try to recover from localStorage.
+        // Input page persists form data to localStorage, so this is a safe best-effort recovery.
+        let effectiveSavedInput = savedInput;
+        if (!effectiveSavedInput) {
+          try {
+            const fallbackForm = localStorage.getItem("aiAstrologyFormData");
+            if (fallbackForm) {
+              const form = JSON.parse(fallbackForm);
+              if (form?.name && form?.dob && form?.tob && form?.place && form?.latitude != null && form?.longitude != null) {
+                const tob = typeof form.tob === "string" && form.tob.length === 5 ? `${form.tob}:00` : form.tob;
+                const recovered = {
+                  name: String(form.name).trim(),
+                  dob: String(form.dob),
+                  tob,
+                  place: String(form.place).trim(),
+                  gender: form.gender || undefined,
+                  latitude: Number(form.latitude),
+                  longitude: Number(form.longitude),
+                  timezone: "Asia/Kolkata",
+                };
+                effectiveSavedInput = JSON.stringify(recovered);
+                try {
+                  sessionStorage.setItem("aiAstrologyInput", effectiveSavedInput);
+                } catch {
+                  // ignore
+                }
+              }
+            }
+          } catch {
+            // ignore recovery errors
+          }
+        }
+
+        // If input is still missing, route user to input to re-enter details, then return to this exact URL.
+        if (!effectiveSavedInput) {
+          if (urlSessionId && hasReportTypeInUrlCheck && typeof window !== "undefined") {
+            const rt = searchParams.get("reportType");
+            const returnTo = `${window.location.pathname}${window.location.search}`;
+            hasRedirectedRef.current = true;
+            router.push(
+              `/ai-astrology/input?reportType=${encodeURIComponent(rt || "life-summary")}&flow=resume&returnTo=${encodeURIComponent(returnTo)}`
+            );
+            return;
+          }
+          return;
+        }
         
         // Continue with the rest of the logic only if we have savedInput
-        const inputData = JSON.parse(savedInput);
+        const inputData = JSON.parse(effectiveSavedInput);
         // CRITICAL: Prefer reportType from URL params (most reliable), then sessionStorage, then default
         // URL params are most reliable because they persist even if sessionStorage is cleared
         const urlReportTypeForUse = searchParams.get("reportType") as ReportType | null;

@@ -16,6 +16,9 @@ Use this file as the single “where things stand” view during long Cursor ses
   - polling (`GET ?reportId=`) now fails safe after a long wait instead of spinning forever
 - [x] Improved subscription checkout handler to always validate redirect URL and send explicit success/cancel URLs to create-checkout.
 - [x] Updated Cursor autopilot docs to retry provider failures 3x (10/30/60s) and then switch to offline-progress + logging.
+- [x] Generated holistic AI-astrology review package zip for ChatGPT:
+  - `astrosetu/ai-astrology-complete-20260116-200704.zip` (~421K)
+  - Includes: `src/app/ai-astrology`, related APIs/libs/hooks, all tests (unit/integration/e2e/regression/contracts), defect registers, SEO + production-readiness docs, `.cursor/rules` + Cursor control docs, and CI workflow.
 
 ## In progress
 - [ ] Reproduce “first load stuck generation” on prod-like settings and confirm the above changes resolve the long-spinning loader.

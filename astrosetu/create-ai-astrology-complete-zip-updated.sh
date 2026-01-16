@@ -9,6 +9,7 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 ZIP_NAME="ai-astrology-complete-${TIMESTAMP}.zip"
 TEMP_DIR=$(mktemp -d)
 BASE_DIR="/Users/amitkumarmandal/Documents/astroCursor/astrosetu"
+ROOT_DIR="/Users/amitkumarmandal/Documents/astroCursor"
 
 echo "📦 Creating complete AI Astrology feature zip..."
 echo "📁 Temporary directory: $TEMP_DIR"
@@ -29,9 +30,17 @@ cp -r "$BASE_DIR/src/app/ai-astrology"/* src/app/ai-astrology/ 2>/dev/null || tr
 mkdir -p src/app/api/ai-astrology
 cp -r "$BASE_DIR/src/app/api/ai-astrology"/* src/app/api/ai-astrology/ 2>/dev/null || true
 
+# Billing subscription APIs (required for monthly subscription journey)
+mkdir -p src/app/api/billing
+cp -r "$BASE_DIR/src/app/api/billing"/* src/app/api/billing/ 2>/dev/null || true
+
 # Library files
 mkdir -p src/lib/ai-astrology
 cp -r "$BASE_DIR/src/lib/ai-astrology"/* src/lib/ai-astrology/ 2>/dev/null || true
+
+# Billing libs (subscription store + helpers)
+mkdir -p src/lib/billing
+cp -r "$BASE_DIR/src/lib/billing"/* src/lib/billing/ 2>/dev/null || true
 
 # Components (Headers, Footers, AI Astrology components)
 mkdir -p src/components/ai-astrology
@@ -59,41 +68,15 @@ cp "$BASE_DIR/src/lib/reportGenerationStateMachine.ts" src/lib/ 2>/dev/null || t
 # Copy all tests
 echo "🧪 Copying all test files..."
 
-# Unit tests
-mkdir -p tests/unit
-cp "$BASE_DIR/tests/unit/timer-logic.test.ts" tests/unit/ 2>/dev/null || true
-mkdir -p tests/unit/hooks
-cp "$BASE_DIR/tests/unit/hooks/useElapsedSeconds.test.ts" tests/unit/hooks/ 2>/dev/null || true
-cp "$BASE_DIR/tests/unit/hooks/useReportGenerationController.test.ts" tests/unit/hooks/ 2>/dev/null || true
-mkdir -p tests/unit/components
-cp "$BASE_DIR/tests/unit/components"/*.test.tsx tests/unit/components/ 2>/dev/null || true
-mkdir -p tests/unit/lib
-cp "$BASE_DIR/tests/unit/lib"/*.test.ts tests/unit/lib/ 2>/dev/null || true
-
-# Integration tests
-mkdir -p tests/integration
-mkdir -p tests/integration/api
-cp "$BASE_DIR/tests/integration/api/ai-astrology.test.ts" tests/integration/api/ 2>/dev/null || true
-cp "$BASE_DIR/tests/integration/api/contact.test.ts" tests/integration/api/ 2>/dev/null || true
-cp "$BASE_DIR/tests/integration/api/payments.test.ts" tests/integration/api/ 2>/dev/null || true
-cp "$BASE_DIR/tests/integration/timer-behavior.test.ts" tests/integration/ 2>/dev/null || true
-cp "$BASE_DIR/tests/integration/polling-state-sync.test.ts" tests/integration/ 2>/dev/null || true
-
-# E2E tests
-mkdir -p tests/e2e
-cp "$BASE_DIR/tests/e2e"/*.spec.ts tests/e2e/ 2>/dev/null || true
-
-# Regression tests
-mkdir -p tests/regression
-cp "$BASE_DIR/tests/regression"/*.test.ts tests/regression/ 2>/dev/null || true
-
-# Test contracts
-mkdir -p tests/contracts
-cp "$BASE_DIR/tests/contracts/report-flow.contract.md" tests/contracts/ 2>/dev/null || true
-
-# Test setup files
+# Copy full test pyramid (unit/integration/e2e/regression/contracts + helpers)
+mkdir -p tests
+cp -r "$BASE_DIR/tests/unit" tests/ 2>/dev/null || true
+cp -r "$BASE_DIR/tests/integration" tests/ 2>/dev/null || true
+cp -r "$BASE_DIR/tests/e2e" tests/ 2>/dev/null || true
+cp -r "$BASE_DIR/tests/regression" tests/ 2>/dev/null || true
+cp -r "$BASE_DIR/tests/contracts" tests/ 2>/dev/null || true
 cp "$BASE_DIR/tests/setup.ts" tests/ 2>/dev/null || true
-cp "$BASE_DIR/tests/integration/setup.ts" tests/integration/ 2>/dev/null || true
+cp "$BASE_DIR/tests/run-all-tests.sh" tests/ 2>/dev/null || true
 
 # Copy SEO files
 echo "🔍 Copying SEO files..."
@@ -117,6 +100,8 @@ mkdir -p docs/defects
 cp "$BASE_DIR/DEFECT_REGISTER.md" docs/defects/ 2>/dev/null || true
 cp "$BASE_DIR/DEFECT_REGISTER_INDEX.md" docs/defects/ 2>/dev/null || true
 cp "$BASE_DIR/DEFECT_REGISTER_FOR_CHATGPT.md" docs/defects/ 2>/dev/null || true
+cp "$BASE_DIR/DEFECT_STATUS_CURRENT.md" docs/defects/ 2>/dev/null || true
+cp "$BASE_DIR/DEFECT_TO_TEST_MAPPING.md" docs/defects/ 2>/dev/null || true
 
 # Copy ChatGPT feedback and operating manual
 echo "📚 Copying ChatGPT feedback and operating manual..."
@@ -125,6 +110,26 @@ cp "$BASE_DIR/CHATGPT_FEEDBACK_ANALYSIS.md" docs/chatgpt/ 2>/dev/null || true
 cp "$BASE_DIR/CHATGPT_FIXES_IMPLEMENTED.md" docs/chatgpt/ 2>/dev/null || true
 cp "$BASE_DIR/CURSOR_OPERATING_MANUAL.md" docs/chatgpt/ 2>/dev/null || true
 cp "$BASE_DIR/CURSOR_OPERATING_MANUAL_IMPLEMENTATION.md" docs/chatgpt/ 2>/dev/null || true
+
+# Copy Cursor autonomy/workflow controls from repo root
+echo "🧭 Copying Cursor autopilot/workflow control files..."
+mkdir -p cursor/.cursor
+cp "$ROOT_DIR/.cursor/rules" cursor/.cursor/ 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_PROGRESS.md" cursor/ 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_ACTIONS_REQUIRED.md" cursor/ 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_AUTOPILOT_PROMPT.md" cursor/ 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_OPERATIONAL_GUIDE.md" cursor/ 2>/dev/null || true
+cp "$ROOT_DIR/CURSOR_AUTH_POPUP_PLAYBOOK.md" cursor/ 2>/dev/null || true
+cp "$ROOT_DIR/NON_NEGOTIABLES.md" cursor/ 2>/dev/null || true
+
+# Include CI/workflows for production-readiness verification
+echo "⚙️  Copying workflows..."
+mkdir -p .github
+cp -r "$BASE_DIR/.github/workflows" .github/ 2>/dev/null || true
+
+# Include AI astrology report store schema for production setup
+mkdir -p docs/db
+cp "$BASE_DIR/docs/AI_ASTROLOGY_REPORT_STORE_SUPABASE.sql" docs/db/ 2>/dev/null || true
 
 # Copy configuration files
 echo "⚙️  Copying configuration files..."
@@ -136,6 +141,10 @@ cp "$BASE_DIR/next.config.mjs" . 2>/dev/null || true
 
 # Copy package.json for dependencies reference
 cp "$BASE_DIR/package.json" . 2>/dev/null || true
+
+# Copy scripts (stability tooling, etc.)
+mkdir -p scripts
+cp -r "$BASE_DIR/scripts"/* scripts/ 2>/dev/null || true
 
 # Create comprehensive README
 cat > README.md << 'EOF'
@@ -257,7 +266,7 @@ ai-astrology-complete/
 - `docs/production/PRODUCTION_DEPLOYMENT_VERIFICATION.md` - Deployment verification
 
 ### Defects
-- `docs/defects/DEFECT_REGISTER.md` - Complete defect register (9 defects documented)
+- `docs/defects/DEFECT_REGISTER.md` - Complete defect register (11 defects documented)
 - `docs/defects/DEFECT_REGISTER_INDEX.md` - Defect register index
 - `docs/defects/DEFECT_REGISTER_FOR_CHATGPT.md` - Defect register formatted for ChatGPT
 
@@ -317,10 +326,12 @@ npm run test
 - DEF-007: Retry loading bundle button not working
 - DEF-008: Year Analysis Purchase Button Redirect
 - DEF-009: Report Generation Flickers Back to Input Screen
+- DEF-010: Production report generation can stall forever when persistent store unavailable
+- DEF-011: Monthly subscription journey loses context / subscribe appears to do nothing
 
 ## Notes
 
-- All 9 defects are documented in DEFECT_REGISTER.md
+- All 11 defects are documented in DEFECT_REGISTER.md
 - All defects are fixed and verified
 - Test coverage includes unit, integration, E2E, and regression tests
 - Production-readiness documentation is comprehensive
@@ -358,9 +369,10 @@ echo "  ✅ Headers and Footers"
 echo "  ✅ All test layers (Unit, Integration, E2E, Regression)"
 echo "  ✅ SEO documentation"
 echo "  ✅ Production-readiness documentation"
-echo "  ✅ Updated defect register (9 defects)"
+echo "  ✅ Updated defect register (11 defects)"
 echo "  ✅ ChatGPT feedback & operating manual"
 echo "  ✅ Configuration files"
+echo "  ✅ Stability tooling scripts"
 echo ""
 echo "📦 File size:"
 ls -lh "$BASE_DIR/$ZIP_NAME" | awk '{print "  " $5}'
