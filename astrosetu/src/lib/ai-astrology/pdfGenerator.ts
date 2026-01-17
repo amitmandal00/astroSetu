@@ -897,8 +897,12 @@ export async function generatePDF(
     const footerDateStr = footerDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
     const footerTimeStr = footerDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
     
-    // Check if disclaimer wasn't added to last page content, add it to last page footer
-    const lastPageNeedsDisclaimer = yPosition + 20 < pageHeight - margin - 15;
+    // CRITICAL FIX (2026-01-18): Calculate disclaimer placement before footer
+    // Footer area starts 20mm from bottom
+    const footerAreaTop = pageHeight - 20;
+    
+    // Check if disclaimer should be added to footer area (if not already in content)
+    const lastPageNeedsDisclaimerInFooter = !disclaimerWasAdded && finalContentY < footerAreaTop;
     
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
@@ -907,15 +911,16 @@ export async function generatePDF(
       
       const isLastPage = i === totalPages;
       
-      // Add disclaimer to last page footer if there's space and it wasn't added earlier
-      if (isLastPage && lastPageNeedsDisclaimer && yPosition + 20 < pageHeight - margin - 15) {
+      // Add disclaimer to last page footer if there's space and it wasn't added to content
+      if (isLastPage && lastPageNeedsDisclaimerInFooter && finalContentY < footerAreaTop - 5) {
         doc.setFontSize(7);
         doc.setFont("helvetica", "italic");
         const footerDisclaimer = "Disclaimer: AI-generated for educational purposes only. Not a substitute for professional advice.";
+        // Place disclaimer above footer info (with proper spacing)
         doc.text(
           footerDisclaimer,
           pageWidth / 2,
-          pageHeight - 18,
+          footerAreaTop - 2, // 2mm above footer area
           { align: "center" }
         );
       }
@@ -949,20 +954,26 @@ export async function generatePDF(
     }
 
     // Compressed Disclaimer (only on last page, shortened) - Add only if space available
+    // CRITICAL FIX (2026-01-18): Fix disclaimer gap - ensure proper spacing and footer placement
     const disclaimerText = "Disclaimer: AI-generated for educational purposes only. Not a substitute for professional advice. " +
                            "Guidance based on astrological calculations, not guarantees. " +
                            "No change-of-mind refunds on digital reports (this does not limit rights under Australian Consumer Law).";
     const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth);
     const disclaimerSpacing = 8 * 1.3 * 0.3528;
-    const disclaimerHeight = disclaimerLines.length * disclaimerSpacing + 12; // 12mm for divider and spacing
+    const disclaimerDividerSpacing = 6; // Divider spacing
+    const disclaimerBottomSpacing = 2; // Small spacing after disclaimer (before footer)
+    // Accurate height calculation: divider spacing + lines + bottom spacing
+    const disclaimerHeight = disclaimerDividerSpacing + (disclaimerLines.length * disclaimerSpacing) + disclaimerBottomSpacing;
+    // Footer takes ~20mm from bottom (pageHeight - 20 to pageHeight)
+    const footerAreaTop = pageHeight - 20;
     
     // Only add disclaimer if there's enough space on current page, otherwise add to footer area
-    if (yPosition + disclaimerHeight < pageHeight - margin - 15) {
+    if (yPosition + disclaimerHeight < footerAreaTop) {
       // Add disclaimer on same page if space available
       doc.setDrawColor(226, 232, 240);
       doc.setLineWidth(0.5);
       doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 6; // Reduced spacing
+      yPosition += disclaimerDividerSpacing; // Divider spacing
 
       doc.setFontSize(8);
       doc.setTextColor("#64748b");
@@ -971,8 +982,11 @@ export async function generatePDF(
         doc.text(line, margin, yPosition);
         yPosition += disclaimerSpacing;
       });
+      yPosition += disclaimerBottomSpacing; // Small spacing after disclaimer (before footer)
+    } else {
+      // If not enough space, don't add disclaimer here - footer section will handle it
+      console.log("[PDF] Not enough space for disclaimer on content area, will use footer area");
     }
-    // If not enough space, disclaimer will be in footer area (handled in footer section)
 
     // Generate blob
     console.log("[PDF] Generating PDF blob...");
