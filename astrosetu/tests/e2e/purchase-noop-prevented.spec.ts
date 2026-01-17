@@ -125,7 +125,8 @@ test.describe("Purchase No-Op Prevented", () => {
     // First, create input_token by visiting input page
     await page.goto("/ai-astrology/input?reportType=year-analysis");
     
-    // Fill form
+    // Wait for form to load, then fill form
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");

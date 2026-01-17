@@ -11,7 +11,8 @@ test.describe("Subscription Journey ReturnTo Flow", () => {
     expect(page.url()).toContain("flow=subscription");
     expect(page.url()).toContain("returnTo=/ai-astrology/subscription");
 
-    // Fill birth details
+    // Wait for form to load, then fill birth details
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");

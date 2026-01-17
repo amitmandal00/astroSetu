@@ -110,7 +110,8 @@ test.describe("Subscription Input Token Flow", () => {
     // Navigate to input page with flow=subscription
     await page.goto("/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=/ai-astrology/subscription");
     
-    // Fill form
+    // Wait for form to load, then fill form
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");
@@ -200,7 +201,8 @@ test.describe("Subscription Input Token Flow", () => {
     expect(page.url()).toContain("flow=subscription");
     expect(page.url()).toContain("returnTo=");
     
-    // Step 3: Fill input form
+    // Step 3: Wait for form to load, then fill input form
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");
