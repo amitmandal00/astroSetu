@@ -19,8 +19,14 @@ test.describe("Preview Requires Input", () => {
     const reportType = "year-analysis";
     await page.goto(`/ai-astrology/preview?reportType=${reportType}`);
     
-    // Should redirect to input page with returnTo parameter
+    // CRITICAL FIX (ChatGPT): Assert no "Redirecting..." screen persists beyond 2s
+    // Should redirect to input page with returnTo parameter within 2s
+    const redirectStartTime = Date.now();
     await page.waitForURL(/\/ai-astrology\/input/, { timeout: 5000 });
+    const redirectTime = Date.now() - redirectStartTime;
+    
+    // Assert redirect happened within 2s (not infinite "Redirecting...")
+    expect(redirectTime).toBeLessThan(2500); // Allow 500ms buffer
     
     // Verify returnTo is present in URL
     const url = page.url();
@@ -119,7 +125,9 @@ test.describe("Preview Requires Input", () => {
     expect(page.url()).toContain("/preview");
     expect(page.url()).toContain("input_token=");
     
-    // Verify no "Redirecting..." message is visible
+    // CRITICAL FIX (ChatGPT): Assert no "Redirecting..." message persists beyond 2s
+    // Verify no "Redirecting..." message is visible after 2s
+    await page.waitForTimeout(2500); // Wait 2.5s to ensure watchdog doesn't fire
     const redirectingText = page.getByText("Redirecting...");
     await expect(redirectingText).not.toBeVisible({ timeout: 1000 });
   });
@@ -146,13 +154,19 @@ test.describe("Preview Requires Input", () => {
     // Navigate to preview with expired token
     await page.goto("/ai-astrology/preview?reportType=year-analysis&input_token=expired-token-123");
     
+    // CRITICAL FIX (ChatGPT): Assert no "Redirecting..." screen persists beyond 2s
     // Should show error message within 2 seconds (not infinite redirecting)
+    const errorStartTime = Date.now();
     const errorMessage = page.getByText(/expired|start again/i);
     await expect(errorMessage).toBeVisible({ timeout: 5000 });
+    const errorTime = Date.now() - errorStartTime;
+    
+    // Assert error appeared within 2s (not infinite "Redirecting...")
+    expect(errorTime).toBeLessThan(2500); // Allow 500ms buffer
     
     // Should not show "Redirecting..." forever
     const redirectingText = page.getByText("Redirecting...");
-    await expect(redirectingText).not.toBeVisible({ timeout: 2000 });
+    await expect(redirectingText).not.toBeVisible({ timeout: 1000 });
   });
 });
 

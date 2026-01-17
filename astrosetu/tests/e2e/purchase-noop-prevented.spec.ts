@@ -30,11 +30,21 @@ test.describe("Purchase No-Op Prevented", () => {
       // Should be visible (even if disabled or clickable)
       await expect(purchaseButton).toBeVisible({ timeout: 5000 });
       
+      // CRITICAL FIX (ChatGPT): Assert click results in navigation OR visible error within 2s
       // Click purchase button
+      const clickStartTime = Date.now();
       await purchaseButton.click();
       
       // Should redirect to input page within 2 seconds (not silent no-op)
-      await page.waitForURL(/\/ai-astrology\/input/, { timeout: 5000 });
+      // OR show visible error within 2s
+      await Promise.race([
+        page.waitForURL(/\/ai-astrology\/input/, { timeout: 5000 }),
+        page.waitForSelector('text=/error|failed|ref:/i', { timeout: 5000 }),
+      ]);
+      
+      const responseTime = Date.now() - clickStartTime;
+      // Assert response (navigation or error) happened within 2s
+      expect(responseTime).toBeLessThan(2500); // Allow 500ms buffer
       
       // Verify returnTo is present in URL
       const url = page.url();

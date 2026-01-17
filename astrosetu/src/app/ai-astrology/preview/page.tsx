@@ -102,6 +102,8 @@ function PreviewContent() {
   const activeAttemptKeyRef = useRef<string | null>(null);
   const isMountedRef = useRef(true); // Track component mount state
   const isSubmittingRef = useRef(false); // CRITICAL FIX (ChatGPT): Single-flight guard for purchase/subscribe handlers
+  const redirectInitiatedRef = useRef(false); // CRITICAL FIX (ChatGPT): Track if redirect has been initiated to prevent watchdog false-fires
+  const redirectWatchdogTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track watchdog timeout for cleanup
   
   // Cleanup on unmount
   useEffect(() => {
@@ -1350,8 +1352,10 @@ function PreviewContent() {
           let savedReportType: ReportType | null = null;
           let savedBundleType: string | null = null;
           let savedBundleReports: string | null = null;
+          let isTokenFetchInFlight = false; // CRITICAL FIX (ChatGPT): Track if token fetch is happening
 
           if (inputToken) {
+            isTokenFetchInFlight = true; // CRITICAL FIX (ChatGPT): Mark token fetch as in-flight to prevent watchdog false-fire
             try {
               const tokenResponse = await apiGet<{
                 ok: boolean;
@@ -1395,6 +1399,7 @@ function PreviewContent() {
                 console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
                 setError("Your session has expired. Please start again.");
                 setLoading(false);
+                isTokenFetchInFlight = false; // CRITICAL FIX (ChatGPT): Clear flag
                 // CRITICAL FIX (ChatGPT): Show real error UI with "Start again" button that navigates to input
                 // Don't just return - show actionable error with navigation button
                 // The error state will show a "Start again" button that navigates to input
@@ -1403,6 +1408,8 @@ function PreviewContent() {
             } catch (tokenError) {
               console.warn("[Preview] Failed to fetch input_token, falling back to sessionStorage:", tokenError);
               // Fall through to sessionStorage fallback
+            } finally {
+              isTokenFetchInFlight = false; // CRITICAL FIX (ChatGPT): Clear flag after token fetch completes
             }
           }
 
@@ -1419,11 +1426,17 @@ function PreviewContent() {
         // CRITICAL FIX (ChatGPT): Always redirect to /input if no input + no valid input_token
         // Remove reportType gating - it causes "Redirecting..." dead states
         // New invariant: If no input + no valid input_token → redirect to /input ALWAYS (with returnTo)
-        if (!savedInput && !hasRedirectedRef.current) {
+        // CRITICAL FIX (ChatGPT): Watchdog only applies when "redirect is required" AND "redirect has not been initiated" AND "no token fetch is happening"
+        if (!savedInput && !hasRedirectedRef.current && !isTokenFetchInFlight) {
           // Check if we're already on the input page to prevent loops
           const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
           if (currentPath.includes("/input")) {
             console.log("[Preview] Already on input page, not redirecting to prevent loop");
+            // CRITICAL FIX (ChatGPT): Cancel watchdog if already on input page
+            if (redirectWatchdogTimeoutRef.current) {
+              clearTimeout(redirectWatchdogTimeoutRef.current);
+              redirectWatchdogTimeoutRef.current = null;
+            }
             return;
           }
           
@@ -1446,13 +1459,24 @@ function PreviewContent() {
           
           console.log("[Preview] No input found (no input_token, no sessionStorage), redirecting to:", redirectUrl);
           hasRedirectedRef.current = true; // Prevent multiple redirects
+          redirectInitiatedRef.current = true; // CRITICAL FIX (ChatGPT): Mark redirect as initiated to prevent watchdog false-fire
           
           // CRITICAL FIX (ChatGPT): Redirect timeout watchdog - prevent infinite "Redirecting..."
           // If redirect hasn't happened by 2s, switch to error UI with "Start again" + debug Ref
+          // Watchdog only fires if: redirect is required AND redirect has been initiated AND no token fetch is happening
           // Note: router.push() returns void in Next.js 14, so we use setTimeout to check if redirect happened
-          const redirectTimeoutId = setTimeout(() => {
-            // Check if still on preview page (redirect didn't happen)
-            if (typeof window !== "undefined" && window.location.pathname.includes("/preview")) {
+          // CRITICAL: Clear any existing watchdog before creating new one
+          if (redirectWatchdogTimeoutRef.current) {
+            clearTimeout(redirectWatchdogTimeoutRef.current);
+          }
+          
+          redirectWatchdogTimeoutRef.current = setTimeout(() => {
+            // CRITICAL FIX (ChatGPT): Only fire watchdog if redirect was initiated AND still on preview page
+            // AND no token fetch is happening (prevent false-fires during legitimate navigation)
+            if (redirectInitiatedRef.current && 
+                typeof window !== "undefined" && 
+                window.location.pathname.includes("/preview") &&
+                !isTokenFetchInFlight) {
               const debugRef = `REF_${Date.now().toString(36).slice(-8).toUpperCase()}`;
               console.error(`[Preview] Redirect timeout after 2s - router.push may be blocked`, {
                 debugRef,
@@ -1462,16 +1486,17 @@ function PreviewContent() {
               setError(`Redirect is taking longer than expected. Ref: ${debugRef}. Please click "Start again" below.`);
               setLoading(false);
               hasRedirectedRef.current = false; // Allow retry
+              redirectInitiatedRef.current = false; // Reset flag
             }
+            redirectWatchdogTimeoutRef.current = null; // Clear ref
           }, 2000); // 2 second timeout
           
           // CRITICAL FIX: router.push() returns void in Next.js 14, not a Promise
           // We use setTimeout to check if redirect succeeded (clear timeout if we navigate away)
+          // If navigation succeeds, component will unmount and cleanup will clear watchdog
+          // If navigation fails, watchdog will fire after 2s
           router.push(redirectUrl);
           
-          // Clear timeout after a short delay if redirect succeeded (navigation will unmount component)
-          // If timeout fires, it means we're still on preview page (redirect failed/blocked)
-          // The timeout handler above will show error UI
           return;
         }
         
@@ -1973,6 +1998,12 @@ function PreviewContent() {
         ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}`
         : "/ai-astrology/input";
       console.log("[Purchase] No input found, redirecting to input:", redirectUrl);
+      redirectInitiatedRef.current = true; // CRITICAL FIX (ChatGPT): Mark redirect as initiated to cancel watchdog
+      // CRITICAL FIX (ChatGPT): Cancel redirect watchdog if redirect is initiated from purchase handler
+      if (redirectWatchdogTimeoutRef.current) {
+        clearTimeout(redirectWatchdogTimeoutRef.current);
+        redirectWatchdogTimeoutRef.current = null;
+      }
       router.push(redirectUrl);
       return;
     }
