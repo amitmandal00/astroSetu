@@ -35,9 +35,10 @@ setInterval(() => {
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   
-  // CRITICAL FIX: Allow /build.json to pass through (static file from public/)
+  // CRITICAL FIX: Allow /build.json, /manifest.json, and /sw.js to pass through (static files from public/)
   // Static files in public/ should be served directly without middleware interference
-  if (pathname === '/build.json' || pathname === '/manifest.json') {
+  // /sw.js must be allowed or service worker registration will fail with redirect errors
+  if (pathname === '/build.json' || pathname === '/manifest.json' || pathname === '/sw.js') {
     return NextResponse.next();
   }
   
