@@ -35,7 +35,14 @@ export function AIFooter() {
 
         const data = await res.json();
         if (!cancelled) {
-          setBuildId(data?.buildId || "unknown");
+          // CRITICAL FIX (ChatGPT Step 0): Show FULL commit SHA for complete verification
+          // Show both short (7-char) and full SHA: "Build: cbb7d53 (cbb7d532...)" or just full SHA
+          const fullSha = data?.fullSha || data?.buildId || "unknown";
+          const shortId = data?.buildId || (fullSha !== "unknown" ? String(fullSha).slice(0, 7) : "unknown");
+          // Show full SHA if available, otherwise fallback to short ID
+          setBuildId(fullSha !== "unknown" ? fullSha : shortId);
+          // CRITICAL FIX (ChatGPT Step 0): Log BUILD_ID once per page load
+          console.log("[BUILD_ID]", fullSha);
         }
       } catch (error) {
         console.warn("[Footer] Failed to fetch build.json:", error);
