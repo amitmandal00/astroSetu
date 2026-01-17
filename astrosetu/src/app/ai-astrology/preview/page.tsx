@@ -1512,12 +1512,11 @@ function PreviewContent() {
 
         const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
 
-        // CRITICAL FIX (ChatGPT): Always redirect to /input if no input + no valid input_token
-        // Remove reportType gating - it causes "Redirecting..." dead states
-        // New invariant: If no input + no valid input_token → redirect to /input ALWAYS (with returnTo)
-        // CRITICAL FIX (Step 1): Prevent redirect while tokenLoading=true (token fetch authoritative)
-        if (!savedInput && !hasRedirectedRef.current && !tokenLoading) {
-          console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token");
+        // CRITICAL FIX (2026-01-18): Only check redirect AFTER token loading completes
+        // This prevents redirect loops when token is still loading
+        // Token fetch is authoritative - wait for it to complete before any redirect decisions
+        if (!tokenLoading && !savedInput && !hasRedirectedRef.current) {
+          console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token_after_token_load");
           // Check if we're already on the input page to prevent loops
           const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
           if (currentPath.includes("/input")) {
@@ -1551,42 +1550,12 @@ function PreviewContent() {
           hasRedirectedRef.current = true; // Prevent multiple redirects
           redirectInitiatedRef.current = true; // CRITICAL FIX (ChatGPT): Mark redirect as initiated to prevent watchdog false-fire
           
-          // CRITICAL FIX (ChatGPT): Redirect timeout watchdog - prevent infinite "Redirecting..."
-          // If redirect hasn't happened by 2s, switch to error UI with "Start again" + debug Ref
-          // Watchdog only fires if: redirect is required AND redirect has been initiated AND no token fetch is happening
-          // Note: router.push() returns void in Next.js 14, so we use setTimeout to check if redirect happened
-          // CRITICAL: Clear any existing watchdog before creating new one
-          if (redirectWatchdogTimeoutRef.current) {
-            clearTimeout(redirectWatchdogTimeoutRef.current);
-          }
-          
-          redirectWatchdogTimeoutRef.current = setTimeout(() => {
-            // CRITICAL FIX (ChatGPT): Only fire watchdog if redirect was initiated AND still on preview page
-            // AND no token fetch is happening (prevent false-fires during legitimate navigation)
-            // CRITICAL FIX (Step 1): Use tokenLoading state instead of local variable
-            if (redirectInitiatedRef.current && 
-                typeof window !== "undefined" && 
-                window.location.pathname.includes("/preview") &&
-                !tokenLoading) {
-              const debugRef = `REF_${Date.now().toString(36).slice(-8).toUpperCase()}`;
-              console.error(`[Preview] Redirect timeout after 2s - router.push may be blocked`, {
-                debugRef,
-                redirectUrl,
-                pathname: window.location.pathname,
-              });
-              setError(`Redirect is taking longer than expected. Ref: ${debugRef}. Please click "Start again" below.`);
-              setLoading(false);
-              hasRedirectedRef.current = false; // Allow retry
-              redirectInitiatedRef.current = false; // Reset flag
-            }
-            redirectWatchdogTimeoutRef.current = null; // Clear ref
-          }, 2000); // 2 second timeout
-          
-          // CRITICAL FIX: router.push() returns void in Next.js 14, not a Promise
-          // We use setTimeout to check if redirect succeeded (clear timeout if we navigate away)
-          // If navigation succeeds, component will unmount and cleanup will clear watchdog
-          // If navigation fails, watchdog will fire after 2s
-          router.push(redirectUrl);
+          // CRITICAL FIX (2026-01-18): Use hard navigation (window.location.assign) instead of router.push
+          // This guarantees navigation completes and prevents "Redirecting..." stuck screen
+          // Hard navigation is synchronous and will unmount component, preventing race conditions
+          const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+          console.info("[PREVIEW_REDIRECT]", fullUrl);
+          window.location.assign(fullUrl);
           
           return;
         }
@@ -3787,7 +3756,10 @@ function PreviewContent() {
                   ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
                   : "/ai-astrology/input";
                 redirectInitiatedRef.current = true;
-                router.push(redirectUrl);
+                // CRITICAL FIX (2026-01-18): Use hard navigation to prevent stuck "Redirecting..." screen
+                const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+                console.info("[ENTER_DETAILS_REDIRECT]", fullUrl);
+                window.location.assign(fullUrl);
               }}
               className="cosmic-button"
             >

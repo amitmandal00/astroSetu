@@ -117,8 +117,19 @@ function SubscriptionContent() {
             // CRITICAL FIX (Step 1): Set tokenLoading=false after successfully setting input
             setTokenLoading(false);
             
-            // Clean URL - remove input_token from URL
-            router.replace("/ai-astrology/subscription");
+            // CRITICAL FIX (2026-01-18): Check for returnTo parameter before cleaning URL
+            // If user came from input page with returnTo, navigate to it
+            // Otherwise, clean URL and stay on subscription page
+            const returnToParam = searchParams?.get("returnTo");
+            if (returnToParam && returnToParam.startsWith("/ai-astrology/subscription")) {
+              // Valid returnTo - navigate to it (should be subscription page)
+              const fullUrl = typeof window !== "undefined" ? new URL(returnToParam, window.location.origin).toString() : returnToParam;
+              console.info("[SUBSCRIPTION_RETURNTO]", fullUrl);
+              window.location.assign(fullUrl);
+            } else {
+              // No returnTo or invalid - clean URL and stay on subscription page
+              router.replace("/ai-astrology/subscription");
+            }
             
             // Cache in sessionStorage for future use (nice-to-have)
             try {
@@ -161,7 +172,11 @@ function SubscriptionContent() {
               // not into the free-report preview flow.
               console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token");
               const returnTo = "/ai-astrology/subscription";
-              router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent(returnTo)}`);
+              const redirectUrl = `/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent(returnTo)}`;
+              // CRITICAL FIX (2026-01-18): Use hard navigation to prevent redirect loops
+              const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+              console.info("[SUBSCRIPTION_REDIRECT_TO_INPUT]", fullUrl);
+              window.location.assign(fullUrl);
               return;
             }
 
@@ -281,13 +296,22 @@ function SubscriptionContent() {
       return;
     }
     
+    // CRITICAL FIX (2026-01-18): Check tokenLoading before checking input
+    // If token is still loading, wait for it to complete before making decisions
+    if (tokenLoading) {
+      console.warn("[Subscribe] Token is loading, please wait");
+      setError("Please wait while your birth details are loading.");
+      return;
+    }
+    
     // CRITICAL FIX (ChatGPT): NO SILENT RETURNS - redirect to input if input missing
     // This fixes "Subscribe redirects to same page and nothing happens" issue
     if (!input) {
       console.log("[Subscribe] No input found, redirecting to input page");
-      router.push("/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=/ai-astrology/subscription");
-      setLoading(false); // Clear loading state if it was set
-      setError("Please enter birth details to subscribe.");
+      const redirectUrl = "/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=/ai-astrology/subscription";
+      const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+      console.info("[SUBSCRIBE_REDIRECT]", fullUrl);
+      window.location.assign(fullUrl);
       return;
     }
 
@@ -570,10 +594,10 @@ function SubscriptionContent() {
                 </div>
                 <Button
                   onClick={handleSubscribe}
-                  disabled={loading}
+                  disabled={loading || tokenLoading}
                   className="cosmic-button text-lg px-8 py-4"
                 >
-                  {loading ? "Processing..." : "Subscribe"}
+                  {loading ? "Processing..." : tokenLoading ? "Loading..." : "Subscribe"}
                 </Button>
                 <p className="text-xs text-slate-500 italic mt-3">
                   This is not a prediction service. Cancel anytime.

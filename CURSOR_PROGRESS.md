@@ -6,9 +6,9 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **STABILIZATION FIXES STEPS 0-4 COMPLETE** (2026-01-18)
+- **State**: ✅ **CRITICAL REDIRECT FIXES COMPLETE** (2026-01-18)
 - **Last update**: 2026-01-18
-- **Verdict**: ✅ All stabilization fixes (Steps 0-4) implemented. Token fetch authoritative, purchase button hardened, subscription flow verified, E2E tests added.
+- **Verdict**: ✅ All critical redirect loop and stuck screen issues fixed. Hard navigation implemented, token loading authoritative, subscription returnTo flow fixed, E2E tests added.
 - **Next**: Run `npm run test:critical` to verify all tests pass → Deploy → Verify in production
 - **Fixes Applied (2026-01-17 19:00 + 20:00)**:
 
@@ -105,6 +105,17 @@ Use this file as the single “where things stand” view during long Cursor ses
   - ✅ **New E2E test**: `input-token-in-url-after-submit.spec.ts` - Verifies input submit → URL contains input_token AND network call visible AND no redirect loop.
   - ✅ **Updated `.cursor/rules`**: Added "HARD NAVIGATION & SERVICE WORKER STABILIZATION" section.
   - ✅ **Updated `test:critical`**: Added `input-token-in-url-after-submit.spec.ts` to critical test suite.
+
+  **M) Critical Redirect Loop & Stuck Screen Fixes (2026-01-18)**:
+  - ✅ **Fixed redirect loops**: Preview page now waits for token loading to complete BEFORE checking redirect. Only checks redirect when `tokenLoading === false`.
+  - ✅ **Fixed stuck "Redirecting..." screen**: Replaced `router.push()` with `window.location.assign()` for hard navigation. This guarantees navigation completes and prevents stuck screens.
+  - ✅ **Fixed subscription returnTo flow**: Subscription page now checks for `returnTo` parameter after loading token and navigates to it if valid. Only cleans URL after navigation.
+  - ✅ **Fixed subscribe button**: Added `tokenLoading` check before allowing subscribe. Button disabled while token is loading. Shows loading state.
+  - ✅ **Hard navigation everywhere**: All redirects now use `window.location.assign()` instead of `router.push()` to prevent race conditions and stuck screens.
+  - ✅ **New E2E tests**:
+    - `no-redirect-loop-after-input.spec.ts` - Verifies purchase/bundle/free reports don't redirect back to input after entering details
+    - `subscription-journey-returnTo.spec.ts` - Verifies subscription journey returns to dashboard (not free life report) and subscribe button works
+  - ✅ **Updated `test:critical`**: Added 2 new tests to critical test suite.
   - ✅ Input page flow=subscription: Redirects to subscription when flow=subscription (not preview)
   - ✅ Subscription input_token flow: Checks input_token first, loads from API, cleans URL (stops sessionStorage dependency)
   - ✅ E2E tests added: preview-requires-input, purchase-noop-prevented, subscription-input-token-flow

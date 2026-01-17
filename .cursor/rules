@@ -143,6 +143,18 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - `tests/unit/betaAccess.test.ts` (normalization/matching unit tests)
 - **Removal**: To disable gating, set `NEXT_PUBLIC_PRIVATE_BETA=false` or unset env var, redeploy.
 
+### CRITICAL REDIRECT LOOP & STUCK SCREEN FIXES (2026-01-18)
+- **Redirect check must wait for token loading**: Preview/subscription pages MUST only check redirect AFTER `tokenLoading === false`. Token fetch is authoritative - wait for it to complete before any redirect decisions.
+- **Hard navigation required**: ALL redirects MUST use `window.location.assign()` instead of `router.push()` to prevent race conditions and stuck "Redirecting..." screens. Hard navigation is synchronous and guarantees navigation completes.
+- **Subscription returnTo handling**: After loading token, subscription page MUST check for `returnTo` parameter in URL. If valid, navigate to it. Only clean URL after navigation completes.
+- **Subscribe button token loading check**: Subscribe button MUST check `tokenLoading` before allowing subscribe. Button MUST be disabled while `tokenLoading === true`. Show loading state.
+- **Never reset hasRedirectedRef after token loads**: Once token is loaded and input state is set, NEVER reset `hasRedirectedRef` to prevent redirect loops.
+- **Redirect initiated flag**: Only show "Redirecting..." UI when `redirectInitiatedRef.current === true`. Clear flag after navigation completes.
+- **E2E tests required**: `test:critical` MUST include:
+  - `no-redirect-loop-after-input.spec.ts` (verifies no redirect back to input after entering details)
+  - `subscription-journey-returnTo.spec.ts` (verifies subscription journey returns to dashboard)
+- **Why these rules exist**: Redirect loops and stuck "Redirecting..." screens were caused by race conditions between token loading and redirect checks, and using soft navigation (`router.push`) which doesn't guarantee completion.
+
 ### TOKEN FETCH AUTHORITATIVE & PURCHASE READY (Step 1-4 - CRITICAL - 2026-01-18)
 - **Token fetch must be authoritative (Step 1)**: Preview/subscription pages MUST use `tokenLoading` state to prevent redirects while token is being fetched. Redirect logic MUST check `!tokenLoading && !inputToken && !input` before redirecting. NEVER redirect while `tokenLoading === true`.
 - **Loading UI while token fetches (Step 1)**: While `tokenLoading === true`, preview/subscription MUST show "Loading your details..." UI (NOT "Redirecting..."). This prevents redirect loops and provides clear feedback.
