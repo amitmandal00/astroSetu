@@ -1449,6 +1449,7 @@ function PreviewContent() {
           
           // CRITICAL FIX (ChatGPT): Redirect timeout watchdog - prevent infinite "Redirecting..."
           // If redirect hasn't happened by 2s, switch to error UI with "Start again" + debug Ref
+          // Note: router.push() returns void in Next.js 14, so we use setTimeout to check if redirect happened
           const redirectTimeoutId = setTimeout(() => {
             // Check if still on preview page (redirect didn't happen)
             if (typeof window !== "undefined" && window.location.pathname.includes("/preview")) {
@@ -1464,18 +1465,13 @@ function PreviewContent() {
             }
           }, 2000); // 2 second timeout
           
-          router.push(redirectUrl).then(() => {
-            // Clear timeout if redirect succeeded
-            clearTimeout(redirectTimeoutId);
-          }).catch((error) => {
-            // Clear timeout and show error if redirect failed
-            clearTimeout(redirectTimeoutId);
-            const debugRef = `REF_${Date.now().toString(36).slice(-8).toUpperCase()}`;
-            console.error(`[Preview] Redirect failed - router.push error:`, error, { debugRef, redirectUrl });
-            setError(`Failed to redirect. Ref: ${debugRef}. Please click "Start again" below.`);
-            setLoading(false);
-            hasRedirectedRef.current = false; // Allow retry
-          });
+          // CRITICAL FIX: router.push() returns void in Next.js 14, not a Promise
+          // We use setTimeout to check if redirect succeeded (clear timeout if we navigate away)
+          router.push(redirectUrl);
+          
+          // Clear timeout after a short delay if redirect succeeded (navigation will unmount component)
+          // If timeout fires, it means we're still on preview page (redirect failed/blocked)
+          // The timeout handler above will show error UI
           return;
         }
         
