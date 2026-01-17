@@ -157,4 +157,37 @@ export async function markStoredReportFailed(params: {
   if (error && !isMissingTableError(error)) throw error;
 }
 
+/**
+ * CRITICAL FIX (ChatGPT Feedback): Heartbeat update during generation
+ * Updates the report's updated_at timestamp to prevent stuck "processing" status
+ * when serverless function times out. Makes stale-processing detection meaningful.
+ * 
+ * Call this every 15-20 seconds during long-running report generation.
+ */
+export async function updateStoredReportHeartbeat(params: {
+  idempotencyKey: string;
+  reportId: string;
+}): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = createServerClient();
+  // Best-effort heartbeat update - don't throw if it fails
+  try {
+    const { error } = await supabase
+      .from("ai_astrology_reports")
+      .update({
+        updated_at: new Date().toISOString(),
+      })
+      .eq("idempotency_key", params.idempotencyKey)
+      .eq("report_id", params.reportId)
+      .eq("status", "processing"); // Only update if still processing
+    if (error && !isMissingTableError(error)) {
+      // Log but don't throw - heartbeat is best-effort
+      console.warn("[HEARTBEAT] Failed to update heartbeat:", error);
+    }
+  } catch (err) {
+    // Ignore heartbeat errors - they shouldn't block report generation
+    console.warn("[HEARTBEAT] Heartbeat update failed (non-critical):", err);
+  }
+}
+
 

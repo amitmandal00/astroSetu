@@ -6,6 +6,10 @@
  * to reduce prompt tokens and improve consistency.
  */
 
+// CRITICAL FIX (ChatGPT): Import futureWindows at top level to avoid build-time module resolution issues
+// Previous: Used require() inside functions which can cause build failures
+import { getCurrentYear, ensureFutureYear } from "../time/futureWindows";
+
 export const AI_PROMPT_SYSTEM_MESSAGE = `
 You are a calm, experienced Vedic astrologer.
 Explain in plain English.
@@ -101,9 +105,9 @@ export const AI_PROMPT_TEMPLATES = {
       const primaryDesc = timingWindows?.primaryDescription || "Late 2026 – Early 2027";
       const secondaryDesc = timingWindows?.secondaryDescription || "Mid 2028 – Early 2029";
       // CRITICAL FIX: Use future years only - never use past years
-      // Import utility to ensure future-only windows
-      // CRITICAL: Use correct relative path (../time/ not ../../time/)
-      const { getCurrentYear, ensureFutureYear } = require("../time/futureWindows");
+      // CRITICAL FIX (ChatGPT): Import moved to top level to avoid build-time module resolution issues
+      // Previous: Used require() inside function which can cause build failures
+      // Now: Uses top-level import (see line ~12)
       const currentYear = getCurrentYear();
       // CRITICAL: timelineStart must be >= currentYear (never use past years)
       const timelineStart = timingWindows?.timelineStart 
@@ -1072,8 +1076,9 @@ export function generateYearAnalysisPrompt(
     finalEndMonth = range.endMonth;
   } else {
     // CRITICAL FIX: Ensure years are not in the past
-    // CRITICAL: Use correct relative path (../time/ not ../../time/)
-    const { ensureFutureYear } = require("../time/futureWindows");
+    // CRITICAL FIX (ChatGPT): Import moved to top level to avoid build-time module resolution issues
+    // Previous: Used require() inside function which can cause build failures
+    // Now: Uses top-level import (see line ~12)
     finalStartYear = ensureFutureYear(startYear);
     finalStartMonth = startMonth;
     finalEndYear = ensureFutureYear(endYear);

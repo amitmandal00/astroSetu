@@ -148,19 +148,24 @@ cp -r astrosetu/scripts/* "$PACKAGE_DIR/astrosetu/scripts/" 2>/dev/null || true
 # ============================================
 echo "📄 Copying documentation..."
 
-# Defect Register (latest)
+# Defect Register (latest - prioritize astrosetu version)
 cp astrosetu/DEFECT_REGISTER.md "$PACKAGE_DIR/" 2>/dev/null || true
-cp ai-astrology-holistic-testing-package/DEFECT_REGISTER.md "$PACKAGE_DIR/DEFECT_REGISTER.md" 2>/dev/null || true
+if [ ! -f "$PACKAGE_DIR/DEFECT_REGISTER.md" ]; then
+  cp ai-astrology-holistic-testing-package/DEFECT_REGISTER.md "$PACKAGE_DIR/DEFECT_REGISTER.md" 2>/dev/null || true
+fi
 
-# Cursor documentation
+# Cursor documentation (from root - latest versions)
 cp CURSOR_PROGRESS.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp CURSOR_ACTIONS_REQUIRED.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp CURSOR_AUTOPILOT_PROMPT.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp CURSOR_OPERATIONAL_GUIDE.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp CURSOR_AUTH_POPUP_PLAYBOOK.md "$PACKAGE_DIR/" 2>/dev/null || true
 
-# Non-negotiables
+# Non-negotiables (from root - latest version)
 cp NON_NEGOTIABLES.md "$PACKAGE_DIR/" 2>/dev/null || true
+
+# Additional documentation
+cp STABILIZATION_MODE_STATUS.md "$PACKAGE_DIR/" 2>/dev/null || true
 
 # Production readiness docs
 cp astrosetu/PRODUCTION_READINESS_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
@@ -174,20 +179,23 @@ echo "📋 Copying Cursor rules..."
 
 # Copy as CURSOR_RULES for visibility (avoid .cursor directory permission issues)
 mkdir -p "$PACKAGE_DIR/CURSOR_RULES"
-if [ -f "ai-astrology-holistic-testing-package/CURSOR_RULES/rules" ]; then
-  cp ai-astrology-holistic-testing-package/CURSOR_RULES/rules "$PACKAGE_DIR/CURSOR_RULES/rules" 2>/dev/null || true
-elif [ -f ".cursor/rules" ]; then
+# Prioritize root .cursor/rules (latest version)
+if [ -f ".cursor/rules" ]; then
   cp .cursor/rules "$PACKAGE_DIR/CURSOR_RULES/rules" 2>/dev/null || true
+elif [ -f "ai-astrology-holistic-testing-package/CURSOR_RULES/rules" ]; then
+  cp ai-astrology-holistic-testing-package/CURSOR_RULES/rules "$PACKAGE_DIR/CURSOR_RULES/rules" 2>/dev/null || true
 fi
 
-# Create a note about .cursor/rules location
-echo "# Cursor Rules
+# Create a note about .cursor/rules location (preserve content)
+if [ -f "$PACKAGE_DIR/CURSOR_RULES/rules" ]; then
+  RULES_CONTENT=$(cat "$PACKAGE_DIR/CURSOR_RULES/rules")
+  echo "# Cursor Rules
 
 This file contains the Cursor autopilot rules.
 In your actual project, these should be at \`.cursor/rules\`.
 
-$(cat "$PACKAGE_DIR/CURSOR_RULES/rules" 2>/dev/null || echo '# Rules file not found')
-" > "$PACKAGE_DIR/CURSOR_RULES/rules" || true
+$RULES_CONTENT" > "$PACKAGE_DIR/CURSOR_RULES/rules"
+fi
 
 # ============================================
 # 9. Copy Workflows

@@ -1,3 +1,11 @@
+// CRITICAL FIX (ChatGPT Feedback): Serverless timeout configuration
+// Vercel serverless functions have default execution limits that can be exceeded
+// on cold start + OpenAI latency, causing report generation to die mid-execution
+// This leaves reports stuck in "processing" status forever
+export const runtime = "nodejs";
+export const maxDuration = 180; // 3 minutes (enough for year-analysis/full-life with cold start)
+export const dynamic = "force-dynamic"; // Prevents caching weirdness
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { checkRateLimit, handleApiError, parseJsonBody, validateRequestSize } from "@/lib/apiHelpers";
@@ -25,6 +33,7 @@ import {
   markStoredReportProcessing,
   markStoredReportCompleted,
   markStoredReportFailed,
+  updateStoredReportHeartbeat,
 } from "@/lib/ai-astrology/reportStore";
 
 function getMaxProcessingMs(reportType: ReportType): number {
@@ -1330,7 +1339,31 @@ export async function POST(req: Request) {
     const REPORT_GENERATION_TIMEOUT = isComplexReport ? 90000 : (isFreeReport ? 65000 : 60000);
     let reportContent;
     
+    // CRITICAL FIX (ChatGPT Feedback): Heartbeat during generation
+    // Updates report's updated_at every 15-20s to prevent stuck "processing" status
+    // when serverless function times out. Defined outside try block for catch access.
+    let heartbeatIntervalId: NodeJS.Timeout | null = null;
+    const heartbeatIntervalMs = 18000; // 18 seconds (between 15-20s as recommended)
+    const startHeartbeat = () => {
+      heartbeatIntervalId = setInterval(async () => {
+        try {
+          await updateStoredReportHeartbeat({ idempotencyKey, reportId });
+        } catch (err) {
+          // Ignore heartbeat errors - they shouldn't block report generation
+          console.warn("[HEARTBEAT] Heartbeat update failed (non-critical):", err);
+        }
+      }, heartbeatIntervalMs);
+    };
+    const stopHeartbeat = () => {
+      if (heartbeatIntervalId) {
+        clearInterval(heartbeatIntervalId);
+        heartbeatIntervalId = null;
+      }
+    };
+    
     try {
+      // Start heartbeat when generation begins
+      startHeartbeat();
       // Create a timeout promise that rejects after REPORT_GENERATION_TIMEOUT
       // CRITICAL FIX: Store timeout ID to ensure it can be cleared
       let timeoutId: NodeJS.Timeout | null = null;
@@ -1345,31 +1378,36 @@ export async function POST(req: Request) {
       
       // Race between report generation and timeout
       const reportGenerationPromise = (async () => {
-        switch (reportType) {
-          case "life-summary":
-            return await generateLifeSummaryReport(input, sessionKey);
-          case "marriage-timing":
-            return await generateMarriageTimingReport(input, sessionKey);
-          case "career-money":
-            return await generateCareerMoneyReport(input, sessionKey);
-          case "full-life":
-            return await generateFullLifeReport(input, sessionKey);
-          case "year-analysis":
-            // Use next 12 months from current date (intelligent date window)
-            // This provides guidance for the actual upcoming year period, not just calendar year
-            const yearAnalysisRange = getYearAnalysisDateRange();
-            return await generateYearAnalysisReport(input, sessionKey, {
-              startYear: yearAnalysisRange.startYear,
-              startMonth: yearAnalysisRange.startMonth,
-              endYear: yearAnalysisRange.endYear,
-              endMonth: yearAnalysisRange.endMonth,
-            });
-          case "major-life-phase":
-            return await generateMajorLifePhaseReport(input, sessionKey);
-          case "decision-support":
-            return await generateDecisionSupportReport(input, decisionContext, sessionKey);
-          default:
-            throw new Error(`Unknown report type: ${reportType}`);
+        try {
+          switch (reportType) {
+            case "life-summary":
+              return await generateLifeSummaryReport(input, sessionKey);
+            case "marriage-timing":
+              return await generateMarriageTimingReport(input, sessionKey);
+            case "career-money":
+              return await generateCareerMoneyReport(input, sessionKey);
+            case "full-life":
+              return await generateFullLifeReport(input, sessionKey);
+            case "year-analysis":
+              // Use next 12 months from current date (intelligent date window)
+              // This provides guidance for the actual upcoming year period, not just calendar year
+              const yearAnalysisRange = getYearAnalysisDateRange();
+              return await generateYearAnalysisReport(input, sessionKey, {
+                startYear: yearAnalysisRange.startYear,
+                startMonth: yearAnalysisRange.startMonth,
+                endYear: yearAnalysisRange.endYear,
+                endMonth: yearAnalysisRange.endMonth,
+              });
+            case "major-life-phase":
+              return await generateMajorLifePhaseReport(input, sessionKey);
+            case "decision-support":
+              return await generateDecisionSupportReport(input, decisionContext, sessionKey);
+            default:
+              throw new Error(`Unknown report type: ${reportType}`);
+          }
+        } finally {
+          // Always stop heartbeat when generation completes (success or failure)
+          stopHeartbeat();
         }
       })();
 
@@ -1382,12 +1420,16 @@ export async function POST(req: Request) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
+        // Stop heartbeat on success
+        stopHeartbeat();
       } catch (raceError: any) {
         // Clear timeout on error
         if (timeoutId) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
+        // Stop heartbeat on error
+        stopHeartbeat();
         // Re-throw the error to be handled by outer catch
         throw raceError;
       }
@@ -1458,12 +1500,19 @@ export async function POST(req: Request) {
     const errorMessage = error.message || "Unknown error";
     const errorString = JSON.stringify(error).toLowerCase();
 
-    // Persist failure (best-effort, serverless-safe)
-    try {
-      await markStoredReportFailed({ idempotencyKey, reportId, errorMessage });
-    } catch {
-      // ignore
-    }
+      // CRITICAL FIX (ChatGPT Feedback): Always stop heartbeat on error
+      stopHeartbeat();
+      
+      // CRITICAL FIX (ChatGPT Feedback): Always mark as failed if generation fails
+      // Never leave reports stuck in "processing" status - ensures catch/finally always updates status
+      // This prevents reports from being stuck forever when serverless function times out
+      try {
+        await markStoredReportFailed({ idempotencyKey, reportId, errorMessage });
+      } catch (markFailedError) {
+        // Log but don't throw - marking failed is best-effort but critical
+        console.error("[MARK_FAILED] Failed to mark report as failed:", markFailedError);
+        // Don't re-throw - we've already logged the error above
+      }
       
       // Check if it's a timeout error
       const isTimeoutError = 

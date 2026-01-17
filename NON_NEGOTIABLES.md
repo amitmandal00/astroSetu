@@ -51,6 +51,23 @@
   - `npm run test:critical` (Playwright critical invariants)
 - **If any check fails**: stop and write in `CURSOR_ACTIONS_REQUIRED.md` rather than trying random fixes.
 
+## Build & Environment Invariants (ChatGPT Feedback - CRITICAL)
+- **Never conclude "not code issue" without proof**: Only claim sandbox/environment restriction if:
+  - Failure is reproducible on a known-good runner (local/CI) AND
+  - Code path reads forbidden resources (provide exact file+line for every EPERM cause)
+- **Build must NOT require .env.local**: Next.js builds should succeed without `.env.local` file:
+  - Use `process.env.*` only (never `fs.readFileSync(".env.local")`)
+  - Validate env via `.env.example` + schema (zod/envalid), never by reading `.env.local`
+  - If build fails because something tries to read `.env.local` directly from disk, that's a code/script issue
+- **VAPID key dependency**: Push/VAPID key must read ONLY from `process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY`:
+  - If not present: disable push features gracefully (no crash, no build fail)
+  - Never read from files during build
+- **Test stages split correctly**: Tests must be split into independent gates:
+  - `test:unit` (no network - can run anywhere)
+  - `test:integration` (mock external network - can run anywhere)
+  - `test:e2e` (only in CI runners that support browsers - can be skipped safely when unsupported)
+- **When claiming EPERM/sandbox**: Must provide exact file+line where code tries to read restricted resource. No proof = no acceptance.
+
 ## Autopilot Workflow Invariants (ChatGPT Feedback - Minimize Interruptions)
 - **Single-file edits**: When possible, edit one file at a time to reduce "Confirm edit" prompts.
 - **Consolidate edits**: If multiple files need changes, batch them into ONE accept step when possible.

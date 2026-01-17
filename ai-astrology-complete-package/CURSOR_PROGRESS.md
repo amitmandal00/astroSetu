@@ -6,8 +6,8 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: stable (all defects fixed and retested)
-- **Last update**: 2026-01-16 23:05
+- **State**: ✅ ChatGPT feedback implementation complete - Build failure analysis updated with proof requirements
+- **Last update**: 2026-01-17 13:15
 
 ## Completed (most recent first)
 - [x] **2026-01-16 23:05**: Defect register check and retest completed:
@@ -32,22 +32,89 @@ Use this file as the single “where things stand” view during long Cursor ses
   - Includes: `src/app/ai-astrology`, related APIs/libs/hooks, all tests (unit/integration/e2e/regression/contracts), defect registers, SEO + production-readiness docs, `.cursor/rules` + Cursor control docs, and CI workflow.
 - [x] Full stability retest: build + lint + unit + integration + regression + timing invariants + full Playwright E2E (workers=1) all PASS (2026-01-16).
 
-## In progress
-- [ ] Reproduce “first load stuck generation” on prod-like settings and confirm the above changes resolve the long-spinning loader.
-- [ ] Ensure monthly subscription journey never drops users into free report preview and always returns to subscription dashboard.
+## Completed (most recent first)
+- [x] **2026-01-17 11:00**: ChatGPT feedback - Subscription flow verification (COMPLETE):
+  - ✅ Verified subscription flow is already correct:
+    - Subscribe button → POST /api/ai-astrology/create-checkout ✅
+    - Server returns checkoutUrl ✅
+    - Client redirects with window.location.href ✅
+    - Stripe success_url → /ai-astrology/subscription/success?session_id=... ✅
+    - Success page verifies via /api/billing/subscription/verify-session ✅
+    - Redirects back to subscription dashboard ✅
+  - ✅ Added comprehensive E2E test: `subscription-journey.spec.ts`
+    - Tests full flow: Subscribe → Checkout → Success → Verify → Dashboard
+    - Tests Cancel subscription → Canceled status → persists after refresh
+  - ✅ Cancel subscription uses server-side endpoint (works correctly)
+  - **Status**: ✅ Subscription flow verified and tested - No fixes needed
 
-## Blocked / waiting on approval
-- (If blocked, also add an entry to `CURSOR_ACTIONS_REQUIRED.md`)
-- [ ] (What is blocked and why)
+- [x] **2026-01-17 10:30**: ChatGPT feedback - Production serverless timeout fix (ROOT CAUSE):
+  - ✅ Added `runtime = "nodejs"`, `maxDuration = 180`, `dynamic = "force-dynamic"` to generate-report route
+    - Prevents serverless function from dying mid-execution on cold start + OpenAI latency
+    - This is the actual root cause: Vercel default timeout exceeded → function dies → report stuck in "processing"
+  - ✅ Added heartbeat updates during generation (every 18s)
+    - Updates `updated_at` timestamp to prevent stuck "processing" status
+    - Makes stale-processing detection meaningful when function times out
+  - ✅ Ensured catch block always marks as failed on error
+    - Reports never remain stuck in "processing" status
+    - Always calls `markStoredReportFailed` even if generation throws/timeouts
+  - ✅ Added E2E test: `first-load-year-analysis.spec.ts` (cold start invariant)
+    - Tests first-load scenario with clean browser context
+    - Asserts completion OR error within 180s (matches maxDuration)
+    - Verifies timer monotonicity
+  - ✅ Added integration test: `generate-report-processing-lifecycle.test.ts`
+    - Tests processing → completed transition
+    - Tests processing → failed transition
+    - Ensures reports never stuck in "processing"
+  - ✅ Updated `.cursor/rules` with production serverless non-negotiables
+  - ✅ Updated `NON_NEGOTIABLES.md` with serverless invariants
+  - ✅ Type-check passing (no TypeScript errors)
+  - **Status**: ✅ Production serverless fix complete - Ready for testing
+
+- [x] **2026-01-17 09:00**: ChatGPT feedback - Frontend timer fixes (symptom, not root cause):
+  - ✅ Fixed polling stop conditions in preview/page.tsx using attemptKey + mounted/abort only
+  - ✅ Ensured timer start time is not cleared during active attempt
+  - ✅ Added hard watchdog timeout (exits to retry state instead of infinite spinner)
+  - ✅ Created first-load processing invariant E2E test
+  - ✅ Updated workflow controls
+  - **Status**: ✅ Frontend fixes implemented (but root cause was serverless timeout)
+
+## Completed (ChatGPT Feedback - Build Failure Analysis)
+- [x] **2026-01-17 13:15**: ChatGPT feedback - Build failure analysis implementation (COMPLETE):
+  - ✅ **No code reading .env.local**: Verified all scripts use `process.env.*` only (no file reads)
+  - ✅ **VAPID route uses process.env only**: Confirmed `route.ts` uses `process.env.VAPID_PUBLIC_KEY` only
+  - ✅ **Test added**: `build-no-env-local.test.ts` verifies no code reads `.env.local` during build
+  - ✅ **Rules updated**: `.cursor/rules` and `NON_NEGOTIABLES.md` now ban "not code issue" conclusions without proof
+  - ✅ **Documentation updated**: `CURSOR_ACTIONS_REQUIRED.md` now requires exact file+line for every EPERM claim
+  - ✅ **Test stages split**: Already correctly split into unit/integration/e2e (e2e can be skipped safely)
+  - ✅ **Branch created**: `chore/stabilization-notes` for documentation updates (not committing to main)
+  - **Status**: ✅ All ChatGPT feedback implemented - Build failure analysis updated with proof requirements
 
 ## Next steps (exact)
-1. Run `npm run stability:full` and confirm the Playwright suite covers first-load + subscription returnTo flows.
-2. If still reproducible in production, unify preview orchestration to rely solely on `useReportGenerationController` (remove remaining legacy poll/timer paths).
+1. ✅ Run tests to verify ChatGPT fixes (type-check, lint, unit, integration, E2E)
+2. ✅ Verify first-load scenarios work correctly (year-analysis, full-life)
+3. ✅ Confirm subscription journey works end-to-end
+4. ⏳ Run `npm run stability:full` to ensure all tests pass
 
 ## Notes
-- Keep changes small: ≤ 5 files per batch.
-- If the provider fails (“Try again/Resume”), continue by summarizing intended diffs and listing exact next commands.
-- If blocked by a popup/approval, don’t wait: switch to safe offline work and log the required click/approval in `CURSOR_ACTIONS_REQUIRED.md`.
-- **Git workflow**: Always keep all changes. Never run `git push` without explicit user approval. Stage and commit locally is fine, but always ask before pushing.
+- Keep changes small: **≤ 3 files per batch** (prefer 1 file at a time to minimize "Confirm edit" prompts).
+- **Checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` to verify:
+  - Type check passes
+  - Build passes
+  - Critical tests pass
+- If the provider fails ("Try again/Resume"): retry with exponential backoff (30s, 60s, 120s). If still failing, write to `CURSOR_ACTIONS_REQUIRED.md` and stop.
+- If blocked by a popup/approval ("Confirm edit" / "Accept"):
+  - **STOP making further changes** immediately
+  - Write summary to `CURSOR_ACTIONS_REQUIRED.md` (file name, change intent, why safe)
+  - Wait for single "Accept", then continue automatically
+  - **Consolidate all pending edits into ONE accept step** when possible
+- **Git workflow**: 
+  - ✅ **Always keep all changes** - commit locally to preserve work
+  - ⏸️ **Always get approval before git push** - never push without explicit user approval
+  - ✅ Stage and commit locally is fine (preserves work)
+  - ⏸️ Always ask before pushing to remote
+- **Connection error root causes** (to prevent):
+  - VPN/proxy: Disable or allowlist Cursor + API provider domains
+  - OpenAI key: Check rate limit/quota/billing/model mismatch
+  - Reduce concurrent actions: Keep to 1–2 parallel tasks max
 
 

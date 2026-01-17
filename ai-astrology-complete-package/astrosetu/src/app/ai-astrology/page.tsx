@@ -914,6 +914,7 @@ export default function AIAstrologyLandingPage() {
               </Link>
               {" "}– For users who prefer ongoing guidance and gentle monthly check-ins
             </p>
+            {/* Note: If subscription page needs birth details, it will redirect to input with returnTo=/ai-astrology/subscription automatically */}
             <p className="text-xs text-slate-500 italic">
               Complements Year Analysis & Life Phase reports with monthly themes and reflective insights.
             </p>

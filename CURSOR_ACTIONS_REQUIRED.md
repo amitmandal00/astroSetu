@@ -15,19 +15,21 @@ This file tracks actions that require user interaction (approvals, clicks, setti
 
 ## Current Actions Required
 
-### Stabilization Mode - Build Failed (Sandbox Permission Issue)
+### Build Failure - EPERM Analysis (Pending Proof)
 - **Timestamp**: 2026-01-17 (Stabilization Mode PHASE 1)
-- **Failure**: Build failed due to sandbox permissions (not code issue)
-- **Error**: `EPERM: operation not permitted` for:
-  - `.env.local` file read
-  - `src/app/api/notifications/vapid-public-key` directory scan
-- **Why**: Sandbox restrictions prevent reading certain files/directories
-- **Action needed**: Run build outside sandbox OR allow required permissions
-- **Root cause**: Sandbox permission restrictions, not code/build issues
-- **Next steps**: 
-  1. Run `npm run build` with `required_permissions: ['all']` OR
-  2. Manually verify build works outside sandbox
-  3. Continue with tests (test:unit, test:critical, ci:critical) which may work despite build failure
+- **Failure**: Build failed with `EPERM: operation not permitted`
+- **Error locations** (requires exact file+line proof):
+  - `.env.local` file read: **PROOF NEEDED** - No code found reading `.env.local` during build
+  - `src/app/api/notifications/vapid-public-key` directory scan: **PROOF NEEDED** - Likely Next.js scanning routes (normal behavior)
+- **Analysis**:
+  - ✅ `check-env-required.sh` only checks `process.env.*` (correct - no file reads)
+  - ✅ `vapid-public-key/route.ts` only reads `process.env.VAPID_PUBLIC_KEY` (correct - no file reads)
+  - ❓ Next.js may scan directories during build (normal behavior, but EPERM suggests permission issue)
+- **Action needed**: 
+  1. Provide exact file+line where code tries to read `.env.local` OR confirm it's Next.js scanning (not code)
+  2. Verify build works outside sandbox with full permissions
+  3. If build succeeds outside sandbox: Document as sandbox restriction with exact cause
+  4. If build fails outside sandbox: Fix code (remove file reads, use `process.env` only)
 
 ---
 

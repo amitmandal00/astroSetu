@@ -96,6 +96,21 @@ function PreviewContent() {
   const attemptIdRef = useRef(0); // Track attempt ID for single-flight guarantee (ChatGPT recommendation)
   const abortControllerRef = useRef<AbortController | null>(null); // Track abort controller for cancellation (ChatGPT recommendation)
   
+  // CRITICAL FIX (ChatGPT Feedback): attemptKey for polling - prevents premature stops
+  // Format: `${session_id}:${reportType}` - unique per generation attempt
+  const activeAttemptKeyRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true); // Track component mount state
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+  
   // CRITICAL FIX (ChatGPT): isProcessingUI - single source of truth for when generation UI should be visible
   // This MUST match the EXACT condition used to render the generation UI (line 2333)
   // Timer must match UI visibility, not just loading state
@@ -129,11 +144,17 @@ function PreviewContent() {
     isProcessingUIRef.current = isProcessingUI;
   }, [isProcessingUI]);
 
-  // CRITICAL: Ensure a startTime exists as soon as the processing UI becomes visible.
-  // We set the ref synchronously during render (safe) so the timer can tick even before effects flush.
-  // (Some flows can show the loader via URL params before async generation sets loadingStartTime.)
-  if (typeof window !== "undefined" && isProcessingUI && loadingStartTimeRef.current === null) {
+  // CRITICAL FIX (ChatGPT Feedback): Timer initialization should use attemptKey, not isProcessingUI
+  // isProcessingUI can flip during state initialization, causing timer to reset
+  // Timer should be initialized when generation starts (when attemptKey is set), not based on UI computation
+  // For first-load with auto_generate, timer will be set when generateReport is called (line 285-288)
+  // This check is kept as fallback for legacy flows, but primary initialization is in generateReport
+  // CRITICAL: Use activeAttemptKeyRef OR loading state to initialize timer, NOT isProcessingUI computation
+  if (typeof window !== "undefined" && (activeAttemptKeyRef.current || loading) && loadingStartTimeRef.current === null) {
+    // Only initialize timer if there's an active attemptKey (generation has started) OR loading state
+    // This prevents timer from being set/reset during state initialization before generation starts
     loadingStartTimeRef.current = Date.now();
+    // Don't set state here (causes re-render) - state will be set in generateReport
   }
 
   // CRITICAL FIX: Use hook to compute elapsed time (single source of truth)
@@ -245,6 +266,13 @@ function PreviewContent() {
     const currentAttemptId = attemptIdRef.current;
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+    
+    // CRITICAL FIX (ChatGPT Feedback): Set attemptKey for this generation attempt
+    // This prevents polling from stopping prematurely when UI state flips
+    // Get sessionId from available sources (order: param, URL, will read from storage below)
+    const sessionIdForKey = currentSessionId || searchParams.get("session_id") || `attempt-${currentAttemptId}`;
+    const attemptKey = `${sessionIdForKey}:${type}`;
+    activeAttemptKeyRef.current = attemptKey;
 
     // Prevent concurrent requests - if already generating, ignore this call
     if (isGeneratingRef.current) {
@@ -392,40 +420,52 @@ function PreviewContent() {
         let pollingAborted = false; // CRITICAL FIX: Track if polling should stop
         
         const pollForReport = async (): Promise<void> => {
-          // CRITICAL FIX: Check attempt ID first (ChatGPT recommendation)
+          // CRITICAL FIX (ChatGPT Feedback): Polling stop conditions - ONLY these 3 conditions:
+          // 1. Attempt ID changed (new generation started)
           if (currentAttemptId !== attemptIdRef.current) {
             console.log("[CLIENT] Polling stopped - stale attempt:", currentAttemptId);
             pollingAborted = true;
             return;
           }
 
-          // CRITICAL FIX: Check abort signal
+          // 2. Abort signal triggered (user navigated away or component unmounted)
           if (abortController.signal.aborted) {
             console.log("[CLIENT] Polling stopped - aborted");
             pollingAborted = true;
             return;
           }
 
-          // CRITICAL FIX C (ChatGPT): Use ref instead of closure value to prevent stale closure
-          // Async polling functions capture isProcessingUI in closure, causing premature stops
-          if (pollingAborted || !isProcessingUIRef.current) {
-            console.log("[CLIENT] Polling stopped - aborted or UI no longer visible");
+          // 3. Component unmounted
+          if (!isMountedRef.current) {
+            console.log("[CLIENT] Polling stopped - component unmounted");
+            pollingAborted = true;
+            return;
+          }
+
+          // 4. Attempt key changed (different session/report type started)
+          if (activeAttemptKeyRef.current !== attemptKey) {
+            console.log("[CLIENT] Polling stopped - attempt key changed:", activeAttemptKeyRef.current, "vs", attemptKey);
+            pollingAborted = true;
             return;
           }
           
-          if (pollAttempts >= maxPollAttempts) {
-            console.warn(`[CLIENT] Polling timeout after ${maxPollAttempts} attempts`);
+          // CRITICAL FIX (ChatGPT Feedback): Hard watchdog - if elapsed > max for reportType, exit to retry state
+          // Calculate elapsed time to check against max timeout
+          const elapsedMs = loadingStartTimeRef.current ? Date.now() - loadingStartTimeRef.current : 0;
+          const maxTimeoutMs = clientTimeout;
+          if (pollAttempts >= maxPollAttempts || elapsedMs > maxTimeoutMs) {
+            console.warn(`[CLIENT] Polling timeout after ${pollAttempts} attempts or ${Math.floor(elapsedMs / 1000)}s elapsed`);
             pollingAborted = true;
             setLoading(false);
             setLoadingStage(null);
-            // Never clear timer while loader is visible; it must be monotonic while processing UI is shown.
-            if (!isProcessingUIRef.current) {
-              loadingStartTimeRef.current = null;
-              setLoadingStartTime(null);
-            }
+            // CRITICAL FIX (ChatGPT Feedback): Clear timer on timeout - show retry button
+            loadingStartTimeRef.current = null;
+            setLoadingStartTime(null);
             isGeneratingRef.current = false;
             hasAutoGeneratedRef.current = false;
-            throw new Error("Report generation is taking longer than expected. Please try again.");
+            activeAttemptKeyRef.current = null; // Clear attempt key on timeout
+            setError("Report generation is taking longer than expected. Please try again.");
+            return; // Exit polling gracefully, don't throw (allows UI to show retry button)
           }
           
           pollAttempts++;
@@ -440,29 +480,22 @@ function PreviewContent() {
               signal: abortController.signal, // CRITICAL FIX: Pass abort signal
             });
             
-            // CRITICAL FIX: Check attempt ID after fetch
-            if (currentAttemptId !== attemptIdRef.current) {
-              console.log("[CLIENT] Polling stopped - stale attempt after fetch:", currentAttemptId);
+            // CRITICAL FIX: Check stop conditions after fetch
+            if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+              console.log("[CLIENT] Polling stopped after fetch - condition changed");
               pollingAborted = true;
-              return;
-            }
-
-            // CRITICAL FIX C (ChatGPT): Use ref instead of closure value to prevent stale closure
-            if (pollingAborted || !isProcessingUIRef.current) {
-              console.log("[CLIENT] Polling stopped after fetch");
               return;
             }
             
             if (!statusResponse.ok) {
               // If status check fails, wait and retry
               await new Promise(resolve => setTimeout(resolve, pollInterval));
-              // CRITICAL FIX: Check attempt ID and isProcessingUI before recursive call
-              if (currentAttemptId !== attemptIdRef.current) {
+              // CRITICAL FIX: Check stop conditions before recursive call
+              if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
                 pollingAborted = true;
                 return;
               }
-              // CRITICAL FIX C (ChatGPT): Use ref instead of closure value to prevent stale closure
-              if (!pollingAborted && isProcessingUIRef.current) {
+              if (!pollingAborted) {
                 return pollForReport();
               }
               return;
@@ -470,17 +503,10 @@ function PreviewContent() {
             
             const statusData = await statusResponse.json();
             
-            // CRITICAL FIX: Check attempt ID after JSON parse
-            if (currentAttemptId !== attemptIdRef.current) {
-              console.log("[CLIENT] Polling stopped - stale attempt after JSON parse:", currentAttemptId);
+            // CRITICAL FIX: Check stop conditions after JSON parse
+            if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+              console.log("[CLIENT] Polling stopped after JSON parse - condition changed");
               pollingAborted = true;
-              return;
-            }
-
-            // CRITICAL FIX: Check if polling was aborted or generation UI no longer visible
-            // CRITICAL FIX C (ChatGPT): Use ref instead of closure value to prevent stale closure
-            if (pollingAborted || !isProcessingUIRef.current) {
-              console.log("[CLIENT] Polling stopped after JSON parse");
               return;
             }
             
@@ -496,13 +522,13 @@ function PreviewContent() {
                 // This ensures timer stops and UI updates even if navigation fails
                 setLoading(false);
                 setLoadingStage(null);
-                // Never clear timer while loader is visible; if content can't render yet, keep timer ticking.
-                if (!isProcessingUIRef.current) {
-                  loadingStartTimeRef.current = null;
-                  setLoadingStartTime(null);
-                }
+                // CRITICAL FIX (ChatGPT Feedback): Only clear timer when status is completed or failed
+                // Timer must remain monotonic during active attempt
+                loadingStartTimeRef.current = null;
+                setLoadingStartTime(null);
                 isGeneratingRef.current = false;
                 hasAutoGeneratedRef.current = false;
+                activeAttemptKeyRef.current = null; // Clear attempt key on completion
                 
                 // Store content if available
                 if (statusData.data.content && statusData.data.reportId) {
@@ -548,13 +574,15 @@ function PreviewContent() {
                 }
               } else if (statusData.data.status === "processing") {
                 // Still processing - wait and poll again
+                // CRITICAL FIX (ChatGPT Feedback): Always keep polling on "processing" status
+                // Only stop if abort signal, unmount, or attempt key changed
                 await new Promise(resolve => setTimeout(resolve, pollInterval));
-                // CRITICAL FIX: Check attempt ID and isProcessingUI before recursive call
-                if (currentAttemptId !== attemptIdRef.current) {
+                // Check stop conditions before recursive call
+                if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
                   pollingAborted = true;
                   return;
                 }
-                if (!pollingAborted && isProcessingUI) {
+                if (!pollingAborted) {
                   return pollForReport();
                 }
                 return;
@@ -563,27 +591,20 @@ function PreviewContent() {
                 pollingAborted = true;
                 setLoading(false);
                 setLoadingStage(null);
-                if (!isProcessingUIRef.current) {
-                  loadingStartTimeRef.current = null;
-                  setLoadingStartTime(null);
-                }
+                // CRITICAL FIX (ChatGPT Feedback): Clear timer only when status is failed (completed above)
+                loadingStartTimeRef.current = null;
+                setLoadingStartTime(null);
                 isGeneratingRef.current = false;
                 hasAutoGeneratedRef.current = false;
+                activeAttemptKeyRef.current = null; // Clear attempt key on failure
                 throw new Error(statusData.data.error || "Report generation failed");
               }
             }
           } catch (pollError: any) {
-            // CRITICAL FIX: Check attempt ID first
-            if (currentAttemptId !== attemptIdRef.current) {
-              console.log("[CLIENT] Polling stopped - stale attempt in error handler:", currentAttemptId);
+            // CRITICAL FIX: Check stop conditions in error handler
+            if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+              console.log("[CLIENT] Polling stopped in error handler - condition changed");
               pollingAborted = true;
-              return;
-            }
-
-            // CRITICAL FIX: Check if polling was aborted or generation UI no longer visible
-            // CRITICAL FIX C (ChatGPT): Use ref instead of closure value to prevent stale closure
-            if (pollingAborted || !isProcessingUIRef.current) {
-              console.log("[CLIENT] Polling stopped in error handler");
               return;
             }
             
@@ -591,28 +612,27 @@ function PreviewContent() {
             // Wait and retry unless we've exceeded max attempts
             if (pollAttempts < maxPollAttempts) {
               await new Promise(resolve => setTimeout(resolve, pollInterval));
-              // CRITICAL FIX: Check attempt ID and isProcessingUI before recursive call
-              if (currentAttemptId !== attemptIdRef.current) {
+              // CRITICAL FIX: Check stop conditions before recursive call
+              if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
                 pollingAborted = true;
                 return;
               }
-              // CRITICAL FIX C (ChatGPT): Use ref instead of closure value to prevent stale closure
-              if (!pollingAborted && isProcessingUIRef.current) {
+              if (!pollingAborted) {
                 return pollForReport();
               }
               return;
             }
             
-            // Max attempts reached - stop polling
+            // Max attempts reached - stop polling (hard watchdog timeout)
             pollingAborted = true;
             setLoading(false);
             setLoadingStage(null);
-            if (!isProcessingUIRef.current) {
-              loadingStartTimeRef.current = null;
-              setLoadingStartTime(null);
-            }
+            // CRITICAL FIX (ChatGPT Feedback): Clear timer on timeout (max attempts reached)
+            loadingStartTimeRef.current = null;
+            setLoadingStartTime(null);
             isGeneratingRef.current = false;
             hasAutoGeneratedRef.current = false;
+            activeAttemptKeyRef.current = null; // Clear attempt key on timeout
             throw pollError;
           }
         };
@@ -1927,9 +1947,13 @@ function PreviewContent() {
         loadingStartTimeRef.current = generationController.startTime;
       } else if (!generationController.startTime && loadingStartTime) {
         // Controller reset but component still has start time - sync
-        // CRITICAL: Never clear timer while loader is visible (monotonic timer invariant).
-        // Clearing startTime while UI still shows loader causes elapsed to snap back to 0 and appear "stuck".
-        if (generationController.status === 'idle' && usingControllerRef.current && !isProcessingUIRef.current) {
+        // CRITICAL FIX (ChatGPT Feedback): Never clear timer based on isProcessingUIRef
+        // isProcessingUIRef can flip during state initialization, causing timer to reset
+        // Only clear timer when we're SURE generation is done: status === 'idle' AND no content AND no active attempt
+        // Use activeAttemptKeyRef instead of isProcessingUIRef to avoid race conditions
+        if (generationController.status === 'idle' && usingControllerRef.current && !activeAttemptKeyRef.current && !generationController.reportContent && !generationController.error) {
+          // Only clear if there's no active generation attempt (no attemptKey)
+          // This prevents clearing timer during first-load state initialization
           setLoadingStartTime(null);
           loadingStartTimeRef.current = null;
         }
@@ -1939,26 +1963,26 @@ function PreviewContent() {
       if (generationController.reportContent && !reportContent) {
         setReportContent(generationController.reportContent);
         setContentLoadTime(Date.now());
-        // CRITICAL: When report content arrives, stop loading and timer
+        // CRITICAL FIX (ChatGPT Feedback): When report content arrives, stop loading and timer
+        // Don't check isProcessingUIRef - clear timer immediately when content arrives
         setLoading(false);
         setLoadingStage(null);
-        if (!isProcessingUIRef.current) {
-          loadingStartTimeRef.current = null;
-          setLoadingStartTime(null);
-        }
+        loadingStartTimeRef.current = null;
+        setLoadingStartTime(null);
+        activeAttemptKeyRef.current = null; // Clear attempt key on completion
       }
       
       // CHATGPT FIX: Sync error from generation controller
       if (generationController.error && !error) {
         setError(generationController.error);
-        // On error, stop loading
+        // CRITICAL FIX (ChatGPT Feedback): On error, stop loading and timer
+        // Don't check isProcessingUIRef - clear timer immediately on error
         if (generationController.status === 'failed' || generationController.status === 'timeout') {
           setLoading(false);
           setLoadingStage(null);
-          if (!isProcessingUIRef.current) {
-            loadingStartTimeRef.current = null;
-            setLoadingStartTime(null);
-          }
+          loadingStartTimeRef.current = null;
+          setLoadingStartTime(null);
+          activeAttemptKeyRef.current = null; // Clear attempt key on error
         }
       }
       
