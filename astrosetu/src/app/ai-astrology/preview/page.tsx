@@ -101,6 +101,7 @@ function PreviewContent() {
   // Format: `${session_id}:${reportType}` - unique per generation attempt
   const activeAttemptKeyRef = useRef<string | null>(null);
   const isMountedRef = useRef(true); // Track component mount state
+  const isSubmittingRef = useRef(false); // CRITICAL FIX (ChatGPT): Single-flight guard for purchase/subscribe handlers
   
   // Cleanup on unmount
   useEffect(() => {
@@ -1445,7 +1446,36 @@ function PreviewContent() {
           
           console.log("[Preview] No input found (no input_token, no sessionStorage), redirecting to:", redirectUrl);
           hasRedirectedRef.current = true; // Prevent multiple redirects
-          router.push(redirectUrl);
+          
+          // CRITICAL FIX (ChatGPT): Redirect timeout watchdog - prevent infinite "Redirecting..."
+          // If redirect hasn't happened by 2s, switch to error UI with "Start again" + debug Ref
+          const redirectTimeoutId = setTimeout(() => {
+            // Check if still on preview page (redirect didn't happen)
+            if (typeof window !== "undefined" && window.location.pathname.includes("/preview")) {
+              const debugRef = `REF_${Date.now().toString(36).slice(-8).toUpperCase()}`;
+              console.error(`[Preview] Redirect timeout after 2s - router.push may be blocked`, {
+                debugRef,
+                redirectUrl,
+                pathname: window.location.pathname,
+              });
+              setError(`Redirect is taking longer than expected. Ref: ${debugRef}. Please click "Start again" below.`);
+              setLoading(false);
+              hasRedirectedRef.current = false; // Allow retry
+            }
+          }, 2000); // 2 second timeout
+          
+          router.push(redirectUrl).then(() => {
+            // Clear timeout if redirect succeeded
+            clearTimeout(redirectTimeoutId);
+          }).catch((error) => {
+            // Clear timeout and show error if redirect failed
+            clearTimeout(redirectTimeoutId);
+            const debugRef = `REF_${Date.now().toString(36).slice(-8).toUpperCase()}`;
+            console.error(`[Preview] Redirect failed - router.push error:`, error, { debugRef, redirectUrl });
+            setError(`Failed to redirect. Ref: ${debugRef}. Please click "Start again" below.`);
+            setLoading(false);
+            hasRedirectedRef.current = false; // Allow retry
+          });
           return;
         }
         
@@ -1928,6 +1958,12 @@ function PreviewContent() {
   const needsPayment = isPaidReport && !paymentVerified;
 
   const handlePurchase = async () => {
+    // CRITICAL FIX (ChatGPT): Single-flight guard - prevent double-clicks from causing duplicate API calls
+    if (isSubmittingRef.current) {
+      console.warn("[Purchase] Already submitting, ignoring duplicate click");
+      return;
+    }
+    
     // CRITICAL FIX (ChatGPT): Don't silently return - redirect to input if input missing
     // This fixes "Purchase does nothing" issue
     if (!input) {
@@ -1984,6 +2020,7 @@ function PreviewContent() {
     }, TIMEOUT_MS);
 
     try {
+      isSubmittingRef.current = true; // Set single-flight guard immediately
       setLoading(true);
       setError(null); // Clear any previous errors
       
@@ -2095,6 +2132,9 @@ function PreviewContent() {
         reportType,
         errorMessage,
       });
+    } finally {
+      // CRITICAL FIX (ChatGPT): Clear single-flight guard on completion/error
+      isSubmittingRef.current = false;
     }
   };
 

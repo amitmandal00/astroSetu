@@ -206,7 +206,16 @@ function SubscriptionContent() {
     }
   };
 
+  // CRITICAL FIX (ChatGPT): Single-flight guard for subscribe handler
+  const isSubmittingRef = useRef(false);
+  
   const handleSubscribe = async () => {
+    // CRITICAL FIX (ChatGPT): Single-flight guard - prevent double-clicks from causing duplicate API calls
+    if (isSubmittingRef.current) {
+      console.warn("[Subscribe] Already submitting, ignoring duplicate click");
+      return;
+    }
+    
     if (!input) return;
 
     // CRITICAL FIX (ChatGPT): Generate checkout attempt ID for server-side tracing
@@ -233,6 +242,7 @@ function SubscriptionContent() {
     }, TIMEOUT_MS);
 
     try {
+      isSubmittingRef.current = true; // Set single-flight guard immediately
       setLoading(true);
       setError(null); // Clear any previous errors
       
@@ -344,6 +354,9 @@ function SubscriptionContent() {
         checkoutAttemptId,
         errorMessage,
       });
+    } finally {
+      // CRITICAL FIX (ChatGPT): Clear single-flight guard on completion/error
+      isSubmittingRef.current = false;
     }
   };
 

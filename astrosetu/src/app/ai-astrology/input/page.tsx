@@ -248,8 +248,24 @@ function InputFormContent() {
       // CRITICAL FIX (ChatGPT): Harden returnTo - only allow /ai-astrology/* paths
       // Block external URLs and dangerous paths (prevent open redirect)
       // Allow querystrings (e.g., ?session_id=...) but still block encoded protocol variants
+      // CRITICAL FIX (ChatGPT 21:15): Prevent loops - if returnTo points to /input or has flow=subscription, override
       if (returnTo && isSafeReturnTo(returnTo)) {
-        const sanitizedReturnTo = returnTo.trim();
+        let sanitizedReturnTo = returnTo.trim();
+        
+        // CRITICAL FIX (ChatGPT): Loop prevention - if returnTo points to /input or has flow=subscription, override
+        // This avoids "input → subscription → input → ..." loops in weird partial states
+        if (sanitizedReturnTo.includes("/input") || sanitizedReturnTo.includes("flow=subscription")) {
+          console.warn("[Input] returnTo points to /input or has flow=subscription - overriding to prevent loop:", sanitizedReturnTo);
+          // Override to safe default based on flow
+          if (flow === "subscription") {
+            sanitizedReturnTo = "/ai-astrology/subscription";
+          } else {
+            // Report flow default
+            const reportTypeForDefault = finalReportType || reportType || "life-summary";
+            sanitizedReturnTo = `/ai-astrology/preview?reportType=${encodeURIComponent(reportTypeForDefault)}`;
+          }
+        }
+        
         // Include input_token in returnTo if we have it
         // Preserve existing querystring (e.g., ?session_id=...)
         const separator = sanitizedReturnTo.includes("?") ? "&" : "?";
