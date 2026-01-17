@@ -2088,24 +2088,25 @@ function PreviewContent() {
       // CRITICAL FIX (ChatGPT): Don't silently return - redirect to input if input missing
       // This fixes "Purchase does nothing" issue
       if (!input) {
-      const reportTypeParam = searchParams.get("reportType");
-      const returnTo = typeof window !== "undefined" 
-        ? `${window.location.pathname}${window.location.search}`
-        : "";
-      const redirectUrl = reportTypeParam && returnTo
-        ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}&returnTo=${encodeURIComponent(returnTo)}`
-        : reportTypeParam
-        ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}`
-        : "/ai-astrology/input";
-      console.log("[Purchase] No input found, redirecting to input:", redirectUrl);
-      redirectInitiatedRef.current = true; // CRITICAL FIX (ChatGPT): Mark redirect as initiated to cancel watchdog
-      // CRITICAL FIX (ChatGPT): Cancel redirect watchdog if redirect is initiated from purchase handler
-      if (redirectWatchdogTimeoutRef.current) {
-        clearTimeout(redirectWatchdogTimeoutRef.current);
-        redirectWatchdogTimeoutRef.current = null;
+        const reportTypeParam = searchParams.get("reportType");
+        const returnTo = typeof window !== "undefined" 
+          ? `${window.location.pathname}${window.location.search}`
+          : "";
+        const redirectUrl = reportTypeParam && returnTo
+          ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}&returnTo=${encodeURIComponent(returnTo)}`
+          : reportTypeParam
+          ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}`
+          : "/ai-astrology/input";
+        console.log("[Purchase] No input found, redirecting to input:", redirectUrl);
+        redirectInitiatedRef.current = true; // CRITICAL FIX (ChatGPT): Mark redirect as initiated to cancel watchdog
+        // CRITICAL FIX (ChatGPT): Cancel redirect watchdog if redirect is initiated from purchase handler
+        if (redirectWatchdogTimeoutRef.current) {
+          clearTimeout(redirectWatchdogTimeoutRef.current);
+          redirectWatchdogTimeoutRef.current = null;
+        }
+        router.push(redirectUrl);
+        return;
       }
-      router.push(redirectUrl);
-      return;
     }
     
     // Check if this is a bundle purchase
