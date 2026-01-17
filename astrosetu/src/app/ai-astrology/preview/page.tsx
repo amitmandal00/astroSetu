@@ -1334,7 +1334,7 @@ function PreviewContent() {
       // CRITICAL FIX (ChatGPT Directive): NO setTimeout allowed - run immediately
       // Atomic generation: sessionStorage check and generation start must be synchronous
       // Removed 500ms delay to eliminate "timer resets after 1 second" bug
-      (() => {
+      (async () => {
         // CRITICAL: Double-check we haven't redirected or started loading in the meantime
         // CRITICAL FIX: Also check bundleGenerating and loadingStage to prevent redirects during generation
         if (hasRedirectedRef.current || loading || isGeneratingRef.current || bundleGenerating || loadingStage !== null) {

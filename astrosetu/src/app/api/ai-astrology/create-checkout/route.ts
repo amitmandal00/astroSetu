@@ -105,6 +105,7 @@ export async function POST(req: Request) {
     decisionContext?: string;
     bundleReports?: string[];
     bundleType?: string;
+    checkoutAttemptId?: string; // CRITICAL FIX (ChatGPT): Client-generated attempt ID for server-side tracing
   } | null = null;
   let isDemoMode = false;
   let isTestUser = false;

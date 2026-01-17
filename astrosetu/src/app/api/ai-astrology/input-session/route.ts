@@ -169,6 +169,10 @@ export async function POST(req: Request) {
  */
 export async function GET(req: Request) {
   const requestId = generateRequestId();
+  
+  // CRITICAL FIX (ChatGPT): Declare token outside try block so it's accessible in catch
+  const { searchParams } = new URL(req.url);
+  const token = searchParams.get("token");
 
   try {
     const rateLimitResponse = checkRateLimit(req, "/api/ai-astrology/input-session");
@@ -176,9 +180,6 @@ export async function GET(req: Request) {
       rateLimitResponse.headers.set("X-Request-ID", requestId);
       return rateLimitResponse;
     }
-
-    const { searchParams } = new URL(req.url);
-    const token = searchParams.get("token");
 
     if (!token) {
       return NextResponse.json(
