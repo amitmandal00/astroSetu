@@ -52,9 +52,14 @@ test.describe("Subscription Input Token Flow", () => {
     const subscribeButton = page.getByRole("button", { name: /subscribe/i });
     await expect(subscribeButton).toBeVisible({ timeout: 5000 });
     
-    // Should not show "Enter birth details" or redirect to input
+    // CRITICAL FIX (ChatGPT): Assert UI shows "Cancel anytime" / active state after return
+    // Should show subscription UI (not "Enter birth details" or redirect to input)
     const enterDetailsText = page.getByText(/enter birth details|redirecting/i);
     await expect(enterDetailsText).not.toBeVisible({ timeout: 2000 });
+    
+    // Verify active state is visible (subscription UI loaded)
+    const subscriptionUI = page.getByText(/cancel anytime|active|subscribed/i);
+    await expect(subscriptionUI).toBeVisible({ timeout: 2000 });
   });
 
   test("Subscription redirects to input with flow=subscription when no input_token and no sessionStorage", async ({ page, context }) => {
