@@ -9,7 +9,8 @@ test.describe("No Redirect Loop After Input Submit", () => {
     // Should redirect to input page
     await page.waitForURL(/\/ai-astrology\/input/, { timeout: 3000 });
     
-    // Fill birth details
+    // Wait for form to load, then fill birth details
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");
@@ -49,6 +50,7 @@ test.describe("No Redirect Loop After Input Submit", () => {
     await page.goto("/ai-astrology/input?reportType=year-analysis&bundleType=any-2&bundleReports=year-analysis,career-money");
     await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
 
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");
@@ -77,6 +79,7 @@ test.describe("No Redirect Loop After Input Submit", () => {
 
     await page.waitForURL(/\/ai-astrology\/input/, { timeout: 3000 });
 
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");

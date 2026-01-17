@@ -21,7 +21,8 @@ test.describe("Token GET Required After Input Submit", () => {
       localStorage.clear();
     });
 
-    // Step 1: Fill input form
+    // Step 1: Wait for form to load, then fill input form
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");
@@ -88,7 +89,8 @@ test.describe("Token GET Required After Input Submit", () => {
       localStorage.clear();
     });
 
-    // Fill input form
+    // Wait for form to load, then fill input form
+    await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
     await page.fill('input[name="dob"]', "1990-01-01");
     await page.fill('input[name="tob"]', "12:00");
