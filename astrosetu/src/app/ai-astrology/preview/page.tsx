@@ -1321,6 +1321,24 @@ function PreviewContent() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     
+    // CRITICAL: If input_token is in URL, wait for token loading to complete
+    // Don't redirect while token is being fetched
+    const inputToken = searchParams.get("input_token");
+    if (inputToken) {
+      // Token is in URL - wait for token loading to complete
+      if (tokenLoading) {
+        console.log("[Preview] Token in URL, waiting for token loading to complete...");
+        return; // Wait for token loading
+      }
+      // Token loading completed but no input - token might be invalid
+      // Don't redirect immediately - let error state show "Start again" button
+      if (!input) {
+        console.log("[Preview] Token in URL but loading completed with no input - token may be invalid");
+        // Don't redirect - error state will show "Start again" button
+        return;
+      }
+    }
+    
     // CRITICAL: Wait for token loading to complete before checking redirect
     if (tokenLoading) return;
     
@@ -3693,6 +3711,36 @@ function PreviewContent() {
               <div className="animate-spin text-6xl mb-6">🌙</div>
               <h2 className="text-2xl font-bold mb-4">Loading your details...</h2>
               <p className="text-slate-600">Please wait while we load your information.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // CRITICAL FIX (2026-01-18): Show error state if error is set (e.g., expired token)
+    // This prevents showing "Enter Your Birth Details" when token is invalid
+    if (error) {
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="text-6xl mb-6">⚠️</div>
+              <h2 className="text-2xl font-bold mb-4 text-red-600">Error</h2>
+              <p className="text-slate-600 mb-6">{error}</p>
+              <Button
+                onClick={() => {
+                  const urlReportType = searchParams.get("reportType");
+                  const redirectUrl = urlReportType
+                    ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+                    : "/ai-astrology/input";
+                  const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+                  console.info("[ERROR_START_AGAIN]", fullUrl);
+                  window.location.assign(fullUrl);
+                }}
+                className="cosmic-button"
+              >
+                Start Again →
+              </Button>
             </CardContent>
           </Card>
         </div>
