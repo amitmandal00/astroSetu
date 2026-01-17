@@ -6,8 +6,25 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ ChatGPT feedback implementation complete - First-load race condition fixed
-- **Last update**: 2026-01-17 13:30
+- **State**: ✅ **Ship-Ready Baseline Established** - Controlled system, not just working code
+- **Last update**: 2026-01-17 15:30
+- **ChatGPT Final Verdict**: ✅ **Ship-ready, production-safe baseline** - "This is the first time the root causes are actually eliminated, not just masked, and future regressions are structurally blocked. You are out of the 'Cursor fix loop'."
+- **Release Gate**: `npm run release:gate` (type-check + build + test:critical) required before production-ready declarations
+- **Baseline Freeze**: 2026-01-17 - No refactors, no cleanup, only additive features. Any core flow change must pass `release:gate`.
+
+## Completed (ChatGPT Final Improvements - 2026-01-17 15:00)
+- [x] **ChatGPT Final Improvements** - Two targeted improvements for production detectability:
+  - ✅ **Invariant log made actionable**: Updated bundle invariant violation to use Sentry (if available) or stable tag prefix `[INVARIANT_VIOLATION]` for grep-able Vercel logs
+    - Uses `logError()` which sends to Sentry automatically
+    - Prefixes console.error with stable tag for grep-ability
+    - Includes sessionId in violation data for debugging
+  - ✅ **Release gate command added**: Added `npm run release:gate` to package.json
+    - Runs: `npm run type-check && npm run build && npm run test:critical`
+    - Required in `.cursor/rules` before declaring production-ready
+    - Prevents future "it passed type-check so it's fine" mistakes
+  - ✅ **Updated .cursor/rules**: Added "Release Gate" section requiring `release:gate` before production-ready declarations
+  - ✅ **ChatGPT Verdict**: ✅ **This is a good baseline to move forward with**
+  - **Status**: ✅ Production-ready baseline established - All improvements implemented
 
 ## Completed (most recent first)
 - [x] **2026-01-16 23:05**: Defect register check and retest completed:
@@ -97,6 +114,10 @@ Use this file as the single “where things stand” view during long Cursor ses
     - Verifies timer monotonicity (never resets to 0)
     - Asserts completion or error within 180s (no infinite spinner)
     - Fails immediately if second auto-start is reintroduced
+  - ✅ **E2E test added**: `subscription-flow.spec.ts`
+    - Tests Subscribe button redirects away from subscription page (not silent refresh)
+    - Tests error is visible if checkout fails (not silent failure)
+    - Tests Monthly flow returnTo contract (Subscription → Input → Returns to Subscription)
   - ✅ **Rules updated**: `.cursor/rules` now includes "Single Orchestration Owner Rule"
     - Prevents multiple auto-start mechanisms
     - Enforces singleflight guard for `generationController.start()`

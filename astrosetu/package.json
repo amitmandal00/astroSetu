@@ -24,7 +24,7 @@
     "test:e2e:debug": "playwright test --debug",
     "test:all": "npm run test:unit && npm run test:e2e",
     "test:regression": "vitest run tests/regression",
-    "test:critical": "playwright test tests/e2e/critical-invariants.spec.ts tests/e2e/billing-subscription.spec.ts tests/e2e/billing-subscribe-flow.spec.ts tests/e2e/critical-first-load-generation.spec.ts",
+    "test:critical": "playwright test tests/e2e/critical-invariants.spec.ts tests/e2e/billing-subscription.spec.ts tests/e2e/billing-subscribe-flow.spec.ts tests/e2e/critical-first-load-generation.spec.ts tests/e2e/critical-first-load-paid-session.spec.ts tests/e2e/stale-session-retry.spec.ts tests/e2e/preview-no-processing-without-start.spec.ts tests/e2e/subscription-flow.spec.ts tests/e2e/subscription-returnTo.spec.ts",
     "test:build-imports": "vitest run tests/critical/build-imports.test.ts",
     "test:build-no-env-local": "vitest run tests/critical/build-no-env-local.test.ts",
     "test:integration:critical": "vitest run tests/integration/idempotency-report-generate.test.ts tests/integration/openai-budget-invariant.test.ts tests/integration/stripe-webhook-signature.test.ts",
@@ -34,8 +34,8 @@
     "ci:critical": "npm run type-check && npm run build && npm run test:build-imports && npm run test:build-no-env-local && npm run test:integration:critical && npm run test:timing-invariants && npm run check:prokerala-boundary && npm run check:env-required",
     "prepush": "npm run type-check && npm run build",
     "regression-check": "bash scripts/regression-check.sh",
-    "pre-deploy": "npm run type-check && npm run build && npm run test:regression"
-    ,
+    "pre-deploy": "npm run type-check && npm run build && npm run test:regression",
+    "release:gate": "npm run type-check && npm run build && npm run test:critical",
     "stability:full": "bash scripts/stability-full.sh"
   },
   "dependencies": {

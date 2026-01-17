@@ -6,8 +6,8 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ ChatGPT feedback implementation complete - Build failure analysis updated with proof requirements
-- **Last update**: 2026-01-17 13:15
+- **State**: ✅ ChatGPT feedback implementation complete - First-load race condition fixed
+- **Last update**: 2026-01-17 13:30
 
 ## Completed (most recent first)
 - [x] **2026-01-16 23:05**: Defect register check and retest completed:
@@ -77,6 +77,35 @@ Use this file as the single “where things stand” view during long Cursor ses
   - ✅ Created first-load processing invariant E2E test
   - ✅ Updated workflow controls
   - **Status**: ✅ Frontend fixes implemented (but root cause was serverless timeout)
+
+## Completed (ChatGPT Feedback - First-Load Race Condition Fix)
+- [x] **2026-01-17 13:30**: ChatGPT feedback - First-load race condition fix (ROOT CAUSE):
+  - ✅ **Removed premature auto-recovery effect**: Deleted the auto-recovery useEffect that was racing with main auto-generate flow
+    - Auto-recovery now ONLY available via manual "Retry" button - never automatic on first load
+    - This was causing race condition where auto-recovery and main auto-generate both started generation
+    - Resulted in timer resets and stuck states on first load
+  - ✅ **Single orchestration owner**: Only main auto-generate flow starts generation automatically
+    - Removed duplicate auto-start mechanisms (auto-recovery + auto-generate racing)
+    - Ensures ONE owner for generation start (prevents timer resets)
+  - ✅ **Fixed futureWindows import**: Moved `require()` to top-level `import` in `prompts.ts`
+    - Prevents build-time module resolution issues
+    - Uses `import { getCurrentYear, ensureFutureYear } from "../time/futureWindows"`
+  - ✅ **Subscription flow verified**: Already uses `window.location.href` (correct)
+    - No changes needed - flow is already correct
+  - ✅ **E2E test added**: `critical-first-load-generation.spec.ts`
+    - Tests that only ONE generation request starts within 5 seconds
+    - Verifies timer monotonicity (never resets to 0)
+    - Asserts completion or error within 180s (no infinite spinner)
+    - Fails immediately if second auto-start is reintroduced
+  - ✅ **E2E test added**: `subscription-flow.spec.ts`
+    - Tests Subscribe button redirects away from subscription page (not silent refresh)
+    - Tests error is visible if checkout fails (not silent failure)
+    - Tests Monthly flow returnTo contract (Subscription → Input → Returns to Subscription)
+  - ✅ **Rules updated**: `.cursor/rules` now includes "Single Orchestration Owner Rule"
+    - Prevents multiple auto-start mechanisms
+    - Enforces singleflight guard for `generationController.start()`
+  - ✅ **Type-check passing**: No TypeScript errors
+  - **Status**: ✅ First-load race condition fixed - Ready for testing
 
 ## Completed (ChatGPT Feedback - Build Failure Analysis)
 - [x] **2026-01-17 13:15**: ChatGPT feedback - Build failure analysis implementation (COMPLETE):
