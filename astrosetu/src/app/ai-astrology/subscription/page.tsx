@@ -19,16 +19,48 @@ function SubscriptionContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // CRITICAL FIX (ChatGPT 22:45): Build ID for deployment verification
-  const buildId = process.env.NEXT_PUBLIC_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA || `dev-${Date.now().toString(36)}`;
+  // CRITICAL FIX (ChatGPT 23:57): Build ID for deployment verification (fetch from /build.json)
+  const [buildId, setBuildId] = useState<string>("...");
   
-  // CRITICAL FIX (ChatGPT 22:45): Log build ID on mount to prove deployed JS is active
+  // CRITICAL FIX (ChatGPT 23:57): Fetch build ID from /build.json on mount
   useEffect(() => {
-    console.info("[BUILD]", buildId);
-    // CRITICAL FIX (ChatGPT 22:45): Log token in URL on mount to verify navigation preserved it
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/build.json", {
+          cache: "no-store",
+          headers: { "cache-control": "no-cache" },
+        });
+
+        if (!res.ok) {
+          throw new Error(`build.json ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setBuildId(data?.buildId || "unknown");
+          console.info("[BUILD]", data?.buildId || "unknown");
+        }
+      } catch (error) {
+        console.warn("[Subscription] Failed to fetch build.json:", error);
+        if (!cancelled) {
+          setBuildId("unknown");
+          console.info("[BUILD]", "unknown");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // CRITICAL FIX (ChatGPT 22:45): Log token in URL on mount to verify navigation preserved it
+  useEffect(() => {
     const inputToken = searchParams?.get("input_token");
     console.info("[TOKEN_IN_URL]", inputToken || "none");
-  }, [buildId, searchParams]);
+  }, [searchParams]);
   
   const [input, setInput] = useState<AIAstrologyInput | null>(null);
   const [guidance, setGuidance] = useState<DailyGuidance | null>(null);

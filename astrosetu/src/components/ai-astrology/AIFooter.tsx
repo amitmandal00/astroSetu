@@ -6,15 +6,50 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
-// CRITICAL FIX (ChatGPT 22:45): Add build ID for deployment verification
+// CRITICAL FIX (ChatGPT 23:57): Fetch build ID from /build.json (100% reliable)
 // Build ID helps prove deployed JS is active (not cached by SW/browser)
-const buildId = process.env.NEXT_PUBLIC_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA || `dev-${Date.now().toString(36)}`;
+// Fetch from /build.json instead of env vars to ensure it matches actual deployed commit
 
 export function AIFooter() {
   const [isLegalOpen, setIsLegalOpen] = useState(false);
+  const [buildId, setBuildId] = useState<string>("...");
+
+  // CRITICAL FIX (ChatGPT 23:57): Fetch build ID from /build.json on mount
+  // This ensures build ID matches actual deployed commit, even if env vars aren't set correctly
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/build.json", {
+          cache: "no-store",
+          headers: { "cache-control": "no-cache" },
+        });
+
+        if (!res.ok) {
+          throw new Error(`build.json ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setBuildId(data?.buildId || "unknown");
+        }
+      } catch (error) {
+        console.warn("[Footer] Failed to fetch build.json:", error);
+        if (!cancelled) {
+          setBuildId("unknown");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <footer className="bg-white border-t border-slate-200 mt-auto">
       <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -35,8 +70,8 @@ export function AIFooter() {
             <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu AI</p>
             <p className="text-xs text-slate-500">Operated by MindVeda</p>
             <p className="text-xs text-slate-600 font-medium">ABN: 60 656 401 253</p>
-            {/* CRITICAL FIX (ChatGPT 22:45): Build ID stamp for deployment verification */}
-            <p className="text-xs text-slate-400 font-mono mt-2">Build: {buildId.slice(0, 8)}</p>
+            {/* CRITICAL FIX (ChatGPT 23:57): Build ID stamp for deployment verification (from /build.json) */}
+            <p className="text-xs text-slate-400 font-mono mt-2">Build: {buildId}</p>
           </div>
 
           {/* Middle Column: Important Notice */}
