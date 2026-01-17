@@ -271,11 +271,21 @@ function InputFormContent() {
         }
         
         // Include input_token in returnTo if we have it
-        // Preserve existing querystring (e.g., ?session_id=...)
-        const separator = sanitizedReturnTo.includes("?") ? "&" : "?";
-        const returnUrl = inputToken
-          ? `${sanitizedReturnTo}${separator}input_token=${encodeURIComponent(inputToken)}`
-          : sanitizedReturnTo;
+        // CRITICAL FIX (2026-01-18): Replace existing input_token instead of appending (prevent duplicates)
+        // Use URLSearchParams.set() which automatically replaces if exists
+        let returnUrl = sanitizedReturnTo;
+        if (inputToken && typeof window !== "undefined") {
+          try {
+            const urlObj = new URL(sanitizedReturnTo, window.location.origin);
+            urlObj.searchParams.set("input_token", inputToken); // set() replaces if exists
+            returnUrl = urlObj.pathname + urlObj.search;
+          } catch (urlError) {
+            // Fallback to string concatenation if URL parsing fails
+            console.warn("[Input] Failed to parse returnTo URL, using string concatenation:", urlError);
+            const separator = sanitizedReturnTo.includes("?") ? "&" : "?";
+            returnUrl = `${sanitizedReturnTo}${separator}input_token=${encodeURIComponent(inputToken)}`;
+          }
+        }
         const fullUrl = typeof window !== "undefined" ? new URL(returnUrl, window.location.origin).toString() : returnUrl;
         console.info("[INPUT_REDIRECT]", fullUrl);
         console.log("[Input] redirecting to returnTo:", fullUrl);

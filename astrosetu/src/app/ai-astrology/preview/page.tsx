@@ -258,10 +258,14 @@ function PreviewContent() {
   // Format: `${session_id}:${reportType}:${auto_generate}` - unique per generation attempt
   const attemptKey = useMemo(() => {
     const sessionId = searchParams.get("session_id") || "";
+    // CRITICAL FIX (2026-01-18): Get input_token (handle duplicates by using last one)
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
     const reportTypeFromUrl = searchParams.get("reportType") || "";
     const reportTypeValue = reportTypeFromUrl || reportType || "";
     const autoGenerate = searchParams.get("auto_generate") === "true";
-    return `${sessionId}:${reportTypeValue}:${autoGenerate}`;
+    // Include input_token in attemptKey for input_token-based flows
+    return `${sessionId}:${inputToken || ""}:${reportTypeValue}:${autoGenerate}`;
   }, [searchParams, reportType]);
   
   // Helper for safe sessionStorage access (returns null in SSR)
@@ -1238,7 +1242,15 @@ function PreviewContent() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     
-    const inputToken = searchParams.get("input_token");
+    // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one (most recent)
+    // URLSearchParams.get() returns first value when duplicates exist, so we need to get all and use last
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+    
+    if (inputTokenParams.length > 1) {
+      console.warn("[Preview] Multiple input_token params detected in URL, using last (most recent):", inputTokenParams);
+    }
+    
     if (!inputToken) return; // No token in URL, skip
     
     // CRITICAL: Only load token if we don't already have input (prevent unnecessary fetches)
@@ -1323,7 +1335,9 @@ function PreviewContent() {
     
     // CRITICAL: If input_token is in URL, wait for token loading to complete
     // Don't redirect while token is being fetched
-    const inputToken = searchParams.get("input_token");
+    // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
     if (inputToken) {
       // Token is in URL - wait for token loading to complete
       if (tokenLoading) {
