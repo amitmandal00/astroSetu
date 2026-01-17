@@ -35,6 +35,12 @@ setInterval(() => {
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   
+  // CRITICAL FIX: Allow /build.json to pass through (static file from public/)
+  // Static files in public/ should be served directly without middleware interference
+  if (pathname === '/build.json' || pathname === '/manifest.json') {
+    return NextResponse.next();
+  }
+  
   // AI-Only Mode: Redirect non-allowed routes to AI section
   if (AI_ONLY_MODE && !isAllowedRoute(pathname)) {
     // Redirect root to AI section
