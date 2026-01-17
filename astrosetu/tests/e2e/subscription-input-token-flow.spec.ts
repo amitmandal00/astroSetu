@@ -182,7 +182,7 @@ test.describe("Subscription Input Token Flow", () => {
                 },
                 reportType: "life-summary",
               },
-            },
+            }),
           });
         } else {
           await route.continue();
