@@ -6,10 +6,10 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **FIXES APPLIED - READY FOR DEPLOYMENT VERIFICATION** (ChatGPT Feedback - 2026-01-17 23:00)
-- **Last update**: 2026-01-17 23:00
-- **Verdict**: ✅ All fixes applied (hard navigation, SW disabled, Build ID, token logging). Root cause aligned with Vercel logs: POST works, GET never happens.
-- **Next**: Deploy → Verify Build ID → Verify SW disabled → Run ONE flow → Check "truth signals" (INPUT_REDIRECT, TOKEN_IN_URL, TOKEN_FETCH_RESPONSE, Vercel GET logs)
+- **State**: ✅ **PRIVATE BETA GATING IMPLEMENTED - READY FOR MERGE TO MAIN** (ChatGPT Feedback - 2026-01-17 23:30)
+- **Last update**: 2026-01-17 23:30
+- **Verdict**: ✅ Private beta gating implemented (middleware, access page, verification API, tests). Ready to merge to main and deploy to production.
+- **Next**: Merge to main → Set `NEXT_PUBLIC_PRIVATE_BETA=true` in Production → Deploy → Verify using `PRODUCTION_PRIVATE_BETA_CHECKLIST.md`
 - **Fixes Applied (2026-01-17 19:00 + 20:00)**:
 
   **A) Checkout No-Op Fix**:

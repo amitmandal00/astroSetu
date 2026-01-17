@@ -120,6 +120,29 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - Silent returns in click handlers (causing "nothing happens" when input missing)
   - Preview not setting input state immediately after loading input_token (causing redirect loops)
 
+### PRIVATE BETA GATING (ChatGPT Feedback - CRITICAL - 2026-01-17 23:30)
+- **Production-only gating**: Private beta gating is enabled when `NEXT_PUBLIC_PRIVATE_BETA === "true"`. In preview/dev, gating is disabled by default (env var not set or false).
+- **Server-side allowlist only**: Allowlist is stored server-side only (`src/lib/betaAccess.ts`). MUST NOT be imported in client components (would leak allowlist in bundle).
+- **Dual enforcement (UI + API)**: Gate enforcement happens at BOTH:
+  - **UI routes**: Middleware redirects `/ai-astrology/*` to `/ai-astrology/access` (unless cookie present or path is `/access`)
+  - **API routes**: Middleware returns 401 JSON for `/api/ai-astrology/*` and `/api/billing/*` (unless cookie present)
+- **No client-only gating**: Client-side checks are NOT sufficient. Middleware must enforce gating server-side.
+- **HttpOnly cookie**: Beta access cookie (`beta_access=1`) is HttpOnly (set by `/api/beta-access/verify`), TTL 7 days.
+- **Access verification**: `/ai-astrology/access` page collects birth details, calls `/api/beta-access/verify`, sets cookie on match, redirects to returnTo or `/ai-astrology`.
+- **Matching robustness**: Normalization functions handle various input formats:
+  - Name: case-insensitive, collapse spaces
+  - DOB: accept "dd mon yyyy" or "YYYY-MM-DD" format
+  - Time: accept "09:40 pm" or "21:40" format (12h/24h)
+  - Place: case-insensitive, allows "Noamundi, Jharkhand" to match "Noamundi, Jharkhand, India" (includes match)
+  - Gender: accept "Male"/"Female" or "M"/"F"
+- **Verification logging**: Server logs `[BETA_ACCESS] ok=true/false, requestId, ip` (no PII like names/dob).
+- **Tests required**: `test:critical` and `release:gate` MUST include:
+  - `beta-access-blocks-ai-astrology.spec.ts` (redirects when no cookie)
+  - `beta-access-allows-after-verify.spec.ts` (access after valid verification)
+  - `beta-access-blocks-api.spec.ts` (401 for API routes when no cookie)
+  - `tests/unit/betaAccess.test.ts` (normalization/matching unit tests)
+- **Removal**: To disable gating, set `NEXT_PUBLIC_PRIVATE_BETA=false` or unset env var, redeploy.
+
 ### HARD NAVIGATION & SERVICE WORKER STABILIZATION (ChatGPT Feedback - CRITICAL - 2026-01-17 22:45)
 - **Input redirect must use window.location.assign (NOT router.push)**: After input submit, MUST use `window.location.assign(fullUrl)` for hard navigation. This guarantees query params survive and avoids Next soft-navigation keeping stale state. NEVER use `router.push()` for input → preview/subscription redirects.
 - **Service worker disabled during stabilization**: Service worker MUST be gated behind `NEXT_PUBLIC_ENABLE_PWA === "true"` env flag. Default: disable in all environments until flows are stable. If `NEXT_PUBLIC_ENABLE_PWA` is false, unregister any existing service workers. This prevents SW from breaking deploy verification by caching old JS.
