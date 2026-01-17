@@ -9,6 +9,10 @@
 import { useState } from "react";
 import Link from "next/link";
 
+// CRITICAL FIX (ChatGPT 22:45): Add build ID for deployment verification
+// Build ID helps prove deployed JS is active (not cached by SW/browser)
+const buildId = process.env.NEXT_PUBLIC_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA || `dev-${Date.now().toString(36)}`;
+
 export function AIFooter() {
   const [isLegalOpen, setIsLegalOpen] = useState(false);
   return (
@@ -31,6 +35,8 @@ export function AIFooter() {
             <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu AI</p>
             <p className="text-xs text-slate-500">Operated by MindVeda</p>
             <p className="text-xs text-slate-600 font-medium">ABN: 60 656 401 253</p>
+            {/* CRITICAL FIX (ChatGPT 22:45): Build ID stamp for deployment verification */}
+            <p className="text-xs text-slate-400 font-mono mt-2">Build: {buildId.slice(0, 8)}</p>
           </div>
 
           {/* Middle Column: Important Notice */}

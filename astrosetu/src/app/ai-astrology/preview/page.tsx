@@ -26,6 +26,17 @@ function PreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
+  // CRITICAL FIX (ChatGPT 22:45): Build ID for deployment verification
+  const buildId = process.env.NEXT_PUBLIC_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA || `dev-${Date.now().toString(36)}`;
+  
+  // CRITICAL FIX (ChatGPT 22:45): Log build ID on mount to prove deployed JS is active
+  useEffect(() => {
+    console.info("[BUILD]", buildId);
+    // CRITICAL FIX (ChatGPT 22:45): Log token in URL on mount to verify navigation preserved it
+    const inputToken = searchParams.get("input_token");
+    console.info("[TOKEN_IN_URL]", inputToken || "none");
+  }, [buildId, searchParams]);
+  
   const [input, setInput] = useState<AIAstrologyInput | null>(null);
   const [reportType, setReportType] = useState<ReportType>(() => {
     const fromUrl = searchParams.get("reportType") as ReportType | null;
@@ -1356,6 +1367,9 @@ function PreviewContent() {
 
           if (inputToken) {
             isTokenFetchInFlight = true; // CRITICAL FIX (ChatGPT): Mark token fetch as in-flight to prevent watchdog false-fire
+            // CRITICAL FIX (ChatGPT 22:45): Log token fetch start for visibility
+            const tokenSuffix = inputToken.slice(-6);
+            console.info("[TOKEN_FETCH_START]", `...${tokenSuffix}`);
             try {
               const tokenResponse = await apiGet<{
                 ok: boolean;
@@ -1367,6 +1381,13 @@ function PreviewContent() {
                 };
                 error?: string;
               }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
+              
+              // CRITICAL FIX (ChatGPT 22:45): Log token fetch response for visibility
+              console.info("[TOKEN_FETCH_RESPONSE]", {
+                ok: tokenResponse.ok,
+                status: tokenResponse.ok ? "success" : "failed",
+                error: tokenResponse.error || null,
+              });
 
               if (tokenResponse.ok && tokenResponse.data) {
                 // Use server-side data

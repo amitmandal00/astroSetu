@@ -102,6 +102,29 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 - **Single-flight guard for purchase/subscribe**: Purchase/Subscribe handlers MUST use single-flight guard (`isSubmittingRef.current`) to prevent double-clicks from causing duplicate API calls. Set `true` immediately, clear on `finally`/route change.
 - **Why these rules exist**: Previous iterations "patched symptoms" (timer, controller state) but real failures are routing/state ownership bugs. Unified input ownership prevents "Redirecting..." dead states and "nothing happens" issues.
 
+### NO SILENT RETURNS & NO DEAD REDIRECTING UI (ChatGPT Feedback - CRITICAL - 2026-01-17 22:00)
+- **NO SILENT RETURNS IN CLICK HANDLERS**: If a handler can't proceed (missing input/token), it MUST:
+  - Navigate to the correct page (e.g., `/ai-astrology/input?reportType=...&flow=...&returnTo=...`), OR
+  - Show a visible error state (e.g., `setError("Please enter birth details to subscribe.")`).
+  - NEVER silently return (`if (!input) return;` is FORBIDDEN).
+- **NO "REDIRECTING UI" WITHOUT REAL NAVIGATION**: "Redirecting..." screens may ONLY render when:
+  - A redirect has been explicitly initiated (`redirectInitiatedRef.current === true`), meaning `router.push()` or `router.replace()` has already been called.
+  - NEVER show "Redirecting..." just because `reportType` is in URL or `hasReportTypeInUrl` is true.
+  - If redirect hasn't been initiated yet, show "Enter Your Birth Details" card OR let useEffect trigger redirect (don't show "Redirecting..." prematurely).
+- **Preview must set input state IMMEDIATELY after loading input_token**: When preview receives `input_token`, it MUST:
+  1. Load it (fetch from API)
+  2. Set input state IMMEDIATELY (`setInput(inputData)`, `setReportType(...)`, etc.) - BEFORE any redirect logic
+  3. Only then clean URL (optional, but don't do it if it would cause redirect loop)
+  - This prevents "purchase → input → preview → input" loop.
+- **Release gate must include new tests**: `npm run test:critical` MUST include:
+  - `preview-no-dead-redirecting.spec.ts` (preview with reportType but no input redirects within 2s)
+  - `subscription-noop-prevented.spec.ts` (subscribe button redirects to input when no input exists)
+  - `purchase-redirects-to-input-then-back.spec.ts` (purchase → input → preview with input_token → preview does NOT redirect back to input)
+- **Why these rules exist**: Root cause of "Redirecting..." dead-state and "nothing happens" issues is:
+  - `hasReportTypeInUrl` gating redirect (causing "Redirecting..." to show forever)
+  - Silent returns in click handlers (causing "nothing happens" when input missing)
+  - Preview not setting input state immediately after loading input_token (causing redirect loops)
+
 ### Technical Debt (Tracked for Future Refactor)
 - **setTimeout autostart** (preview/page.tsx, line ~1242):
   - **Status**: ✅ Guarded and documented, acceptable for production

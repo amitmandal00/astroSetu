@@ -236,12 +236,16 @@ function InputFormContent() {
 
       // CRITICAL FIX (ChatGPT): Check flow=subscription first - redirect to subscription if present
       // This fixes "Monthly Outlook → input → never returns to subscription" issue
+      // CRITICAL FIX (ChatGPT 22:45): Use window.location.assign for hard navigation (guarantees query params survive)
       if (flow === "subscription") {
         const subscriptionUrl = inputToken
           ? `/ai-astrology/subscription?input_token=${encodeURIComponent(inputToken)}`
           : "/ai-astrology/subscription";
-        console.log("[Input] flow=subscription, redirecting to subscription:", subscriptionUrl);
-        await router.push(subscriptionUrl);
+        const fullUrl = typeof window !== "undefined" ? new URL(subscriptionUrl, window.location.origin).toString() : subscriptionUrl;
+        console.info("[INPUT_REDIRECT]", fullUrl);
+        console.log("[Input] flow=subscription, redirecting to subscription:", fullUrl);
+        // CRITICAL FIX: Use window.location.assign for hard navigation (no soft routing that loses query params)
+        window.location.assign(fullUrl);
         return;
       }
 
@@ -272,7 +276,11 @@ function InputFormContent() {
         const returnUrl = inputToken
           ? `${sanitizedReturnTo}${separator}input_token=${encodeURIComponent(inputToken)}`
           : sanitizedReturnTo;
-        await router.push(returnUrl);
+        const fullUrl = typeof window !== "undefined" ? new URL(returnUrl, window.location.origin).toString() : returnUrl;
+        console.info("[INPUT_REDIRECT]", fullUrl);
+        console.log("[Input] redirecting to returnTo:", fullUrl);
+        // CRITICAL FIX: Use window.location.assign for hard navigation (no soft routing that loses query params)
+        window.location.assign(fullUrl);
         return;
       } else if (returnTo) {
         // Log security violation attempt (not user-facing)
@@ -286,18 +294,21 @@ function InputFormContent() {
       const previewUrl = inputToken
         ? `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}&input_token=${encodeURIComponent(inputToken)}`
         : `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}`;
+      const fullUrl = typeof window !== "undefined" ? new URL(previewUrl, window.location.origin).toString() : previewUrl;
       
+      console.info("[INPUT_REDIRECT]", fullUrl);
       console.log("[Input] Redirecting to preview with reportType:", finalReportType, {
         fromUrl: currentReportTypeParam,
         fromState: reportType,
         final: finalReportType,
         hasInputToken: !!inputToken,
+        fullUrl,
       });
       
-      // CRITICAL: Don't reset loading state on successful navigation to prevent flickering
-      // The loading state will be cleared when the component unmounts during navigation
-      await router.push(previewUrl);
-      // Note: If navigation fails, we'll catch it below
+      // CRITICAL FIX: Use window.location.assign for hard navigation (no soft routing that loses query params)
+      // This guarantees query params survive and avoids Next soft-navigation keeping stale state
+      window.location.assign(fullUrl);
+      // Note: window.location.assign is synchronous - component will unmount, so no need to return
     } catch (e: any) {
       setError(e.message || "Something went wrong. Please check your inputs.");
       // Only reset loading state on error (when navigation doesn't happen)

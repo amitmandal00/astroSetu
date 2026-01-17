@@ -18,8 +18,13 @@ export default function AIAstrologyLayout({
   children: ReactNode;
 }) {
   useEffect(() => {
-    // Register service worker
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+    // CRITICAL FIX (ChatGPT 22:45): Gate service worker behind env flag
+    // Stop service worker from breaking deploy verification
+    // Only register if process.env.NEXT_PUBLIC_ENABLE_PWA === "true"
+    // Default: disable it in all environments until flows are stable
+    const enablePWA = process.env.NEXT_PUBLIC_ENABLE_PWA === "true";
+    
+    if (enablePWA && typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js")
         .then((registration) => {
@@ -28,6 +33,17 @@ export default function AIAstrologyLayout({
         .catch((error) => {
           console.error("Service Worker registration failed:", error);
         });
+    } else if (!enablePWA) {
+      // CRITICAL: Unregister any existing service workers during stabilization
+      if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => {
+            registration.unregister().then(() => {
+              console.log("[SW] Service Worker unregistered for stabilization");
+            });
+          });
+        });
+      }
     }
   }, []);
 

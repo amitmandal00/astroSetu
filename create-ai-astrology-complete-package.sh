@@ -219,6 +219,14 @@ cp QUICK_VERIFY_SERVICE_ROLE_KEY.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp DEPLOYMENT_VERIFICATION_RECORD.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp PRODUCTION_VERIFICATION_CHECKLIST_FINAL.md "$PACKAGE_DIR/" 2>/dev/null || true
 
+# Routing & Dead-State Fixes (Latest - 2026-01-17 22:00-22:45)
+cp CHATGPT_ROUTING_DEAD_STATE_FIX_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_VERIFICATION_TIGHTENING_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_FINAL_HARDENING_NOTES_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp PRODUCTION_VERIFICATION_CHECKLIST_FINAL_TIGHTENED.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp PRODUCTION_VERIFICATION_RECORD.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp PACKAGE_CREATION_SUMMARY_LATEST.md "$PACKAGE_DIR/" 2>/dev/null || true
+
 # ============================================
 # 8. Copy Cursor Rules
 # ============================================

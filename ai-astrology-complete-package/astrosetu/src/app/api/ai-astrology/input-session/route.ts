@@ -85,7 +85,9 @@ export async function POST(req: Request) {
         {
           headers: {
             "X-Request-ID": requestId,
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
           },
         }
       );
@@ -150,7 +152,9 @@ export async function POST(req: Request) {
       {
         headers: {
           "X-Request-ID": requestId,
-          "Cache-Control": "no-cache",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
         },
       }
     );
@@ -321,7 +325,9 @@ export async function GET(req: Request) {
       {
         headers: {
           "X-Request-ID": requestId,
-          "Cache-Control": "no-cache",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
         },
       }
     );

@@ -61,6 +61,31 @@ export async function POST(req: Request) {
       subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
     }
 
+    // CRITICAL FIX (ChatGPT): Cancel idempotency - check if already canceled before calling Stripe
+    // If already canceled, return current status (200), not an error
+    // This prevents double-click / retry causing scary errors
+    const currentSubscription = await stripe.subscriptions.retrieve(subId);
+    if (currentSubscription.cancel_at_period_end === true) {
+      // Already canceled - return current status (idempotent)
+      const row = existing || await getSubscriptionBySessionId(sessionId);
+      const res = NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: row?.status || mapStripeStatus(currentSubscription.status),
+            planInterval: row?.plan_interval || derivePlanIntervalFromStripe(currentSubscription),
+            cancelAtPeriodEnd: true,
+            currentPeriodEnd: row?.current_period_end ?? getCurrentPeriodEndIsoFromStripe(currentSubscription),
+          },
+          requestId,
+          message: "Subscription is already scheduled for cancellation",
+        },
+        { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
+      );
+      res.headers.append("Set-Cookie", buildBillingSessionCookie(sessionId));
+      return res;
+    }
+
     // Idempotent: if already cancel_at_period_end=true, Stripe returns same state
     const updated = await stripe.subscriptions.update(subId, { cancel_at_period_end: true });
 

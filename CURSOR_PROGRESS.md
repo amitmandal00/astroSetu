@@ -6,10 +6,10 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **ALL FIXES & HARDENING COMPLETE** (ChatGPT Feedback - 2026-01-17 22:45)
-- **Last update**: 2026-01-17 22:45
-- **Verdict**: ✅ All fixes applied, verified, tightened, and hardened. Ready for production deployment and verification.
-- **Next**: Deploy → Run 3-flow incognito checklist → Record results in `PRODUCTION_VERIFICATION_RECORD.md`
+- **State**: ✅ **FIXES APPLIED - READY FOR DEPLOYMENT VERIFICATION** (ChatGPT Feedback - 2026-01-17 23:00)
+- **Last update**: 2026-01-17 23:00
+- **Verdict**: ✅ All fixes applied (hard navigation, SW disabled, Build ID, token logging). Root cause aligned with Vercel logs: POST works, GET never happens.
+- **Next**: Deploy → Verify Build ID → Verify SW disabled → Run ONE flow → Check "truth signals" (INPUT_REDIRECT, TOKEN_IN_URL, TOKEN_FETCH_RESPONSE, Vercel GET logs)
 - **Fixes Applied (2026-01-17 19:00 + 20:00)**:
 
   **A) Checkout No-Op Fix**:
@@ -74,6 +74,19 @@ Use this file as the single “where things stand” view during long Cursor ses
   - ✅ **Cancel idempotency hardened**: Cancel API now checks if already canceled before calling Stripe. If already canceled, returns 200 with current status (not error). Prevents double-click / retry causing scary errors.
   - ✅ **Token fetch caching hardened**: Upgraded cache headers from `no-cache` to comprehensive no-store headers (`no-store, no-cache, must-revalidate, proxy-revalidate` + `Pragma: no-cache` + `Expires: 0`). Prevents Next/Vercel from caching token responses unexpectedly.
   - ✅ **Created production verification record**: Template for recording deployment commit hash, pass/fail per flow, and failure analysis with Ref strings and Vercel log lines.
+
+  **K) Production Token Flow Fix (2026-01-17 23:00)**:
+  - ✅ **Hard navigation for input redirect**: Replaced `router.push()` with `window.location.assign()` for input → preview/subscription redirects. This guarantees query params survive and avoids Next soft-navigation keeping stale state.
+  - ✅ **Service worker disabled during stabilization**: Service worker now gated behind `NEXT_PUBLIC_ENABLE_PWA === "true"`. Default: disabled in all environments until flows are stable. Unregisters existing SWs if disabled.
+  - ✅ **Build ID stamp added**: Footer displays build ID (`NEXT_PUBLIC_BUILD_ID` or `VERCEL_GIT_COMMIT_SHA`). Console logs `[BUILD] buildId` on page mount. This proves deployed JS is active (not cached by SW/browser).
+  - ✅ **Token visibility logging**: Preview/subscription now log:
+    - `[TOKEN_IN_URL] token` on mount (or "none")
+    - `[TOKEN_FETCH_START] ...suffix` when starting token fetch
+    - `[TOKEN_FETCH_RESPONSE] {ok, status, error}` when token fetch completes
+  - ✅ **Input redirect logging**: Input page now logs `[INPUT_REDIRECT] fullUrl` before redirect.
+  - ✅ **New E2E test**: `input-token-in-url-after-submit.spec.ts` - Verifies input submit → URL contains input_token AND network call visible AND no redirect loop.
+  - ✅ **Updated `.cursor/rules`**: Added "HARD NAVIGATION & SERVICE WORKER STABILIZATION" section.
+  - ✅ **Updated `test:critical`**: Added `input-token-in-url-after-submit.spec.ts` to critical test suite.
   - ✅ Input page flow=subscription: Redirects to subscription when flow=subscription (not preview)
   - ✅ Subscription input_token flow: Checks input_token first, loads from API, cleans URL (stops sessionStorage dependency)
   - ✅ E2E tests added: preview-requires-input, purchase-noop-prevented, subscription-input-token-flow

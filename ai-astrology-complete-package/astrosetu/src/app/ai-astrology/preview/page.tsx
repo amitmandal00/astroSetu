@@ -1394,6 +1394,38 @@ function PreviewContent() {
                 }
 
                 console.log("[Preview] Loaded input from input_token:", inputToken);
+                
+                // CRITICAL FIX (ChatGPT): When preview receives input_token, it must:
+                // 1. Load it (done above)
+                // 2. Set input state IMMEDIATELY (before any redirect logic)
+                // 3. Only then clean URL (optional, but don't do it if it would cause redirect loop)
+                // This prevents "purchase loop back to input" issue
+                const inputData = JSON.parse(savedInput);
+                setInput(inputData);
+                if (savedReportType) {
+                  setReportType(savedReportType);
+                }
+                if (savedBundleType) {
+                  setBundleType(savedBundleType);
+                }
+                if (savedBundleReports) {
+                  try {
+                    const bundleReportsParsed = JSON.parse(savedBundleReports);
+                    setBundleReports(bundleReportsParsed);
+                  } catch {
+                    // ignore parse errors
+                  }
+                }
+                
+                // CRITICAL FIX (ChatGPT): After setting input state, do NOT auto-redirect back to input
+                // The input is now loaded, so preview should render normally (not redirect)
+                // Only clean URL if needed (remove input_token from URL), but don't redirect
+                // This prevents "purchase → input → preview → input" loop
+                // 
+                // CRITICAL: The redirect check below (line 1457) uses `savedInput` (local variable),
+                // NOT the state variable `input`. This ensures we use freshly loaded token data,
+                // not stale state. Since `savedInput` is truthy here (we just set it from token),
+                // the redirect check will pass (no redirect will happen).
               } else {
                 // Token invalid/expired - show "Start again" CTA that navigates to input, not infinite redirecting
                 console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
@@ -3615,9 +3647,9 @@ function PreviewContent() {
   // Determine if we're waiting for state to be set (have bundle info AND generation is active)
   const isWaitingForState = hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
   
-  // CRITICAL FIX: Check if reportType is in URL - if yes, user came from input page, don't redirect
-  const urlReportType = searchParams.get("reportType");
-  const hasReportTypeInUrl = urlReportType !== null && validReportTypes.includes(urlReportType as ReportType);
+  // CRITICAL FIX (ChatGPT): Remove hasReportTypeInUrl gating completely
+  // reportType in URL must NOT suppress redirect - it's just metadata
+  // Only show "Redirecting..." UI when redirect was actually initiated (redirectInitiatedRef.current === true)
   
   if (!reportContent || !input) {
     // CRITICAL: If we're in loading state OR generating, OR waiting for state initialization,
@@ -3627,47 +3659,56 @@ function PreviewContent() {
       return null; // Unified loading screen will handle this (lines 1858+)
     }
     
-    // CRITICAL FIX: Only redirect if ALL of the following are true:
-    // 1. Not loading or generating (checked above)
-    // 2. No reportType in URL (user didn't come from input page)
-    // 3. No session_id or reportId (no ongoing process)
-    // 4. Haven't redirected already
-    // 5. Not already on input page
-    // 6. No bundle generation in progress
-    // 7. No loading stage active
-    // This ensures we ONLY redirect when truly necessary (user navigated directly without context)
-    // CRITICAL FIX: Check reportType in URL - if present, user came from input page, don't redirect
-    if (!hasRedirectedRef.current && 
-        !loading && 
-        !isGeneratingRef.current && 
-        !urlSessionId && 
-        !urlReportId && 
-        !bundleGenerating && 
-        !loadingStage &&
-        !hasReportTypeInUrl) { // CRITICAL: Don't redirect if reportType is in URL
-      const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
-      if (!currentPath.includes("/input")) {
-        hasRedirectedRef.current = true;
-        // Preserve reportType from state if available
-        const reportTypeForRedirect = reportType && reportType !== "life-summary" ? reportType : null;
-        const redirectUrl = reportTypeForRedirect
-          ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeForRedirect)}` 
-          : "/ai-astrology/input";
-        console.log("[Preview] Redirecting to input page (no context found):", redirectUrl);
-        setTimeout(() => {
-          router.push(redirectUrl);
-        }, 100);
-      }
+    // CRITICAL FIX (ChatGPT): Only show "Redirecting..." UI when redirect was actually initiated
+    // If redirectInitiatedRef is true, we've called router.push/replace, so show redirecting UI
+    // Otherwise, if no input/token, the useEffect above will trigger redirect (don't show UI prematurely)
+    if (redirectInitiatedRef.current) {
+      // Show loading state while redirecting (prevents flash of content)
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Redirecting...</h2>
+              <p className="text-slate-600">Please wait while we redirect you to the input page.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
     }
     
-    // Show loading state while redirecting (prevents flash of content)
+    // CRITICAL FIX (ChatGPT): If not redirecting and no input/token, show "Enter your details" card
+    // OR let useEffect trigger redirect (don't show "Redirecting..." prematurely)
+    // The useEffect above (lines 1426-1498) will handle redirect when needed
+    // This prevents "Redirecting..." dead-state when reportType is in URL but redirect hasn't been initiated
+    
+    // If we reach here, we have no input and redirect hasn't been initiated yet
+    // Show a simple "Enter your details" card instead of "Redirecting..." dead-state
     return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
         <Card className="max-w-2xl w-full mx-4">
           <CardContent className="p-12 text-center">
-            <div className="animate-spin text-6xl mb-6">🌙</div>
-            <h2 className="text-2xl font-bold mb-4">Redirecting...</h2>
-            <p className="text-slate-600">Please wait while we redirect you to the input page.</p>
+            <div className="text-6xl mb-6">🔮</div>
+            <h2 className="text-2xl font-bold mb-4">Enter Your Birth Details</h2>
+            <p className="text-slate-600 mb-6">Please provide your birth details to generate your report.</p>
+            <Button
+              onClick={() => {
+                const urlReportType = searchParams.get("reportType");
+                const returnTo = typeof window !== "undefined" 
+                  ? `${window.location.pathname}${window.location.search}`
+                  : "";
+                const redirectUrl = returnTo && urlReportType
+                  ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}&returnTo=${encodeURIComponent(returnTo)}`
+                  : urlReportType
+                  ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+                  : "/ai-astrology/input";
+                redirectInitiatedRef.current = true;
+                router.push(redirectUrl);
+              }}
+              className="cosmic-button"
+            >
+              Enter Details →
+            </Button>
           </CardContent>
         </Card>
       </div>

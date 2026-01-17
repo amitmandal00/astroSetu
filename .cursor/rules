@@ -120,6 +120,20 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - Silent returns in click handlers (causing "nothing happens" when input missing)
   - Preview not setting input state immediately after loading input_token (causing redirect loops)
 
+### HARD NAVIGATION & SERVICE WORKER STABILIZATION (ChatGPT Feedback - CRITICAL - 2026-01-17 22:45)
+- **Input redirect must use window.location.assign (NOT router.push)**: After input submit, MUST use `window.location.assign(fullUrl)` for hard navigation. This guarantees query params survive and avoids Next soft-navigation keeping stale state. NEVER use `router.push()` for input → preview/subscription redirects.
+- **Service worker disabled during stabilization**: Service worker MUST be gated behind `NEXT_PUBLIC_ENABLE_PWA === "true"` env flag. Default: disable in all environments until flows are stable. If `NEXT_PUBLIC_ENABLE_PWA` is false, unregister any existing service workers. This prevents SW from breaking deploy verification by caching old JS.
+- **Build ID stamp required**: Footer MUST display build ID (`NEXT_PUBLIC_BUILD_ID` or `VERCEL_GIT_COMMIT_SHA`). Console MUST log `[BUILD] buildId` on page mount. This proves deployed JS is active (not cached by SW/browser).
+- **Token visibility logging**: Preview/subscription MUST log:
+  - `[TOKEN_IN_URL] token` on mount (or "none")
+  - `[TOKEN_FETCH_START] ...suffix` when starting token fetch
+  - `[TOKEN_FETCH_RESPONSE] {ok, status, error}` when token fetch completes
+  - This makes token fetch visible in DevTools/console for debugging.
+- **Input redirect logging**: Input page MUST log `[INPUT_REDIRECT] fullUrl` before redirect. This helps debug if redirect URL is correct.
+- **No service worker while stabilizing checkout/routing**: Service worker MUST be disabled during stabilization. Re-enable only after all flows are verified stable in production.
+- **Release gate must include input-token-in-url test**: `npm run test:critical` MUST include:
+  - `input-token-in-url-after-submit.spec.ts` (input submit → URL contains input_token AND network call visible AND no redirect loop)
+
 ### Technical Debt (Tracked for Future Refactor)
 - **setTimeout autostart** (preview/page.tsx, line ~1242):
   - **Status**: ✅ Guarded and documented, acceptable for production
