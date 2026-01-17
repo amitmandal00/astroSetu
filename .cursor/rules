@@ -173,8 +173,19 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - If failure: writes "what to do next" into `CURSOR_ACTIONS_REQUIRED.md`
 
 ### Release Gate (ChatGPT Feedback - CRITICAL)
-- **Before declaring production-ready**: Must run `npm run release:gate` and paste output into `CURSOR_PROGRESS.md`.
+### Production Readiness Rules (ChatGPT Feedback - CRITICAL)
+- **Never claim "production-ready"** unless ALL of the following are true:
+  1. **DB migration executed**: Required Supabase tables/columns are created
+  2. **Release gate passed in CI/Vercel**: `npm run release:gate` must pass in real runner (not just local)
+     - `npm run type-check` ✅
+     - `npm run build` ✅
+     - `npm run test:critical` ✅
+  3. **Manual prod verification completed**: All 3 critical flows tested in production:
+     - Purchase Year Analysis → redirects to Stripe OR shows error within 15s
+     - Free Life Summary → no redirect loop, reaches preview
+     - Monthly subscription → subscribe redirects to Stripe; return sets status
 - **release:gate** runs: `npm run type-check && npm run build && npm run test:critical`
+- **Lint-free and type-check passing is NOT enough**: Must pass release gate in CI/Vercel and manual prod verification
 - **Rationale**: Prevents future "it passed type-check so it's fine" mistakes.
 - **Do NOT skip**: Since Cursor sometimes only runs type-check, this ensures all critical checks pass.
 - **ChatGPT Verdict**: "This alone will save you days in the future." - Do not change.

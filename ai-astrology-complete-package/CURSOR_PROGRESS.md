@@ -6,11 +6,94 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **Ship-Ready Baseline Established** - Controlled system, not just working code
-- **Last update**: 2026-01-17 15:30
-- **ChatGPT Final Verdict**: ✅ **Ship-ready, production-safe baseline** - "This is the first time the root causes are actually eliminated, not just masked, and future regressions are structurally blocked. You are out of the 'Cursor fix loop'."
-- **Release Gate**: `npm run release:gate` (type-check + build + test:critical) required before production-ready declarations
+- **State**: ✅ **CODE READY; AWAITING REAL-RUNNER VERIFICATION** (ChatGPT Final Review - 2026-01-17 18:00)
+- **Last update**: 2026-01-17 18:00
+- **Root Cause**: Non-deterministic generation start due to `setTimeout`-based autostart - **FIXED**
+- **Fix Applied**: 
+  - ✅ Removed `setTimeout(..., 500)` on line ~1331 (replaced with immediate execution)
+  - ✅ Removed `setTimeout(..., 300)` on line ~1740 (replaced with immediate `startGenerationAtomically()` call)
+  - ✅ Created `startGenerationAtomically()` function with single-flight guard (`hasStartedForAttemptKeyRef`)
+  - ✅ Generation starts immediately when prerequisites are met (no delays)
+  - ✅ Added `attemptKey` computation for atomic generation tracking
+  - ✅ Added E2E test `first-load-atomic-generation.spec.ts` to verify atomic invariant
+  - ✅ Added structured logging `[AUTOSTART] attemptKey=...` for production observability
+- **Type-Check**: ✅ Passing
+- **Code Verification**: ✅ Complete
+  - ✅ No `fs.readFileSync(".env.local")` in source code (verified via grep)
+  - ✅ VAPID Route uses `process.env.VAPID_PUBLIC_KEY` only (correct)
+  - ✅ All env vars accessed via `process.env.*` (correct pattern)
+  - ✅ EPERM analysis documented in `BUILD_EPERM_ANALYSIS.md` (Next.js internals, not source code)
+- **Release Gate**: ⏸️ **AWAITING REAL-RUNNER VERIFICATION**
+  - Type-check: ✅ Passing
+  - Build: ⏸️ Needs to run in CI/Vercel (EPERM in sandbox is from Next.js internals, not source code)
+  - Tests: ⏸️ Needs to run after build succeeds
+  - **Status**: Code is ready; verification requires real runner (Vercel/CI/local outside sandbox)
+  - **Next Step**: Run `npm run release:gate` in Vercel/CI to confirm production-ready
+
+**Release Gate Output (2026-01-17 17:50)**:
+```
+> astrosetu@1.0.0 release:gate
+> npm run type-check && npm run build && npm run test:critical
+
+> astrosetu@1.0.0 type-check
+> tsc --noEmit
+✅ PASSED
+
+> astrosetu@1.0.0 build
+> next build
+
+⨯ Failed to load env from .env.local Error: EPERM: operation not permitted, open '/Users/.../astrosetu/.env.local'
+Error: EPERM: operation not permitted, scandir '/Users/.../src/app/api/notifications/vapid-public-key'
+❌ FAILED (sandbox permissions)
+```
+
+**Note**: Build failure is due to sandbox restrictions (not code issues). The atomic generation fix is complete. Build/test need to run outside sandbox or with full permissions.
 - **Baseline Freeze**: 2026-01-17 - No refactors, no cleanup, only additive features. Any core flow change must pass `release:gate`.
+
+## ✅ Completed (ChatGPT Critical Fixes - 2026-01-17 17:30)
+
+### Atomic Generation Fix (CRITICAL - ✅ COMPLETED)
+- [x] **Removed all `setTimeout`-based autostart**:
+  - ✅ Line ~1331: Removed `setTimeout(..., 500)` for delayed sessionStorage check (replaced with immediate execution `(() => { ... })()`)
+  - ✅ Line ~1740: Removed `setTimeout(..., 300)` for paid report generation (replaced with immediate `startGenerationAtomically()` call)
+- [x] **Created `startGenerationAtomically()` function**:
+  - ✅ Single-flight guard using `hasStartedForAttemptKeyRef` (stores string `attemptKey`, not boolean)
+  - ✅ Immediately sets `usingControllerRef.current = true`
+  - ✅ Calls `generationController.start(...)` immediately (no delay)
+  - ✅ If prerequisites missing → sets error and shows Retry
+- [x] **Added `attemptKey` computation**:
+  - ✅ Format: `${session_id}:${reportType}:${auto_generate}`
+  - ✅ Keyed on `searchParams` and `reportType`
+- [x] **Added E2E test**:
+  - ✅ `tests/e2e/first-load-atomic-generation.spec.ts` created
+  - ✅ Asserts controller leaves `idle` within 1s when `auto_generate=true`
+  - ✅ Asserts timer is monotonic (never resets to 0)
+  - ✅ Asserts single start call (≤1 POST requests) - prevents double-start
+  - ✅ Asserts completion/Retry within 120s (no infinite spinner)
+  - ✅ Added to `test:critical` in `package.json`
+- [x] **Added production observability**:
+  - ✅ Structured logging: `[AUTOSTART] attemptKey=... reportType=... sessionId=... autoGenerate=...`
+  - ✅ Single log per attempt for prod verification
+  - ✅ Easy to grep in Vercel logs for correlation
+
+### Intent Persistence (Pending)
+- [ ] **Persist generation intent** when user initiates any paid/monthly/yearly report
+- [ ] **Monthly flow**: Free Life Report submission must return to Subscription page using intent
+
+### Monthly Subscription Flow (Pending)
+- [ ] **Subscribe button**: MUST create fresh checkout session (not rely on stale session)
+- [ ] **Input page**: Must respect `returnTo` from intent
+
+### Missing Tests (Pending)
+- [ ] `tests/e2e/first-load-atomic-generation.spec.ts` - Atomic guarantee test
+- [ ] `tests/e2e/monthly-intent-continuity.spec.ts` - Monthly flow test
+- [ ] `tests/e2e/subscribe-must-change-state.spec.ts` - Subscribe button test
+
+### Workflow Updates (Pending)
+- [ ] Update `NON_NEGOTIABLES.md` with atomic generation rules
+- [ ] Update `.cursor/rules` with atomic generation requirements
+
+---
 
 ## Completed (ChatGPT Final Improvements - 2026-01-17 15:00)
 - [x] **ChatGPT Final Improvements** - Two targeted improvements for production detectability:

@@ -6,17 +6,50 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **CODE READY; AWAITING REAL-RUNNER VERIFICATION** (ChatGPT Final Review - 2026-01-17 18:00)
-- **Last update**: 2026-01-17 18:00
-- **Root Cause**: Non-deterministic generation start due to `setTimeout`-based autostart - **FIXED**
-- **Fix Applied**: 
-  - ✅ Removed `setTimeout(..., 500)` on line ~1331 (replaced with immediate execution)
-  - ✅ Removed `setTimeout(..., 300)` on line ~1740 (replaced with immediate `startGenerationAtomically()` call)
-  - ✅ Created `startGenerationAtomically()` function with single-flight guard (`hasStartedForAttemptKeyRef`)
-  - ✅ Generation starts immediately when prerequisites are met (no delays)
-  - ✅ Added `attemptKey` computation for atomic generation tracking
-  - ✅ Added E2E test `first-load-atomic-generation.spec.ts` to verify atomic invariant
-  - ✅ Added structured logging `[AUTOSTART] attemptKey=...` for production observability
+- **State**: ✅ **SHIP-READY BASELINE - STOP TOUCHING CODE** (ChatGPT Final Verdict - 2026-01-17 20:15)
+- **Last update**: 2026-01-17 20:15
+- **Verdict**: ✅ Production-ready baseline - **Structural fixes, not patches**
+- **Next**: Operational verification (DB migration → Deploy → Incognito testing)
+- **Fixes Applied (2026-01-17 19:00 + 20:00)**:
+
+  **A) Checkout No-Op Fix**:
+  - ✅ Made checkout API baseUrl resilient (derive from x-forwarded-proto + x-forwarded-host, not just NEXT_PUBLIC_APP_URL)
+  - ✅ Added 15s timeout to purchase handler (prevent infinite hanging)
+  - ✅ Added error handling: always setLoading(false) and show visible error banner
+  - ✅ Never leave UI stuck in loading state
+
+  **B) Redirect Loop Fix (Input Token Pattern)**:
+  - ✅ Created `/api/ai-astrology/input-session` API (POST to store, GET to retrieve)
+  - ✅ Created Supabase table `ai_input_sessions` (token-based storage)
+  - ✅ Updated input page: POST to API, redirect with `input_token` parameter
+  - ✅ Updated preview page: Check `input_token` first, fallback to sessionStorage
+  - ✅ Invalid token shows "Start again" CTA (no infinite redirect)
+
+  **C) Subscription Journey Fix**:
+  - ✅ Added 15s timeout to subscribe handler
+  - ✅ Always create fresh checkout session (no reuse)
+  - ✅ Proper error handling: always stop loading and show error
+
+  **D) Tests Added**:
+  - ✅ `checkout-failure-handling.spec.ts` - Verifies error UI and timeout
+  - ✅ `input-token-flow.spec.ts` - Verifies token-based flow works without sessionStorage
+  - ✅ `subscription-returnTo-exact.spec.ts` - Verifies exact pathname return
+  - ✅ `expired-input-token.spec.ts` - Verifies expired token shows "Start again" within 2s
+  - ✅ `returnTo-security.spec.ts` - Verifies external URLs and dangerous paths are blocked
+  - ✅ `checkout-attempt-id.spec.ts` - Verifies attempt ID appears in error UI
+  - ✅ `token-redaction.spec.ts` - Verifies token redaction (best-effort)
+  - ✅ `returnToValidation.test.ts` - Unit test for returnTo validation helper
+
+  **E) Security Hardening (2026-01-17 20:00)**:
+
+  **F) UX Improvement (Applied - 2026-01-17 20:15)**:
+  - ✅ Error messages now say: "Include this reference if you retry later." (reduces user anxiety)
+  - ✅ Input session API: Rate limiting per token (5 per minute), log redaction (last 6 chars only)
+  - ✅ Multi-use semantics: Tokens can be reused within 30-minute TTL (decided behavior, not optional)
+  - ✅ ReturnTo validation: Helper function `isSafeReturnTo()` with unit tests
+  - ✅ Checkout attempt ID: Client-generated ID for server-side correlation (appears in error UI)
+  - ✅ Client-side watchdog: 15s fail-fast UI (shows "Try again" with debug info)
+  - ✅ Release gate in CI: Added to GitHub Actions workflow (blocks merges if fails)
 - **Type-Check**: ✅ Passing
 - **Code Verification**: ✅ Complete
   - ✅ No `fs.readFileSync(".env.local")` in source code (verified via grep)

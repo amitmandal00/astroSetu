@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { AutocompleteInput, type PlaceSuggestion } from "@/components/ui/AutocompleteInput";
 import { resolvePlaceCoordinates } from "@/lib/indianCities";
+import { apiPost } from "@/lib/http";
+import { isSafeReturnTo } from "@/lib/ai-astrology/returnToValidation";
 
 import type { ReportType } from "@/lib/ai-astrology/types";
 
@@ -186,7 +188,33 @@ function InputFormContent() {
       // This ensures we preserve the reportType even if state is stale
       const finalReportType = currentReportType || "life-summary";
 
-      // Store in sessionStorage for next page (if available)
+      // CRITICAL FIX (ChatGPT): Store input in server-side Supabase, not just sessionStorage
+      // This prevents redirect loops when sessionStorage is unavailable (incognito, Safari ITP, etc.)
+      let inputToken: string | null = null;
+      try {
+        const tokenResponse = await apiPost<{
+          ok: boolean;
+          data?: { token: string };
+          error?: string;
+        }>("/api/ai-astrology/input-session", {
+          input: inputData,
+          reportType: finalReportType,
+          bundleType: bundleParam || undefined,
+          bundleReports: bundleReports.length > 0 ? bundleReports : undefined,
+        });
+
+        if (tokenResponse.ok && tokenResponse.data?.token) {
+          inputToken = tokenResponse.data.token;
+          console.log("[Input] Stored input session, token:", inputToken);
+        } else {
+          console.warn("[Input] Failed to store input session, falling back to sessionStorage:", tokenResponse.error);
+        }
+      } catch (tokenError) {
+        console.warn("[Input] Input session API error, falling back to sessionStorage:", tokenError);
+      }
+
+      // Fallback: Store in sessionStorage for next page (if available)
+      // This is now a "nice-to-have cache", not required
       try {
         sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
         sessionStorage.setItem("aiAstrologyReportType", finalReportType);
@@ -202,27 +230,41 @@ function InputFormContent() {
         }
       } catch (storageError) {
         // Handle sessionStorage errors (e.g., private browsing mode)
-        console.error("sessionStorage not available:", storageError);
-        // Continue anyway - preview page will handle missing data
+        console.warn("[Input] sessionStorage not available (non-critical):", storageError);
+        // Continue anyway - preview page will use input_token if available
       }
 
-      // Optional returnTo contract: allow other journeys to collect birth details and return to a specific page.
-      // Security: only allow in-site absolute paths.
-      if (returnTo && returnTo.startsWith("/")) {
-        await router.push(returnTo);
+      // CRITICAL FIX (ChatGPT): Harden returnTo - only allow /ai-astrology/* paths
+      // Block external URLs and dangerous paths (prevent open redirect)
+      // Allow querystrings (e.g., ?session_id=...) but still block encoded protocol variants
+      if (returnTo && isSafeReturnTo(returnTo)) {
+        const sanitizedReturnTo = returnTo.trim();
+        // Include input_token in returnTo if we have it
+        // Preserve existing querystring (e.g., ?session_id=...)
+        const separator = sanitizedReturnTo.includes("?") ? "&" : "?";
+        const returnUrl = inputToken
+          ? `${sanitizedReturnTo}${separator}input_token=${encodeURIComponent(inputToken)}`
+          : sanitizedReturnTo;
+        await router.push(returnUrl);
         return;
+      } else if (returnTo) {
+        // Log security violation attempt (not user-facing)
+        console.warn("[Input] Invalid returnTo path rejected:", returnTo);
+        // Fall through to default preview redirect (safe fallback)
       }
 
       // Default: redirect to preview page
       // CRITICAL: Always include reportType in URL to prevent redirect loops
-      // This ensures the preview page knows what report type to generate even if sessionStorage is lost
-      // CRITICAL FIX: Use finalReportType (from URL) instead of reportType (from state)
-      const previewUrl = `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}`;
+      // CRITICAL FIX: Include input_token if available (server-side source of truth)
+      const previewUrl = inputToken
+        ? `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}&input_token=${encodeURIComponent(inputToken)}`
+        : `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}`;
       
       console.log("[Input] Redirecting to preview with reportType:", finalReportType, {
         fromUrl: currentReportTypeParam,
         fromState: reportType,
-        final: finalReportType
+        final: finalReportType,
+        hasInputToken: !!inputToken,
       });
       
       // CRITICAL: Don't reset loading state on successful navigation to prevent flickering

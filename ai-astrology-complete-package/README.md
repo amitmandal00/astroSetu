@@ -26,9 +26,9 @@ This package contains a **complete feature slice** of AstroSetu's AI Astrology f
 - **Cursor Guides**: `CURSOR_*.md` (operational guide, progress tracking, actions required)
 - **Non-Negotiables**: `NON_NEGOTIABLES.md` (engineering safety, product invariants)
 - **Production Readiness**: `PRODUCTION_READINESS_*.md` (SEO, security, performance)
-- **ChatGPT Review Docs**: `CHATGPT_*.md` (final verdict, improvements, verification, state machine)
-- **Issues Fixed Status**: `ISSUES_FIXED_STATUS.md` (recent issue resolutions)
-- **Production Smoke Check**: `PROD_SMOKE_CHECK.md` (production verification checklist)
+- **Atomic Generation Fix**: `ATOMIC_GENERATION_*.md` (latest fix - 2026-01-17)
+- **Build Analysis**: `BUILD_EPERM_ANALYSIS.md` (EPERM root cause documentation)
+- **Verification Checklists**: `PRODUCTION_VERIFICATION_CHECKLIST.md`, `HOW_TO_RUN_RELEASE_GATE.md`, `TEST_URLS_GUIDE.md`
 
 ### ✅ Configuration & Infrastructure
 - **Config Files**: `package.json`, `tsconfig.json`, `next.config.mjs`, `vitest.config.ts`, `playwright.config.ts`
@@ -60,8 +60,8 @@ npm run stability:full
 
 ## 🐛 Defect Status
 
-**Status**: ✅ All 11 defects fixed and verified (retested 2026-01-16)
-**Recent Issues**: ✅ All recent issues fixed - See `ISSUES_FIXED_STATUS.md` for details
+**Status**: ✅ All 11 defects fixed and verified (retested 2026-01-16)  
+**Latest Fix**: ✅ Atomic Generation Fix (2026-01-17) - First-load timer reset bug resolved
 
 See `DEFECT_REGISTER.md` for complete details:
 - DEF-001: Retry Loading Bundle Button
@@ -70,7 +70,7 @@ See `DEFECT_REGISTER.md` for complete details:
 - DEF-004: Preview Page Auto-Generation
 - DEF-005: Past-Dated Predictions
 - DEF-006: Subscription Redirect Loops
-- DEF-007: Year Analysis Timer Reset
+- DEF-007: Year Analysis Timer Reset ✅ **FIXED** (Atomic Generation - 2026-01-17)
 - DEF-008: Free Life Summary Quality
 - DEF-009: Bundle Generation Guards
 - DEF-010: Timer Monotonic Invariant
@@ -110,10 +110,6 @@ See `DEFECT_REGISTER.md` for complete details:
 - `DEFECT_REGISTER.md` (complete defect history)
 - `CURSOR_OPERATIONAL_GUIDE.md` (development workflow)
 - `PRODUCTION_READINESS_SUMMARY.md` (production checklist)
-- `CHATGPT_FINAL_VERDICT.md` (ChatGPT's final assessment - ship-ready baseline)
-- `ISSUES_FIXED_STATUS.md` (recent issue resolutions)
-- `PROD_SMOKE_CHECK.md` (production smoke check checklist)
-- `CONTROLLER_STATE_MACHINE.md` (report generation controller state machine)
 
 ---
 

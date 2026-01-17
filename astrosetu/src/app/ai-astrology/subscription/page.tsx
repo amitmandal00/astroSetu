@@ -153,24 +153,73 @@ function SubscriptionContent() {
   const handleSubscribe = async () => {
     if (!input) return;
 
+    // CRITICAL FIX (ChatGPT): Generate checkout attempt ID for server-side tracing
+    const checkoutAttemptId = typeof window !== "undefined" && window.crypto?.randomUUID
+      ? window.crypto.randomUUID().slice(0, 8)
+      : `client_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+    // CRITICAL FIX (ChatGPT): Add timeout to prevent infinite hanging
+    const TIMEOUT_MS = 15000; // 15 seconds
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isResolved = false;
+    let navigationOccurred = false; // Track if navigation happened
+
+    // CRITICAL FIX (ChatGPT): Client-side watchdog for fail-fast UI
+    const watchdogTimeoutId = setTimeout(() => {
+      if (!navigationOccurred && !isResolved) {
+        console.error(`[Subscribe] Watchdog timeout - no navigation after ${TIMEOUT_MS}ms`, {
+          checkoutAttemptId,
+        });
+        setError(`Subscription is taking longer than expected. Ref: ${checkoutAttemptId}. Include this reference if you retry later.`);
+        setLoading(false);
+        isResolved = true;
+      }
+    }, TIMEOUT_MS);
+
     try {
       setLoading(true);
       setError(null); // Clear any previous errors
+      
+      // CRITICAL FIX (ChatGPT): Always create a fresh checkout session
+      // Don't reuse existing sessions - each subscribe click should create new session
       const successUrl =
         typeof window !== "undefined" ? `${window.location.origin}/ai-astrology/subscription/success?session_id={CHECKOUT_SESSION_ID}` : undefined;
       const cancelUrl =
         typeof window !== "undefined" ? `${window.location.origin}/ai-astrology/subscription?canceled=1` : undefined;
 
-      const response = await apiPost<{
-        ok: boolean;
-        data?: { url: string; sessionId: string };
-        error?: string;
-      }>("/api/ai-astrology/create-checkout", {
-        subscription: true,
-        input,
-        successUrl,
-        cancelUrl,
+      // Set timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error("Subscription request timed out. Please try again."));
+          }
+        }, TIMEOUT_MS);
       });
+
+      // Race between API call and timeout
+      // CRITICAL FIX (ChatGPT): Include checkout attempt ID for server-side tracing
+      const response = await Promise.race([
+        apiPost<{
+          ok: boolean;
+          data?: { url: string; sessionId: string };
+          error?: string;
+        }>("/api/ai-astrology/create-checkout", {
+          subscription: true,
+          input,
+          successUrl,
+          cancelUrl,
+          checkoutAttemptId, // Include for server-side correlation
+        }),
+        timeoutPromise,
+      ]);
+
+      // Clear timeout if API call succeeded
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      isResolved = true;
 
       if (!response.ok) {
         throw new Error(response.error || "Failed to create subscription");
@@ -190,33 +239,55 @@ function SubscriptionContent() {
       }
 
       // Redirect to Stripe checkout (validate URL to prevent open redirects)
-      if (response.data?.url) {
-        const checkoutUrl = response.data.url;
-        // Validate URL is from Stripe, localhost, relative path, or same origin (for test users)
-        try {
-          const url = new URL(checkoutUrl, window.location.origin);
-          const isStripe = url.hostname === "checkout.stripe.com";
-          const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-          const isSameOrigin = url.origin === window.location.origin;
-          const isRelative = checkoutUrl.startsWith("/");
-          
-          if (isStripe || isLocalhost || isSameOrigin || isRelative) {
-            window.location.href = checkoutUrl;
-          } else {
-            throw new Error("Invalid checkout URL");
-          }
-        } catch (urlError) {
-          // If URL parsing fails, check if it's a relative path
-          if (checkoutUrl.startsWith("/")) {
-            window.location.href = checkoutUrl;
-          } else {
-            throw new Error("Invalid checkout URL");
-          }
+      const checkoutUrl = response.data.url;
+      // Validate URL is from Stripe, localhost, relative path, or same origin (for test users)
+      try {
+        const url = new URL(checkoutUrl, window.location.origin);
+        const isStripe = url.hostname === "checkout.stripe.com";
+        const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+        const isSameOrigin = url.origin === window.location.origin;
+        const isRelative = checkoutUrl.startsWith("/");
+        
+        if (isStripe || isLocalhost || isSameOrigin || isRelative) {
+          navigationOccurred = true;
+          clearTimeout(watchdogTimeoutId);
+          window.location.href = checkoutUrl;
+          // Don't set loading to false here - we're redirecting
+          return;
+        } else {
+          throw new Error("Invalid checkout URL");
+        }
+      } catch (urlError) {
+        // If URL parsing fails, check if it's a relative path
+        if (checkoutUrl.startsWith("/")) {
+          navigationOccurred = true;
+          clearTimeout(watchdogTimeoutId);
+          window.location.href = checkoutUrl;
+          // Don't set loading to false here - we're redirecting
+          return;
+        } else {
+          throw new Error("Invalid checkout URL");
         }
       }
     } catch (e: any) {
-      setError(e.message || "Failed to initiate subscription");
+      // CRITICAL FIX (ChatGPT): Always stop loading and show error with attempt ID
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      clearTimeout(watchdogTimeoutId);
+      isResolved = true;
+      
+      const errorMessage = e.message || "Failed to initiate subscription";
+      // CRITICAL FIX (ChatGPT): Include checkout attempt ID in error UI for server correlation
+      // UX Improvement: Include instruction to use reference when retrying
+      const errorWithRef = `${errorMessage}. Ref: ${checkoutAttemptId}. Include this reference if you retry later.`;
+      setError(errorWithRef);
       setLoading(false);
+      
+      console.error(`[Subscribe] Subscription checkout failed (attempt: ${checkoutAttemptId}):`, errorMessage, {
+        checkoutAttemptId,
+        errorMessage,
+      });
     }
   };
 

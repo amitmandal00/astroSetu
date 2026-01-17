@@ -127,9 +127,21 @@ export async function POST(req: Request) {
       decisionContext?: string; // Optional context for decision support reports
       bundleReports?: string[]; // Array of report types for bundle purchases
       bundleType?: string; // Bundle type identifier
+      checkoutAttemptId?: string; // CRITICAL FIX (ChatGPT): Client-generated attempt ID for server-side tracing
     }>(req);
 
-    const { reportType, subscription = false, input, successUrl, cancelUrl, bundleReports, bundleType } = json;
+    const { reportType, subscription = false, input, successUrl, cancelUrl, bundleReports, bundleType, checkoutAttemptId } = json;
+
+    // CRITICAL FIX (ChatGPT): Log checkout attempt ID for server-side tracing
+    // This allows correlating Vercel logs with user-reported "Purchase does nothing" issues
+    if (checkoutAttemptId) {
+      console.log(`[create-checkout] Checkout attempt started (ID: ${checkoutAttemptId})`, {
+        requestId,
+        checkoutAttemptId,
+        reportType: reportType || "subscription",
+        subscription,
+      });
+    }
 
     // Check for demo mode or test user (for logging only)
     // NOTE: Test users bypass payment by default to avoid payment verification errors
@@ -207,32 +219,45 @@ export async function POST(req: Request) {
       console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}, bypassPaymentForTestUsers: ${bypassPaymentForTestUsers}) - Bypassing Stripe`);
       
       // Use request URL to support preview deployments (derive from actual request)
-      // This ensures we use the correct deployment URL (preview or production)
+      // CRITICAL FIX (ChatGPT): Make baseUrl resilient - same priority as production path
       let baseUrl: string;
       try {
         const requestUrl = new URL(req.url);
         baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
       } catch (e) {
-        // Fallback to headers or env var if URL parsing fails
-        const originHeader = req.headers.get('origin');
-        const hostHeader = req.headers.get('host');
-        if (originHeader) {
-          baseUrl = originHeader;
-        } else if (hostHeader) {
-          const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
-          baseUrl = `${protocol}://${hostHeader}`;
+        // Fallback 1: x-forwarded-proto + x-forwarded-host (Vercel/proxy)
+        const forwardedProto = req.headers.get('x-forwarded-proto');
+        const forwardedHost = req.headers.get('x-forwarded-host');
+        if (forwardedProto && forwardedHost) {
+          baseUrl = `${forwardedProto}://${forwardedHost}`;
         } else {
-          // Use environment variable, throw error if not set in production
-          const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-          if (!envUrl) {
-            console.error("[Create Checkout] NEXT_PUBLIC_APP_URL not set");
-            // In production, this should be set. For local dev, allow localhost fallback
-            if (process.env.NODE_ENV === 'production') {
-              throw new Error("NEXT_PUBLIC_APP_URL environment variable is required");
-            }
-            baseUrl = "http://localhost:3000";
+          // Fallback 2: origin header
+          const originHeader = req.headers.get('origin');
+          if (originHeader) {
+            baseUrl = originHeader;
           } else {
-            baseUrl = envUrl;
+            // Fallback 3: host header
+            const hostHeader = req.headers.get('host');
+            if (hostHeader) {
+              const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
+              baseUrl = `${protocol}://${hostHeader}`;
+            } else {
+              // Fallback 4: environment variable (last resort)
+              const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+              if (!envUrl) {
+                // CRITICAL: Return clean JSON error instead of throwing
+                console.error("[Create Checkout] Cannot derive baseUrl - all fallbacks failed");
+                return NextResponse.json(
+                  {
+                    ok: false,
+                    error: "Checkout configuration error. Please contact support if this persists.",
+                    code: "CHECKOUT_CONFIG_ERROR"
+                  },
+                  { status: 500, headers: { "X-Request-ID": requestId } }
+                );
+              }
+              baseUrl = envUrl;
+            }
           }
         }
       }
@@ -359,34 +384,58 @@ export async function POST(req: Request) {
     }
 
     // Determine redirect URLs - use request URL to support preview deployments
-    // This ensures we use the correct deployment URL (preview or production)
-    let baseUrl: string;
-    try {
-      const requestUrl = new URL(req.url);
-      baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-    } catch (e) {
-      // Fallback to headers or env var if URL parsing fails
-      const originHeader = req.headers.get('origin');
-      const hostHeader = req.headers.get('host');
-      if (originHeader) {
-        baseUrl = originHeader;
-      } else if (hostHeader) {
-        const protocol = hostHeader.includes('localhost') ? 'http' : 'https';
-        baseUrl = `${protocol}://${hostHeader}`;
+    // CRITICAL FIX (ChatGPT): Make baseUrl resilient with improved priority order
+    // Priority: NEXT_PUBLIC_APP_URL → x-forwarded-proto + x-forwarded-host → host → request.nextUrl.origin → error
+    let baseUrl: string | null = null;
+
+    // Priority 1: NEXT_PUBLIC_APP_URL (most reliable if set)
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (envUrl) {
+      baseUrl = envUrl;
+    } else {
+      // Priority 2: x-forwarded-proto + x-forwarded-host (Vercel/proxy)
+      const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+      const forwardedHost = req.headers.get('x-forwarded-host');
+      if (forwardedHost) {
+        baseUrl = `${forwardedProto}://${forwardedHost}`;
       } else {
-        // Use environment variable, throw error if not set in production
-        const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-        if (!envUrl) {
-          console.error("[Create Checkout] NEXT_PUBLIC_APP_URL not set");
-          // In production, this should be set. For local dev, allow localhost fallback
-          if (process.env.NODE_ENV === 'production') {
-            throw new Error("NEXT_PUBLIC_APP_URL environment variable is required");
-          }
-          baseUrl = "http://localhost:3000";
+        // Priority 3: host header (with protocol detection)
+        const hostHeader = req.headers.get('host');
+        if (hostHeader) {
+          const protocol = hostHeader.includes('localhost') || hostHeader.includes('127.0.0.1') ? 'http' : 'https';
+          baseUrl = `${protocol}://${hostHeader}`;
         } else {
-          baseUrl = envUrl;
+          // Priority 4: Try to parse request URL (fallback)
+          try {
+            const requestUrl = new URL(req.url);
+            baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+          } catch (e) {
+            // Priority 5: origin header (last resort)
+            const originHeader = req.headers.get('origin');
+            if (originHeader) {
+              baseUrl = originHeader;
+            }
+          }
         }
       }
+    }
+
+    // CRITICAL: Return clean JSON error if baseUrl cannot be derived
+    if (!baseUrl) {
+      console.error("[Create Checkout] Cannot derive baseUrl - all fallbacks failed", {
+        hasEnvUrl: !!envUrl,
+        hasForwardedHost: !!req.headers.get('x-forwarded-host'),
+        hasHost: !!req.headers.get('host'),
+        hasOrigin: !!req.headers.get('origin'),
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Checkout configuration error. Please contact support if this persists.",
+          code: "CHECKOUT_CONFIG_ERROR"
+        },
+        { status: 500, headers: { "X-Request-ID": requestId } }
+      );
     }
     // IMPORTANT:
     // - Reports: payment success page owns verification + auto-generation.
@@ -409,9 +458,10 @@ export async function POST(req: Request) {
     const currency = "aud";
     const amount = priceData.amount; // Already in cents
     
-    // Log checkout creation attempt
+    // Log checkout creation attempt (include attempt ID for correlation)
     const checkoutLog = {
       requestId,
+      checkoutAttemptId: checkoutAttemptId || undefined, // Include client attempt ID
       timestamp: new Date().toISOString(),
       reportType: reportType || "subscription",
       amount,

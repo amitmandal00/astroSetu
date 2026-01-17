@@ -1,192 +1,129 @@
-# CURSOR ACTIONS REQUIRED
+# CURSOR_ACTIONS_REQUIRED
 
-**Last Updated**: 2026-01-17 16:30  
-**Status**: 🔴 **CRITICAL FIXES REQUIRED**
+This file contains ONLY things that require user interaction (keys, approvals, Stripe dashboard, etc.).
 
----
+## Current Actions Required (2026-01-17 19:00)
 
-## ⚠️ Critical Issue: First-Load Timer Reset + Stuck Generation
+### 1. Database Migration: Create `ai_input_sessions` Table (CRITICAL)
 
-**Root Cause Identified**: Non-deterministic generation start due to `setTimeout`-based autostart
+**Action**: Run SQL migration in Supabase
 
-**Symptom**: "After very first initial load - yearly analysis report, full life report does not generate and timer resets after 1 seconds and nothing happens for report generation"
+**File**: `astrosetu/docs/AI_INPUT_SESSIONS_SUPABASE.sql`
 
-**Location**: `astrosetu/src/app/ai-astrology/preview/page.tsx`
-- Line 1266: `setTimeout` for delayed sessionStorage check (500ms delay)
-- Line 1675: `setTimeout` for paid report generation (300ms delay)
+**SQL to execute**:
+```sql
+CREATE TABLE IF NOT EXISTS ai_input_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token UUID UNIQUE NOT NULL,
+  payload JSONB NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'), -- CRITICAL: TTL default 30 minutes
+  consumed_at TIMESTAMPTZ, -- Optional: mark as consumed for one-time semantics
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
----
-
-## 🔧 Required Fixes (ChatGPT Command)
-
-### FIX 1: Make report generation ATOMIC (CRITICAL)
-
-**New Invariant**:
-> If preview page renders with `auto_generate=true`, then within ONE render cycle:
-> - generation MUST enter `verifying|generating|polling`
-> - OR fail with explicit error + Retry
-> - It must NEVER remain `idle`
-
-**Implementation Steps**:
-1. ✅ **Remove all `setTimeout`-based autostart**:
-   - Remove `setTimeout` on line 1266 (delayed sessionStorage check)
-   - Remove `setTimeout` on line 1675 (paid report generation)
-   - All other `setTimeout` autostart paths
-
-2. ✅ **Create `startGenerationAtomically()` function**:
-   - Must be called synchronously in a `useEffect`
-   - Keyed ONLY on stable `attemptKey` (`session_id + reportType + auto_generate`)
-   - Must:
-     a) verify session (if needed)
-     b) persist/confirm attempt
-     c) transition controller to `'verifying'` immediately
-   - Timer must start ONLY when `controller.status === 'verifying'`
-
-3. ✅ **If verification fails or prerequisites are missing**:
-   - controller must enter `'failed'`
-   - UI must show Retry
-   - timer must stop
-
-**Deliverables**:
-- [ ] `preview/page.tsx` updated
-- [ ] No `setTimeout` autostart remains
-- [ ] Controller never stays `idle` when `auto_generate=true`
-
----
-
-### FIX 2: Enforce "generation intent record" (Critical)
-
-**Problem**: Intent lives in URL + UI memory → fragile
-
-**Required Change**: Persist generation intent when user initiates any paid/monthly/yearly report
-
-**Implementation**:
-```typescript
-generation_intent = {
-  userId,
-  reportType,
-  source: 'monthly' | 'yearly' | 'bundle',
-  returnTo,
-  status: 'pending'
-}
+CREATE INDEX IF NOT EXISTS idx_ai_input_sessions_token ON ai_input_sessions(token);
+CREATE INDEX IF NOT EXISTS idx_ai_input_sessions_expires_at ON ai_input_sessions(expires_at);
 ```
 
-**Benefits**:
-- First-load no longer depends on hydration timing
-- Monthly → Free → Back flow becomes deterministic
-- Retry knows what to retry
+**Steps**:
+1. Open Supabase Dashboard → SQL Editor
+2. Copy SQL above
+3. Execute SQL
+4. Verify table created: `SELECT * FROM ai_input_sessions LIMIT 1;`
+
+**Why**: Required for input token pattern (replaces sessionStorage dependency). **Without this, input token storage will fail in production.**
 
 ---
 
-### FIX 3: Monthly Subscription flow (End-to-end)
+### 2. Environment Variables Verification (CRITICAL)
 
-**Missing Invariant**: After Free Life Report submission, if user came from Monthly flow, they MUST be returned to Monthly dashboard/subscription.
+**Action**: Verify these env vars are set in Vercel:
 
-**Required Behavior**:
-1. Monthly CTA sets intent:
-   ```typescript
-   intent.source = 'monthly'
-   intent.returnTo = '/ai-astrology/subscription'
-   ```
-2. Free Life Report submission:
-   - checks intent
-   - redirects to `intent.returnTo`
-3. Subscription page:
-   - if intent exists and subscription inactive → create checkout session
-4. Subscribe button:
-   - MUST create a new checkout session
-   - must not rely on stale session
+**Required**:
+- `NEXT_PUBLIC_SUPABASE_URL` - Required for input token storage
+- `SUPABASE_SERVICE_ROLE_KEY` - **CRITICAL**: Required server-side only (never exposed to client)
+- `STRIPE_SECRET_KEY` - Required for checkout
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Required for checkout
 
-**Files to Fix**:
-- `src/app/ai-astrology/input/page.tsx` - Respect `returnTo` from intent
-- `src/app/ai-astrology/subscription/page.tsx` - Always create fresh checkout session
-- `src/app/ai-astrology/page.tsx` - Set monthly intent before redirecting
+**Optional but recommended**:
+- `NEXT_PUBLIC_APP_URL` - Now resilient (derives from headers), but recommended for reliability
+
+**Security Note**: `SUPABASE_SERVICE_ROLE_KEY` is **server-only**. It must NEVER be:
+- Exposed to client code
+- Logged in responses
+- Returned in API responses
+- Accessible via browser DevTools
+
+**Why**: Input token pattern requires Supabase. If `SUPABASE_SERVICE_ROLE_KEY` is missing in production, API will return 500 error (hard guard, no silent degradation).
 
 ---
 
-## 🧪 Missing Tests (Add These)
+### 3. Production Testing Checklist
 
-### Test 1: First-load atomic guarantee (MOST IMPORTANT)
-**File**: `tests/e2e/first-load-atomic-generation.spec.ts`
+**After deployment, test these scenarios**:
 
-**Given**: `preview?auto_generate=true&session_id=...`  
-**Expect**:
-- Within 1s: `controller.status !== 'idle'`
-- Either enters `verifying/generating` OR `failed`
-- Timer never resets to 0 while status is `idle`
+1. **Checkout No-Op Fix**:
+   - Navigate to preview page
+   - Click "Purchase Year Analysis Report"
+   - ✅ Should redirect to Stripe OR show error within 15s (not stuck loading)
 
-### Test 2: Monthly intent continuity
-**File**: `tests/e2e/monthly-intent-continuity.spec.ts`
+2. **Input Token Flow**:
+   - Open incognito browser
+   - Fill birth details on input page
+   - Submit form
+   - ✅ Should redirect to preview (no redirect loop)
+   - ✅ Preview should load input data (even without sessionStorage)
 
-**Flow**: Monthly CTA → Free Life → Submit → Subscription  
-**Assert**:
-- lands on subscription page
-- pending intent exists
-- Subscribe triggers checkout
+3. **Subscription ReturnTo**:
+   - Navigate to `/ai-astrology/subscription`
+   - If redirected to input, fill details
+   - Submit
+   - ✅ Should return to `/ai-astrology/subscription` (exact pathname, not preview)
 
-### Test 3: Subscribe button must mutate state
-**File**: `tests/e2e/subscribe-must-change-state.spec.ts`
-
-**Click Subscribe**  
-**Assert**:
-- network call made to create checkout
-- page does NOT reload to same URL with same state
+4. **Subscribe Button**:
+   - On subscription page, click "Subscribe"
+   - ✅ Should redirect to Stripe OR show error within 15s (not stuck loading)
 
 ---
 
-## 📋 Workflow Updates Required
+### 4. E2E Tests (Recommended - for CI/CD)
 
-### Update NON_NEGOTIABLES.md:
-1. ❌ No implicit generation starts (no setTimeout, no derived starts)
-2. ✅ Generation must be atomic: start OR fail
-3. ❌ URL params are not intent
-4. ✅ All paid flows require persisted intent
-5. ❌ Subscribe button must never be a no-op
+**Action**: Run new E2E tests to verify fixes
 
-### Update .cursor/rules:
-- Any change to preview/subscription/input pages requires:
-  - running `npm run release:gate`
-  - pasting output into `CURSOR_PROGRESS.md`
+```bash
+cd astrosetu
+npm run test:e2e -- checkout-failure-handling.spec.ts
+npm run test:e2e -- input-token-flow.spec.ts
+npm run test:e2e -- subscription-returnTo-exact.spec.ts
+npm run test:e2e -- expired-input-token.spec.ts
+npm run test:e2e -- returnTo-security.spec.ts
+```
 
----
-
-## 🎯 Success Criteria
-
-✅ First ever open of preview link with `session_id=...&auto_generate=true` must end in:
-- either "completed (content visible)" OR
-- "failed with retry CTA"
-- never infinite spinner
-
-✅ Monthly flow:
-- Monthly CTA → Free Life → Submit → Returns to Subscription
-- Subscribe button → Creates fresh checkout session → Redirects to Stripe
-
-✅ All tests pass:
-- `npm run test:critical` must pass
-- `npm run release:gate` must pass
+**Why**: These tests verify the fixes work in production-like scenarios, including security edge cases
 
 ---
 
-## 📝 Notes
+### 5. Production Readiness Checklist (CRITICAL)
 
-- This fix must be implemented carefully to avoid breaking existing flows
-- All `setTimeout`-based autostart must be removed
-- Generation must be atomic - start OR fail deterministically
-- Timer must start only when controller enters `verifying` state
+**Before declaring "production-ready", verify ALL of these**:
 
----
-
-## ⏱️ Priority
-
-🔴 **URGENT** - This is blocking production stability. First-load failures are user-facing and critical.
+✅ **Database Migration**: `ai_input_sessions` table created in Supabase  
+✅ **Environment Variables**: All required vars set in Vercel (see #2 above)  
+✅ **Release Gate**: `npm run release:gate` passes in CI/Vercel (not just local)  
+✅ **Manual Production Testing**: All 4 scenarios in #3 above tested in production  
+✅ **Security Verification**: No service role key exposure (check browser DevTools, API responses)
 
 ---
 
-## 🔄 Status
+## No Actions Required (Auto-Resolved)
 
-- [ ] Atomic generation fix implemented
-- [ ] Intent persistence implemented
-- [ ] Monthly flow fixed
-- [ ] Tests added
-- [ ] Workflow/docs updated
-- [ ] All tests passing
+- ✅ Checkout API baseUrl resilience (derives from headers automatically)
+- ✅ Purchase/subscribe timeout (15s hardcoded)
+- ✅ Error UI (automatically shows on failure)
+- ✅ Input token API routes (created, ready to use)
+- ✅ Preview page token handling (checks token first, falls back to sessionStorage)
+
+---
+
+**Last Updated**: 2026-01-17 19:00  
+**Status**: Production fixes implemented, awaiting database migration and testing
