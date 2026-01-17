@@ -33,7 +33,7 @@ test.describe("Subscription Input Token Flow", () => {
             },
             reportType: "life-summary",
           },
-        },
+        }),
       });
     });
 

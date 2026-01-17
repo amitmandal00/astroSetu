@@ -84,7 +84,7 @@ test.describe("Preview Requires Input", () => {
                 },
                 reportType: "year-analysis",
               },
-            },
+            }),
           });
         } else {
           await route.continue();

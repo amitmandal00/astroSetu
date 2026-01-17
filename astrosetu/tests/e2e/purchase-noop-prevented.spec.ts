@@ -97,7 +97,7 @@ test.describe("Purchase No-Op Prevented", () => {
                 },
                 reportType: "year-analysis",
               },
-            },
+            }),
           });
         } else {
           await route.continue();

@@ -35,8 +35,8 @@ export function isSafeReturnTo(path: string): boolean {
   // Block encoded protocol variants (decode first to check)
   try {
     const decoded = decodeURIComponent(sanitized);
-    // Block http://, https://, // even if encoded
-    if (decoded.includes("://") || decoded.startsWith("//")) {
+    // Block http://, https://, or // anywhere in the path (even if encoded)
+    if (decoded.includes("://") || decoded.includes("//")) {
       return false;
     }
   } catch {
