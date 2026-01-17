@@ -227,7 +227,10 @@ function SubscriptionContent() {
           }
 
           // 2) One-time verification path (best-effort; must not block UI)
-          const candidate = urlSessionId || sessionStorage.getItem("aiAstrologyPaymentSessionId");
+          // CRITICAL FIX (2026-01-18): Only verify session_id from URL (not sessionStorage) to prevent premature verification
+          // SessionStorage sessionId might be from a checkout session that hasn't completed yet
+          // Only verify session_id that comes from URL (success page redirect) - those are already completed
+          const candidate = urlSessionId; // Only use URL session_id, not sessionStorage
           if (!candidate) return;
           try {
             await apiPost<{ ok: boolean; error?: string }>(
@@ -403,14 +406,10 @@ function SubscriptionContent() {
         throw new Error("Subscription checkout did not return a redirect URL. Please try again.");
       }
 
-      // Persist session id so refresh/navigation doesn't break verification recovery.
-      if (typeof window !== "undefined" && response.data?.sessionId) {
-        try {
-          sessionStorage.setItem("aiAstrologyPaymentSessionId", response.data.sessionId);
-        } catch {
-          // non-blocking
-        }
-      }
+      // CRITICAL FIX (2026-01-18): Don't store sessionId in sessionStorage before redirecting
+      // This prevents hydrateBilling from trying to verify the session prematurely
+      // The sessionId will be stored/verified by the success page after checkout completes
+      // For now, we'll just redirect - the success page will handle session verification
 
       // Redirect to Stripe checkout (validate URL to prevent open redirects)
       const checkoutUrl = response.data.url;
