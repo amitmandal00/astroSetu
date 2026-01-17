@@ -1366,27 +1366,27 @@ function PreviewContent() {
       // If token fetch failed, error state is already set, so don't redirect
       if (!input) {
         console.log("[Preview] Token in URL but loading completed with no input - token may be invalid or expired");
-        // Don't redirect - error state will show "Start again" button
-        // OR: If there's no error, the token might have been successfully loaded but setInput hasn't completed yet
-        // In that case, check sessionStorage below before redirecting
-        // But we return here to prevent immediate redirect when token is in URL
-        // Only check sessionStorage if no error (error means token fetch explicitly failed)
-        if (!error) {
-          // Token in URL but no input and no error - might be race condition where setInput hasn't updated yet
-          // Check sessionStorage before giving up
-          const savedInput = sessionStorage.getItem("aiAstrologyInput");
-          if (savedInput) {
-            try {
-              const inputData = JSON.parse(savedInput);
-              setInput(inputData);
-              console.log("[Preview] Loaded input from sessionStorage (token in URL but setInput race condition)");
-              return; // Don't redirect if we loaded from sessionStorage
-            } catch (e) {
-              console.warn("[Preview] Failed to parse saved input from sessionStorage:", e);
-            }
+        // CRITICAL FIX: Don't redirect if error is set (error state will show "Start again" button)
+        if (error) {
+          console.log("[Preview] Error state is set, not redirecting - error UI will show");
+          return;
+        }
+        // If there's no error, the token might have been successfully loaded but setInput hasn't completed yet
+        // Check sessionStorage before giving up
+        const savedInput = sessionStorage.getItem("aiAstrologyInput");
+        if (savedInput) {
+          try {
+            const inputData = JSON.parse(savedInput);
+            setInput(inputData);
+            console.log("[Preview] Loaded input from sessionStorage (token in URL but setInput race condition)");
+            return; // Don't redirect if we loaded from sessionStorage
+          } catch (e) {
+            console.warn("[Preview] Failed to parse saved input from sessionStorage:", e);
           }
         }
-        // If we reach here, token is in URL but no input and no sessionStorage - don't redirect, let error show
+        // If we reach here, token is in URL but no input and no sessionStorage and no error
+        // This shouldn't happen, but don't redirect - let the token fetch error handling deal with it
+        console.warn("[Preview] Token in URL but no input, no sessionStorage, and no error - waiting for token fetch to complete or error");
         return;
       }
     }
@@ -1447,7 +1447,7 @@ function PreviewContent() {
     const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
     console.info("[PREVIEW_REDIRECT]", fullUrl);
     window.location.assign(fullUrl);
-  }, [tokenLoading, input, searchParams]); // Run when token loading completes or input changes
+  }, [tokenLoading, input, searchParams, error]); // Run when token loading completes, input changes, or error is set
 
   useEffect(() => {
     // Check if sessionStorage is available
