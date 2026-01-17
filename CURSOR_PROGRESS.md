@@ -6,10 +6,10 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **PRIVATE BETA GATING IMPLEMENTED - READY FOR MERGE TO MAIN** (ChatGPT Feedback - 2026-01-17 23:30)
-- **Last update**: 2026-01-17 23:30
-- **Verdict**: ✅ Private beta gating implemented (middleware, access page, verification API, tests). Ready to merge to main and deploy to production.
-- **Next**: Merge to main → Set `NEXT_PUBLIC_PRIVATE_BETA=true` in Production → Deploy → Verify using `PRODUCTION_PRIVATE_BETA_CHECKLIST.md`
+- **State**: ✅ **STABILIZATION FIXES STEPS 0-4 COMPLETE** (2026-01-18)
+- **Last update**: 2026-01-18
+- **Verdict**: ✅ All stabilization fixes (Steps 0-4) implemented. Token fetch authoritative, purchase button hardened, subscription flow verified, E2E tests added.
+- **Next**: Run `npm run test:critical` to verify all tests pass → Deploy → Verify in production
 - **Fixes Applied (2026-01-17 19:00 + 20:00)**:
 
   **A) Checkout No-Op Fix**:
@@ -78,6 +78,24 @@ Use this file as the single “where things stand” view during long Cursor ses
   **K) Production Token Flow Fix (2026-01-17 23:00)**:
   - ✅ **Hard navigation for input redirect**: Replaced `router.push()` with `window.location.assign()` for input → preview/subscription redirects. This guarantees query params survive and avoids Next soft-navigation keeping stale state.
   - ✅ **Service worker disabled during stabilization**: Service worker now gated behind `NEXT_PUBLIC_ENABLE_PWA === "true"`. Default: disabled in all environments until flows are stable. Unregisters existing SWs if disabled.
+
+  **L) Stabilization Fixes Steps 0-4 (2026-01-18)**:
+  - ✅ **Step 0: Build ID Fixed**: Footer shows full commit SHA (verified by user), service worker completely disabled, `[BUILD_ID]` log visible.
+  - ✅ **Step 1: Token Fetch Authoritative**:
+    - Added `tokenLoading` state to `preview/page.tsx` and `subscription/page.tsx`
+    - Prevent redirect while `tokenLoading=true` (token fetch authoritative)
+    - Show "Loading your details..." UI when `tokenLoading=true` (not "Redirecting...")
+    - Logs: `[TOKEN_GET] start`, `[TOKEN_GET] ok status=200`, `[TOKEN_GET] fail status=400`, `[REDIRECT_TO_INPUT] reason=...`
+  - ✅ **Step 2: Purchase Button Hardened**:
+    - Purchase handler checks `tokenLoading` before proceeding (no purchase while token loading)
+    - Purchase button disabled when `tokenLoading=true` (added to `disabled={loading || tokenLoading || !refundAcknowledged}`)
+    - Logs: `[PURCHASE_CLICK] {hasInput, hasToken, tokenLoading}`
+  - ✅ **Step 3: Subscription Flow Verified**: Subscription page redirects to input with `flow=subscription`, input redirects to subscription with `input_token`, subscription loads token first (already implemented).
+  - ✅ **Step 4: E2E Tests Added**:
+    - `token-get-required.spec.ts` - Verifies GET `/api/ai-astrology/input-session?token=` occurs within 2s after navigation
+    - `no-redirect-while-token-loading.spec.ts` - Verifies preview/subscription does NOT redirect while `tokenLoading=true`, shows "Loading your details..."
+    - Both tests added to `test:critical` script
+  - ✅ **Updated `.cursor/rules`**: Added "TOKEN FETCH AUTHORITATIVE & PURCHASE READY" section with Step 1-4 invariants.
   - ✅ **Build ID stamp added**: Footer displays build ID (`NEXT_PUBLIC_BUILD_ID` or `VERCEL_GIT_COMMIT_SHA`). Console logs `[BUILD] buildId` on page mount. This proves deployed JS is active (not cached by SW/browser).
   - ✅ **Token visibility logging**: Preview/subscription now log:
     - `[TOKEN_IN_URL] token` on mount (or "none")

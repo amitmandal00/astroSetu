@@ -18,16 +18,21 @@ export default function AIAstrologyLayout({
   children: ReactNode;
 }) {
   useEffect(() => {
-    // Register service worker
+    // CRITICAL FIX (ChatGPT Step 0): Completely disable service worker during stabilization
+    // No gating - ALWAYS unregister all service workers to prevent cached JS from breaking deploy verification
+    // Service worker will be re-enabled after flows are stable
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((registration) => {
-          console.log("Service Worker registered:", registration);
-        })
-        .catch((error) => {
-          console.error("Service Worker registration failed:", error);
-        });
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        if (registrations.length > 0) {
+          registrations.forEach((registration) => {
+            registration.unregister().then(() => {
+              console.log("[SW] Service Worker unregistered for stabilization");
+            });
+          });
+        } else {
+          console.log("[SW] Service Worker disabled for stabilization (no registrations found)");
+        }
+      });
     }
   }, []);
 

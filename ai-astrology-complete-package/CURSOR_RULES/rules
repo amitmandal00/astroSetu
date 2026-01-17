@@ -1,8 +1,3 @@
-# Cursor Rules
-
-This file contains the Cursor autopilot rules.
-In your actual project, these should be at `.cursor/rules`.
-
 ## Cursor Autopilot (safe, non-blocking)
 
 ### Goals
@@ -124,6 +119,59 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - `hasReportTypeInUrl` gating redirect (causing "Redirecting..." to show forever)
   - Silent returns in click handlers (causing "nothing happens" when input missing)
   - Preview not setting input state immediately after loading input_token (causing redirect loops)
+
+### PRIVATE BETA GATING (ChatGPT Feedback - CRITICAL - 2026-01-17 23:30)
+- **Production-only gating**: Private beta gating is enabled when `NEXT_PUBLIC_PRIVATE_BETA === "true"`. In preview/dev, gating is disabled by default (env var not set or false).
+- **Server-side allowlist only**: Allowlist is stored server-side only (`src/lib/betaAccess.ts`). MUST NOT be imported in client components (would leak allowlist in bundle).
+- **Dual enforcement (UI + API)**: Gate enforcement happens at BOTH:
+  - **UI routes**: Middleware redirects `/ai-astrology/*` to `/ai-astrology/access` (unless cookie present or path is `/access`)
+  - **API routes**: Middleware returns 401 JSON for `/api/ai-astrology/*` and `/api/billing/*` (unless cookie present)
+- **No client-only gating**: Client-side checks are NOT sufficient. Middleware must enforce gating server-side.
+- **HttpOnly cookie**: Beta access cookie (`beta_access=1`) is HttpOnly (set by `/api/beta-access/verify`), TTL 7 days.
+- **Access verification**: `/ai-astrology/access` page collects birth details, calls `/api/beta-access/verify`, sets cookie on match, redirects to returnTo or `/ai-astrology`.
+- **Matching robustness**: Normalization functions handle various input formats:
+  - Name: case-insensitive, collapse spaces
+  - DOB: accept "dd mon yyyy" or "YYYY-MM-DD" format
+  - Time: accept "09:40 pm" or "21:40" format (12h/24h)
+  - Place: case-insensitive, allows "Noamundi, Jharkhand" to match "Noamundi, Jharkhand, India" (includes match)
+  - Gender: accept "Male"/"Female" or "M"/"F"
+- **Verification logging**: Server logs `[BETA_ACCESS] ok=true/false, requestId, ip` (no PII like names/dob).
+- **Tests required**: `test:critical` and `release:gate` MUST include:
+  - `beta-access-blocks-ai-astrology.spec.ts` (redirects when no cookie)
+  - `beta-access-allows-after-verify.spec.ts` (access after valid verification)
+  - `beta-access-blocks-api.spec.ts` (401 for API routes when no cookie)
+  - `tests/unit/betaAccess.test.ts` (normalization/matching unit tests)
+- **Removal**: To disable gating, set `NEXT_PUBLIC_PRIVATE_BETA=false` or unset env var, redeploy.
+
+### TOKEN FETCH AUTHORITATIVE & PURCHASE READY (Step 1-4 - CRITICAL - 2026-01-18)
+- **Token fetch must be authoritative (Step 1)**: Preview/subscription pages MUST use `tokenLoading` state to prevent redirects while token is being fetched. Redirect logic MUST check `!tokenLoading && !inputToken && !input` before redirecting. NEVER redirect while `tokenLoading === true`.
+- **Loading UI while token fetches (Step 1)**: While `tokenLoading === true`, preview/subscription MUST show "Loading your details..." UI (NOT "Redirecting..."). This prevents redirect loops and provides clear feedback.
+- **Token fetch lifecycle logging (Step 1)**: Preview/subscription MUST log:
+  - `[TOKEN_GET] start ...suffix` when token fetch starts
+  - `[TOKEN_GET] ok status=200` when token fetch succeeds
+  - `[TOKEN_GET] fail status=400` when token fetch fails
+  - `[REDIRECT_TO_INPUT] reason=missing_input_no_token` when redirecting (only if tokenLoading=false)
+- **Purchase button must check tokenLoading (Step 2)**: `handlePurchase()` MUST check `tokenLoading` before proceeding. If `tokenLoading === true`, return early (do NOT redirect). Purchase button MUST be disabled when `tokenLoading === true` (add to `disabled={loading || tokenLoading || !refundAcknowledged}`).
+- **Purchase click logging (Step 2)**: `handlePurchase()` MUST log `[PURCHASE_CLICK] {hasInput, hasToken, tokenLoading}` for visibility.
+- **Subscription flow already correct (Step 3)**: Subscription page already redirects to input with `flow=subscription`. Input page already redirects to subscription with `input_token` when `flow=subscription`. No changes needed.
+- **E2E tests required (Step 4)**: `test:critical` MUST include:
+  - `token-get-required.spec.ts` (GET `/api/ai-astrology/input-session?token=` occurs within 2s after navigation)
+  - `no-redirect-while-token-loading.spec.ts` (preview/subscription does NOT redirect while tokenLoading=true, shows "Loading your details...")
+- **Why these rules exist**: Redirect loops occur when redirect logic runs before token fetch completes. Token fetch must be authoritative - no redirects allowed while `tokenLoading === true`.
+
+### HARD NAVIGATION & SERVICE WORKER STABILIZATION (ChatGPT Feedback - CRITICAL - 2026-01-17 22:45)
+- **Input redirect must use window.location.assign (NOT router.push)**: After input submit, MUST use `window.location.assign(fullUrl)` for hard navigation. This guarantees query params survive and avoids Next soft-navigation keeping stale state. NEVER use `router.push()` for input → preview/subscription redirects.
+- **Service worker disabled during stabilization**: Service worker MUST be gated behind `NEXT_PUBLIC_ENABLE_PWA === "true"` env flag. Default: disable in all environments until flows are stable. If `NEXT_PUBLIC_ENABLE_PWA` is false, unregister any existing service workers. This prevents SW from breaking deploy verification by caching old JS.
+- **Build ID stamp required**: Footer MUST display build ID (`NEXT_PUBLIC_BUILD_ID` or `VERCEL_GIT_COMMIT_SHA`). Console MUST log `[BUILD] buildId` on page mount. This proves deployed JS is active (not cached by SW/browser).
+- **Token visibility logging**: Preview/subscription MUST log:
+  - `[TOKEN_IN_URL] token` on mount (or "none")
+  - `[TOKEN_FETCH_START] ...suffix` when starting token fetch
+  - `[TOKEN_FETCH_RESPONSE] {ok, status, error}` when token fetch completes
+  - This makes token fetch visible in DevTools/console for debugging.
+- **Input redirect logging**: Input page MUST log `[INPUT_REDIRECT] fullUrl` before redirect. This helps debug if redirect URL is correct.
+- **No service worker while stabilizing checkout/routing**: Service worker MUST be disabled during stabilization. Re-enable only after all flows are verified stable in production.
+- **Release gate must include input-token-in-url test**: `npm run test:critical` MUST include:
+  - `input-token-in-url-after-submit.spec.ts` (input submit → URL contains input_token AND network call visible AND no redirect loop)
 
 ### Technical Debt (Tracked for Future Refactor)
 - **setTimeout autostart** (preview/page.tsx, line ~1242):
@@ -326,3 +374,5 @@ When stable:
 - Never assume "second load works" is acceptable
 
 **Success condition**: `npm run ci:critical` passes AND no infinite loading states are possible.
+
+

@@ -19,7 +19,52 @@ function SubscriptionContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
+  // CRITICAL FIX (ChatGPT 23:57): Build ID for deployment verification (fetch from /build.json)
+  const [buildId, setBuildId] = useState<string>("...");
+  
+  // CRITICAL FIX (ChatGPT 23:57): Fetch build ID from /build.json on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/build.json", {
+          cache: "no-store",
+          headers: { "cache-control": "no-cache" },
+        });
+
+        if (!res.ok) {
+          throw new Error(`build.json ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setBuildId(data?.buildId || "unknown");
+          console.info("[BUILD]", data?.buildId || "unknown");
+        }
+      } catch (error) {
+        console.warn("[Subscription] Failed to fetch build.json:", error);
+        if (!cancelled) {
+          setBuildId("unknown");
+          console.info("[BUILD]", "unknown");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // CRITICAL FIX (ChatGPT 22:45): Log token in URL on mount to verify navigation preserved it
+  useEffect(() => {
+    const inputToken = searchParams?.get("input_token");
+    console.info("[TOKEN_IN_URL]", inputToken || "none");
+  }, [searchParams]);
+  
   const [input, setInput] = useState<AIAstrologyInput | null>(null);
+  // CRITICAL FIX (Step 1): Track token loading state to prevent redirect while fetching
+  const [tokenLoading, setTokenLoading] = useState(false);
   const [guidance, setGuidance] = useState<DailyGuidance | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +88,11 @@ function SubscriptionContent() {
     
     const loadInputFromToken = async () => {
       if (inputToken) {
+        // CRITICAL FIX (Step 1): Set tokenLoading=true to prevent redirect while fetching
+        setTokenLoading(true);
+        // CRITICAL FIX (ChatGPT 22:45): Log token fetch start for visibility
+        const tokenSuffix = inputToken.slice(-6);
+        console.info("[TOKEN_GET] start", `...${tokenSuffix}`);
         try {
           const tokenResponse = await apiGet<{
             ok: boolean;
@@ -53,10 +103,19 @@ function SubscriptionContent() {
             error?: string;
           }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
 
+          // CRITICAL FIX (ChatGPT 22:45): Log token fetch response for visibility
+          if (tokenResponse.ok) {
+            console.info("[TOKEN_GET] ok status=200");
+          } else {
+            console.info("[TOKEN_GET] fail status=400", tokenResponse.error || "invalid_token");
+          }
+
           if (tokenResponse.ok && tokenResponse.data?.input) {
             // Load input from token
             const inputData = tokenResponse.data.input;
             setInput(inputData);
+            // CRITICAL FIX (Step 1): Set tokenLoading=false after successfully setting input
+            setTokenLoading(false);
             
             // Clean URL - remove input_token from URL
             router.replace("/ai-astrology/subscription");
@@ -72,10 +131,12 @@ function SubscriptionContent() {
             return true; // Successfully loaded
           } else {
             console.warn("[Subscription] Invalid or expired input_token:", tokenResponse.error);
+            setTokenLoading(false); // CRITICAL FIX (Step 1): Clear tokenLoading on error
             // Fall through to sessionStorage check
           }
         } catch (tokenError) {
           console.warn("[Subscription] Failed to fetch input_token, falling back to sessionStorage:", tokenError);
+          setTokenLoading(false); // CRITICAL FIX (Step 1): Clear tokenLoading on error
           // Fall through to sessionStorage check
         }
       }
@@ -90,25 +151,29 @@ function SubscriptionContent() {
         // Continue to billing hydration (code below)
       } else {
         // Fallback: Get input from sessionStorage (if input_token not available or failed)
-        try {
-          const savedInput = sessionStorage.getItem("aiAstrologyInput");
+        // CRITICAL FIX (Step 1): Prevent redirect while tokenLoading=true (token fetch authoritative)
+        if (!tokenLoading) {
+          try {
+            const savedInput = sessionStorage.getItem("aiAstrologyInput");
 
-          if (!savedInput) {
-            // Subscription is its own journey; collect birth details but return to subscription dashboard,
-            // not into the free-report preview flow.
-            const returnTo = "/ai-astrology/subscription";
-            router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent(returnTo)}`);
-            return;
+            if (!savedInput) {
+              // Subscription is its own journey; collect birth details but return to subscription dashboard,
+              // not into the free-report preview flow.
+              console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token");
+              const returnTo = "/ai-astrology/subscription";
+              router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent(returnTo)}`);
+              return;
+            }
+
+              const inputData = JSON.parse(savedInput);
+              setInput(inputData);
+            } catch (e) {
+              console.error("[Subscription] Error parsing saved input:", e);
+              router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent("/ai-astrology/subscription")}`);
+              return;
+            }
           }
-
-          const inputData = JSON.parse(savedInput);
-          setInput(inputData);
-        } catch (e) {
-          console.error("[Subscription] Error parsing saved input:", e);
-          router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent("/ai-astrology/subscription")}`);
-          return;
         }
-      }
       
       // Continue with billing hydration (moved outside the token/sessionStorage check)
       // Best-practice: use session_id from query string only once (Stripe redirect), verify server-side,
@@ -412,6 +477,23 @@ function SubscriptionContent() {
   };
 
   if (!input) {
+    // CRITICAL FIX (Step 1): Show "Loading your details..." while token is loading (token fetch authoritative)
+    if (tokenLoading) {
+      return (
+        <div className="cosmic-bg py-8">
+          <div className="container mx-auto px-4 max-w-2xl">
+            <Card className="cosmic-card">
+              <CardContent className="p-8 text-center">
+                <div className="animate-spin text-5xl mb-4">🌙</div>
+                <h2 className="text-2xl font-bold mb-4 text-slate-800">Loading your details...</h2>
+                <p className="text-slate-600 mb-6">Please wait while we load your information.</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    
     // Should not happen as useEffect redirects, but handle gracefully
     return (
       <div className="cosmic-bg py-8">

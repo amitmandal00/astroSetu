@@ -143,6 +143,22 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - `tests/unit/betaAccess.test.ts` (normalization/matching unit tests)
 - **Removal**: To disable gating, set `NEXT_PUBLIC_PRIVATE_BETA=false` or unset env var, redeploy.
 
+### TOKEN FETCH AUTHORITATIVE & PURCHASE READY (Step 1-4 - CRITICAL - 2026-01-18)
+- **Token fetch must be authoritative (Step 1)**: Preview/subscription pages MUST use `tokenLoading` state to prevent redirects while token is being fetched. Redirect logic MUST check `!tokenLoading && !inputToken && !input` before redirecting. NEVER redirect while `tokenLoading === true`.
+- **Loading UI while token fetches (Step 1)**: While `tokenLoading === true`, preview/subscription MUST show "Loading your details..." UI (NOT "Redirecting..."). This prevents redirect loops and provides clear feedback.
+- **Token fetch lifecycle logging (Step 1)**: Preview/subscription MUST log:
+  - `[TOKEN_GET] start ...suffix` when token fetch starts
+  - `[TOKEN_GET] ok status=200` when token fetch succeeds
+  - `[TOKEN_GET] fail status=400` when token fetch fails
+  - `[REDIRECT_TO_INPUT] reason=missing_input_no_token` when redirecting (only if tokenLoading=false)
+- **Purchase button must check tokenLoading (Step 2)**: `handlePurchase()` MUST check `tokenLoading` before proceeding. If `tokenLoading === true`, return early (do NOT redirect). Purchase button MUST be disabled when `tokenLoading === true` (add to `disabled={loading || tokenLoading || !refundAcknowledged}`).
+- **Purchase click logging (Step 2)**: `handlePurchase()` MUST log `[PURCHASE_CLICK] {hasInput, hasToken, tokenLoading}` for visibility.
+- **Subscription flow already correct (Step 3)**: Subscription page already redirects to input with `flow=subscription`. Input page already redirects to subscription with `input_token` when `flow=subscription`. No changes needed.
+- **E2E tests required (Step 4)**: `test:critical` MUST include:
+  - `token-get-required.spec.ts` (GET `/api/ai-astrology/input-session?token=` occurs within 2s after navigation)
+  - `no-redirect-while-token-loading.spec.ts` (preview/subscription does NOT redirect while tokenLoading=true, shows "Loading your details...")
+- **Why these rules exist**: Redirect loops occur when redirect logic runs before token fetch completes. Token fetch must be authoritative - no redirects allowed while `tokenLoading === true`.
+
 ### HARD NAVIGATION & SERVICE WORKER STABILIZATION (ChatGPT Feedback - CRITICAL - 2026-01-17 22:45)
 - **Input redirect must use window.location.assign (NOT router.push)**: After input submit, MUST use `window.location.assign(fullUrl)` for hard navigation. This guarantees query params survive and avoids Next soft-navigation keeping stale state. NEVER use `router.push()` for input → preview/subscription redirects.
 - **Service worker disabled during stabilization**: Service worker MUST be gated behind `NEXT_PUBLIC_ENABLE_PWA === "true"` env flag. Default: disable in all environments until flows are stable. If `NEXT_PUBLIC_ENABLE_PWA` is false, unregister any existing service workers. This prevents SW from breaking deploy verification by caching old JS.

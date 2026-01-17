@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense, useMemo } from "react"; // useState already imported
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
@@ -26,7 +26,52 @@ function PreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
+  // CRITICAL FIX (ChatGPT 23:57): Build ID for deployment verification (fetch from /build.json)
+  const [buildId, setBuildId] = useState<string>("...");
+  
+  // CRITICAL FIX (ChatGPT 23:57): Fetch build ID from /build.json on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/build.json", {
+          cache: "no-store",
+          headers: { "cache-control": "no-cache" },
+        });
+
+        if (!res.ok) {
+          throw new Error(`build.json ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setBuildId(data?.buildId || "unknown");
+          console.info("[BUILD]", data?.buildId || "unknown");
+        }
+      } catch (error) {
+        console.warn("[Preview] Failed to fetch build.json:", error);
+        if (!cancelled) {
+          setBuildId("unknown");
+          console.info("[BUILD]", "unknown");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // CRITICAL FIX (ChatGPT 22:45): Log token in URL on mount to verify navigation preserved it
+  useEffect(() => {
+    const inputToken = searchParams.get("input_token");
+    console.info("[TOKEN_IN_URL]", inputToken || "none");
+  }, [searchParams]);
+  
   const [input, setInput] = useState<AIAstrologyInput | null>(null);
+  // CRITICAL FIX (Step 1): Track token loading state to prevent redirect while fetching
+  const [tokenLoading, setTokenLoading] = useState(false);
   const [reportType, setReportType] = useState<ReportType>(() => {
     const fromUrl = searchParams.get("reportType") as ReportType | null;
     const valid: ReportType[] = [
@@ -1352,10 +1397,13 @@ function PreviewContent() {
           let savedReportType: ReportType | null = null;
           let savedBundleType: string | null = null;
           let savedBundleReports: string | null = null;
-          let isTokenFetchInFlight = false; // CRITICAL FIX (ChatGPT): Track if token fetch is happening
 
           if (inputToken) {
-            isTokenFetchInFlight = true; // CRITICAL FIX (ChatGPT): Mark token fetch as in-flight to prevent watchdog false-fire
+            // CRITICAL FIX (Step 1): Set tokenLoading=true to prevent redirect while fetching
+            setTokenLoading(true);
+            // CRITICAL FIX (ChatGPT 22:45): Log token fetch start for visibility
+            const tokenSuffix = inputToken.slice(-6);
+            console.info("[TOKEN_GET] start", `...${tokenSuffix}`);
             try {
               const tokenResponse = await apiGet<{
                 ok: boolean;
@@ -1367,6 +1415,13 @@ function PreviewContent() {
                 };
                 error?: string;
               }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
+              
+              // CRITICAL FIX (ChatGPT 22:45): Log token fetch response for visibility
+              if (tokenResponse.ok) {
+                console.info("[TOKEN_GET] ok status=200");
+              } else {
+                console.info("[TOKEN_GET] fail status=400", tokenResponse.error || "invalid_token");
+              }
 
               if (tokenResponse.ok && tokenResponse.data) {
                 // Use server-side data
@@ -1417,6 +1472,9 @@ function PreviewContent() {
                   }
                 }
                 
+                // CRITICAL FIX (Step 1): Set tokenLoading=false after successfully setting input state
+                setTokenLoading(false);
+                
                 // CRITICAL FIX (ChatGPT): After setting input state, do NOT auto-redirect back to input
                 // The input is now loaded, so preview should render normally (not redirect)
                 // Only clean URL if needed (remove input_token from URL), but don't redirect
@@ -1431,7 +1489,7 @@ function PreviewContent() {
                 console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
                 setError("Your session has expired. Please start again.");
                 setLoading(false);
-                isTokenFetchInFlight = false; // CRITICAL FIX (ChatGPT): Clear flag
+                setTokenLoading(false); // CRITICAL FIX (Step 1): Clear tokenLoading after fetch completes (error case)
                 // CRITICAL FIX (ChatGPT): Show real error UI with "Start again" button that navigates to input
                 // Don't just return - show actionable error with navigation button
                 // The error state will show a "Start again" button that navigates to input
@@ -1439,9 +1497,8 @@ function PreviewContent() {
               }
             } catch (tokenError) {
               console.warn("[Preview] Failed to fetch input_token, falling back to sessionStorage:", tokenError);
+              setTokenLoading(false); // CRITICAL FIX (Step 1): Clear tokenLoading on error
               // Fall through to sessionStorage fallback
-            } finally {
-              isTokenFetchInFlight = false; // CRITICAL FIX (ChatGPT): Clear flag after token fetch completes
             }
           }
 
@@ -1458,8 +1515,9 @@ function PreviewContent() {
         // CRITICAL FIX (ChatGPT): Always redirect to /input if no input + no valid input_token
         // Remove reportType gating - it causes "Redirecting..." dead states
         // New invariant: If no input + no valid input_token → redirect to /input ALWAYS (with returnTo)
-        // CRITICAL FIX (ChatGPT): Watchdog only applies when "redirect is required" AND "redirect has not been initiated" AND "no token fetch is happening"
-        if (!savedInput && !hasRedirectedRef.current && !isTokenFetchInFlight) {
+        // CRITICAL FIX (Step 1): Prevent redirect while tokenLoading=true (token fetch authoritative)
+        if (!savedInput && !hasRedirectedRef.current && !tokenLoading) {
+          console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token");
           // Check if we're already on the input page to prevent loops
           const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
           if (currentPath.includes("/input")) {
@@ -1505,10 +1563,11 @@ function PreviewContent() {
           redirectWatchdogTimeoutRef.current = setTimeout(() => {
             // CRITICAL FIX (ChatGPT): Only fire watchdog if redirect was initiated AND still on preview page
             // AND no token fetch is happening (prevent false-fires during legitimate navigation)
+            // CRITICAL FIX (Step 1): Use tokenLoading state instead of local variable
             if (redirectInitiatedRef.current && 
                 typeof window !== "undefined" && 
                 window.location.pathname.includes("/preview") &&
-                !isTokenFetchInFlight) {
+                !tokenLoading) {
               const debugRef = `REF_${Date.now().toString(36).slice(-8).toUpperCase()}`;
               console.error(`[Preview] Redirect timeout after 2s - router.push may be blocked`, {
                 debugRef,
@@ -2017,9 +2076,18 @@ function PreviewContent() {
       return;
     }
     
-    // CRITICAL FIX (ChatGPT): Don't silently return - redirect to input if input missing
-    // This fixes "Purchase does nothing" issue
-    if (!input) {
+    // CRITICAL FIX (Step 2): Check tokenLoading before purchase - prevent purchase while token is loading
+    const inputToken = searchParams.get("input_token");
+    console.info("[PURCHASE_CLICK]", { hasInput: !!input, hasToken: !!inputToken, tokenLoading });
+    if (tokenLoading || !input) {
+      if (tokenLoading) {
+        // Disable button while token is loading - show "Loading your details..." instead
+        console.warn("[Purchase] Token is loading, please wait");
+        return;
+      }
+      // CRITICAL FIX (ChatGPT): Don't silently return - redirect to input if input missing
+      // This fixes "Purchase does nothing" issue
+      if (!input) {
       const reportTypeParam = searchParams.get("reportType");
       const returnTo = typeof window !== "undefined" 
         ? `${window.location.pathname}${window.location.search}`
@@ -3600,7 +3668,7 @@ function PreviewContent() {
               </div>
               <Button
                 onClick={handlePurchase}
-                disabled={loading || !refundAcknowledged}
+                disabled={loading || tokenLoading || !refundAcknowledged}
                 className="w-full cosmic-button py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading 
@@ -3652,6 +3720,21 @@ function PreviewContent() {
   // Only show "Redirecting..." UI when redirect was actually initiated (redirectInitiatedRef.current === true)
   
   if (!reportContent || !input) {
+    // CRITICAL FIX (Step 1): Show "Loading your details..." while token is loading (token fetch authoritative)
+    if (tokenLoading) {
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Loading your details...</h2>
+              <p className="text-slate-600">Please wait while we load your information.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
     // CRITICAL: If we're in loading state OR generating, OR waiting for state initialization,
     // ALWAYS show the unified generation screen (no screen switching)
     // This provides a single, continuous generation experience as per ChatGPT feedback

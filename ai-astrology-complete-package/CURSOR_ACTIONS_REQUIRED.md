@@ -1,129 +1,113 @@
-# CURSOR_ACTIONS_REQUIRED
+# CURSOR ACTIONS REQUIRED
 
-This file contains ONLY things that require user interaction (keys, approvals, Stripe dashboard, etc.).
-
-## Current Actions Required (2026-01-17 19:00)
-
-### 1. Database Migration: Create `ai_input_sessions` Table (CRITICAL)
-
-**Action**: Run SQL migration in Supabase
-
-**File**: `astrosetu/docs/AI_INPUT_SESSIONS_SUPABASE.sql`
-
-**SQL to execute**:
-```sql
-CREATE TABLE IF NOT EXISTS ai_input_sessions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  token UUID UNIQUE NOT NULL,
-  payload JSONB NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'), -- CRITICAL: TTL default 30 minutes
-  consumed_at TIMESTAMPTZ, -- Optional: mark as consumed for one-time semantics
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_ai_input_sessions_token ON ai_input_sessions(token);
-CREATE INDEX IF NOT EXISTS idx_ai_input_sessions_expires_at ON ai_input_sessions(expires_at);
-```
-
-**Steps**:
-1. Open Supabase Dashboard → SQL Editor
-2. Copy SQL above
-3. Execute SQL
-4. Verify table created: `SELECT * FROM ai_input_sessions LIMIT 1;`
-
-**Why**: Required for input token pattern (replaces sessionStorage dependency). **Without this, input token storage will fail in production.**
+**Last Updated**: 2026-01-17 23:30  
+**Status**: ✅ **ALL IMPLEMENTATION COMPLETE - USER ACTION REQUIRED FOR MERGE/DEPLOY**
 
 ---
 
-### 2. Environment Variables Verification (CRITICAL)
+## ✅ Implementation Complete
 
-**Action**: Verify these env vars are set in Vercel:
-
-**Required**:
-- `NEXT_PUBLIC_SUPABASE_URL` - Required for input token storage
-- `SUPABASE_SERVICE_ROLE_KEY` - **CRITICAL**: Required server-side only (never exposed to client)
-- `STRIPE_SECRET_KEY` - Required for checkout
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Required for checkout
-
-**Optional but recommended**:
-- `NEXT_PUBLIC_APP_URL` - Now resilient (derives from headers), but recommended for reliability
-
-**Security Note**: `SUPABASE_SERVICE_ROLE_KEY` is **server-only**. It must NEVER be:
-- Exposed to client code
-- Logged in responses
-- Returned in API responses
-- Accessible via browser DevTools
-
-**Why**: Input token pattern requires Supabase. If `SUPABASE_SERVICE_ROLE_KEY` is missing in production, API will return 500 error (hard guard, no silent degradation).
+**Private Beta Gating**:
+- ✅ Middleware created (`middleware.ts`) - UI + API gate enforcement
+- ✅ Access page created (`/ai-astrology/access`) - Birth details form
+- ✅ Verification API created (`/api/beta-access/verify`) - Server-side allowlist matching
+- ✅ Server-only helpers (`src/lib/betaAccess.ts`) - Normalization/matching
+- ✅ E2E tests created (3 specs: blocks, allows, blocks-api)
+- ✅ Unit tests created (`tests/unit/betaAccess.test.ts`)
+- ✅ Tests added to `test:critical` and `release:gate`
+- ✅ `.cursor/rules` updated with PRIVATE_BETA_GATING invariants
+- ✅ `PRODUCTION_PRIVATE_BETA_CHECKLIST.md` created
 
 ---
 
-### 3. Production Testing Checklist
+## 🔴 User Action Required
 
-**After deployment, test these scenarios**:
+### 1. Review Changes
 
-1. **Checkout No-Op Fix**:
-   - Navigate to preview page
-   - Click "Purchase Year Analysis Report"
-   - ✅ Should redirect to Stripe OR show error within 15s (not stuck loading)
+**Files Created/Modified**:
+- `astrosetu/middleware.ts` (new) - Gate enforcement
+- `astrosetu/src/app/ai-astrology/access/page.tsx` (new) - Access form UI
+- `astrosetu/src/app/api/beta-access/verify/route.ts` (new) - Verification API
+- `astrosetu/src/lib/betaAccess.ts` (new) - Server-only normalization/matching
+- `astrosetu/tests/e2e/beta-access-*.spec.ts` (3 new) - E2E tests
+- `astrosetu/tests/unit/betaAccess.test.ts` (new) - Unit tests
+- `astrosetu/package.json` - Updated test scripts
+- `.cursor/rules` - Added PRIVATE_BETA_GATING section
+- `PRODUCTION_PRIVATE_BETA_CHECKLIST.md` (new) - Verification checklist
 
-2. **Input Token Flow**:
-   - Open incognito browser
-   - Fill birth details on input page
-   - Submit form
-   - ✅ Should redirect to preview (no redirect loop)
-   - ✅ Preview should load input data (even without sessionStorage)
-
-3. **Subscription ReturnTo**:
-   - Navigate to `/ai-astrology/subscription`
-   - If redirected to input, fill details
-   - Submit
-   - ✅ Should return to `/ai-astrology/subscription` (exact pathname, not preview)
-
-4. **Subscribe Button**:
-   - On subscription page, click "Subscribe"
-   - ✅ Should redirect to Stripe OR show error within 15s (not stuck loading)
+**Review and approve** before merging to main.
 
 ---
 
-### 4. E2E Tests (Recommended - for CI/CD)
+### 2. Merge to Main
 
-**Action**: Run new E2E tests to verify fixes
+**After review**:
+1. Merge `chore/stabilization-notes` → `main` branch
+   - No squash if it complicates tracing
+   - Ensure branch is green per `release:gate` in CI/Vercel
 
-```bash
-cd astrosetu
-npm run test:e2e -- checkout-failure-handling.spec.ts
-npm run test:e2e -- input-token-flow.spec.ts
-npm run test:e2e -- subscription-returnTo-exact.spec.ts
-npm run test:e2e -- expired-input-token.spec.ts
-npm run test:e2e -- returnTo-security.spec.ts
-```
-
-**Why**: These tests verify the fixes work in production-like scenarios, including security edge cases
+2. **Commit Message**:
+   ```
+   feat: production private beta gating (2 test users)
+   ```
 
 ---
 
-### 5. Production Readiness Checklist (CRITICAL)
+### 3. Set Production Environment Variable
 
-**Before declaring "production-ready", verify ALL of these**:
+**In Vercel Dashboard**:
+1. Go to Settings → Environment Variables
+2. **For Production environment**:
+   - Key: `NEXT_PUBLIC_PRIVATE_BETA`
+   - Value: `true`
+   - ☑️ Production checkbox
 
-✅ **Database Migration**: `ai_input_sessions` table created in Supabase  
-✅ **Environment Variables**: All required vars set in Vercel (see #2 above)  
-✅ **Release Gate**: `npm run release:gate` passes in CI/Vercel (not just local)  
-✅ **Manual Production Testing**: All 4 scenarios in #3 above tested in production  
-✅ **Security Verification**: No service role key exposure (check browser DevTools, API responses)
-
----
-
-## No Actions Required (Auto-Resolved)
-
-- ✅ Checkout API baseUrl resilience (derives from headers automatically)
-- ✅ Purchase/subscribe timeout (15s hardcoded)
-- ✅ Error UI (automatically shows on failure)
-- ✅ Input token API routes (created, ready to use)
-- ✅ Preview page token handling (checks token first, falls back to sessionStorage)
+3. **For Preview environment** (optional):
+   - Leave `NEXT_PUBLIC_PRIVATE_BETA` unset or set to `false`
+   - Preview can remain open (not gated)
 
 ---
 
-**Last Updated**: 2026-01-17 19:00  
-**Status**: Production fixes implemented, awaiting database migration and testing
+### 4. Deploy to Production
+
+**After setting env var**:
+1. Deploy `main` branch to **Production** in Vercel
+2. Wait for deployment to complete
+3. Verify deployment status (green/ready)
+
+---
+
+### 5. Verify in Production (Incognito)
+
+**Follow `PRODUCTION_PRIVATE_BETA_CHECKLIST.md`**:
+1. Verify UI routes are blocked (redirect to `/ai-astrology/access`)
+2. Verify API routes are blocked (401 private_beta)
+3. Verify valid user 1 (Amit Kumar Mandal) can access after verification
+4. Verify valid user 2 (Ankita Surabhi) can access after verification
+5. Verify invalid details remain blocked
+
+**Expected Results**:
+- ✅ Without cookie: All `/ai-astrology/*` pages redirect to `/ai-astrology/access`
+- ✅ Without cookie: All `/api/ai-astrology/*` and `/api/billing/*` return 401
+- ✅ With valid verification: Cookie set, can access all pages/APIs
+- ✅ Invalid details: Stays blocked, no hints
+
+---
+
+## 📝 Summary
+
+**What Was Implemented**:
+- Private beta gating system (middleware + access page + verification API)
+- Server-side allowlist for 2 test users (Amit Kumar Mandal, Ankita Surabhi)
+- Dual enforcement (UI routes redirect, API routes return 401)
+- HttpOnly cookie-based access control (7-day TTL)
+- Comprehensive tests (E2E + unit)
+
+**What User Must Do**:
+1. Review and approve changes
+2. Merge to main
+3. Set `NEXT_PUBLIC_PRIVATE_BETA=true` in Production
+4. Deploy to production
+5. Verify using checklist
+
+**Ready for**: Merge to main → Deploy → Production verification

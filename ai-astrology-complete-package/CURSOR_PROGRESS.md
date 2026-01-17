@@ -6,10 +6,10 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **ALL FIXES & HARDENING COMPLETE** (ChatGPT Feedback - 2026-01-17 22:45)
-- **Last update**: 2026-01-17 22:45
-- **Verdict**: ✅ All fixes applied, verified, tightened, and hardened. Ready for production deployment and verification.
-- **Next**: Deploy → Run 3-flow incognito checklist → Record results in `PRODUCTION_VERIFICATION_RECORD.md`
+- **State**: ✅ **STABILIZATION FIXES STEPS 0-4 COMPLETE** (2026-01-18)
+- **Last update**: 2026-01-18
+- **Verdict**: ✅ All stabilization fixes (Steps 0-4) implemented. Token fetch authoritative, purchase button hardened, subscription flow verified, E2E tests added.
+- **Next**: Run `npm run test:critical` to verify all tests pass → Deploy → Verify in production
 - **Fixes Applied (2026-01-17 19:00 + 20:00)**:
 
   **A) Checkout No-Op Fix**:
@@ -74,6 +74,37 @@ Use this file as the single “where things stand” view during long Cursor ses
   - ✅ **Cancel idempotency hardened**: Cancel API now checks if already canceled before calling Stripe. If already canceled, returns 200 with current status (not error). Prevents double-click / retry causing scary errors.
   - ✅ **Token fetch caching hardened**: Upgraded cache headers from `no-cache` to comprehensive no-store headers (`no-store, no-cache, must-revalidate, proxy-revalidate` + `Pragma: no-cache` + `Expires: 0`). Prevents Next/Vercel from caching token responses unexpectedly.
   - ✅ **Created production verification record**: Template for recording deployment commit hash, pass/fail per flow, and failure analysis with Ref strings and Vercel log lines.
+
+  **K) Production Token Flow Fix (2026-01-17 23:00)**:
+  - ✅ **Hard navigation for input redirect**: Replaced `router.push()` with `window.location.assign()` for input → preview/subscription redirects. This guarantees query params survive and avoids Next soft-navigation keeping stale state.
+  - ✅ **Service worker disabled during stabilization**: Service worker now gated behind `NEXT_PUBLIC_ENABLE_PWA === "true"`. Default: disabled in all environments until flows are stable. Unregisters existing SWs if disabled.
+
+  **L) Stabilization Fixes Steps 0-4 (2026-01-18)**:
+  - ✅ **Step 0: Build ID Fixed**: Footer shows full commit SHA (verified by user), service worker completely disabled, `[BUILD_ID]` log visible.
+  - ✅ **Step 1: Token Fetch Authoritative**:
+    - Added `tokenLoading` state to `preview/page.tsx` and `subscription/page.tsx`
+    - Prevent redirect while `tokenLoading=true` (token fetch authoritative)
+    - Show "Loading your details..." UI when `tokenLoading=true` (not "Redirecting...")
+    - Logs: `[TOKEN_GET] start`, `[TOKEN_GET] ok status=200`, `[TOKEN_GET] fail status=400`, `[REDIRECT_TO_INPUT] reason=...`
+  - ✅ **Step 2: Purchase Button Hardened**:
+    - Purchase handler checks `tokenLoading` before proceeding (no purchase while token loading)
+    - Purchase button disabled when `tokenLoading=true` (added to `disabled={loading || tokenLoading || !refundAcknowledged}`)
+    - Logs: `[PURCHASE_CLICK] {hasInput, hasToken, tokenLoading}`
+  - ✅ **Step 3: Subscription Flow Verified**: Subscription page redirects to input with `flow=subscription`, input redirects to subscription with `input_token`, subscription loads token first (already implemented).
+  - ✅ **Step 4: E2E Tests Added**:
+    - `token-get-required.spec.ts` - Verifies GET `/api/ai-astrology/input-session?token=` occurs within 2s after navigation
+    - `no-redirect-while-token-loading.spec.ts` - Verifies preview/subscription does NOT redirect while `tokenLoading=true`, shows "Loading your details..."
+    - Both tests added to `test:critical` script
+  - ✅ **Updated `.cursor/rules`**: Added "TOKEN FETCH AUTHORITATIVE & PURCHASE READY" section with Step 1-4 invariants.
+  - ✅ **Build ID stamp added**: Footer displays build ID (`NEXT_PUBLIC_BUILD_ID` or `VERCEL_GIT_COMMIT_SHA`). Console logs `[BUILD] buildId` on page mount. This proves deployed JS is active (not cached by SW/browser).
+  - ✅ **Token visibility logging**: Preview/subscription now log:
+    - `[TOKEN_IN_URL] token` on mount (or "none")
+    - `[TOKEN_FETCH_START] ...suffix` when starting token fetch
+    - `[TOKEN_FETCH_RESPONSE] {ok, status, error}` when token fetch completes
+  - ✅ **Input redirect logging**: Input page now logs `[INPUT_REDIRECT] fullUrl` before redirect.
+  - ✅ **New E2E test**: `input-token-in-url-after-submit.spec.ts` - Verifies input submit → URL contains input_token AND network call visible AND no redirect loop.
+  - ✅ **Updated `.cursor/rules`**: Added "HARD NAVIGATION & SERVICE WORKER STABILIZATION" section.
+  - ✅ **Updated `test:critical`**: Added `input-token-in-url-after-submit.spec.ts` to critical test suite.
   - ✅ Input page flow=subscription: Redirects to subscription when flow=subscription (not preview)
   - ✅ Subscription input_token flow: Checks input_token first, loads from API, cleans URL (stops sessionStorage dependency)
   - ✅ E2E tests added: preview-requires-input, purchase-noop-prevented, subscription-input-token-flow
