@@ -117,18 +117,29 @@ function SubscriptionContent() {
             // CRITICAL FIX (Step 1): Set tokenLoading=false after successfully setting input
             setTokenLoading(false);
             
-            // CRITICAL FIX (2026-01-18): Check for returnTo parameter before cleaning URL
-            // If user came from input page with returnTo, navigate to it
-            // Otherwise, clean URL and stay on subscription page
-            const returnToParam = searchParams?.get("returnTo");
-            if (returnToParam && returnToParam.startsWith("/ai-astrology/subscription")) {
-              // Valid returnTo - navigate to it (should be subscription page)
-              const fullUrl = typeof window !== "undefined" ? new URL(returnToParam, window.location.origin).toString() : returnToParam;
-              console.info("[SUBSCRIPTION_RETURNTO]", fullUrl);
-              window.location.assign(fullUrl);
+            // CRITICAL FIX (2026-01-18): Don't navigate if we're already on subscription page
+            // This prevents redirect loops when input_token is loaded
+            // The input is now loaded and set in state, so we can stay on the current page
+            const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+            if (currentPath.includes("/ai-astrology/subscription")) {
+              // Already on subscription page - input is loaded, stay here
+              // Clean URL by removing input_token and returnTo params (optional, but cleaner)
+              // Use router.replace to update URL without navigation
+              const cleanUrl = "/ai-astrology/subscription";
+              console.info("[SUBSCRIPTION] Input loaded from token, cleaning URL and staying on page");
+              router.replace(cleanUrl);
             } else {
-              // No returnTo or invalid - clean URL and stay on subscription page
-              router.replace("/ai-astrology/subscription");
+              // Not on subscription page - navigate to it
+              const returnToParam = searchParams?.get("returnTo");
+              if (returnToParam && returnToParam.startsWith("/ai-astrology/subscription")) {
+                // Navigate to returnTo (subscription page)
+                const fullUrl = typeof window !== "undefined" ? new URL(returnToParam, window.location.origin).toString() : returnToParam;
+                console.info("[SUBSCRIPTION_RETURNTO]", fullUrl);
+                window.location.assign(fullUrl);
+              } else {
+                // No returnTo - navigate to subscription
+                router.replace("/ai-astrology/subscription");
+              }
             }
             
             // Cache in sessionStorage for future use (nice-to-have)
