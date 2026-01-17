@@ -40,9 +40,11 @@ export function AIFooter() {
           const fullSha = data?.fullSha || data?.buildId || "unknown";
           const shortId = data?.buildId || (fullSha !== "unknown" ? String(fullSha).slice(0, 7) : "unknown");
           // Show full SHA if available, otherwise fallback to short ID
-          setBuildId(fullSha !== "unknown" ? fullSha : shortId);
+          // CRITICAL: If fullSha is "unknown", check if buildId is valid before falling back
+          const displayId = fullSha !== "unknown" ? fullSha : (shortId !== "unknown" ? shortId : "unknown");
+          setBuildId(displayId);
           // CRITICAL FIX (ChatGPT Step 0): Log BUILD_ID once per page load
-          console.log("[BUILD_ID]", fullSha);
+          console.log("[BUILD_ID]", fullSha || shortId || "unknown");
         }
       } catch (error) {
         console.warn("[Footer] Failed to fetch build.json:", error);
