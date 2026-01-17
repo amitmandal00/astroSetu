@@ -1276,13 +1276,22 @@ function PreviewContent() {
           error?: string;
         }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
         
+        // CRITICAL FIX (2026-01-18): Add detailed logging to debug token fetch issues
+        console.info("[TOKEN_GET] Response:", {
+          ok: tokenResponse.ok,
+          hasData: !!tokenResponse.data,
+          hasInput: !!(tokenResponse.data?.input),
+          error: tokenResponse.error || null,
+          tokenSuffix: `...${tokenSuffix}`,
+        });
+        
         if (tokenResponse.ok) {
           console.info("[TOKEN_GET] ok status=200");
         } else {
           console.info("[TOKEN_GET] fail status=400", tokenResponse.error || "invalid_token");
         }
 
-        if (tokenResponse.ok && tokenResponse.data) {
+        if (tokenResponse.ok && tokenResponse.data && tokenResponse.data.input) {
           // Load input from token
           const inputData = tokenResponse.data.input;
           setInput(inputData);
@@ -1322,10 +1331,16 @@ function PreviewContent() {
           setTokenLoading(false);
           hasRedirectedRef.current = true; // Prevent auto-redirect - user can click "Start again" button
         }
-      } catch (tokenError) {
-        console.warn("[Preview] Failed to fetch input_token:", tokenError);
+      } catch (tokenError: any) {
+        // CRITICAL FIX (2026-01-18): When apiGet throws (404/410/network error), handle it explicitly
+        // Don't redirect immediately - show error state so user can retry
+        console.error("[Preview] Failed to fetch input_token:", tokenError);
+        const errorMessage = tokenError?.message || "Failed to load your birth details. Please try again.";
+        setError(errorMessage);
+        setLoading(false);
         setTokenLoading(false);
-        // Fall through - let redirect check handle it
+        hasRedirectedRef.current = true; // Prevent auto-redirect - user can click "Start again" button
+        // Don't redirect - let error state show "Start again" button
       }
     })();
   }, [searchParams, input]); // Run when input_token changes or when input is cleared
@@ -1335,22 +1350,43 @@ function PreviewContent() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     
-    // CRITICAL: If input_token is in URL, wait for token loading to complete
-    // Don't redirect while token is being fetched
+    // CRITICAL: If input_token is in URL, ALWAYS wait for token loading to complete
+    // Don't redirect while token is being fetched or while there's a chance it's still loading
     // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one
     const inputTokenParams = searchParams.getAll("input_token");
     const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
     if (inputToken) {
-      // Token is in URL - wait for token loading to complete
+      // CRITICAL: Token is in URL - if tokenLoading is true, wait for it to complete
       if (tokenLoading) {
         console.log("[Preview] Token in URL, waiting for token loading to complete...");
         return; // Wait for token loading
       }
-      // Token loading completed but no input - token might be invalid
+      // CRITICAL: Token loading completed but no input - token might be invalid
       // Don't redirect immediately - let error state show "Start again" button
+      // If token fetch failed, error state is already set, so don't redirect
       if (!input) {
-        console.log("[Preview] Token in URL but loading completed with no input - token may be invalid");
+        console.log("[Preview] Token in URL but loading completed with no input - token may be invalid or expired");
         // Don't redirect - error state will show "Start again" button
+        // OR: If there's no error, the token might have been successfully loaded but setInput hasn't completed yet
+        // In that case, check sessionStorage below before redirecting
+        // But we return here to prevent immediate redirect when token is in URL
+        // Only check sessionStorage if no error (error means token fetch explicitly failed)
+        if (!error) {
+          // Token in URL but no input and no error - might be race condition where setInput hasn't updated yet
+          // Check sessionStorage before giving up
+          const savedInput = sessionStorage.getItem("aiAstrologyInput");
+          if (savedInput) {
+            try {
+              const inputData = JSON.parse(savedInput);
+              setInput(inputData);
+              console.log("[Preview] Loaded input from sessionStorage (token in URL but setInput race condition)");
+              return; // Don't redirect if we loaded from sessionStorage
+            } catch (e) {
+              console.warn("[Preview] Failed to parse saved input from sessionStorage:", e);
+            }
+          }
+        }
+        // If we reach here, token is in URL but no input and no sessionStorage - don't redirect, let error show
         return;
       }
     }
