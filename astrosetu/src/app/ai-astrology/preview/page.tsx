@@ -65,7 +65,9 @@ function PreviewContent() {
 
   // CRITICAL FIX (ChatGPT 22:45): Log token in URL on mount to verify navigation preserved it
   useEffect(() => {
-    const inputToken = searchParams.get("input_token");
+    // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
     console.info("[TOKEN_IN_URL]", inputToken || "none");
   }, [searchParams]);
   
@@ -2072,7 +2074,9 @@ function PreviewContent() {
     }
     
     // CRITICAL FIX (Step 2): Check tokenLoading before purchase - prevent purchase while token is loading
-    const inputToken = searchParams.get("input_token");
+    // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
     console.info("[PURCHASE_CLICK]", { hasInput: !!input, hasToken: !!inputToken, tokenLoading });
     if (tokenLoading || !input) {
       if (tokenLoading) {
