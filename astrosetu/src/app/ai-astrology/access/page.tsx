@@ -212,7 +212,6 @@ function AccessContent() {
                   onChange={handlePlaceChange}
                   onSelect={handlePlaceSelect}
                   placeholder="Enter city, state, country"
-                  disabled={loading}
                 />
               </div>
 
