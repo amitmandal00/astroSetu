@@ -6,8 +6,8 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ ALL ChatGPT feedback fixes complete (production serverless timeout, heartbeat, lifecycle tests, subscription flow verified)
-- **Last update**: 2026-01-17 11:00
+- **State**: ⏸️ Stabilization Mode - BLOCKED by sandbox restrictions (not code issues)
+- **Last update**: 2026-01-17 12:00
 
 ## Completed (most recent first)
 - [x] **2026-01-16 23:05**: Defect register check and retest completed:
@@ -79,8 +79,14 @@ Use this file as the single “where things stand” view during long Cursor ses
   - **Status**: ✅ Frontend fixes implemented (but root cause was serverless timeout)
 
 ## Blocked / waiting on approval
-- (If blocked, also add an entry to `CURSOR_ACTIONS_REQUIRED.md`)
-- [ ] (What is blocked and why)
+- [x] **2026-01-17 12:00**: Stabilization Mode - BLOCKED by sandbox restrictions:
+  - ✅ Type check: PASSED (works in sandbox)
+  - ❌ Build: FAILED (EPERM on `.env.local` and `vapid-public-key` - sandbox permission, NOT code issue)
+  - ⏸️ Tests: NOT RUN (require network/file system access - sandbox restricted)
+  - **Root cause**: Sandbox restrictions prevent full test execution
+  - **Impact**: Cannot proceed with PHASE 2-4 of Stabilization Mode
+  - **Solution**: Run tests outside sandbox with full permissions OR use CI/CD pipeline
+  - **Status**: See `STABILIZATION_MODE_STATUS.md` for detailed analysis
 
 ## Next steps (exact)
 1. ✅ Run tests to verify ChatGPT fixes (type-check, lint, unit, integration, E2E)
