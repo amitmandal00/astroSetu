@@ -203,9 +203,21 @@ cp CHATGPT_PRODUCTION_FIXES_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp CHATGPT_SECURITY_FIXES_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp CHATGPT_FINAL_VERDICT.md "$PACKAGE_DIR/" 2>/dev/null || true
 
+# Routing & Input Ownership Fixes (Latest - 2026-01-17 21:00)
+cp CHATGPT_ROUTING_FIXES_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_ROUTING_FIXES_IMPLEMENTATION_REPORT.md "$PACKAGE_DIR/" 2>/dev/null || true
+
+# Final Hardening Tweaks (Latest - 2026-01-17 21:15)
+cp CHATGPT_FINAL_HARDENING_TWEAKS_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_FINAL_CHECKS_IMPLEMENTATION.md "$PACKAGE_DIR/" 2>/dev/null || true
+
 # Verification Guides (Latest - 2026-01-17)
 cp VERIFY_SUPABASE_SERVICE_ROLE_KEY_GUIDE.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp QUICK_VERIFY_SERVICE_ROLE_KEY.md "$PACKAGE_DIR/" 2>/dev/null || true
+
+# Deployment Verification (Latest - 2026-01-17 21:30)
+cp DEPLOYMENT_VERIFICATION_RECORD.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp PRODUCTION_VERIFICATION_CHECKLIST_FINAL.md "$PACKAGE_DIR/" 2>/dev/null || true
 
 # ============================================
 # 8. Copy Cursor Rules

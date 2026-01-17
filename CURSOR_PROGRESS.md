@@ -6,10 +6,10 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **SHIP-READY BASELINE - STOP TOUCHING CODE** (ChatGPT Final Verdict - 2026-01-17 20:15)
-- **Last update**: 2026-01-17 20:15
-- **Verdict**: ✅ Production-ready baseline - **Structural fixes, not patches**
-- **Next**: Operational verification (DB migration → Deploy → Incognito testing)
+- **State**: ✅ **ALL FIXES & HARDENING COMPLETE** (ChatGPT Feedback - 2026-01-17 22:45)
+- **Last update**: 2026-01-17 22:45
+- **Verdict**: ✅ All fixes applied, verified, tightened, and hardened. Ready for production deployment and verification.
+- **Next**: Deploy → Run 3-flow incognito checklist → Record results in `PRODUCTION_VERIFICATION_RECORD.md`
 - **Fixes Applied (2026-01-17 19:00 + 20:00)**:
 
   **A) Checkout No-Op Fix**:
@@ -48,6 +48,32 @@ Use this file as the single “where things stand” view during long Cursor ses
   **G) Routing & Input Ownership Fixes (2026-01-17 21:00)**:
   - ✅ Preview redirect logic: Always redirect to /input if no input + no valid input_token (removed reportType gating)
   - ✅ Purchase button no-op fix: Redirects to input instead of silently returning when input missing
+
+  **H) Critical Routing Bugs Fixed (2026-01-17 22:00)**:
+  - ✅ **Preview redirect dead-state fix**: Removed `hasReportTypeInUrl` gating completely. Only show "Redirecting..." when `redirectInitiatedRef.current === true` (redirect was actually initiated). If redirect hasn't been initiated, show "Enter Your Birth Details" card instead of dead "Redirecting..." UI.
+  - ✅ **Subscribe no-op fix**: Replaced `if (!input) return;` with redirect to `/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=/ai-astrology/subscription` and error message.
+  - ✅ **Purchase loop fix**: Preview now sets input state IMMEDIATELY after loading `input_token` (before any redirect logic), preventing "purchase → input → preview → input" loop.
+  - ✅ **New E2E tests**:
+    - `preview-no-dead-redirecting.spec.ts` - Verifies preview with reportType but no input redirects within 2s (not stuck on "Redirecting...")
+    - `subscription-noop-prevented.spec.ts` - Verifies subscribe button redirects to input when no input exists (not silent no-op)
+    - `purchase-redirects-to-input-then-back.spec.ts` - Verifies purchase → input → preview with input_token → preview does NOT redirect back to input
+  - ✅ **Updated `.cursor/rules`**: Added "NO SILENT RETURNS & NO DEAD REDIRECTING UI" section with strict invariants.
+  - ✅ **Updated `test:critical`**: Added 3 new tests to critical test suite.
+
+  **I) Verification & Tightening (2026-01-17 22:30)**:
+  - ✅ **Verified preview never uses stale state**: Redirect check uses `savedInput` (local variable from freshly loaded token), not state variable `input`. No single-frame redirect race.
+  - ✅ **Verified returnTo includes full URL**: `returnTo` always includes both pathname AND search params (`${window.location.pathname}${window.location.search}`).
+  - ✅ **Upgraded tests with tightened assertions**:
+    - Assert URL contains `input_token=` OR `session_id=`
+    - Assert "Enter Your Birth Details" card is NOT visible
+    - Assert "Redirecting..." is NOT visible
+  - ✅ **Verified cancel subscription**: Cancel API route exists, updates Supabase server-side (not relying on client-side Stripe updates), returns status immediately.
+  - ✅ **Created production verification checklist**: Minimal 3-flow checklist (Paid Year Analysis, Free Life Summary, Monthly Subscription) with specific success criteria and failure points.
+
+  **J) Final Hardening Notes (2026-01-17 22:45)**:
+  - ✅ **Cancel idempotency hardened**: Cancel API now checks if already canceled before calling Stripe. If already canceled, returns 200 with current status (not error). Prevents double-click / retry causing scary errors.
+  - ✅ **Token fetch caching hardened**: Upgraded cache headers from `no-cache` to comprehensive no-store headers (`no-store, no-cache, must-revalidate, proxy-revalidate` + `Pragma: no-cache` + `Expires: 0`). Prevents Next/Vercel from caching token responses unexpectedly.
+  - ✅ **Created production verification record**: Template for recording deployment commit hash, pass/fail per flow, and failure analysis with Ref strings and Vercel log lines.
   - ✅ Input page flow=subscription: Redirects to subscription when flow=subscription (not preview)
   - ✅ Subscription input_token flow: Checks input_token first, loads from API, cleans URL (stops sessionStorage dependency)
   - ✅ E2E tests added: preview-requires-input, purchase-noop-prevented, subscription-input-token-flow

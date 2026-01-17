@@ -80,7 +80,27 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - `stale-session-retry.spec.ts` (stale session handling)
   - `preview-no-processing-without-start.spec.ts` (session_id ≠ processing canary)
   - `subscription-returnTo.spec.ts` (subscription returnTo loop)
+  - `preview-requires-input.spec.ts` (preview redirect to input when no input_token)
+  - `purchase-noop-prevented.spec.ts` (purchase redirect to input, not silent return)
+  - `subscription-input-token-flow.spec.ts` (subscription accepts input_token, cleans URL)
 - **If Cursor changes preview/subscription/input**: Must run `npm run test:critical` and paste output into `CURSOR_PROGRESS.md`.
+
+### Input Ownership & Redirect Invariants (ChatGPT Feedback - CRITICAL - 2026-01-17)
+- **NO redirect gating based on reportType**: Preview page must ALWAYS redirect to `/input` if no input + no valid input_token, regardless of `reportType` in URL.
+- **NO silent returns from purchase/subscribe handlers**: If input is missing, handlers MUST redirect to `/input` with `returnTo`, NEVER silently return.
+- **Unified input_token mechanism**: ALL flows (preview, subscription) must use `input_token` as primary source, sessionStorage as fallback cache only.
+- **Subscription must accept input_token**: Subscription page MUST check `input_token` in URL first, load from API, then clean URL. sessionStorage is fallback only.
+- **Input page must respect flow=subscription**: If `flow=subscription`, input page MUST redirect to `/ai-astrology/subscription?input_token=...` (not preview).
+- **Preview redirect invariant**: If no input + no valid input_token → redirect to `/input` ALWAYS (with returnTo = exact preview URL).
+- **Purchase redirect invariant**: If `handlePurchase()` has no input → redirect to `/input?reportType=...&returnTo=...` ALWAYS, never silently return.
+- **Token error handling**: If `input_token` fetch fails (410/500), show real error UI with "Start again" button that navigates to input, not infinite redirecting.
+- **Redirect timeout invariant (CRITICAL - 2026-01-17 21:15)**: Preview must NEVER show "Redirecting..." for > 2 seconds. If redirect hasn't happened by then, switch to error UI with "Start again" + "Copy debug Ref". This protects from router.push never executes / blocked / hydration edge cases and provides logs.
+- **returnTo loop prevention**: If `returnTo` points to `/ai-astrology/input` or already contains `flow=subscription`, override to safe default:
+  - Subscription flow default: `/ai-astrology/subscription`
+  - Report flow default: `/ai-astrology/preview?reportType=<x>`
+  This avoids "input → subscription → input → ..." loops in weird partial states.
+- **Single-flight guard for purchase/subscribe**: Purchase/Subscribe handlers MUST use single-flight guard (`isSubmittingRef.current`) to prevent double-clicks from causing duplicate API calls. Set `true` immediately, clear on `finally`/route change.
+- **Why these rules exist**: Previous iterations "patched symptoms" (timer, controller state) but real failures are routing/state ownership bugs. Unified input ownership prevents "Redirecting..." dead states and "nothing happens" issues.
 
 ### Technical Debt (Tracked for Future Refactor)
 - **setTimeout autostart** (preview/page.tsx, line ~1242):

@@ -216,7 +216,15 @@ function SubscriptionContent() {
       return;
     }
     
-    if (!input) return;
+    // CRITICAL FIX (ChatGPT): NO SILENT RETURNS - redirect to input if input missing
+    // This fixes "Subscribe redirects to same page and nothing happens" issue
+    if (!input) {
+      console.log("[Subscribe] No input found, redirecting to input page");
+      router.push("/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=/ai-astrology/subscription");
+      setLoading(false); // Clear loading state if it was set
+      setError("Please enter birth details to subscribe.");
+      return;
+    }
 
     // CRITICAL FIX (ChatGPT): Generate checkout attempt ID for server-side tracing
     const checkoutAttemptId = typeof window !== "undefined" && window.crypto?.randomUUID
