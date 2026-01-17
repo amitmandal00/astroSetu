@@ -1232,6 +1232,153 @@ function PreviewContent() {
     });
   }, [generationController]);
 
+  // CRITICAL FIX (2026-01-18): Load input_token FIRST, before any redirect checks
+  // This useEffect runs whenever input_token is in URL, regardless of auto_generate
+  // Token loading must happen BEFORE redirect logic to prevent redirect loops
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const inputToken = searchParams.get("input_token");
+    if (!inputToken) return; // No token in URL, skip
+    
+    // CRITICAL: Only load token if we don't already have input (prevent unnecessary fetches)
+    if (input) return; // Already have input, skip
+    
+    // CRITICAL: Set tokenLoading=true to prevent redirect while fetching
+    setTokenLoading(true);
+    const tokenSuffix = inputToken.slice(-6);
+    console.info("[TOKEN_GET] start", `...${tokenSuffix}`);
+    
+    (async () => {
+      try {
+        const tokenResponse = await apiGet<{
+          ok: boolean;
+          data?: {
+            input: AIAstrologyInput;
+            reportType?: string;
+            bundleType?: string;
+            bundleReports?: string[];
+          };
+          error?: string;
+        }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
+        
+        if (tokenResponse.ok) {
+          console.info("[TOKEN_GET] ok status=200");
+        } else {
+          console.info("[TOKEN_GET] fail status=400", tokenResponse.error || "invalid_token");
+        }
+
+        if (tokenResponse.ok && tokenResponse.data) {
+          // Load input from token
+          const inputData = tokenResponse.data.input;
+          setInput(inputData);
+          if (tokenResponse.data.reportType) {
+            setReportType(tokenResponse.data.reportType as ReportType);
+          }
+          if (tokenResponse.data.bundleType) {
+            setBundleType(tokenResponse.data.bundleType);
+          }
+          if (tokenResponse.data.bundleReports) {
+            setBundleReports(tokenResponse.data.bundleReports as ReportType[]);
+          }
+          
+          // Cache in sessionStorage for future use
+          try {
+            sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
+            if (tokenResponse.data.reportType) {
+              sessionStorage.setItem("aiAstrologyReportType", tokenResponse.data.reportType);
+            }
+            if (tokenResponse.data.bundleType) {
+              sessionStorage.setItem("aiAstrologyBundle", tokenResponse.data.bundleType);
+            }
+            if (tokenResponse.data.bundleReports) {
+              sessionStorage.setItem("aiAstrologyBundleReports", JSON.stringify(tokenResponse.data.bundleReports));
+            }
+          } catch (storageError) {
+            console.warn("[Preview] Failed to cache input_token data in sessionStorage:", storageError);
+          }
+          
+          console.log("[Preview] Loaded input from input_token:", inputToken);
+          setTokenLoading(false);
+        } else {
+          // Token invalid/expired
+          console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
+          setError("Your session has expired. Please start again.");
+          setLoading(false);
+          setTokenLoading(false);
+          hasRedirectedRef.current = true; // Prevent auto-redirect - user can click "Start again" button
+        }
+      } catch (tokenError) {
+        console.warn("[Preview] Failed to fetch input_token:", tokenError);
+        setTokenLoading(false);
+        // Fall through - let redirect check handle it
+      }
+    })();
+  }, [searchParams, input]); // Run when input_token changes or when input is cleared
+
+  // CRITICAL FIX (2026-01-18): Separate redirect check that runs AFTER token loading
+  // This runs regardless of auto_generate, so it works for input_token flows
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    // CRITICAL: Wait for token loading to complete before checking redirect
+    if (tokenLoading) return;
+    
+    // CRITICAL: Don't redirect if we already have input (from token or sessionStorage)
+    if (input) return;
+    
+    // CRITICAL: Don't redirect if we've already redirected
+    if (hasRedirectedRef.current) return;
+    
+    // CRITICAL: Don't redirect if we're already on input page
+    const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+    if (currentPath.includes("/input")) {
+      console.log("[Preview] Already on input page, not redirecting to prevent loop");
+      return;
+    }
+    
+    // CRITICAL: Check sessionStorage as fallback
+    const savedInput = sessionStorage.getItem("aiAstrologyInput");
+    if (savedInput) {
+      // Input exists in sessionStorage, load it
+      try {
+        const inputData = JSON.parse(savedInput);
+        setInput(inputData);
+        return; // Don't redirect if we can load from sessionStorage
+      } catch (e) {
+        console.warn("[Preview] Failed to parse saved input:", e);
+        // Fall through to redirect
+      }
+    }
+    
+    // No input found - redirect to input page
+    console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token_after_token_load");
+    
+    // Build returnTo = exact preview URL (pathname + search) for safe return
+    const returnTo = typeof window !== "undefined" 
+      ? `${window.location.pathname}${window.location.search}`
+      : "";
+    
+    // Preserve reportType from URL params
+    const urlReportType = searchParams.get("reportType");
+    const redirectUrl = returnTo && urlReportType
+      ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}&returnTo=${encodeURIComponent(returnTo)}`
+      : urlReportType 
+      ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+      : returnTo
+      ? `/ai-astrology/input?returnTo=${encodeURIComponent(returnTo)}`
+      : "/ai-astrology/input";
+    
+    console.log("[Preview] No input found (no input_token, no sessionStorage), redirecting to:", redirectUrl);
+    hasRedirectedRef.current = true; // Prevent multiple redirects
+    redirectInitiatedRef.current = true;
+    
+    // CRITICAL FIX (2026-01-18): Use hard navigation (window.location.assign) instead of router.push
+    const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+    console.info("[PREVIEW_REDIRECT]", fullUrl);
+    window.location.assign(fullUrl);
+  }, [tokenLoading, input, searchParams]); // Run when token loading completes or input changes
+
   useEffect(() => {
     // Check if sessionStorage is available
     if (typeof window === "undefined") return;
@@ -1390,175 +1537,22 @@ function PreviewContent() {
         }
         
         try {
-          // CRITICAL FIX (ChatGPT): Check for input_token first (server-side source of truth)
-          // This prevents redirect loops when sessionStorage is unavailable
-          const inputToken = searchParams.get("input_token");
-          let savedInput: string | null = null;
-          let savedReportType: ReportType | null = null;
-          let savedBundleType: string | null = null;
-          let savedBundleReports: string | null = null;
-
-          if (inputToken) {
-            // CRITICAL FIX (Step 1): Set tokenLoading=true to prevent redirect while fetching
-            setTokenLoading(true);
-            // CRITICAL FIX (ChatGPT 22:45): Log token fetch start for visibility
-            const tokenSuffix = inputToken.slice(-6);
-            console.info("[TOKEN_GET] start", `...${tokenSuffix}`);
-            try {
-              const tokenResponse = await apiGet<{
-                ok: boolean;
-                data?: {
-                  input: AIAstrologyInput;
-                  reportType?: string;
-                  bundleType?: string;
-                  bundleReports?: string[];
-                };
-                error?: string;
-              }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
-              
-              // CRITICAL FIX (ChatGPT 22:45): Log token fetch response for visibility
-              if (tokenResponse.ok) {
-                console.info("[TOKEN_GET] ok status=200");
-              } else {
-                console.info("[TOKEN_GET] fail status=400", tokenResponse.error || "invalid_token");
-              }
-
-              if (tokenResponse.ok && tokenResponse.data) {
-                // Use server-side data
-                savedInput = JSON.stringify(tokenResponse.data.input);
-                savedReportType = (tokenResponse.data.reportType as ReportType) || null;
-                savedBundleType = tokenResponse.data.bundleType || null;
-                savedBundleReports = tokenResponse.data.bundleReports
-                  ? JSON.stringify(tokenResponse.data.bundleReports)
-                  : null;
-
-                // Cache in sessionStorage for future use (nice-to-have)
-                try {
-                  sessionStorage.setItem("aiAstrologyInput", savedInput);
-                  if (savedReportType) {
-                    sessionStorage.setItem("aiAstrologyReportType", savedReportType);
-                  }
-                  if (savedBundleType) {
-                    sessionStorage.setItem("aiAstrologyBundle", savedBundleType);
-                  }
-                  if (savedBundleReports) {
-                    sessionStorage.setItem("aiAstrologyBundleReports", savedBundleReports);
-                  }
-                } catch (storageError) {
-                  console.warn("[Preview] Failed to cache input_token data in sessionStorage:", storageError);
-                }
-
-                console.log("[Preview] Loaded input from input_token:", inputToken);
-                
-                // CRITICAL FIX (ChatGPT): When preview receives input_token, it must:
-                // 1. Load it (done above)
-                // 2. Set input state IMMEDIATELY (before any redirect logic)
-                // 3. Only then clean URL (optional, but don't do it if it would cause redirect loop)
-                // This prevents "purchase loop back to input" issue
-                const inputData = JSON.parse(savedInput);
-                setInput(inputData);
-                if (savedReportType) {
-                  setReportType(savedReportType);
-                }
-                if (savedBundleType) {
-                  setBundleType(savedBundleType);
-                }
-                if (savedBundleReports) {
-                  try {
-                    const bundleReportsParsed = JSON.parse(savedBundleReports);
-                    setBundleReports(bundleReportsParsed);
-                  } catch {
-                    // ignore parse errors
-                  }
-                }
-                
-                // CRITICAL FIX (Step 1): Set tokenLoading=false after successfully setting input state
-                setTokenLoading(false);
-                
-                // CRITICAL FIX (ChatGPT): After setting input state, do NOT auto-redirect back to input
-                // The input is now loaded, so preview should render normally (not redirect)
-                // Only clean URL if needed (remove input_token from URL), but don't redirect
-                // This prevents "purchase → input → preview → input" loop
-                // 
-                // CRITICAL: The redirect check below (line 1457) uses `savedInput` (local variable),
-                // NOT the state variable `input`. This ensures we use freshly loaded token data,
-                // not stale state. Since `savedInput` is truthy here (we just set it from token),
-                // the redirect check will pass (no redirect will happen).
-              } else {
-                // Token invalid/expired - show "Start again" CTA that navigates to input, not infinite redirecting
-                console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
-                setError("Your session has expired. Please start again.");
-                setLoading(false);
-                setTokenLoading(false); // CRITICAL FIX (Step 1): Clear tokenLoading after fetch completes (error case)
-                // CRITICAL FIX (ChatGPT): Show real error UI with "Start again" button that navigates to input
-                // Don't just return - show actionable error with navigation button
-                // The error state will show a "Start again" button that navigates to input
-                return;
-              }
-            } catch (tokenError) {
-              console.warn("[Preview] Failed to fetch input_token, falling back to sessionStorage:", tokenError);
-              setTokenLoading(false); // CRITICAL FIX (Step 1): Clear tokenLoading on error
-              // Fall through to sessionStorage fallback
-            }
-          }
-
-          // Fallback: Get input from sessionStorage (if input_token not available or failed)
-          if (!savedInput) {
-            savedInput = sessionStorage.getItem("aiAstrologyInput");
-            savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType | null;
-            savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
-            savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
-          }
+          // CRITICAL FIX (2026-01-18): Token loading is now handled in separate useEffect above
+          // This code path only runs for auto_generate=true flows
+          // For input_token flows, the separate useEffect handles token loading
+          
+          // Get input from sessionStorage (fallback for auto_generate flows)
+          // CRITICAL: Also check if input is already in state (from token loading useEffect)
+          let savedInput: string | null = input ? JSON.stringify(input) : sessionStorage.getItem("aiAstrologyInput");
+          let savedReportType: ReportType | null = reportType || (sessionStorage.getItem("aiAstrologyReportType") as ReportType | null);
+          let savedBundleType: string | null = bundleType || sessionStorage.getItem("aiAstrologyBundle");
+          let savedBundleReports: string | null = bundleReports.length > 0 ? JSON.stringify(bundleReports) : sessionStorage.getItem("aiAstrologyBundleReports");
 
         const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
 
-        // CRITICAL FIX (2026-01-18): Only check redirect AFTER token loading completes
-        // This prevents redirect loops when token is still loading
-        // Token fetch is authoritative - wait for it to complete before any redirect decisions
-        if (!tokenLoading && !savedInput && !hasRedirectedRef.current) {
-          console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token_after_token_load");
-          // Check if we're already on the input page to prevent loops
-          const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
-          if (currentPath.includes("/input")) {
-            console.log("[Preview] Already on input page, not redirecting to prevent loop");
-            // CRITICAL FIX (ChatGPT): Cancel watchdog if already on input page
-            if (redirectWatchdogTimeoutRef.current) {
-              clearTimeout(redirectWatchdogTimeoutRef.current);
-              redirectWatchdogTimeoutRef.current = null;
-            }
-            return;
-          }
-          
-          // Build returnTo = exact preview URL (pathname + search) for safe return
-          const returnTo = typeof window !== "undefined" 
-            ? `${window.location.pathname}${window.location.search}`
-            : "";
-          
-          // Preserve reportType from URL params or use savedReportType if available
-          const urlReportType = searchParams.get("reportType");
-          const redirectUrl = returnTo && urlReportType
-            ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}&returnTo=${encodeURIComponent(returnTo)}`
-            : urlReportType 
-            ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
-            : savedReportType && savedReportType !== "life-summary"
-            ? `/ai-astrology/input?reportType=${encodeURIComponent(savedReportType)}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`
-            : returnTo
-            ? `/ai-astrology/input?returnTo=${encodeURIComponent(returnTo)}`
-            : "/ai-astrology/input";
-          
-          console.log("[Preview] No input found (no input_token, no sessionStorage), redirecting to:", redirectUrl);
-          hasRedirectedRef.current = true; // Prevent multiple redirects
-          redirectInitiatedRef.current = true; // CRITICAL FIX (ChatGPT): Mark redirect as initiated to prevent watchdog false-fire
-          
-          // CRITICAL FIX (2026-01-18): Use hard navigation (window.location.assign) instead of router.push
-          // This guarantees navigation completes and prevents "Redirecting..." stuck screen
-          // Hard navigation is synchronous and will unmount component, preventing race conditions
-          const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
-          console.info("[PREVIEW_REDIRECT]", fullUrl);
-          window.location.assign(fullUrl);
-          
-          return;
-        }
+        // CRITICAL FIX (2026-01-18): Redirect check is now in separate useEffect above
+        // This code path only handles auto_generate=true flows
+        // For input_token flows, the separate useEffect handles token loading and redirect
         
         // If input is missing (common on cold load/new tab after Stripe), try to recover from localStorage.
         // Input page persists form data to localStorage, so this is a safe best-effort recovery.
