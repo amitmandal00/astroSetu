@@ -36,14 +36,21 @@ if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
     }
 fi
 
-# Step 3: Type check with fallback
+# Step 3: Generate build metadata (CRITICAL: Must run before build)
+echo "📝 Generating build metadata (build.json)..."
+node scripts/generate-build-meta.mjs || {
+    echo "⚠️  Build metadata generation failed, but continuing build..."
+    # Don't fail the build if metadata generation fails
+}
+
+# Step 4: Type check with fallback
 echo "🔍 Running TypeScript type check..."
 if ! npm run type-check 2>&1; then
     echo "⚠️  Type check failed, but continuing build..."
     # Don't fail the build for type errors - they might be non-critical
 fi
 
-# Step 4: Build with error handling
+# Step 5: Build with error handling
 echo "🏗️  Building application..."
 if ! npm run build 2>&1; then
     echo "❌ Build failed. Attempting recovery..."
