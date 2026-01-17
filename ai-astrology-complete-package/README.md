@@ -26,6 +26,9 @@ This package contains a **complete feature slice** of AstroSetu's AI Astrology f
 - **Cursor Guides**: `CURSOR_*.md` (operational guide, progress tracking, actions required)
 - **Non-Negotiables**: `NON_NEGOTIABLES.md` (engineering safety, product invariants)
 - **Production Readiness**: `PRODUCTION_READINESS_*.md` (SEO, security, performance)
+- **ChatGPT Review Docs**: `CHATGPT_*.md` (final verdict, improvements, verification, state machine)
+- **Issues Fixed Status**: `ISSUES_FIXED_STATUS.md` (recent issue resolutions)
+- **Production Smoke Check**: `PROD_SMOKE_CHECK.md` (production verification checklist)
 
 ### ✅ Configuration & Infrastructure
 - **Config Files**: `package.json`, `tsconfig.json`, `next.config.mjs`, `vitest.config.ts`, `playwright.config.ts`
@@ -58,6 +61,7 @@ npm run stability:full
 ## 🐛 Defect Status
 
 **Status**: ✅ All 11 defects fixed and verified (retested 2026-01-16)
+**Recent Issues**: ✅ All recent issues fixed - See `ISSUES_FIXED_STATUS.md` for details
 
 See `DEFECT_REGISTER.md` for complete details:
 - DEF-001: Retry Loading Bundle Button
@@ -106,6 +110,10 @@ See `DEFECT_REGISTER.md` for complete details:
 - `DEFECT_REGISTER.md` (complete defect history)
 - `CURSOR_OPERATIONAL_GUIDE.md` (development workflow)
 - `PRODUCTION_READINESS_SUMMARY.md` (production checklist)
+- `CHATGPT_FINAL_VERDICT.md` (ChatGPT's final assessment - ship-ready baseline)
+- `ISSUES_FIXED_STATUS.md` (recent issue resolutions)
+- `PROD_SMOKE_CHECK.md` (production smoke check checklist)
+- `CONTROLLER_STATE_MACHINE.md` (report generation controller state machine)
 
 ---
 

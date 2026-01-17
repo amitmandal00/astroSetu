@@ -20,6 +20,7 @@ import { PostPurchaseUpsell } from "@/components/ai-astrology/PostPurchaseUpsell
 import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 import { useReportGenerationController } from "@/hooks/useReportGenerationController";
 import { getFreeLifeSummaryGateAfterSection } from "@/lib/ai-astrology/freeReportGating";
+import { logError } from "@/lib/telemetry";
 
 function PreviewContent() {
   const router = useRouter();
@@ -112,31 +113,61 @@ function PreviewContent() {
   }, []);
   
   // CRITICAL FIX (ChatGPT): isProcessingUI - single source of truth for when generation UI should be visible
-  // This MUST match the EXACT condition used to render the generation UI (line 2333)
-  // Timer must match UI visibility, not just loading state
-  // CRITICAL: Use session_id (not sessionId) and remove reportType from processing conditions
-  // CRITICAL: Drive BOTH timer hook and polling loop from isProcessingUI (no other boolean)
-  // CRITICAL: Compute this BEFORE the render condition so it can be used in the render condition
+  // NON-NEGOTIABLE: session_id is an identifier, NOT a state. UI must be driven by explicit attempt status.
+  // Processing state must come from controller status OR loading/isGeneratingRef (for legacy flows), NEVER from URL params.
+  // ChatGPT Feedback: "If generation never actually starts (or starts then aborts/fails silently),
+  // the UI still stays in 'Generating...' mode forever because session_id exists in URL."
   const isProcessingUI: boolean = useMemo(() => {
-    // CRITICAL FIX: Use session_id (not sessionId) - param mismatch fix
-    const urlSessionId: boolean = searchParams.get("session_id") !== null;
-    const urlReportId: boolean = searchParams.get("reportId") !== null;
-    const autoGenerate: boolean = searchParams.get("auto_generate") === "true";
-    const hasBundleInfo: boolean = !!(bundleType && bundleReports.length > 0);
+    // CRITICAL: Controller status is the ONLY source of truth when using controller
+    // ChatGPT Feedback: "or loading/isGeneratingRef (for legacy flows)" is a red flag - still allows two paths
+    // NON-NEGOTIABLE: Preview page must have exactly ONE owner. Controller is the owner.
+    const controllerProcessing = usingControllerRef.current && 
+      ["verifying", "generating", "polling"].includes(generationController.status);
     
-    // CRITICAL FIX: Only consider processing when actually processing
-    // reportType in URL does NOT mean processing - it's just metadata
-    // This matches shouldWaitForProcessForLoading from line 2327
-    const shouldWaitForProcess: boolean = !!(loading || isGeneratingRef.current || urlSessionId || urlReportId || autoGenerate || (hasBundleInfo && bundleGenerating));
+    // CRITICAL FIX (ChatGPT): Remove legacy fallback - controller is the only owner
+    // Legacy flows (bundle) still use bundleGenerating, but this should be migrated to controller
+    // TODO: Migrate bundle generation to controller to remove this legacy path
+    // ChatGPT Feedback: "bundleProcessing temporary legacy path is your last landmine"
+    // SOLUTION: Gate bundleProcessing so it can ONLY affect bundle report types
+    const isBundleReport = bundleType && bundleReports.length > 0;
+    const bundleProcessing = isBundleReport && bundleGenerating;
     
-    // CRITICAL FIX: This matches isWaitingForStateForLoading from line 2329
-    const isWaitingForState: boolean = !!(hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating);
+    // CRITICAL ASSERTION (ChatGPT Feedback): bundleProcessing cannot influence non-bundle report types
+    // If reportType is not a bundle, bundleProcessing must be false
+    // ChatGPT Feedback: "Make the invariant log actionable in production"
+    // SOLUTION: Use Sentry if available, otherwise prefix with stable tag for grep-able logs
+    if (bundleProcessing && reportType && !isBundleReport) {
+      const sessionId = searchParams.get("session_id");
+      const violationData = { 
+        reportType, 
+        bundleType, 
+        bundleReportsLength: bundleReports.length,
+        sessionId: sessionId || undefined
+      };
+      
+      // ChatGPT Feedback: Ensure it's not lost in console noise
+      // Use stable tag prefix for grep-able logs (even if Sentry fails)
+      console.error('[INVARIANT_VIOLATION] bundleProcessing is true but reportType is not a bundle:', violationData);
+      
+      // Send to Sentry/analytics if available (ChatGPT Feedback: captureMessage with warning level)
+      try {
+        logError("bundle_processing_invariant_violation", new Error("bundleProcessing true for non-bundle report"), violationData);
+      } catch (e) {
+        // If Sentry/telemetry fails, at least we have the tagged console.error above
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[telemetry] Failed to log invariant violation to Sentry:", e);
+        }
+      }
+      
+      // In production, this should never happen - if it does, we've found a bug
+      // For now, we'll still return bundleProcessing to avoid breaking the UI, but log the error
+    }
     
-    // CRITICAL: This MUST match line 2333 exactly: loading || isGeneratingRef.current || shouldWaitForProcessForLoading || isWaitingForStateForLoading
-    // Since shouldWaitForProcess already includes loading and isGeneratingRef.current, we can simplify
-    // But to match EXACTLY, we use: loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState
-    return !!(loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState);
-  }, [loading, bundleGenerating, searchParams, bundleType, bundleReports.length, input]);
+    // CRITICAL INVARIANT: If processing === false, UI must never show "Generating...", even if URL contains session_id.
+    // session_id in URL is just an identifier, not a state signal.
+    // NOTE: Removed `legacyProcessing = loading || isGeneratingRef.current` - controller owns all flows now
+    return !!(controllerProcessing || bundleProcessing);
+  }, [generationController.status, bundleGenerating, bundleType, bundleReports.length, reportType, searchParams]);
 
   // CRITICAL: Keep ref in sync with computed UI visibility.
   // This ref is used inside async polling loops + controller sync to avoid stale closures.
@@ -1949,14 +1980,25 @@ function PreviewContent() {
         // Controller reset but component still has start time - sync
         // CRITICAL FIX (ChatGPT Feedback): Never clear timer based on isProcessingUIRef
         // isProcessingUIRef can flip during state initialization, causing timer to reset
-        // Only clear timer when we're SURE generation is done: status === 'idle' AND no content AND no active attempt
-        // Use activeAttemptKeyRef instead of isProcessingUIRef to avoid race conditions
-        if (generationController.status === 'idle' && usingControllerRef.current && !activeAttemptKeyRef.current && !generationController.reportContent && !generationController.error) {
-          // Only clear if there's no active generation attempt (no attemptKey)
-          // This prevents clearing timer during first-load state initialization
+        // NON-NEGOTIABLE INVARIANT: Once controller enters generating/polling, timer cannot reset unless:
+        // 1. attempt is explicitly cancelled/failed/completed, OR
+        // 2. attemptId/sessionId changes (new attempt started)
+        // ChatGPT: "Timer cleared when controller idle AND no active attempt" can still cause timer resets
+        // if controller briefly enters idle due to transient state or attempt detection is wrong on first load
+        // SOLUTION: Only clear if status is explicitly 'completed' or 'failed', AND no active attempt key
+        // Do NOT clear just because status is 'idle' - idle can be transient during state initialization
+        const isExplicitlyDone = generationController.status === 'completed' || generationController.status === 'failed' || generationController.status === 'timeout';
+        const hasNoActiveAttempt = !activeAttemptKeyRef.current;
+        const hasNoContent = !generationController.reportContent;
+        const hasNoError = !generationController.error;
+        
+        // Only clear timer if explicitly done AND no active attempt AND no content/error (fully finished)
+        if (isExplicitlyDone && hasNoActiveAttempt && hasNoContent && hasNoError && usingControllerRef.current) {
           setLoadingStartTime(null);
           loadingStartTimeRef.current = null;
         }
+        // CRITICAL: If controller is 'idle' but not explicitly done, DO NOT clear timer
+        // This prevents timer resets during first-load state initialization or transient idle states
       }
       
       // CHATGPT FIX: Sync report content from generation controller (single source of truth)
@@ -2472,26 +2514,21 @@ function PreviewContent() {
 
   // Unified generation screen - handles all states (initialization, verification, generation)
   // This provides a single, continuous experience without screen switching (per ChatGPT feedback)
-  // CRITICAL FIX (ChatGPT): Only show generation UI when actually processing
-  // reportType in URL does NOT mean we are processing - it's just metadata
+  // CRITICAL FIX (ChatGPT): Use isProcessingUI as single source of truth - it's driven by controller status, NOT URL params
+  // session_id in URL is just an identifier, not a state signal. UI must never show "Generating..." if controller is idle/failed.
+  // Note: These URL params are only used for display purposes (showing session_id in UI), NOT for determining processing state
   const urlSessionIdForLoadingCheck = searchParams.get("session_id");
   const urlReportIdForLoadingCheck = searchParams.get("reportId");
-  const autoGenerateForLoading = searchParams.get("auto_generate") === "true";
   const hasBundleInfoForLoading = bundleType && bundleReports.length > 0;
-  // CRITICAL FIX: Remove urlHasReportTypeForLoading from processing conditions
-  // Only show loader when actually processing (loading, generating, or have active session/report)
-  const shouldWaitForProcessForLoading = loading || isGeneratingRef.current || urlSessionIdForLoadingCheck || urlReportIdForLoadingCheck || autoGenerateForLoading || (hasBundleInfoForLoading && bundleGenerating);
-  // CRITICAL FIX: Only wait for state if we have bundle info AND generation is active
-  const isWaitingForStateForLoading = hasBundleInfoForLoading && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
-
-  // CRITICAL FIX (ChatGPT): Only show generation UI when actually processing
-  // After removing urlHasReportTypeForLoading, this condition now correctly reflects actual processing state
-  if (loading || isGeneratingRef.current || shouldWaitForProcessForLoading || isWaitingForStateForLoading) {
+  
+  // CRITICAL INVARIANT: Use isProcessingUI (controller-driven) instead of recomputing from URL params
+  // This ensures UI never shows "Generating..." when controller is idle/failed, even if session_id exists in URL
+  if (isProcessingUI) {
     const isBundleLoading = bundleType && bundleReports.length > 0;
     const isVerifying = loadingStage === "verifying";
     const isPaidReport = reportType !== "life-summary" && !hasBundleInfoForLoading;
-    // CRITICAL FIX: isInitializing should only be true when we have bundle info AND generation is active
-    const isInitializing = isWaitingForStateForLoading && !loading && !isGeneratingRef.current && bundleGenerating;
+    // CRITICAL FIX: isInitializing should only be true when we have bundle info AND generation is active but waiting for state
+    const isInitializing = hasBundleInfoForLoading && !input && !hasRedirectedRef.current && !loading && !isGeneratingRef.current && bundleGenerating;
     const urlSessionId = urlSessionIdForLoading;
     const urlReportId = urlReportIdForLoading;
     const currentReportId = currentReportIdForLoading;

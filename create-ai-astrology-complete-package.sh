@@ -172,6 +172,16 @@ cp astrosetu/PRODUCTION_READINESS_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp astrosetu/PRODUCTION_READINESS_PLAN.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp astrosetu/PRODUCTION_READINESS_IMPLEMENTATION.md "$PACKAGE_DIR/" 2>/dev/null || true
 
+# ChatGPT Review Documentation (Latest)
+cp CHATGPT_FINAL_VERDICT.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_FINAL_IMPROVEMENTS.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_FINAL_RESPONSE.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_VERIFICATION.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_SUMMARY_FINAL.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp PROD_SMOKE_CHECK.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp ISSUES_FIXED_STATUS.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CONTROLLER_STATE_MACHINE.md "$PACKAGE_DIR/" 2>/dev/null || true
+
 # ============================================
 # 8. Copy Cursor Rules
 # ============================================

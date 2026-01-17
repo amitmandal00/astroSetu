@@ -178,6 +178,22 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 - **Rationale**: Prevents future "it passed type-check so it's fine" mistakes.
 - **Do NOT skip**: Since Cursor sometimes only runs type-check, this ensures all critical checks pass.
 - **ChatGPT Verdict**: "This alone will save you days in the future." - Do not change.
+- **Not allowed to mark a fix "verified"** unless `release:gate` passes in a real runner (CI/Vercel).
+- **If build is blocked**, Cursor must instead fix the build to not depend on local env files (e.g., `.env.local`).
+- **Do NOT accept "sandbox blocked"** without providing exact file+line where code tries to read restricted resources.
+
+### Atomic Generation Invariant (ChatGPT Feedback - CRITICAL)
+- **NO setTimeout autostart allowed** on preview generation (lines ~1266, ~1675 must be removed)
+- **One entrypoint only**: Preview generation can only start via `startGenerationAtomically()`
+- **Atomic invariant (MUST HOLD)**:
+  - Within 1000ms of mount when `auto_generate=true`:
+  - `controller.status` becomes `verifying|generating|polling` OR `failed`
+  - Must NEVER remain `idle` while UI shows "Generating"
+  - Timer must start ONLY when `controller.status` enters `verifying`
+  - On failure, UI must show Retry and timer stops
+- **Implementation**: `startGenerationAtomically()` must be called from a single `useEffect` keyed ONLY by `attemptKey` (`session_id + reportType + auto_generate=true`)
+- **No PR can claim "fixed"** unless `release:gate` passes and atomic E2E is green
+- **Surgical changes only**: Only touch preview autostart + controller start path (no large refactors)
 
 ### Baseline Freeze (ChatGPT Feedback - CRITICAL)
 - **Current Baseline**: 2026-01-17 (Ship-ready baseline established)
@@ -186,7 +202,7 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - ✅ No "cleanup" without explicit approval
   - ✅ Only additive features allowed
   - ✅ Any core flow change must pass `npm run release:gate`
-- **Technical Debt**: setTimeout autostart is tracked but NOT refactored yet (do not change casually)
+- **Technical Debt**: setTimeout autostart is being REMOVED (atomic generation fix)
 - **ChatGPT Verdict**: "You've turned a fragile, emergent system into a governed, deterministic one."
 
 ### Stabilization Mode (ChatGPT Feedback - CRITICAL)

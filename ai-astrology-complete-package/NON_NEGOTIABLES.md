@@ -14,6 +14,8 @@
 - **Generation stability**: loader/timer must not reset to 0 mid-run or get stuck.
 - **Subscription UX**: subscribe → checkout → success → dashboard must complete without refresh loops.
 - **Free report quality**: free life-summary must be structured, readable, and feel valuable (no "thin" output due to parsing).
+- **session_id ≠ processing state**: session_id in URL is an identifier, NOT a state signal. UI must be driven by controller status, never by URL params.
+- **Bundle processing isolation**: bundleProcessing can ONLY affect bundle reports. If bundleProcessing is true but reportType is not a bundle, log invariant violation. (Future: promote to Sentry warning + soft error in non-prod)
 
 ## Polling & Generation Invariants (ChatGPT Feedback)
 - **Polling stop conditions**: polling loops may ONLY terminate on:
