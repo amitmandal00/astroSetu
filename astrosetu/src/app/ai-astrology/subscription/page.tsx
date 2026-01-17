@@ -231,17 +231,29 @@ function SubscriptionContent() {
           // SessionStorage sessionId might be from a checkout session that hasn't completed yet
           // Only verify session_id that comes from URL (success page redirect) - those are already completed
           const candidate = urlSessionId; // Only use URL session_id, not sessionStorage
-          if (!candidate) return;
+          if (!candidate) {
+            // No session_id in URL - user hasn't completed checkout yet, or cookie is already set
+            // Don't try to verify or redirect - just show subscription UI (can subscribe if not already subscribed)
+            return;
+          }
           try {
+            // CRITICAL FIX (2026-01-18): Verify session_id from URL only once
+            // This happens when user is redirected from success page with session_id in URL
+            console.log("[Subscription] Verifying session_id from URL:", candidate.substring(0, 20) + "...");
             await apiPost<{ ok: boolean; error?: string }>(
               "/api/billing/subscription/verify-session",
               { session_id: candidate }
             );
-            if (urlSessionId) {
-              router.replace("/ai-astrology/subscription"); // clean URL
-            }
-          } catch {
+            // After successful verification, clean the URL (remove session_id) to prevent re-verification
+            console.log("[Subscription] Session verified successfully, cleaning URL");
+            router.replace("/ai-astrology/subscription");
+          } catch (verifyError: any) {
             // If Stripe isn't configured (local/dev/E2E), verification may fail — still proceed to load mocked API state.
+            console.warn("[Subscription] Session verification failed (non-blocking):", verifyError?.message || verifyError);
+            // Clean URL even if verification failed (to prevent retry loops)
+            if (urlSessionId) {
+              router.replace("/ai-astrology/subscription");
+            }
           }
 
           // 3) Retry DB source-of-truth
