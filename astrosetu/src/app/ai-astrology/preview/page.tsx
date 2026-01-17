@@ -1390,10 +1390,13 @@ function PreviewContent() {
 
                 console.log("[Preview] Loaded input from input_token:", inputToken);
               } else {
-                // Token invalid/expired - show "Start again" CTA instead of redirect loop
+                // Token invalid/expired - show "Start again" CTA that navigates to input, not infinite redirecting
                 console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
                 setError("Your session has expired. Please start again.");
                 setLoading(false);
+                // CRITICAL FIX (ChatGPT): Show real error UI with "Start again" button that navigates to input
+                // Don't just return - show actionable error with navigation button
+                // The error state will show a "Start again" button that navigates to input
                 return;
               }
             } catch (tokenError) {
@@ -1412,30 +1415,35 @@ function PreviewContent() {
 
         const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
 
-        // CRITICAL FIX: Check if reportType is in URL - if yes, user came from input page, don't redirect
-        const urlReportTypeCheck = searchParams.get("reportType");
-        const hasReportTypeInUrlCheck = urlReportTypeCheck !== null && validReportTypes.includes(urlReportTypeCheck as ReportType);
-
-        // CRITICAL FIX: Only redirect if we truly don't have input data AND haven't redirected already
-        // Also check that we're not currently on the input page (prevent infinite loops)
-        // Also preserve reportType when redirecting to prevent loops
-        // CRITICAL: Don't redirect if reportType is in URL (user came from input page)
-        if (!savedInput && !hasRedirectedRef.current && !hasReportTypeInUrlCheck) {
+        // CRITICAL FIX (ChatGPT): Always redirect to /input if no input + no valid input_token
+        // Remove reportType gating - it causes "Redirecting..." dead states
+        // New invariant: If no input + no valid input_token → redirect to /input ALWAYS (with returnTo)
+        if (!savedInput && !hasRedirectedRef.current) {
           // Check if we're already on the input page to prevent loops
-          const currentPath = window.location.pathname;
+          const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
           if (currentPath.includes("/input")) {
             console.log("[Preview] Already on input page, not redirecting to prevent loop");
             return;
           }
           
+          // Build returnTo = exact preview URL (pathname + search) for safe return
+          const returnTo = typeof window !== "undefined" 
+            ? `${window.location.pathname}${window.location.search}`
+            : "";
+          
           // Preserve reportType from URL params or use savedReportType if available
           const urlReportType = searchParams.get("reportType");
-          const redirectUrl = urlReportType 
+          const redirectUrl = returnTo && urlReportType
+            ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}&returnTo=${encodeURIComponent(returnTo)}`
+            : urlReportType 
             ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
             : savedReportType && savedReportType !== "life-summary"
-            ? `/ai-astrology/input?reportType=${encodeURIComponent(savedReportType)}`
+            ? `/ai-astrology/input?reportType=${encodeURIComponent(savedReportType)}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`
+            : returnTo
+            ? `/ai-astrology/input?returnTo=${encodeURIComponent(returnTo)}`
             : "/ai-astrology/input";
-          console.log("[Preview] No saved input found after delay, redirecting to:", redirectUrl);
+          
+          console.log("[Preview] No input found (no input_token, no sessionStorage), redirecting to:", redirectUrl);
           hasRedirectedRef.current = true; // Prevent multiple redirects
           router.push(redirectUrl);
           return;
@@ -1474,9 +1482,10 @@ function PreviewContent() {
           }
         }
 
-        // If input is still missing, route user to input to re-enter details, then return to this exact URL.
+        // CRITICAL FIX (ChatGPT): If input is still missing, ALWAYS redirect to input (don't gate on urlSessionId/reportType)
+        // This prevents "Redirecting..." dead states
         if (!effectiveSavedInput) {
-          if (urlSessionId && hasReportTypeInUrlCheck && typeof window !== "undefined") {
+          if (typeof window !== "undefined" && !hasRedirectedRef.current) {
             const rt = searchParams.get("reportType");
             const returnTo = `${window.location.pathname}${window.location.search}`;
             hasRedirectedRef.current = true;
@@ -1919,7 +1928,22 @@ function PreviewContent() {
   const needsPayment = isPaidReport && !paymentVerified;
 
   const handlePurchase = async () => {
-    if (!input) return;
+    // CRITICAL FIX (ChatGPT): Don't silently return - redirect to input if input missing
+    // This fixes "Purchase does nothing" issue
+    if (!input) {
+      const reportTypeParam = searchParams.get("reportType");
+      const returnTo = typeof window !== "undefined" 
+        ? `${window.location.pathname}${window.location.search}`
+        : "";
+      const redirectUrl = reportTypeParam && returnTo
+        ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}&returnTo=${encodeURIComponent(returnTo)}`
+        : reportTypeParam
+        ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}`
+        : "/ai-astrology/input";
+      console.log("[Purchase] No input found, redirecting to input:", redirectUrl);
+      router.push(redirectUrl);
+      return;
+    }
     
     // Check if this is a bundle purchase
     const isBundle = bundleType && bundleReports.length > 0;

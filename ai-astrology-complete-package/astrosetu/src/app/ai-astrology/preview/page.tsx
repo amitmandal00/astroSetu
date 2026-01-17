@@ -1334,7 +1334,7 @@ function PreviewContent() {
       // CRITICAL FIX (ChatGPT Directive): NO setTimeout allowed - run immediately
       // Atomic generation: sessionStorage check and generation start must be synchronous
       // Removed 500ms delay to eliminate "timer resets after 1 second" bug
-      (() => {
+      (async () => {
         // CRITICAL: Double-check we haven't redirected or started loading in the meantime
         // CRITICAL FIX: Also check bundleGenerating and loadingStage to prevent redirects during generation
         if (hasRedirectedRef.current || loading || isGeneratingRef.current || bundleGenerating || loadingStage !== null) {
@@ -1342,14 +1342,75 @@ function PreviewContent() {
         }
         
         try {
-          // Get input from sessionStorage
-        const savedInput = sessionStorage.getItem("aiAstrologyInput");
-        const savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType;
+          // CRITICAL FIX (ChatGPT): Check for input_token first (server-side source of truth)
+          // This prevents redirect loops when sessionStorage is unavailable
+          const inputToken = searchParams.get("input_token");
+          let savedInput: string | null = null;
+          let savedReportType: ReportType | null = null;
+          let savedBundleType: string | null = null;
+          let savedBundleReports: string | null = null;
+
+          if (inputToken) {
+            try {
+              const tokenResponse = await apiGet<{
+                ok: boolean;
+                data?: {
+                  input: AIAstrologyInput;
+                  reportType?: string;
+                  bundleType?: string;
+                  bundleReports?: string[];
+                };
+                error?: string;
+              }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
+
+              if (tokenResponse.ok && tokenResponse.data) {
+                // Use server-side data
+                savedInput = JSON.stringify(tokenResponse.data.input);
+                savedReportType = (tokenResponse.data.reportType as ReportType) || null;
+                savedBundleType = tokenResponse.data.bundleType || null;
+                savedBundleReports = tokenResponse.data.bundleReports
+                  ? JSON.stringify(tokenResponse.data.bundleReports)
+                  : null;
+
+                // Cache in sessionStorage for future use (nice-to-have)
+                try {
+                  sessionStorage.setItem("aiAstrologyInput", savedInput);
+                  if (savedReportType) {
+                    sessionStorage.setItem("aiAstrologyReportType", savedReportType);
+                  }
+                  if (savedBundleType) {
+                    sessionStorage.setItem("aiAstrologyBundle", savedBundleType);
+                  }
+                  if (savedBundleReports) {
+                    sessionStorage.setItem("aiAstrologyBundleReports", savedBundleReports);
+                  }
+                } catch (storageError) {
+                  console.warn("[Preview] Failed to cache input_token data in sessionStorage:", storageError);
+                }
+
+                console.log("[Preview] Loaded input from input_token:", inputToken);
+              } else {
+                // Token invalid/expired - show "Start again" CTA instead of redirect loop
+                console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
+                setError("Your session has expired. Please start again.");
+                setLoading(false);
+                return;
+              }
+            } catch (tokenError) {
+              console.warn("[Preview] Failed to fetch input_token, falling back to sessionStorage:", tokenError);
+              // Fall through to sessionStorage fallback
+            }
+          }
+
+          // Fallback: Get input from sessionStorage (if input_token not available or failed)
+          if (!savedInput) {
+            savedInput = sessionStorage.getItem("aiAstrologyInput");
+            savedReportType = sessionStorage.getItem("aiAstrologyReportType") as ReportType | null;
+            savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
+            savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
+          }
+
         const paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
-        
-        // Get bundle information
-        const savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
-        const savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
 
         // CRITICAL FIX: Check if reportType is in URL - if yes, user came from input page, don't redirect
         const urlReportTypeCheck = searchParams.get("reportType");
@@ -1871,13 +1932,42 @@ function PreviewContent() {
       return;
     }
 
+    // CRITICAL FIX (ChatGPT): Generate checkout attempt ID for server-side tracing
+    // This allows correlating Vercel logs with user-reported issues
+    // Use Web Crypto API (client-side) instead of Node crypto module
+    const checkoutAttemptId = typeof window !== "undefined" && window.crypto?.randomUUID
+      ? window.crypto.randomUUID().slice(0, 8) // Short ID for display: ABC12345
+      : `client_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; // Fallback for older browsers
+
+    // CRITICAL FIX (ChatGPT): Add timeout to prevent infinite hanging
+    const TIMEOUT_MS = 15000; // 15 seconds
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isResolved = false;
+    let navigationOccurred = false; // Track if navigation happened
+
+    // CRITICAL FIX (ChatGPT): Client-side watchdog for fail-fast UI
+    // If still "Processing..." after timeout, show "Try again" with debug info
+    const watchdogTimeoutId = setTimeout(() => {
+      if (!navigationOccurred && !isResolved) {
+        console.error(`[Purchase] Watchdog timeout - no navigation after ${TIMEOUT_MS}ms`, {
+          checkoutAttemptId,
+          reportType,
+        });
+        setError(`Checkout is taking longer than expected. Ref: ${checkoutAttemptId}. Include this reference if you retry later.`);
+        setLoading(false);
+        isResolved = true;
+      }
+    }, TIMEOUT_MS);
+
     try {
       setLoading(true);
       setError(null); // Clear any previous errors
       
       // CRITICAL: For bundles, send bundleReports to create separate line items for each report
+      // CRITICAL FIX (ChatGPT): Include checkout attempt ID for server-side tracing
       const checkoutPayload: any = {
         input,
+        checkoutAttemptId, // Include for server-side correlation
       };
       
       if (isBundle) {
@@ -1893,11 +1983,32 @@ function PreviewContent() {
         console.log(`[Purchase] Creating single report checkout for:`, reportType);
       }
       
-      const response = await apiPost<{
-        ok: boolean;
-        data?: { url: string; sessionId: string };
-        error?: string;
-      }>("/api/ai-astrology/create-checkout", checkoutPayload);
+      // Set timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error("Checkout request timed out. Please try again."));
+          }
+        }, TIMEOUT_MS);
+      });
+
+      // Race between API call and timeout
+      const response = await Promise.race([
+        apiPost<{
+          ok: boolean;
+          data?: { url: string; sessionId: string };
+          error?: string;
+        }>("/api/ai-astrology/create-checkout", checkoutPayload),
+        timeoutPromise,
+      ]);
+
+      // Clear timeout if API call succeeded
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      isResolved = true;
 
       if (!response.ok) {
         throw new Error(response.error || "Failed to create checkout");
@@ -1915,22 +2026,51 @@ function PreviewContent() {
           const isRelative = checkoutUrl.startsWith("/");
           
           if (isStripe || isLocalhost || isSameOrigin || isRelative) {
+            navigationOccurred = true;
+            clearTimeout(watchdogTimeoutId);
             window.location.href = checkoutUrl;
+            // Don't set loading to false here - we're redirecting
+            return;
           } else {
             throw new Error("Invalid checkout URL");
           }
         } catch (urlError) {
           // If URL parsing fails, check if it's a relative path
           if (checkoutUrl.startsWith("/")) {
+            navigationOccurred = true;
+            clearTimeout(watchdogTimeoutId);
             window.location.href = checkoutUrl;
+            // Don't set loading to false here - we're redirecting
+            return;
           } else {
             throw new Error("Invalid checkout URL");
           }
         }
+      } else {
+        // No URL returned - this is an error state
+        throw new Error("Checkout URL not provided by server");
       }
     } catch (e: any) {
-      setError(e.message || "Failed to initiate payment");
+      // CRITICAL FIX (ChatGPT): Always stop loading and show error with attempt ID
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      clearTimeout(watchdogTimeoutId);
+      isResolved = true;
+      
+      const errorMessage = e.message || "Failed to initiate payment";
+      // CRITICAL FIX (ChatGPT): Include checkout attempt ID in error UI for server correlation
+      // UX Improvement: Include instruction to use reference when retrying
+      const errorWithRef = `${errorMessage}. Ref: ${checkoutAttemptId}. Include this reference if you retry later.`;
+      setError(errorWithRef);
       setLoading(false);
+      
+      // CRITICAL: Log with attempt ID for server-side correlation
+      console.error(`[Purchase] Checkout failed (attempt: ${checkoutAttemptId}):`, errorMessage, {
+        checkoutAttemptId,
+        reportType,
+        errorMessage,
+      });
     }
   };
 

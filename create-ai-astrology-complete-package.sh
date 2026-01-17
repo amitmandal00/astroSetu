@@ -196,6 +196,17 @@ cp PRODUCTION_VERIFICATION_CHECKLIST.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp HOW_TO_RUN_RELEASE_GATE.md "$PACKAGE_DIR/" 2>/dev/null || true
 cp TEST_URLS_GUIDE.md "$PACKAGE_DIR/" 2>/dev/null || true
 
+# Production Fixes Documentation (Latest - 2026-01-17)
+cp CHATGPT_COMPLETE_IMPLEMENTATION_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_FINAL_HARDENING_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_PRODUCTION_FIXES_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_SECURITY_FIXES_SUMMARY.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp CHATGPT_FINAL_VERDICT.md "$PACKAGE_DIR/" 2>/dev/null || true
+
+# Verification Guides (Latest - 2026-01-17)
+cp VERIFY_SUPABASE_SERVICE_ROLE_KEY_GUIDE.md "$PACKAGE_DIR/" 2>/dev/null || true
+cp QUICK_VERIFY_SERVICE_ROLE_KEY.md "$PACKAGE_DIR/" 2>/dev/null || true
+
 # ============================================
 # 8. Copy Cursor Rules
 # ============================================

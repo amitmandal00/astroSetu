@@ -44,6 +44,14 @@ Use this file as the single “where things stand” view during long Cursor ses
 
   **F) UX Improvement (Applied - 2026-01-17 20:15)**:
   - ✅ Error messages now say: "Include this reference if you retry later." (reduces user anxiety)
+
+  **G) Routing & Input Ownership Fixes (2026-01-17 21:00)**:
+  - ✅ Preview redirect logic: Always redirect to /input if no input + no valid input_token (removed reportType gating)
+  - ✅ Purchase button no-op fix: Redirects to input instead of silently returning when input missing
+  - ✅ Input page flow=subscription: Redirects to subscription when flow=subscription (not preview)
+  - ✅ Subscription input_token flow: Checks input_token first, loads from API, cleans URL (stops sessionStorage dependency)
+  - ✅ E2E tests added: preview-requires-input, purchase-noop-prevented, subscription-input-token-flow
+  - ✅ .cursor/rules updated: Added Input Ownership & Redirect Invariants section
   - ✅ Input session API: Rate limiting per token (5 per minute), log redaction (last 6 chars only)
   - ✅ Multi-use semantics: Tokens can be reused within 30-minute TTL (decided behavior, not optional)
   - ✅ ReturnTo validation: Helper function `isSafeReturnTo()` with unit tests

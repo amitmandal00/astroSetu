@@ -85,6 +85,15 @@ export function getRateLimitConfig(pathname: string): { limit: number; windowMs:
     return { limit: 20, windowMs: 60000 }; // 20 per minute
   }
 
+  // AI Astrology endpoints: moderate
+  if (pathname.startsWith('/api/ai-astrology/')) {
+    // Input session endpoints: strict (PII protection)
+    if (pathname.includes('/input-session')) {
+      return { limit: 10, windowMs: 60000 }; // 10 per minute per IP/token
+    }
+    return { limit: 30, windowMs: 60000 }; // 30 per minute
+  }
+
   // Prediction endpoints: moderate
   if (pathname.startsWith('/api/astrology/') || pathname.startsWith('/api/reports/')) {
     return { limit: 30, windowMs: 60000 }; // 30 per minute

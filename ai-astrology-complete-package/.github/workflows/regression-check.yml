@@ -41,3 +41,13 @@ jobs:
       - name: Regression Check Script
         run: bash scripts/regression-check.sh
 
+      # CRITICAL FIX (ChatGPT): Release Gate - Block merges if this fails
+      - name: Release Gate
+        run: npm run release:gate
+        env:
+          # Add any required env vars for build/test (these should be set in GitHub Secrets)
+          # NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          # NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Note: Env vars are optional for type-check, but may be needed for build/test
+

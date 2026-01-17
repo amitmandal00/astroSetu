@@ -37,21 +37,80 @@ function SubscriptionContent() {
     // Check if sessionStorage is available
     if (typeof window === "undefined") return;
     
-    try {
-      // Get input from sessionStorage
-      const savedInput = sessionStorage.getItem("aiAstrologyInput");
+    // CRITICAL FIX (ChatGPT): Check input_token first (server-side source of truth)
+    // Stop sessionStorage dependency - this fixes "Subscribe does nothing" issue
+    const inputToken = searchParams?.get("input_token");
+    
+    const loadInputFromToken = async () => {
+      if (inputToken) {
+        try {
+          const tokenResponse = await apiGet<{
+            ok: boolean;
+            data?: {
+              input: AIAstrologyInput;
+              reportType?: string;
+            };
+            error?: string;
+          }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
 
-      if (!savedInput) {
-        // Subscription is its own journey; collect birth details but return to subscription dashboard,
-        // not into the free-report preview flow.
-        const returnTo = "/ai-astrology/subscription";
-        router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent(returnTo)}`);
-        return;
+          if (tokenResponse.ok && tokenResponse.data?.input) {
+            // Load input from token
+            const inputData = tokenResponse.data.input;
+            setInput(inputData);
+            
+            // Clean URL - remove input_token from URL
+            router.replace("/ai-astrology/subscription");
+            
+            // Cache in sessionStorage for future use (nice-to-have)
+            try {
+              sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
+            } catch (storageError) {
+              console.warn("[Subscription] Failed to cache input_token data in sessionStorage:", storageError);
+            }
+            
+            console.log("[Subscription] Loaded input from input_token:", inputToken.slice(-6));
+            return true; // Successfully loaded
+          } else {
+            console.warn("[Subscription] Invalid or expired input_token:", tokenResponse.error);
+            // Fall through to sessionStorage check
+          }
+        } catch (tokenError) {
+          console.warn("[Subscription] Failed to fetch input_token, falling back to sessionStorage:", tokenError);
+          // Fall through to sessionStorage check
+        }
       }
+      return false; // Not loaded from token
+    };
+    
+    (async () => {
+      const loadedFromToken = await loadInputFromToken();
+      if (loadedFromToken) {
+        // Input loaded from token - continue with billing hydration
+        // Don't check sessionStorage again
+        // Continue to billing hydration (code below)
+      } else {
+        // Fallback: Get input from sessionStorage (if input_token not available or failed)
+        try {
+          const savedInput = sessionStorage.getItem("aiAstrologyInput");
 
-      const inputData = JSON.parse(savedInput);
-      setInput(inputData);
+          if (!savedInput) {
+            // Subscription is its own journey; collect birth details but return to subscription dashboard,
+            // not into the free-report preview flow.
+            const returnTo = "/ai-astrology/subscription";
+            router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent(returnTo)}`);
+            return;
+          }
 
+          const inputData = JSON.parse(savedInput);
+          setInput(inputData);
+        } catch (e) {
+          console.error("[Subscription] Error parsing saved input:", e);
+          router.push(`/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=${encodeURIComponent("/ai-astrology/subscription")}`);
+          return;
+        }
+      }
+      
+      // Continue with billing hydration (moved outside the token/sessionStorage check)
       // Best-practice: use session_id from query string only once (Stripe redirect), verify server-side,
       // then rely on DB via cookie-backed /api/billing/subscription (no query/sessionStorage required).
       const urlSessionId = searchParams?.get("session_id");
@@ -106,10 +165,7 @@ function SubscriptionContent() {
         }
       };
       hydrateBilling();
-    } catch (e) {
-      console.error("Error parsing saved input:", e);
-      router.push("/ai-astrology/input");
-    }
+    })(); // Close async IIFE
   }, [router, searchParams]);
 
   // Load current monthly guidance only when subscription is active (DB/API is source of truth).

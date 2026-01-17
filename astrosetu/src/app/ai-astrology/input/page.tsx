@@ -234,6 +234,17 @@ function InputFormContent() {
         // Continue anyway - preview page will use input_token if available
       }
 
+      // CRITICAL FIX (ChatGPT): Check flow=subscription first - redirect to subscription if present
+      // This fixes "Monthly Outlook → input → never returns to subscription" issue
+      if (flow === "subscription") {
+        const subscriptionUrl = inputToken
+          ? `/ai-astrology/subscription?input_token=${encodeURIComponent(inputToken)}`
+          : "/ai-astrology/subscription";
+        console.log("[Input] flow=subscription, redirecting to subscription:", subscriptionUrl);
+        await router.push(subscriptionUrl);
+        return;
+      }
+
       // CRITICAL FIX (ChatGPT): Harden returnTo - only allow /ai-astrology/* paths
       // Block external URLs and dangerous paths (prevent open redirect)
       // Allow querystrings (e.g., ?session_id=...) but still block encoded protocol variants
