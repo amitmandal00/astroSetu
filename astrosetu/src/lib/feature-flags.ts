@@ -32,6 +32,13 @@ export function isAllowedRoute(pathname: string): boolean {
   // Allow root path (will redirect to /ai-astrology)
   if (pathname === '/') return true;
   
+  // CRITICAL FIX (2026-01-18): Allow ALL API routes when AI-only mode is enabled
+  // API routes should be accessible for functionality (billing, notifications, etc.)
+  // UI routes are restricted, but API routes must work for the app to function
+  if (pathname.startsWith('/api/')) {
+    return true;
+  }
+  
   // Allow static assets and Next.js internals
   if (
     pathname.startsWith('/_next/') ||
