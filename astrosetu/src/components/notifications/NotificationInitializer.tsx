@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { webPushService } from "@/lib/notifications/webPush";
 import { session } from "@/lib/session";
+import { ENABLE_PUSH } from "@/lib/feature-flags";
 
 /**
  * NotificationInitializer
@@ -12,6 +13,12 @@ import { session } from "@/lib/session";
  */
 export function NotificationInitializer() {
   useEffect(() => {
+    // CRITICAL FIX (2026-01-18): Check feature flag before initializing push service
+    // Prevents console errors and unnecessary API calls when push is disabled
+    if (!ENABLE_PUSH) {
+      return;
+    }
+    
     // Only run on client side
     if (typeof window === "undefined") {
       return;

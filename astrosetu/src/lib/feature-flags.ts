@@ -7,6 +7,11 @@
 // Set NEXT_PUBLIC_AI_ONLY_MODE=true in .env.local to enable
 export const AI_ONLY_MODE = process.env.NEXT_PUBLIC_AI_ONLY_MODE === 'true';
 
+// Web Push Notifications: When disabled, push service will not initialize
+// Set NEXT_PUBLIC_ENABLE_PUSH=true to enable push notifications
+// Default: false (disabled for stability)
+export const ENABLE_PUSH = process.env.NEXT_PUBLIC_ENABLE_PUSH === 'true';
+
 // Allowed routes when AI-only mode is enabled
 export const ALLOWED_AI_ROUTES = [
   '/ai-astrology',

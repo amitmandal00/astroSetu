@@ -3775,7 +3775,12 @@ function PreviewContent() {
   // reportType in URL must NOT suppress redirect - it's just metadata
   // Only show "Redirecting..." UI when redirect was actually initiated (redirectInitiatedRef.current === true)
   
-  if (!reportContent || !input) {
+  // CRITICAL FIX (2026-01-18): Use ref as fallback when checking if we have input
+  // This prevents race condition where inputTokenLoadedRef is true but input state hasn't updated yet
+  // The ref is set synchronously, while React state updates are asynchronous
+  const hasInput = input || inputTokenLoadedRef.current;
+  
+  if (!reportContent || !hasInput) {
     // CRITICAL FIX (Step 1): Show "Loading your details..." while token is loading (token fetch authoritative)
     // CRITICAL FIX (2026-01-18): Also check inputTokenLoadedRef - if ref is true but input state not updated yet,
     // still show loading to prevent showing "Enter Your Birth Details" when input is actually being loaded

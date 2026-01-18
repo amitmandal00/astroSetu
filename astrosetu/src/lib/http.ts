@@ -66,6 +66,34 @@ export async function apiGet<T>(url: string): Promise<T> {
       
       throw new Error(errorMessage);
     }
+    
+    // CRITICAL FIX (2026-01-18): Defensive JSON parsing - check content-type before calling response.json()
+    // Prevents SyntaxError when API returns HTML (e.g., 307 redirect to HTML page)
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      // Not JSON - likely HTML from redirect or error page
+      const text = await res.text();
+      const preview = text.substring(0, 200);
+      const finalUrl = res.url;
+      const status = res.status;
+      
+      console.error('[HTTP] Non-JSON response received:', {
+        url: url.substring(0, 100),
+        status,
+        contentType,
+        finalUrl: finalUrl.substring(0, 100),
+        preview
+      });
+      
+      // For 307/308 redirects, provide specific error message
+      if (status === 307 || status === 308) {
+        throw new Error(`Service temporarily unavailable. Please try again later. (Redirect detected)`);
+      }
+      
+      // For other non-JSON responses, provide generic error
+      throw new Error(`Invalid response format. Expected JSON but received ${contentType || 'unknown'}.`);
+    }
+    
     return res.json() as Promise<T>;
   } catch (e: any) {
     if (e.name === 'AbortError') {
@@ -156,6 +184,34 @@ export async function apiPost<T>(url: string, body: unknown, options?: { timeout
       
       throw new Error(errorMessage);
     }
+    
+    // CRITICAL FIX (2026-01-18): Defensive JSON parsing - check content-type before calling response.json()
+    // Prevents SyntaxError when API returns HTML (e.g., 307 redirect to HTML page)
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      // Not JSON - likely HTML from redirect or error page
+      const text = await res.text();
+      const preview = text.substring(0, 200);
+      const finalUrl = res.url;
+      const status = res.status;
+      
+      console.error('[HTTP] Non-JSON response received:', {
+        url: url.substring(0, 100),
+        status,
+        contentType,
+        finalUrl: finalUrl.substring(0, 100),
+        preview
+      });
+      
+      // For 307/308 redirects, provide specific error message
+      if (status === 307 || status === 308) {
+        throw new Error(`Service temporarily unavailable. Please try again later. (Redirect detected)`);
+      }
+      
+      // For other non-JSON responses, provide generic error
+      throw new Error(`Invalid response format. Expected JSON but received ${contentType || 'unknown'}.`);
+    }
+    
     return res.json() as Promise<T>;
   } catch (e: any) {
     if (e.name === 'AbortError') {

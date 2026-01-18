@@ -3,6 +3,8 @@
  * Handles browser push notifications using Web Push API
  */
 
+import { ENABLE_PUSH } from '@/lib/feature-flags';
+
 export interface NotificationSubscription {
   endpoint: string;
   keys: {
@@ -45,6 +47,13 @@ class WebPushService {
    * Initialize the service worker and get VAPID public key
    */
   async initialize(): Promise<boolean> {
+    // CRITICAL FIX (2026-01-18): Check feature flag before initializing push service
+    // Prevents console errors and unnecessary API calls when push is disabled
+    if (!ENABLE_PUSH) {
+      console.log("[WebPush] Push notifications disabled (NEXT_PUBLIC_ENABLE_PUSH=false)");
+      return false;
+    }
+    
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
       console.warn("Service workers not supported");
       return false;
@@ -69,6 +78,22 @@ class WebPushService {
       // Get VAPID public key from server
       const response = await fetch("/api/notifications/vapid-public-key");
       if (response.ok) {
+        // CRITICAL FIX (2026-01-18): Defensive JSON parsing - check content-type before calling response.json()
+        // Prevents SyntaxError when API returns HTML (e.g., 307 redirect)
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          // Not JSON - likely HTML from redirect
+          const text = await response.text();
+          const preview = text.substring(0, 200);
+          console.error('[WebPush] Non-JSON response from VAPID endpoint:', {
+            status: response.status,
+            contentType,
+            finalUrl: response.url,
+            preview
+          });
+          return false;
+        }
+        
         const data = await response.json();
         this.vapidPublicKey = data.publicKey;
       } else {
