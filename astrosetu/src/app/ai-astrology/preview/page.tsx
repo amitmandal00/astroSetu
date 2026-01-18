@@ -217,8 +217,11 @@ function PreviewContent() {
     // CRITICAL INVARIANT: If processing === false, UI must never show "Generating...", even if URL contains session_id.
     // session_id in URL is just an identifier, not a state signal.
     // NOTE: Removed `legacyProcessing = loading || isGeneratingRef.current` - controller owns all flows now
-    return !!(controllerProcessing || bundleProcessing);
-  }, [generationController.status, bundleGenerating, bundleType, bundleReports.length, reportType, searchParams]);
+    // CRITICAL FIX (2026-01-18 - ChatGPT): Include all loading state flags to prevent blank screen
+    // isProcessingUI must be TRUE whenever any loading condition is true (loadingStage, loading, etc.)
+    // This ensures unified loader is always shown during transitional states
+    return !!(controllerProcessing || bundleProcessing || loadingStage !== null || loading);
+  }, [generationController.status, bundleGenerating, bundleType, bundleReports.length, reportType, searchParams, loadingStage, loading]);
 
   // CRITICAL: Keep ref in sync with computed UI visibility.
   // This ref is used inside async polling loops + controller sync to avoid stale closures.
@@ -3967,8 +3970,33 @@ function PreviewContent() {
     // CRITICAL: If we're in loading state OR generating, OR waiting for state initialization,
     // ALWAYS show the unified generation screen (no screen switching)
     // This provides a single, continuous generation experience as per ChatGPT feedback
+    // CRITICAL FIX (2026-01-18 - ChatGPT): Never return null - always show unified loader to prevent blank screen
     if (loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState || bundleGenerating || loadingStage !== null) {
-      return null; // Unified loading screen will handle this (lines 1858+)
+      // CRITICAL FIX (2026-01-18 - ChatGPT): Add invariant logging to catch loadingStage/isProcessingUI mismatch
+      if (loadingStage !== null && !isProcessingUI) {
+        console.warn("[INVARIANT_VIOLATION] loadingStage set but isProcessingUI false", { 
+          loadingStage, 
+          isProcessingUI,
+          loading,
+          controllerStatus: generationController.status,
+          bundleGenerating,
+          reportType 
+        });
+      }
+      // CRITICAL FIX (2026-01-18 - ChatGPT): Always show unified loader instead of returning null
+      // The unified loading screen (line 3092) will handle all loading states
+      // This prevents blank screen when loadingStage is set but isProcessingUI hasn't updated yet
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Preparing your report...</h2>
+              <p className="text-slate-600">Please wait while we prepare your personalized insights.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
     }
     
     // CRITICAL FIX (2026-01-18): If hasInput is true but reportContent is not ready yet,
