@@ -3840,10 +3840,21 @@ function PreviewContent() {
     }
     
     // CRITICAL FIX (2026-01-18): If hasInput is true but reportContent is not ready yet,
-    // proceed to report generation flow (unified loading screen) instead of showing "Enter Your Birth Details"
-    // This fixes the issue where input is loaded but UI still shows "Enter Your Birth Details"
-    if (hasInput && !reportContent) {
-      return null; // Unified loading screen will handle report generation (lines 1858+)
+    // show a loading state while waiting for report generation to start
+    // This prevents blank screen when input is loaded but generation hasn't started yet
+    // The unified loading screen (line 2980) will take over once isProcessingUI becomes true
+    if (hasInput && !reportContent && !isProcessingUI) {
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Preparing your report...</h2>
+              <p className="text-slate-600">Please wait while we prepare your personalized insights.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
     }
     
     // CRITICAL FIX (ChatGPT): Only show "Redirecting..." UI when redirect was actually initiated

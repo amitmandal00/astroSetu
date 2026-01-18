@@ -34,7 +34,13 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id") || getBillingSessionIdFromRequest(req);
     if (!sessionId) {
-      return NextResponse.json({ ok: false, error: "session_id is required", requestId }, { status: 400 });
+      // CRITICAL FIX (2026-01-18): Return 200 with status: "none" instead of 400 for missing session
+      // "No session" is normal for unauthenticated users, not an error condition
+      // This prevents UI from treating it as a hard failure and reduces noisy error logs
+      return NextResponse.json(
+        { ok: true, status: "none", requestId },
+        { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
+      );
     }
 
     // DEV/TEST SAFETY: Allow "test_session_subscription_*" to behave like an active subscription without Stripe/Supabase.

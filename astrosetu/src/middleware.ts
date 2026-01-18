@@ -43,6 +43,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
+  // CRITICAL FIX (2026-01-18): Allow ALL /api/* routes to pass through BEFORE AI_ONLY_MODE check
+  // This ensures API routes always work regardless of AI_ONLY_MODE setting
+  // Prevents 307 redirects that cause "Unexpected token '<'" JSON parsing errors
+  // API routes must return JSON, not HTML redirects
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+  
   // AI-Only Mode: Redirect non-allowed routes to AI section
   if (AI_ONLY_MODE && !isAllowedRoute(pathname)) {
     // Redirect root to AI section
