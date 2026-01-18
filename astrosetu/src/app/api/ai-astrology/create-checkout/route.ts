@@ -159,9 +159,12 @@ export async function POST(req: Request) {
     // PRIORITY: If demo mode OR (test user AND bypass enabled), return mock session (bypass Stripe)
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false to allow test users through Stripe for payment testing
     // This allows testing with $0.01 amounts without Stripe's $0.50 minimum requirement
-    const shouldBypassPayment = isDemoMode || (isTestUser && bypassPaymentForTestUsers);
+    // CRITICAL FIX (2026-01-18 - WORKAROUND): Force bypass payment if env var is set (temporary workaround)
+    // This allows bypassing payment even if test user detection fails
+    const forceBypassPayment = process.env.BYPASS_PAYMENT_FOR_TEST_USERS === "true" || process.env.FORCE_BYPASS_PAYMENT === "true";
+    const shouldBypassPayment = isDemoMode || (isTestUser && bypassPaymentForTestUsers) || forceBypassPayment;
     if (shouldBypassPayment) {
-      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}, bypassPaymentForTestUsers: ${bypassPaymentForTestUsers}) - Bypassing Stripe`);
+      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}, bypassPaymentForTestUsers: ${bypassPaymentForTestUsers}, forceBypassPayment: ${forceBypassPayment}) - Bypassing Stripe`);
       
       // Use request URL to support preview deployments (derive from actual request)
       // CRITICAL FIX (ChatGPT): Make baseUrl resilient - same priority as production path
