@@ -3839,6 +3839,13 @@ function PreviewContent() {
       return null; // Unified loading screen will handle this (lines 1858+)
     }
     
+    // CRITICAL FIX (2026-01-18): If hasInput is true but reportContent is not ready yet,
+    // proceed to report generation flow (unified loading screen) instead of showing "Enter Your Birth Details"
+    // This fixes the issue where input is loaded but UI still shows "Enter Your Birth Details"
+    if (hasInput && !reportContent) {
+      return null; // Unified loading screen will handle report generation (lines 1858+)
+    }
+    
     // CRITICAL FIX (ChatGPT): Only show "Redirecting..." UI when redirect was actually initiated
     // If redirectInitiatedRef is true, we've called router.push/replace, so show redirecting UI
     // Otherwise, if no input/token, the useEffect above will trigger redirect (don't show UI prematurely)
@@ -3862,9 +3869,13 @@ function PreviewContent() {
     // The useEffect above (lines 1426-1498) will handle redirect when needed
     // This prevents "Redirecting..." dead-state when reportType is in URL but redirect hasn't been initiated
     
-    // If we reach here, we have no input and redirect hasn't been initiated yet
-    // Show a simple "Enter your details" card instead of "Redirecting..." dead-state
-    return (
+    // CRITICAL FIX (2026-01-18): Only show "Enter Your Birth Details" if we truly have no input
+    // If hasInput is true (via state or ref), we should have already returned above
+    // This prevents showing "Enter Your Birth Details" when input is loaded but reportContent is not ready yet
+    if (!hasInput) {
+      // If we reach here, we have no input and redirect hasn't been initiated yet
+      // Show a simple "Enter your details" card instead of "Redirecting..." dead-state
+      return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
         <Card className="max-w-2xl w-full mx-4">
           <CardContent className="p-12 text-center">
@@ -3895,7 +3906,11 @@ function PreviewContent() {
           </CardContent>
         </Card>
       </div>
-    );
+      );
+    }
+    
+    // Fallback: should not reach here if logic is correct, but if we do, show report generation UI
+    return null; // Unified loading screen will handle this (lines 1858+)
   }
 
   // Extract report content rendering into a reusable function
