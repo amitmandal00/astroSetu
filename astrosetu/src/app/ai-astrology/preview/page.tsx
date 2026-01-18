@@ -2525,6 +2525,36 @@ function PreviewContent() {
       
       // CHATGPT FIX: Sync report content from generation controller (single source of truth)
       if (generationController.reportContent && !reportContent) {
+        // CRITICAL FIX (2026-01-18 - ChatGPT Task 1): Non-empty content guard
+        // Check if report has valid sections before setting reportContent
+        // Prevents blank screen when API returns empty or invalid report
+        const content = generationController.reportContent;
+        const sections = content?.sections || [];
+        const validSections = sections.filter((s) => s && s.title);
+        
+        if (validSections.length === 0) {
+          // Report generated empty - treat as error
+          console.warn("[PREVIEW] Report generated empty - no valid sections", {
+            reportType: reportType,
+            sectionsCount: sections.length,
+            hasContent: !!content,
+            hasTitle: !!content?.title,
+            attemptId: generationController.activeAttemptId,
+          });
+          
+          const emptyReportError = "Report generated empty. Please retry.";
+          setError(emptyReportError);
+          setLoading(false);
+          setLoadingStage(null);
+          loadingStartTimeRef.current = null;
+          setLoadingStartTime(null);
+          activeAttemptKeyRef.current = null;
+          
+          // Don't set reportContent - keep it null so error UI shows
+          return; // Exit early, don't set empty report content
+        }
+        
+        // Report has valid sections - proceed normally
         setReportContent(generationController.reportContent);
         setContentLoadTime(Date.now());
         // CRITICAL FIX (ChatGPT Feedback): When report content arrives, stop loading and timer
@@ -2537,8 +2567,22 @@ function PreviewContent() {
       }
       
       // CHATGPT FIX: Sync error from generation controller
+      // CRITICAL FIX (2026-01-18 - ChatGPT Task 1): Enhanced error logging with requestId/attemptId
       if (generationController.error && !error) {
-        setError(generationController.error);
+        const errorMessage = generationController.error;
+        const attemptIdSuffix = generationController.activeAttemptId 
+          ? generationController.activeAttemptId.split('-').slice(-2).join('-')
+          : 'none';
+        
+        // Log error with context for production debugging
+        console.warn("[PREVIEW] Generation error synced from controller", {
+          error: errorMessage.substring(0, 100),
+          reportType,
+          attemptId: attemptIdSuffix,
+          status: generationController.status,
+        });
+        
+        setError(errorMessage);
         // CRITICAL FIX (ChatGPT Feedback): On error, stop loading and timer
         // Don't check isProcessingUIRef - clear timer immediately on error
         if (generationController.status === 'failed' || generationController.status === 'timeout') {
@@ -3871,8 +3915,23 @@ function PreviewContent() {
     }
     
     // CRITICAL FIX (2026-01-18): Show error state if error is set (e.g., expired token)
-    // This prevents showing "Enter Your Birth Details" when token is invalid
+    // CRITICAL FIX (2026-01-18 - ChatGPT Task 1): Enhanced error UI with requestId/attemptId for debugging
+    // This prevents showing "Enter Your Birth Details" when token is invalid or generation fails
     if (error) {
+      // Extract attemptId from generation controller for debugging
+      const attemptIdSuffix = generationController.activeAttemptId 
+        ? generationController.activeAttemptId.split('-').slice(-2).join('-')
+        : null;
+      
+      // Log error with context for production debugging (ChatGPT Task 1)
+      console.warn("[PREVIEW] Error state displayed", {
+        error: error.substring(0, 100),
+        reportType,
+        attemptId: attemptIdSuffix,
+        hasInput: !!input,
+        status: generationController.status,
+      });
+      
       return (
         <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-2xl w-full mx-4">
@@ -3880,6 +3939,11 @@ function PreviewContent() {
               <div className="text-6xl mb-6">⚠️</div>
               <h2 className="text-2xl font-bold mb-4 text-red-600">Error</h2>
               <p className="text-slate-600 mb-6">{error}</p>
+              {attemptIdSuffix && (
+                <p className="text-xs text-slate-400 mb-4">
+                  Reference: {attemptIdSuffix}
+                </p>
+              )}
               <Button
                 onClick={() => {
                   const urlReportType = searchParams.get("reportType");
@@ -3892,7 +3956,7 @@ function PreviewContent() {
                 }}
                 className="cosmic-button"
               >
-                Start Again →
+                Start New Report →
               </Button>
             </CardContent>
           </Card>

@@ -503,11 +503,24 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     sections.push(currentSection);
   }
   
-  // If no sections were parsed, create a simple content structure
-  if (sections.length === 0) {
+  // CRITICAL FIX (2026-01-18 - ChatGPT Task 2): Fallback for empty/invalid AI response
+  // If no sections were parsed or response is empty, create minimal report with 2-3 sections
+  // This prevents blank screen when AI parsing fails completely
+  if (sections.length === 0 || !response || response.trim().length === 0) {
+    console.warn("[parseAIResponse] No sections parsed or empty response - creating fallback report", {
+      reportType,
+      responseLength: response?.length || 0,
+      sectionsBeforeFallback: sections.length,
+    });
+    
+    // Create minimal fallback report with 2-3 sections
     sections.push({
-      title: "Report",
-      content: response,
+      title: "Overview",
+      content: "We're preparing your personalized insights. This is a simplified view of your report.",
+    });
+    sections.push({
+      title: "Next Steps",
+      content: "For a complete analysis with detailed timing windows and guidance, please try generating the report again. Our system uses AI and astrological calculations to provide comprehensive insights.",
     });
   }
   
