@@ -1322,7 +1322,13 @@ function PreviewContent() {
           }
           
           console.log("[Preview] Loaded input from input_token:", inputToken);
-          setTokenLoading(false);
+          // CRITICAL FIX (2026-01-18): Use setTimeout to delay setTokenLoading(false) 
+          // This ensures React has time to flush the setInput state update before tokenLoading becomes false
+          // This prevents the redirect check from running before input state is actually set
+          // Use requestAnimationFrame to ensure state update is flushed before tokenLoading changes
+          requestAnimationFrame(() => {
+            setTokenLoading(false);
+          });
         } else {
           // Token invalid/expired
           console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);

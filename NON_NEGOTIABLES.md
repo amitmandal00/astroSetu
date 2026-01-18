@@ -8,6 +8,7 @@
 - **CRITICAL (ChatGPT Feedback - Minimize Interruptions)**: Prefer **1 file at a time** to minimize "Confirm edit" prompts.
 - **No refactors while fixing bugs**: Fix the bug with minimal surface area.
 - **Always green before next change**: Must pass `npm run ci:critical` after every change set.
+- **CRITICAL (2026-01-18)**: **ALWAYS get user approval before git push**. Commits are fine, but NEVER push without explicit user approval. Show what will be pushed and wait for confirmation.
 
 ## AstroSetu product invariants
 - **Future-only timing**: reports must never present timing windows/years in the past (for 20xx years).

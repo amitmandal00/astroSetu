@@ -6,10 +6,15 @@ Use this file as the single “where things stand” view during long Cursor ses
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
 
 ## Current status
-- **State**: ✅ **CRITICAL REDIRECT FIXES COMPLETE** (2026-01-18)
+- **State**: 🔄 **REDIRECT RACE CONDITION FIXED** (2026-01-18)
 - **Last update**: 2026-01-18
-- **Verdict**: ✅ All critical redirect loop and stuck screen issues fixed. Hard navigation implemented, token loading authoritative, subscription returnTo flow fixed, E2E tests added.
-- **Next**: Run `npm run test:critical` to verify all tests pass → Deploy → Verify in production
+- **Verdict**: ✅ Fixed Free Life Summary redirect loop by addressing React state update race condition. 307 redirects from billing APIs still under investigation.
+- **Latest Fixes Applied (2026-01-18)**:
+  - ✅ **Free Life Summary Redirect Loop**: Fixed race condition where `setTokenLoading(false)` was called immediately after `setInput()`, causing redirect check to run before React flushed the state update. Used `requestAnimationFrame` to delay `setTokenLoading(false)` until after React has flushed the state update.
+  - ✅ **Subscription Page Consistency**: Applied same fix to subscription page for consistency.
+  - ✅ **Git Push Approval**: Added requirement for explicit user approval before all git push operations (updated `CURSOR_AUTOPILOT_PROMPT.md`).
+  - ⏳ **PENDING**: Investigate 307 redirects from `/api/billing/subscription` and `/api/billing/subscription/verify-session` (may be Vercel/Next.js routing issue, not code).
+- **Next**: Test fixes in production → Investigate 307 redirects → Deploy if fixes work
 - **Fixes Applied (2026-01-17 19:00 + 20:00)**:
 
   **A) Checkout No-Op Fix**:

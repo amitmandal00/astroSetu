@@ -19,7 +19,8 @@ Work in **Autopilot (safe, non-blocking)** mode:
   - Write summary to `CURSOR_ACTIONS_REQUIRED.md` including: file name, change intent, why it is safe.
   - Wait for a single "Accept", then continue automatically with the next steps.
 - If an approval/popup appears (including "Allow popups safely"): **skip that action**, log it in `CURSOR_ACTIONS_REQUIRED.md`, update `CURSOR_PROGRESS.md`, and continue with the next safe task.
-- Always ask before terminal commands, installs, deletes, network/external APIs, **git push** (commits are fine, but always get approval before push).
+- **CRITICAL (2026-01-18)**: **ALWAYS get user approval before git push**. Commits are fine, but NEVER push without explicit user approval. Show what will be pushed and wait for confirmation.
+- Always ask before terminal commands, installs, deletes, network/external APIs.
 - **Run checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` (if available).
 
 ## Stabilization Mode (ChatGPT Feedback - CRITICAL)

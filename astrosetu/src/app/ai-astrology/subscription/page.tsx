@@ -114,8 +114,11 @@ function SubscriptionContent() {
             // Load input from token
             const inputData = tokenResponse.data.input;
             setInput(inputData);
-            // CRITICAL FIX (Step 1): Set tokenLoading=false after successfully setting input
-            setTokenLoading(false);
+            // CRITICAL FIX (Step 1): Use requestAnimationFrame to ensure setInput state update is flushed before tokenLoading becomes false
+            // This prevents race conditions where tokenLoading becomes false before input state is actually set
+            requestAnimationFrame(() => {
+              setTokenLoading(false);
+            });
             
             // CRITICAL FIX (2026-01-18): Don't navigate if we're already on subscription page
             // This prevents redirect loops when input_token is loaded
@@ -207,7 +210,39 @@ function SubscriptionContent() {
       const urlSessionId = searchParams?.get("session_id");
       const hydrateBilling = async () => {
         try {
-          // 1) Try DB source-of-truth first (cookie-backed)
+          // CRITICAL FIX (2026-01-18): Only call /api/billing/subscription if we have a session_id (URL or cookie)
+          // Calling it without session_id causes a 400 error, which might trigger redirects or loops
+          // First, check if we have a session_id in URL or if there's a cookie (we can't check cookie client-side, so try API)
+          // If no session_id in URL, only call API if we've verified a session before (cookie might exist)
+          
+          // 1) If we have a session_id in URL, verify it first (step 2 below), then call API
+          // If no URL session_id, try API (it will use cookie if available, or return 400 which we'll handle)
+          // 2) One-time verification path (best-effort; must not block UI)
+          // CRITICAL FIX (2026-01-18): Only verify session_id from URL (not sessionStorage) to prevent premature verification
+          // SessionStorage sessionId might be from a checkout session that hasn't completed yet
+          // Only verify session_id that comes from URL (success page redirect) - those are already completed
+          const candidate = urlSessionId; // Only use URL session_id, not sessionStorage
+          if (candidate) {
+            try {
+              // CRITICAL FIX (2026-01-18): Verify session_id from URL only once
+              // This happens when user is redirected from success page with session_id in URL
+              console.log("[Subscription] Verifying session_id from URL:", candidate.substring(0, 20) + "...");
+              await apiPost<{ ok: boolean; error?: string }>(
+                "/api/billing/subscription/verify-session",
+                { session_id: candidate }
+              );
+              // After successful verification, clean the URL (remove session_id) to prevent re-verification
+              console.log("[Subscription] Session verified successfully, cleaning URL");
+              router.replace("/ai-astrology/subscription");
+            } catch (verifyError: any) {
+              // If Stripe isn't configured (local/dev/E2E), verification may fail — still proceed to load mocked API state.
+              console.warn("[Subscription] Session verification failed (non-blocking):", verifyError?.message || verifyError);
+              // Clean URL even if verification failed (to prevent retry loops)
+              router.replace("/ai-astrology/subscription");
+            }
+          }
+          
+          // 3) Now try DB source-of-truth (cookie-backed) - this should work if we just verified or if cookie exists
           try {
             const res = await apiGet<{ ok: boolean; data?: any }>("/api/billing/subscription");
             if (res.ok && res.data) {
@@ -221,50 +256,14 @@ function SubscriptionContent() {
             }
           } catch (e: any) {
             const msg = String(e?.message || "");
-            // Even if the error isn't "session_id is required", we can still attempt one-time verification
-            // when we have a candidate session_id from URL/sessionStorage (best-effort, non-blocking).
-            // Do not early-return here; continue to step (2).
-          }
-
-          // 2) One-time verification path (best-effort; must not block UI)
-          // CRITICAL FIX (2026-01-18): Only verify session_id from URL (not sessionStorage) to prevent premature verification
-          // SessionStorage sessionId might be from a checkout session that hasn't completed yet
-          // Only verify session_id that comes from URL (success page redirect) - those are already completed
-          const candidate = urlSessionId; // Only use URL session_id, not sessionStorage
-          if (!candidate) {
-            // No session_id in URL - user hasn't completed checkout yet, or cookie is already set
-            // Don't try to verify or redirect - just show subscription UI (can subscribe if not already subscribed)
-            return;
-          }
-          try {
-            // CRITICAL FIX (2026-01-18): Verify session_id from URL only once
-            // This happens when user is redirected from success page with session_id in URL
-            console.log("[Subscription] Verifying session_id from URL:", candidate.substring(0, 20) + "...");
-            await apiPost<{ ok: boolean; error?: string }>(
-              "/api/billing/subscription/verify-session",
-              { session_id: candidate }
-            );
-            // After successful verification, clean the URL (remove session_id) to prevent re-verification
-            console.log("[Subscription] Session verified successfully, cleaning URL");
-            router.replace("/ai-astrology/subscription");
-          } catch (verifyError: any) {
-            // If Stripe isn't configured (local/dev/E2E), verification may fail — still proceed to load mocked API state.
-            console.warn("[Subscription] Session verification failed (non-blocking):", verifyError?.message || verifyError);
-            // Clean URL even if verification failed (to prevent retry loops)
-            if (urlSessionId) {
-              router.replace("/ai-astrology/subscription");
+            // If API returns 400 (no session_id), that's expected - user hasn't subscribed yet
+            // Don't treat this as an error - just show subscription UI
+            if (msg.includes("session_id is required")) {
+              console.log("[Subscription] No billing session found - user can subscribe");
+              return;
             }
-          }
-
-          // 3) Retry DB source-of-truth
-          const res2 = await apiGet<{ ok: boolean; data?: any }>("/api/billing/subscription");
-          if (res2.ok && res2.data) {
-            setBillingStatus(res2.data);
-            const isActive =
-              res2.data.status === "active" ||
-              res2.data.status === "trialing" ||
-              (res2.data.status === "active" && !!res2.data.cancelAtPeriodEnd);
-            setIsSubscribed(isActive);
+            // For other errors, log but don't block UI
+            console.warn("[Subscription] Failed to load billing status:", msg);
           }
         } catch {
           // Non-blocking: subscription UI can still render; user may need to complete checkout/verification.

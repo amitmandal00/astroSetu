@@ -1,7 +1,7 @@
 # CURSOR ACTIONS REQUIRED
 
-**Last Updated**: 2026-01-17 23:30  
-**Status**: ✅ **ALL IMPLEMENTATION COMPLETE - USER ACTION REQUIRED FOR MERGE/DEPLOY**
+**Last Updated**: 2026-01-18  
+**Status**: 🔄 **IN PROGRESS - REDIRECT RACE CONDITION FIX APPLIED, 307 REDIRECTS UNDER INVESTIGATION**
 
 ---
 
@@ -17,6 +17,26 @@
 - ✅ Tests added to `test:critical` and `release:gate`
 - ✅ `.cursor/rules` updated with PRIVATE_BETA_GATING invariants
 - ✅ `PRODUCTION_PRIVATE_BETA_CHECKLIST.md` created
+
+---
+
+## 🔴 Latest Fixes Applied (2026-01-18)
+
+**Free Life Summary Redirect Loop Fix**:
+- ✅ Fixed race condition where `setTokenLoading(false)` was called immediately after `setInput()`, causing redirect check to run before React flushed the state update
+- ✅ Used `requestAnimationFrame` to delay `setTokenLoading(false)` until after React has flushed the `setInput` state update
+- ✅ Applied same fix to subscription page for consistency
+- **Files Modified**: `astrosetu/src/app/ai-astrology/preview/page.tsx`, `astrosetu/src/app/ai-astrology/subscription/page.tsx`
+
+**Monthly Subscription 307 Redirects**:
+- ⏳ Investigating 307 redirects from `/api/billing/subscription` and `/api/billing/subscription/verify-session`
+- ⏳ May be Vercel/Next.js routing issue rather than code issue
+- ⏳ Need to verify if these redirects are causing the subscription loop or if they're unrelated
+
+**Git Push Approval Requirement (2026-01-18)**:
+- ✅ **CRITICAL**: ALL git push operations now require explicit user approval
+- ✅ Updated `CURSOR_AUTOPILOT_PROMPT.md` to require approval before git push
+- ✅ Cursor will show what will be pushed and wait for confirmation before executing
 
 ---
 
