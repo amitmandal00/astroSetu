@@ -151,6 +151,7 @@ function PreviewContent() {
   const isSubmittingRef = useRef(false); // CRITICAL FIX (ChatGPT): Single-flight guard for purchase/subscribe handlers
   const redirectInitiatedRef = useRef(false); // CRITICAL FIX (ChatGPT): Track if redirect has been initiated to prevent watchdog false-fires
   const redirectWatchdogTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track watchdog timeout for cleanup
+  const inputTokenLoadedRef = useRef(false); // CRITICAL FIX (2026-01-18): Track if input was successfully loaded from token to prevent race condition
   
   // Cleanup on unmount
   useEffect(() => {
@@ -1263,6 +1264,9 @@ function PreviewContent() {
     const tokenSuffix = inputToken.slice(-6);
     console.info("[TOKEN_GET] start", `...${tokenSuffix}`);
     
+    // CRITICAL FIX (2026-01-18): Reset ref when starting new token fetch
+    inputTokenLoadedRef.current = false;
+    
     (async () => {
       try {
         const tokenResponse = await apiGet<{
@@ -1294,6 +1298,11 @@ function PreviewContent() {
         if (tokenResponse.ok && tokenResponse.data && tokenResponse.data.input) {
           // Load input from token
           const inputData = tokenResponse.data.input;
+          
+          // CRITICAL FIX (2026-01-18): Set ref BEFORE React state to prevent race condition
+          // The ref is checked synchronously in the redirect logic, while React state is asynchronous
+          inputTokenLoadedRef.current = true;
+          
           setInput(inputData);
           if (tokenResponse.data.reportType) {
             setReportType(tokenResponse.data.reportType as ReportType);
@@ -1305,7 +1314,7 @@ function PreviewContent() {
             setBundleReports(tokenResponse.data.bundleReports as ReportType[]);
           }
           
-          // Cache in sessionStorage for future use
+          // Cache in sessionStorage for future use (synchronous - happens immediately)
           try {
             sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
             if (tokenResponse.data.reportType) {
@@ -1322,16 +1331,13 @@ function PreviewContent() {
           }
           
           console.log("[Preview] Loaded input from input_token:", inputToken);
-          // CRITICAL FIX (2026-01-18): Use setTimeout to delay setTokenLoading(false) 
-          // This ensures React has time to flush the setInput state update before tokenLoading becomes false
-          // This prevents the redirect check from running before input state is actually set
-          // Use requestAnimationFrame to ensure state update is flushed before tokenLoading changes
-          requestAnimationFrame(() => {
-            setTokenLoading(false);
-          });
+          // CRITICAL FIX (2026-01-18): Set tokenLoading=false immediately now that ref is set
+          // The redirect check uses inputTokenLoadedRef.current to know input was loaded, not just input state
+          setTokenLoading(false);
         } else {
           // Token invalid/expired
           console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
+          inputTokenLoadedRef.current = false; // Reset ref - token was not loaded
           setError("Your session has expired. Please start again.");
           setLoading(false);
           setTokenLoading(false);
@@ -1341,6 +1347,7 @@ function PreviewContent() {
         // CRITICAL FIX (2026-01-18): When apiGet throws (404/410/network error), handle it explicitly
         // Don't redirect immediately - show error state so user can retry
         console.error("[Preview] Failed to fetch input_token:", tokenError);
+        inputTokenLoadedRef.current = false; // Reset ref - token fetch failed
         const errorMessage = tokenError?.message || "Failed to load your birth details. Please try again.";
         setError(errorMessage);
         setLoading(false);
@@ -1367,6 +1374,13 @@ function PreviewContent() {
         console.log("[Preview] Token in URL, waiting for token loading to complete...");
         return; // Wait for token loading
       }
+      // CRITICAL FIX (2026-01-18): Check ref first (synchronous) before React state (asynchronous)
+      // inputTokenLoadedRef is set synchronously when token is loaded, preventing race conditions
+      if (inputTokenLoadedRef.current) {
+        // Input was successfully loaded from token - don't redirect
+        console.log("[Preview] Input loaded from token (ref check) - not redirecting");
+        return;
+      }
       // CRITICAL: Token loading completed but no input - token might be invalid
       // Don't redirect immediately - let error state show "Start again" button
       // If token fetch failed, error state is already set, so don't redirect
@@ -1377,12 +1391,12 @@ function PreviewContent() {
           console.log("[Preview] Error state is set, not redirecting - error UI will show");
           return;
         }
-        // If there's no error, the token might have been successfully loaded but setInput hasn't completed yet
-        // Check sessionStorage before giving up
+        // If there's no error and ref is not set, check sessionStorage as fallback
         const savedInput = sessionStorage.getItem("aiAstrologyInput");
         if (savedInput) {
           try {
             const inputData = JSON.parse(savedInput);
+            inputTokenLoadedRef.current = true; // Mark as loaded to prevent future redirects
             setInput(inputData);
             console.log("[Preview] Loaded input from sessionStorage (token in URL but setInput race condition)");
             return; // Don't redirect if we loaded from sessionStorage

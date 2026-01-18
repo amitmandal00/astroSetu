@@ -11,6 +11,10 @@ import {
 } from "@/lib/billing/subscriptionStore";
 import { getBillingSessionIdFromRequest } from "@/lib/billing/sessionCookie";
 
+// CRITICAL FIX (2026-01-18): Force dynamic rendering to prevent caching and ensure proper route handling
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * GET /api/billing/subscription?session_id=cs_xxx
  *
@@ -119,7 +123,13 @@ export async function GET(req: Request) {
       { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
     );
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Failed to load subscription", requestId }, { status: 400 });
+    // CRITICAL FIX (2026-01-18): Ensure all errors return JSON responses, not redirects
+    // Log error for debugging but return JSON to prevent Next.js from redirecting to error page
+    console.error("[billing] /api/billing/subscription error:", e?.message || e);
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Failed to load subscription", requestId },
+      { status: 400, headers: { "X-Request-ID": requestId } }
+    );
   }
 }
 

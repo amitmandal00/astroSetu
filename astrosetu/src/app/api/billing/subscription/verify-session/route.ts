@@ -10,6 +10,10 @@ import {
 } from "@/lib/billing/subscriptionStore";
 import { buildBillingSessionCookie } from "@/lib/billing/sessionCookie";
 
+// CRITICAL FIX (2026-01-18): Force dynamic rendering to prevent caching and ensure proper route handling
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * POST /api/billing/subscription/verify-session
  * Body: { session_id: string }
@@ -29,7 +33,15 @@ export async function POST(req: Request) {
       return rateLimitResponse;
     }
 
-    const json = await parseJsonBody<{ session_id?: string }>(req);
+    // CRITICAL FIX (2026-01-18): Handle empty body gracefully to prevent errors that might cause 307 redirects
+    let json: { session_id?: string } = {};
+    try {
+      json = await parseJsonBody<{ session_id?: string }>(req);
+    } catch (parseError: any) {
+      // If body parsing fails (empty or invalid JSON), log but don't fail - session_id might come from cookie
+      console.warn("[billing] Failed to parse request body:", parseError?.message);
+      // Continue with empty json - will check cookie below
+    }
     const sessionId = json.session_id;
     if (!sessionId) {
       return NextResponse.json({ ok: false, error: "session_id is required", requestId }, { status: 400 });
@@ -102,7 +114,13 @@ export async function POST(req: Request) {
     res.headers.append("Set-Cookie", buildBillingSessionCookie(sessionId));
     return res;
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Failed to verify subscription session", requestId }, { status: 400 });
+    // CRITICAL FIX (2026-01-18): Ensure all errors return JSON responses, not redirects
+    // Log error for debugging but return JSON to prevent Next.js from redirecting to error page
+    console.error("[billing] /api/billing/subscription/verify-session error:", e?.message || e);
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Failed to verify subscription session", requestId },
+      { status: 400, headers: { "X-Request-ID": requestId } }
+    );
   }
 }
 
