@@ -3,90 +3,7 @@ import { checkRateLimit, handleApiError, parseJsonBody } from "@/lib/apiHelpers"
 import { generateRequestId } from "@/lib/requestId";
 import { REPORT_PRICES, SUBSCRIPTION_PRICE, isStripeConfigured } from "@/lib/ai-astrology/payments";
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
-
-/**
- * Check if the user is a production test user
- * Test users: Amit Kumar Mandal and Ankita Surabhi
- * SIMPLIFIED: Ultra-lenient matching - name match only (same as generate-report endpoint)
- */
-function checkIfTestUser(input?: any): boolean {
-  if (!input || !input.name) {
-    return false;
-  }
-  
-  // SIMPLIFIED: Ultra-lenient matching - name match is primary, other fields are optional
-  // This ensures test users (Amit & Ankita) always work even if data format varies
-  const testUserNames = ["amit kumar mandal", "ankita surabhi"];
-  
-  // Normalize input name: lowercase, trim, normalize spaces
-  const inputName = input.name.toLowerCase().trim().replace(/\s+/g, " ");
-  
-  // Check if name contains any test user name (very flexible)
-  const isTestUserName = testUserNames.some(testName => {
-    const testNameLower = testName.toLowerCase().trim();
-    
-    // Normalize both for comparison
-    const normalizedTest = testNameLower.replace(/\s+/g, " ");
-    const normalizedInput = inputName.replace(/\s+/g, " ");
-    
-    // Exact match after normalization
-    if (normalizedInput === normalizedTest) {
-      return true;
-    }
-    
-    // Contains match (either direction)
-    if (normalizedInput.includes(normalizedTest) || normalizedTest.includes(normalizedInput)) {
-      return true;
-    }
-    
-    // Check if first name matches (e.g., "amit" matches "Amit Kumar Mandal")
-    const testFirstName = normalizedTest.split(" ")[0];
-    const inputFirstWord = normalizedInput.split(" ")[0];
-    if (testFirstName === inputFirstWord && testFirstName.length >= 3) {
-      return true;
-    }
-    
-    // Check if all words from test name are present in input (flexible order)
-    const testWords = normalizedTest.split(/\s+/).filter((w: string) => w.length > 1);
-    const inputWords = normalizedInput.split(/\s+/).filter((w: string) => w.length > 1);
-    const allTestWordsPresent = testWords.every((testWord: string) => 
-      inputWords.some((inputWord: string) => inputWord === testWord || inputWord.includes(testWord) || testWord.includes(inputWord))
-    );
-    
-    return allTestWordsPresent && testWords.length > 0;
-  });
-  
-  if (!isTestUserName) {
-    // Log why it didn't match for debugging
-    console.log(`[TEST USER CHECK FAILED - CHECKOUT]`, JSON.stringify({
-      inputName: input.name,
-      normalizedInput: inputName,
-      testUserNames,
-      reason: "Name did not match any test user pattern"
-    }, null, 2));
-    return false;
-  }
-  
-  // If name matches, log and return true (other fields are optional for flexibility)
-  const matchedName = testUserNames.find(testName => {
-    const testNameLower = testName.toLowerCase().trim();
-    const normalizedTest = testNameLower.replace(/\s+/g, " ");
-    const normalizedInput = inputName.replace(/\s+/g, " ");
-    return normalizedInput === normalizedTest || 
-           normalizedInput.includes(normalizedTest) || 
-           normalizedTest.includes(normalizedInput);
-  });
-  
-  console.log(`[TEST USER - CHECKOUT] Production test user detected: ${matchedName || input.name}`, JSON.stringify({
-    inputName: input.name,
-    normalizedInput: inputName,
-    matchedTestUser: matchedName,
-    matchingStrategy: "NAME_ONLY_FLEXIBLE",
-    detected: true,
-  }, null, 2));
-  
-  return true;
-}
+import { isProdTestUser } from "@/lib/prodAllowlist";
 
 /**
  * POST /api/ai-astrology/create-checkout
@@ -147,8 +64,9 @@ export async function POST(req: Request) {
     // Check for demo mode or test user (for logging only)
     // NOTE: Test users bypass payment by default to avoid payment verification errors
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false to force test users through Stripe for payment testing
+    // CRITICAL FIX (2026-01-18 - ChatGPT Task 3): Use centralized allowlist function
     isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
-    isTestUser = checkIfTestUser(input);
+    isTestUser = isProdTestUser(input);
     const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
     // CRITICAL: Default to true (bypass payment) for test users to avoid payment verification errors
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
@@ -161,8 +79,8 @@ export async function POST(req: Request) {
     
     // CRITICAL: Test users ALWAYS bypass access restriction
     // Check test user status here to ensure test users can create checkout sessions
-    // IMPORTANT: Use the same checkIfTestUser function to ensure consistency
-    const isTestUserForAccess = checkIfTestUser(input);
+    // CRITICAL FIX (2026-01-18 - ChatGPT Task 3): Use centralized allowlist function
+    const isTestUserForAccess = isProdTestUser(input);
     
     if (restrictAccess && input && !isTestUserForAccess) {
       // Only check isAllowedUser if NOT a test user

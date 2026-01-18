@@ -24,6 +24,7 @@ import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
 import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
+import { isProdTestUser } from "@/lib/prodAllowlist";
 import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing, getCachedReportByReportId } from "@/lib/ai-astrology/reportCache";
 import { generateSessionKey } from "@/lib/ai-astrology/openAICallTracker";
 import { ensureFutureWindows } from "@/lib/ai-astrology/ensureFutureWindows";
@@ -298,91 +299,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/**
- * Check if the user is a production test user
- * Test users: Amit Kumar Mandal and Ankita Surabhi
- */
-function checkIfTestUser(input: AIAstrologyInput): boolean {
-  // SIMPLIFIED: Ultra-lenient matching - name match is primary, other fields are optional
-  // This ensures test users (Amit & Ankita) always work even if data format varies
-  const testUserNames = ["amit kumar mandal", "ankita surabhi"];
-  
-  if (!input.name) {
-    return false;
-  }
-  
-  // Normalize input name: lowercase, trim, normalize spaces
-  const inputName = input.name.toLowerCase().trim().replace(/\s+/g, " ");
-  
-  // Check if name contains any test user name (very flexible)
-  const isTestUserName = testUserNames.some(testName => {
-    const testNameLower = testName.toLowerCase().trim();
-    
-    // Normalize both for comparison
-    const normalizedTest = testNameLower.replace(/\s+/g, " ");
-    const normalizedInput = inputName.replace(/\s+/g, " ");
-    
-    // Exact match after normalization
-    if (normalizedInput === normalizedTest) {
-      return true;
-    }
-    
-    // Contains match (either direction)
-    if (normalizedInput.includes(normalizedTest) || normalizedTest.includes(normalizedInput)) {
-      return true;
-    }
-    
-    // Check if first name matches (e.g., "amit" matches "Amit Kumar Mandal")
-    const testFirstName = normalizedTest.split(" ")[0];
-    const inputFirstWord = normalizedInput.split(" ")[0];
-    if (testFirstName === inputFirstWord && testFirstName.length >= 3) {
-      return true;
-    }
-    
-    // Check if all words from test name are present in input (flexible order)
-    const testWords = normalizedTest.split(/\s+/).filter(w => w.length > 1);
-    const inputWords = normalizedInput.split(/\s+/).filter(w => w.length > 1);
-    const allTestWordsPresent = testWords.every(testWord => 
-      inputWords.some(inputWord => inputWord === testWord || inputWord.includes(testWord) || testWord.includes(inputWord))
-    );
-    
-    return allTestWordsPresent && testWords.length > 0;
-  });
-  
-  if (!isTestUserName) {
-    // Log why it didn't match for debugging
-    console.log(`[TEST USER CHECK FAILED]`, JSON.stringify({
-      inputName: input.name,
-      normalizedInput: inputName,
-      testUserNames,
-      reason: "Name did not match any test user pattern"
-    }, null, 2));
-    return false;
-  }
-  
-  // If name matches, log and return true (other fields are optional for flexibility)
-  const matchedName = testUserNames.find(testName => {
-    const testNameLower = testName.toLowerCase().trim();
-    const normalizedTest = testNameLower.replace(/\s+/g, " ");
-    const normalizedInput = inputName.replace(/\s+/g, " ");
-    return normalizedInput === normalizedTest || 
-           normalizedInput.includes(normalizedTest) || 
-           normalizedTest.includes(normalizedInput);
-  });
-  
-  console.log(`[TEST USER] Production test user detected: ${matchedName || input.name}`, JSON.stringify({
-    inputName: input.name,
-    normalizedInput: inputName,
-    matchedTestUser: matchedName,
-    inputDOB: input.dob,
-    inputPlace: input.place,
-    inputTob: input.tob,
-    matchingStrategy: "NAME_ONLY_FLEXIBLE",
-    detected: true,
-  }, null, 2));
-  
-  return true;
-}
+// CRITICAL FIX (2026-01-18 - ChatGPT Task 3): Use centralized allowlist function
+// Removed checkIfTestUser - use isProdTestUser from @/lib/prodAllowlist instead
 
 /**
  * POST /api/ai-astrology/generate-report
@@ -467,9 +385,10 @@ export async function POST(req: Request) {
     // Check for demo mode and test user (needed for payment cancellation checks)
     // NOTE: Test users bypass payment by default to avoid payment verification errors
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
+    // CRITICAL FIX (2026-01-18 - ChatGPT Task 3): Use centralized allowlist function
     const isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
     // SINGLE CHECK: Use one test user check for both payment bypass and access restriction
-    const isTestUser = checkIfTestUser(input);
+    const isTestUser = isProdTestUser(input);
     // CRITICAL: Default to true (bypass payment) for test users to avoid payment verification errors
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
     const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS !== "false";
@@ -564,9 +483,10 @@ export async function POST(req: Request) {
     const restrictAccess = process.env.NEXT_PUBLIC_RESTRICT_ACCESS === "true";
     
     // CRITICAL: Test users ALWAYS bypass access restriction (use same check as payment bypass)
+    // CRITICAL FIX (2026-01-18 - ChatGPT Task 3): Use centralized allowlist function
     // IMPORTANT: Re-check test user here to ensure we catch it (double-check for safety)
     // This ensures test users are NEVER blocked by access restriction
-    const isTestUserForAccess = checkIfTestUser(input);
+    const isTestUserForAccess = isProdTestUser(input);
     
     if (restrictAccess && !isTestUserForAccess) {
       // Only check isAllowedUser if NOT a test user
