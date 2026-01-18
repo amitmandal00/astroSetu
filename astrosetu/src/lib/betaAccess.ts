@@ -153,7 +153,10 @@ export function normalizeGender(gender: string): "Male" | "Female" | null {
 
 /**
  * Check if normalized user input matches any allowlist entry
- * Returns true if all fields match (name, dob, time, place, gender)
+ * CRITICAL FIX (2026-01-18): Allow partial matching for payment bypass
+ * - Required: name + dob must normalize successfully
+ * - Optional: time, gender, place only checked if provided + normalizes
+ * This allows test users to bypass payment even when gender/time/place are missing
  */
 export function matchAllowlist(input: {
   name: string;
@@ -165,32 +168,45 @@ export function matchAllowlist(input: {
   const normalized = {
     name: normalizeName(input.name),
     dob: normalizeDOB(input.dob),
-    time: normalizeTime(input.time),
-    place: normalizePlace(input.place),
-    gender: normalizeGender(input.gender),
+    time: normalizeTime(input.time || ''),
+    place: normalizePlace(input.place || ''),
+    gender: normalizeGender(input.gender || ''),
   };
 
-  // All fields must be normalized successfully
-  if (!normalized.dob || !normalized.time || !normalized.gender) {
-    return false;
+  // CRITICAL FIX (2026-01-18): Require only name + DOB (payment bypass minimum)
+  // Optional fields (time, gender, place) only checked if provided and normalized
+  if (!normalized.dob) {
+    return false; // DOB is required for matching
   }
 
   // Check against allowlist
   for (const allowed of ALLOWLIST) {
-    // Exact match for name, dob, time, gender
-    const exactMatch =
-      allowed.name === normalized.name &&
-      allowed.dob === normalized.dob &&
-      allowed.time === normalized.time &&
-      allowed.gender === normalized.gender;
+    // Name and DOB must match exactly (required)
+    if (allowed.name !== normalized.name || allowed.dob !== normalized.dob) {
+      continue;
+    }
 
-    // Place match: normalized.place must include allowed.place (or vice versa)
+    // Optional field matching: only check if provided + normalized
+    // Time: if provided, must match
+    const timeMatches = !normalized.time || normalized.time === allowed.time;
+    if (!timeMatches) {
+      continue;
+    }
+
+    // Gender: if provided, must match
+    const genderMatches = !normalized.gender || normalized.gender === allowed.gender;
+    if (!genderMatches) {
+      continue;
+    }
+
+    // Place: if provided, must include allowed.place (or vice versa)
     // This allows "Noamundi, Jharkhand" to match "Noamundi, Jharkhand, India"
-    const placeMatch =
+    const placeMatches =
+      !normalized.place ||
       normalized.place.includes(allowed.place) ||
       allowed.place.includes(normalized.place);
 
-    if (exactMatch && placeMatch) {
+    if (placeMatches) {
       return true;
     }
   }

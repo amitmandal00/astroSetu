@@ -66,9 +66,10 @@ export function isProdTestUser(input: AIAstrologyInput | { name?: string; dob?: 
     place: inputForMatch.place?.substring(0, 30) || 'N/A',
   });
 
-  // CRITICAL FIX (2026-01-18): matchAllowlist requires ALL fields (dob, time, gender) to be normalized
-  // If any are missing, it returns false. This is causing test users to fail matching.
-  // For test users in production, we need to ensure all fields are present OR make matching more lenient
+  // CRITICAL FIX (2026-01-18): matchAllowlist now supports partial matching (fixed in betaAccess.ts)
+  // Required: name + DOB (minimum for payment bypass)
+  // Optional: time, gender, place (only checked if provided and normalized)
+  // This allows test users to bypass payment even when gender/time/place are missing
   
   // If some fields are missing, matchAllowlist will return false (safe)
   const hasAccess = matchAllowlist(inputForMatch);
