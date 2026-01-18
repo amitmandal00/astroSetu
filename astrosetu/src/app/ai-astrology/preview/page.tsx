@@ -3777,7 +3777,9 @@ function PreviewContent() {
   
   if (!reportContent || !input) {
     // CRITICAL FIX (Step 1): Show "Loading your details..." while token is loading (token fetch authoritative)
-    if (tokenLoading) {
+    // CRITICAL FIX (2026-01-18): Also check inputTokenLoadedRef - if ref is true but input state not updated yet,
+    // still show loading to prevent showing "Enter Your Birth Details" when input is actually being loaded
+    if (tokenLoading || inputTokenLoadedRef.current) {
       return (
         <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-2xl w-full mx-4">

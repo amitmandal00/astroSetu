@@ -3,6 +3,7 @@ import { checkRateLimit, successResponse, errorResponse } from "@/lib/apiHelpers
 
 // Force dynamic rendering since we use request headers for rate limiting
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * GET /api/notifications/vapid-public-key
