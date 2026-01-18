@@ -4509,7 +4509,7 @@ function PreviewContent() {
                 </h1>
               </div>
               <p className="text-sm sm:text-base text-slate-600 mb-1">
-                Prepared exclusively for <strong>{input.name}</strong>
+                Prepared exclusively for <strong>{input?.name || "User"}</strong>
               </p>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500">
                 <span>Generated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</span>
