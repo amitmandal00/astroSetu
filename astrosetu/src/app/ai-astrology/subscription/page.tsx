@@ -392,6 +392,7 @@ function SubscriptionContent() {
           ok: boolean;
           data?: { url: string; sessionId: string };
           error?: string;
+          testMode?: boolean; // CRITICAL FIX (2026-01-18): Indicates test user mock session
         }>("/api/ai-astrology/create-checkout", {
           subscription: true,
           input,
@@ -417,13 +418,55 @@ function SubscriptionContent() {
         throw new Error("Subscription checkout did not return a redirect URL. Please try again.");
       }
 
+      // CRITICAL FIX (2026-01-18): Handle test user mock sessions - bypass Stripe checkout
+      // Test users get mock session URLs like /ai-astrology/subscription/success?session_id=test_session_subscription_...
+      // We should directly verify the session instead of redirecting to Stripe
+      const checkoutUrl = response.data.url;
+      const sessionId = response.data.sessionId;
+      
+      // Check if this is a mock/test session:
+      // 1. Response has testMode flag
+      // 2. SessionId starts with test_session_subscription_
+      // 3. URL is relative (not Stripe checkout)
+      const isMockSession = response.testMode === true || 
+                            (sessionId && sessionId.startsWith("test_session_subscription_")) ||
+                            (checkoutUrl.startsWith("/") && checkoutUrl.includes("test_session_subscription_"));
+      
+      if (isMockSession && sessionId) {
+        // CRITICAL FIX (2026-01-18): For test users, directly verify the mock session
+        // This bypasses Stripe checkout and activates subscription immediately
+        console.log("[Subscribe] Test user detected - verifying mock session directly:", sessionId.substring(0, 30) + "...");
+        try {
+          const verifyResponse = await apiPost<{ ok: boolean; data?: any; error?: string }>(
+            "/api/billing/subscription/verify-session",
+            { session_id: sessionId }
+          );
+          
+          if (verifyResponse.ok && verifyResponse.data) {
+            // Success - subscription activated
+            setBillingStatus(verifyResponse.data);
+            setIsSubscribed(true);
+            setLoading(false);
+            isResolved = true;
+            clearTimeout(watchdogTimeoutId);
+            // Navigate to success page or refresh current page
+            router.push("/ai-astrology/subscription?subscribed=1");
+            return;
+          } else {
+            throw new Error(verifyResponse.error || "Failed to verify test session");
+          }
+        } catch (verifyError: any) {
+          console.error("[Subscribe] Failed to verify test session:", verifyError);
+          throw new Error(verifyError?.message || "Failed to activate subscription for test user");
+        }
+      }
+
       // CRITICAL FIX (2026-01-18): Don't store sessionId in sessionStorage before redirecting
       // This prevents hydrateBilling from trying to verify the session prematurely
       // The sessionId will be stored/verified by the success page after checkout completes
       // For now, we'll just redirect - the success page will handle session verification
 
       // Redirect to Stripe checkout (validate URL to prevent open redirects)
-      const checkoutUrl = response.data.url;
       // Validate URL is from Stripe, localhost, relative path, or same origin (for test users)
       try {
         const url = new URL(checkoutUrl, window.location.origin);

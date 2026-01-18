@@ -2314,6 +2314,7 @@ function PreviewContent() {
           ok: boolean;
           data?: { url: string; sessionId: string };
           error?: string;
+          testMode?: boolean; // CRITICAL FIX (2026-01-18): Indicates test user mock session
         }>("/api/ai-astrology/create-checkout", checkoutPayload),
         timeoutPromise,
       ]);
@@ -2329,9 +2330,33 @@ function PreviewContent() {
         throw new Error(response.error || "Failed to create checkout");
       }
 
-      // Redirect to Stripe checkout (validate URL to prevent open redirects)
+      // CRITICAL FIX (2026-01-18): Handle test user mock sessions - bypass Stripe checkout
+      // Test users get mock session URLs like /ai-astrology/payment/success?session_id=test_session_...
+      // For paid reports, redirect to success URL which will verify payment and generate report
       if (response.data?.url) {
         const checkoutUrl = response.data.url;
+        const sessionId = response.data.sessionId;
+        
+        // Check if this is a mock/test session:
+        // 1. Response has testMode flag
+        // 2. SessionId starts with test_session_ (but not test_session_subscription_ - that's for subscriptions)
+        // 3. URL is relative (not Stripe checkout) and contains test_session_
+        const isMockSession = response.testMode === true || 
+                              (sessionId && sessionId.startsWith("test_session_") && !sessionId.startsWith("test_session_subscription_")) ||
+                              (checkoutUrl.startsWith("/") && checkoutUrl.includes("test_session_") && !checkoutUrl.includes("subscription"));
+        
+        // For test users, redirect to success URL directly (bypasses Stripe checkout)
+        // The success page will verify the mock session and generate the report
+        if (isMockSession) {
+          console.log("[Purchase] Test user detected - redirecting to success URL directly:", checkoutUrl);
+          navigationOccurred = true;
+          clearTimeout(watchdogTimeoutId);
+          window.location.href = checkoutUrl;
+          // Don't set loading to false here - we're redirecting
+          return;
+        }
+        
+        // For real Stripe checkout, validate URL to prevent open redirects
         // Validate URL is from Stripe, localhost, relative path, or same origin (for test users)
         try {
           const url = new URL(checkoutUrl, window.location.origin);
