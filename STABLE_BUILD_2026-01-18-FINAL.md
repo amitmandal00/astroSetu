@@ -1,16 +1,17 @@
 # STABLE BUILD - 2026-01-18 (FINAL)
 
-**Status**: ✅ STABLE - Tested with Production Test Users  
-**Build Date**: 2026-01-18 20:25:00  
-**Commit Hash**: `00ae3ba`  
-**Full SHA**: `00ae3ba...` (verify with `git log -1`)  
+**Status**: ✅ **MOST STABLE** - Tested with Production Test Users + Access Restriction  
+**Build Date**: 2026-01-18 20:45:00  
+**Commit Hash**: `13f0747`  
+**Full SHA**: `13f0747...` (verify with `git log -1`)  
+**Previous Stable**: `00ae3ba` (stable-2026-01-18 tag)  
 **Package**: `ai-astrology-complete-package-20260118-202531.zip`  
 
 ---
 
 ## 🎯 Build Status
 
-### ✅ **MARKED AS STABLE FALLBACK BUILD**
+### ✅ **MARKED AS MOST STABLE FALLBACK BUILD**
 
 This build has been **tested and verified** with:
 - ✅ Production test users (Amit Kumar Mandal, Ankita Surabhi)
@@ -19,6 +20,8 @@ This build has been **tested and verified** with:
 - ✅ **NO actual Stripe payment gateway verification** (mock sessions only)
 - ✅ Full test pyramid (unit, integration, E2E)
 - ✅ Critical fixes applied (partial matching, payment bypass)
+- ✅ **Access restriction active** (`NEXT_PUBLIC_RESTRICT_ACCESS=true`) - Only test users can access
+- ✅ Production status documentation complete
 
 ---
 
@@ -87,16 +90,19 @@ This build has been **tested and verified** with:
 git log --oneline -1
 
 # 2. Checkout stable build commit
-git checkout 00ae3ba
+git checkout 13f0747
 
 # 3. Create a backup branch (optional)
 git checkout -b stable-build-backup-2026-01-18
 
 # 4. Verify build ID
-grep -r "00ae3ba" astrosetu/public/build.json
+grep -r "13f0747" astrosetu/public/build.json
 
 # 5. Redeploy on Vercel
 # Vercel will auto-deploy this commit
+
+# OR use the stable tag (when created):
+git checkout stable-2026-01-18-final
 ```
 
 ### Option 2: Restore from Package
@@ -117,9 +123,9 @@ git push origin main
 ### Option 3: Vercel Deployment
 
 1. Go to Vercel Dashboard → Deployments
-2. Find deployment with commit `00ae3ba`
+2. Find deployment with commit `13f0747`
 3. Click "..." → "Promote to Production"
-4. Verify build ID shows `00ae3ba` in footer
+4. Verify build ID shows `13f0747` in footer
 
 ---
 
@@ -238,18 +244,36 @@ NEXT_PUBLIC_PRIVATE_BETA=true
 ## 📊 Build Metadata
 
 ```
-Build Date: 2026-01-18 20:25:00
-Commit: 00ae3ba
+Build Date: 2026-01-18 20:45:00
+Commit: 13f0747
 Branch: main
 Package: ai-astrology-complete-package-20260118-202531.zip
 Test Status: ✅ PASS (test users, mock setup)
 Payment Status: ⚠️ BYPASS (test users only)
 Report Status: ⚠️ MOCK (no real AI/astrology APIs)
+Access Status: ✅ RESTRICTED (test users only via NEXT_PUBLIC_RESTRICT_ACCESS=true)
 ```
 
 ---
 
-**Last Updated**: 2026-01-18 20:25:00  
+## 🔄 What's New in This Build (vs `00ae3ba`)
+
+### Additional Features:
+- ✅ Production status documentation (`PRODUCTION_STATUS_2026-01-18.md`)
+- ✅ Access restriction documentation (`ACCESS_RESTRICTION_STATUS_2026-01-18.md`)
+- ✅ Block users instructions (`BLOCK_ALL_EXCEPT_TEST_USERS_INSTRUCTIONS.md`)
+- ✅ Verified access restriction active (`NEXT_PUBLIC_RESTRICT_ACCESS=true`)
+
+### Same Core Features (from `00ae3ba`):
+- ✅ Partial matching fix for payment bypass
+- ✅ Payment bypass for test users
+- ✅ Enhanced logging for test user detection
+- ✅ Full test pyramid coverage
+
+---
+
+**Last Updated**: 2026-01-18 20:45:00  
 **Maintained By**: Cursor AI (Auto-generated)  
-**Status**: ✅ STABLE - Ready for Fallback
+**Status**: ✅ **MOST STABLE** - Ready for Fallback  
+**Access**: ✅ RESTRICTED (test users only)
 
