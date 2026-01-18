@@ -66,7 +66,33 @@ export async function POST(req: Request) {
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false to force test users through Stripe for payment testing
     // CRITICAL FIX (2026-01-18 - ChatGPT Task 3): Use centralized allowlist function
     isDemoMode = process.env.AI_ASTROLOGY_DEMO_MODE === "true" || process.env.NODE_ENV === "development";
+    
+    // CRITICAL FIX (2026-01-18): Add logging to debug test user detection
+    if (input) {
+      console.log(`[TEST_USER_CHECK] Input received:`, {
+        requestId,
+        hasName: !!input.name,
+        hasDOB: !!input.dob,
+        hasTOB: !!input.tob,
+        hasPlace: !!input.place,
+        hasGender: !!input.gender,
+        name: input.name?.substring(0, 20) || "N/A",
+        dob: input.dob || "N/A",
+        tob: input.tob || "N/A",
+      });
+    }
+    
     isTestUser = isProdTestUser(input);
+    
+    // CRITICAL FIX (2026-01-18): Log test user detection result
+    if (input) {
+      console.log(`[TEST_USER_CHECK] Result:`, {
+        requestId,
+        isTestUser,
+        userName: input.name?.substring(0, 20) || "N/A",
+      });
+    }
+    
     const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
     // CRITICAL: Default to true (bypass payment) for test users to avoid payment verification errors
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe

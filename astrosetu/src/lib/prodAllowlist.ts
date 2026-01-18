@@ -45,14 +45,31 @@ export function isProdTestUser(input: AIAstrologyInput | { name?: string; dob?: 
       ? input.tob 
       : '';
 
-  // If some fields are missing, matchAllowlist will return false (safe)
-  const hasAccess = matchAllowlist({
+  // CRITICAL FIX (2026-01-18): Log input fields before matching for debugging
+  const inputForMatch = {
     name: input.name || '',
     dob: input.dob || '',
     time: timeValue || '',
     place: input.place || '',
     gender: input.gender || '',
+  };
+  
+  console.log(`[PROD_ALLOWLIST] Matching input:`, {
+    name: inputForMatch.name.substring(0, 20),
+    hasDOB: !!inputForMatch.dob,
+    hasTime: !!inputForMatch.time,
+    hasPlace: !!inputForMatch.place,
+    hasGender: !!inputForMatch.gender,
+    dob: inputForMatch.dob || 'N/A',
+    time: inputForMatch.time || 'N/A',
   });
+
+  // If some fields are missing, matchAllowlist will return false (safe)
+  const hasAccess = matchAllowlist(inputForMatch);
+  
+  if (!hasAccess) {
+    console.log(`[PROD_ALLOWLIST] No match found for user: ${inputForMatch.name.substring(0, 20)}`);
+  }
 
   return hasAccess;
 }
