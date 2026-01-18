@@ -266,24 +266,35 @@ function InputFormContent() {
           } else {
             // Report flow default
             const reportTypeForDefault = finalReportType || reportType || "life-summary";
-            sanitizedReturnTo = `/ai-astrology/preview?reportType=${encodeURIComponent(reportTypeForDefault)}`;
+            // CRITICAL FIX (2026-01-18): Include auto_generate=true for free reports when sanitizing returnTo
+            const isFreeReportForDefault = reportTypeForDefault === "life-summary";
+            const autoGenerateForDefault = isFreeReportForDefault ? "&auto_generate=true" : "";
+            sanitizedReturnTo = `/ai-astrology/preview?reportType=${encodeURIComponent(reportTypeForDefault)}${autoGenerateForDefault}`;
           }
         }
         
         // Include input_token in returnTo if we have it
         // CRITICAL FIX (2026-01-18): Replace existing input_token instead of appending (prevent duplicates)
         // Use URLSearchParams.set() which automatically replaces if exists
+        // CRITICAL FIX (2026-01-18): Also add auto_generate=true for free reports when modifying returnTo
         let returnUrl = sanitizedReturnTo;
         if (inputToken && typeof window !== "undefined") {
           try {
             const urlObj = new URL(sanitizedReturnTo, window.location.origin);
             urlObj.searchParams.set("input_token", inputToken); // set() replaces if exists
+            // Check if it's a free report and add auto_generate=true if missing
+            const reportTypeParam = urlObj.searchParams.get("reportType");
+            if (reportTypeParam === "life-summary" && !urlObj.searchParams.has("auto_generate")) {
+              urlObj.searchParams.set("auto_generate", "true");
+            }
             returnUrl = urlObj.pathname + urlObj.search;
           } catch (urlError) {
             // Fallback to string concatenation if URL parsing fails
             console.warn("[Input] Failed to parse returnTo URL, using string concatenation:", urlError);
             const separator = sanitizedReturnTo.includes("?") ? "&" : "?";
-            returnUrl = `${sanitizedReturnTo}${separator}input_token=${encodeURIComponent(inputToken)}`;
+            const isFreeReportInReturnTo = sanitizedReturnTo.includes("reportType=life-summary");
+            const autoGenerateForReturnTo = isFreeReportInReturnTo && !sanitizedReturnTo.includes("auto_generate") ? "&auto_generate=true" : "";
+            returnUrl = `${sanitizedReturnTo}${separator}input_token=${encodeURIComponent(inputToken)}${autoGenerateForReturnTo}`;
           }
         }
         const fullUrl = typeof window !== "undefined" ? new URL(returnUrl, window.location.origin).toString() : returnUrl;
@@ -301,9 +312,13 @@ function InputFormContent() {
       // Default: redirect to preview page
       // CRITICAL: Always include reportType in URL to prevent redirect loops
       // CRITICAL FIX: Include input_token if available (server-side source of truth)
+      // CRITICAL FIX (2026-01-18): Add auto_generate=true for free reports to trigger auto-generation
+      // This ensures Free Life Summary auto-generates when reaching preview page
+      const isFreeReport = finalReportType === "life-summary";
+      const autoGenerateParam = isFreeReport ? "&auto_generate=true" : "";
       const previewUrl = inputToken
-        ? `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}&input_token=${encodeURIComponent(inputToken)}`
-        : `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}`;
+        ? `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}&input_token=${encodeURIComponent(inputToken)}${autoGenerateParam}`
+        : `/ai-astrology/preview?reportType=${encodeURIComponent(finalReportType)}${autoGenerateParam}`;
       const fullUrl = typeof window !== "undefined" ? new URL(previewUrl, window.location.origin).toString() : previewUrl;
       
       console.info("[INPUT_REDIRECT]", fullUrl);
