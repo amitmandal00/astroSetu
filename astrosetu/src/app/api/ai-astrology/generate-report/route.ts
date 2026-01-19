@@ -336,6 +336,12 @@ export async function POST(req: Request) {
       }
     })();
     const isTestSession = !!sessionIdFromQuery && sessionIdFromQuery.startsWith("test_session_");
+    
+    // IMMEDIATE LOG: Always log for test sessions (before any other logic)
+    if (isTestSession) {
+      console.log(`[TEST SESSION DETECTED] ${sessionIdFromQuery}`);
+    }
+    
     // Stricter rate limiting for report generation (production-ready)
     // Per ChatGPT feedback: Add rate limiting to prevent abuse
     // Uses middleware rate limiting (already configured) with additional check
@@ -1209,37 +1215,37 @@ export async function POST(req: Request) {
     //   1. Setting useReal=true in request body, OR
     //   2. Adding ?use_real=true or ?force_real=true to URL query params
     //   3. Setting ALLOW_REAL_FOR_TEST_SESSIONS=true environment variable
+    // CRITICAL: Check environment variable for real reports for test sessions
     const envVarRaw = process.env.ALLOW_REAL_FOR_TEST_SESSIONS;
     const allowRealForTestSessions = envVarRaw === "true";
     const shouldUseRealMode = forceRealMode || allowRealForTestSessions;
     const mockMode = (isTestSession && !shouldUseRealMode) || process.env.MOCK_MODE === "true";
     
-    // DEBUG: Log environment variable check (ALWAYS log for test sessions)
+    // CRITICAL DEBUG: Log environment variable check (ALWAYS log for test sessions)
+    // Using simple console.log format for better visibility in Vercel logs
     if (isTestSession) {
-      console.log("[REAL MODE CHECK]", JSON.stringify({
-        requestId,
-        isTestSession: true,
-        envVarRaw: envVarRaw || "undefined",
-        envVarType: typeof envVarRaw,
-        allowRealForTestSessions,
-        forceRealMode,
-        shouldUseRealMode,
-        mockMode,
-        sessionId: sessionIdFromQuery,
-        allEnvVarsWithALLOW: Object.keys(process.env).filter(k => k.includes("ALLOW") || k.includes("REAL")).map(k => `${k}=${process.env[k]?.substring(0, 20)}`),
-      }, null, 2));
+      console.log(`[REAL MODE CHECK] requestId=${requestId}, sessionId=${sessionIdFromQuery}`);
+      console.log(`[REAL MODE CHECK] envVarRaw="${envVarRaw || "undefined"}", allowRealForTestSessions=${allowRealForTestSessions}`);
+      console.log(`[REAL MODE CHECK] forceRealMode=${forceRealMode}, shouldUseRealMode=${shouldUseRealMode}, mockMode=${mockMode}`);
+      console.log(`[REAL MODE CHECK] MOCK_MODE="${process.env.MOCK_MODE || "undefined"}"`);
+      
+      // Also log all related env vars
+      const relatedEnvVars = Object.keys(process.env)
+        .filter(k => k.includes("ALLOW") || k.includes("REAL") || k.includes("MOCK"))
+        .map(k => `${k}=${process.env[k]}`);
+      console.log(`[REAL MODE CHECK] Related env vars: ${relatedEnvVars.join(", ") || "NONE"}`);
     }
     
     // Log when real mode is enabled for test sessions
     if (isTestSession && shouldUseRealMode) {
-      console.log("[TEST SESSION - REAL MODE ENABLED]", JSON.stringify({
-        requestId,
-        sessionId: sessionIdFromQuery,
-        forceRealMode,
-        allowRealForTestSessions,
-        reason: forceRealMode ? "explicit request (URL/body)" : "environment variable (ALLOW_REAL_FOR_TEST_SESSIONS=true)",
-        envVarRaw: envVarRaw || "undefined",
-      }, null, 2));
+      const reason = forceRealMode ? "explicit request (URL/body)" : "environment variable (ALLOW_REAL_FOR_TEST_SESSIONS=true)";
+      console.log(`[TEST SESSION - REAL MODE ENABLED] requestId=${requestId}, reason=${reason}`);
+      console.log(`[TEST SESSION - REAL MODE ENABLED] envVarRaw="${envVarRaw || "undefined"}", allowRealForTestSessions=${allowRealForTestSessions}`);
+    }
+    
+    // Log when mock mode is being used for test sessions
+    if (isTestSession && mockMode) {
+      console.log(`[TEST SESSION - MOCK MODE] requestId=${requestId}, shouldUseRealMode=${shouldUseRealMode}, allowRealForTestSessions=${allowRealForTestSessions}`);
     }
     
     if (mockMode) {
