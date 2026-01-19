@@ -282,48 +282,73 @@ export const AI_PROMPT_TEMPLATES = {
          - Use their specific planetary positions
          - Make every section feel personal, not generic
       
-      5. STRUCTURE REQUIREMENTS:
+      5. STRUCTURE REQUIREMENTS - MINIMUM DEPTH: Create **at least 6-8 detailed sections** (avoid short/empty reports):
          a) Start with "Career & Money Summary" section with real insights (NOT just the title):
             • Career growth improves through [specific role characteristics]
             • Major gains come from [specific approach] before transitions
             • Money growth is [description: gradual/stable/etc.], not sudden
             • Long-term success favors [specific approach] over risk-taking
+            MINIMUM: 150-200 words of detailed content
          
          b) "Career & Money - Key Insight" section: 1-2 line summary
          
-         c) "Best Career Directions" section:
+         c) "Best Career Directions" section (MANDATORY - DETAILED):
             - Focus on role characteristics that align with user's phases
             - Avoid generic "adventurous" or personality-based descriptions
             - Emphasize timing and application
+            - Include 4-5 specific career directions with explanations
+            - Each direction should have 2-3 sentences explaining why it aligns
+            MINIMUM: 200-250 words
          
-         d) "Career Momentum Windows" section (MANDATORY):
+         d) "Career Momentum Windows" section (MANDATORY - DETAILED):
             - Growth phase: [Use next 12–18 months from current date: ${currentYear}–${currentYear + 1}] - [specific focus: skill building, positioning, etc.]
             - Consolidation phase: [Use following 2–3 years: ${currentYear + 1}–${currentYear + 3}] - [specific focus: stability, mastery, etc.]
             - Transition phase: [date range if applicable, relative to current date] - [specific focus]
-            - Explanation of why these periods are favorable
+            - Explanation of why these periods are favorable (detailed, 3-4 sentences per phase)
             - Add simple timeline relative to current date (${currentYear}): "Timeline: ${currentYear - 1} ──── ${currentYear} ⭐ ──── ${currentYear + 1} ⭐ ──── ${currentYear + 2} ⭐ ──── ${currentYear + 3}"
+            MINIMUM: 250-300 words
          
-         e) "Money Growth Phases" section (MANDATORY):
+         e) "Money Growth Phases" section (MANDATORY - DETAILED):
             - Growth periods: [date range] - [description: when income growth is favorable]
             - Consolidation periods: [date range] - [description: when to stabilize, not expand]
             - Risk periods: [date range] - "Avoid speculative investments during this phase"
             - Pattern-based financial guidance tied to career phases
             - NOT generic saving/investing advice - must be pattern-based
+            - Include 3-4 specific financial patterns with detailed explanations
+            MINIMUM: 200-250 words
          
-         f) "Financial Cycle Clarity" (new mandatory section):
-            - Income peaks: [when money flow is strongest]
-            - Consolidation phases: [when to build reserves, not spend]
-            - Caution periods: [when to avoid major financial decisions]
+         f) "Financial Cycle Clarity" section (MANDATORY - DETAILED):
+            - Income peaks: [when money flow is strongest] - detailed explanation
+            - Consolidation phases: [when to build reserves, not spend] - detailed explanation
+            - Caution periods: [when to avoid major financial decisions] - detailed explanation
+            - Include specific guidance for each phase
+            MINIMUM: 150-200 words
          
-         g) "What You Should Focus on Now" section (MANDATORY - Decision Guidance):
+         g) "Career Challenges and How to Navigate Them" section (NEW - MANDATORY):
+            - Identify 3-4 specific career challenges based on chart
+            - For each challenge, provide 2-3 strategies to navigate
+            - Focus on actionable guidance, not just warnings
+            MINIMUM: 200-250 words
+         
+         h) "Long-term Career Strategy" section (NEW - MANDATORY):
+            - 5-year career outlook with specific milestones
+            - Strategic approach for career growth
+            - Key areas to develop for long-term success
+            MINIMUM: 200-250 words
+         
+         i) "What You Should Focus on Now" section (MANDATORY - Decision Guidance):
             • Strengthen [specific skill] over the next 6–12 months
             • Avoid [specific behavior] without preparation
             • Prioritize [specific role type] that align with learning and long-term growth
             • Best for [specific action] - NOT generic "good for anyone"
             • Not ideal for [specific action] - concrete guidance
             - Practical, actionable guidance
+            - Include 5-7 specific action items with timelines
+            MINIMUM: 150-200 words
          
-         i) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
+         j) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
+         
+         TOTAL REPORT LENGTH: Minimum 1500-2000 words across all sections (excluding custom fields which are parsed separately)
       
       8. LANGUAGE RULES:
          - Keep bullets to 12-15 words max
@@ -782,7 +807,7 @@ export const AI_PROMPT_TEMPLATES = {
          Where X is 6-8 (for 3-5 year outlook). Always add the strategic context in parentheses.
          Add note: "This reflects guidance strength for longer-term patterns, not certainty."
       
-      5. MANDATORY STRUCTURE (follow exactly):
+      5. MANDATORY STRUCTURE - MINIMUM DEPTH: Create **at least 7-9 detailed sections** (avoid short/empty reports):
          
          a) DATA SOURCE LABEL (at the very beginning):
             "Based on: Ascendant + Moon Sign + Dasha Analysis + Long-term Transit Patterns (3-5 year strategic guidance)"
@@ -799,36 +824,45 @@ export const AI_PROMPT_TEMPLATES = {
             - What users can expect to gain
             This filters wrong buyers and increases satisfaction.
             Example: "This report is ideal for those making major life decisions, planning career transitions, or seeking clarity on long-term opportunities. It's most valuable when you're ready to think strategically about the next 3-5 years rather than immediate actions. If you're looking for day-to-day guidance or precise timing, other reports may be more suitable."
+            MINIMUM: 100-150 words
          
-         e) PHASE THEME:
+         e) PHASE THEME (MANDATORY - DETAILED):
             Title: "3-5 Year Strategic Life Phase Theme"
-            Content: One clear sentence describing the overall theme of the next 3-5 years
-            Example: "The next 3-5 years represent a phase of transformation and career advancement for you."
+            Content: Detailed paragraph (not just one sentence) describing the overall theme of the next 3-5 years
+            Include:
+            - Overall phase description (3-4 sentences)
+            - Key characteristics of this phase
+            - How this phase differs from previous/next phases
+            Example: "The next 3-5 years represent a phase of transformation and career advancement for you. This period is characterized by [specific traits]. During this phase, you'll experience [key changes]. This differs from [previous phase] in that [differences]."
             CRITICAL: Include the timeframe using FUTURE YEARS ONLY from current date. Use the calculated date range provided in the prompt context.
+            MINIMUM: 150-200 words
          
-         f) EXECUTIVE SUMMARY (MANDATORY):
+         f) EXECUTIVE SUMMARY (MANDATORY - DETAILED):
             Title: "Phase-at-a-Glance Summary"
             Include:
-            • Overall phase theme (1 line)
-            • Major transitions expected (2-3 transitions)
-            • Key opportunity areas (2-3 areas)
-            • Areas requiring attention (1-2 areas)
-            • Strategic approach (1 line)
-            Format as clear bullet points, max 20 words each.
+            • Overall phase theme (2-3 sentences)
+            • Major transitions expected (2-3 transitions with brief explanations)
+            • Key opportunity areas (2-3 areas with context)
+            • Areas requiring attention (1-2 areas with guidance)
+            • Strategic approach (2-3 sentences)
+            Format as clear bullet points, but provide DETAILED content (not just one-line bullets).
+            MINIMUM: 200-250 words
          
-         g) YEAR-BY-YEAR BREAKDOWN (MANDATORY - REDUCED TEXT):
+         g) YEAR-BY-YEAR BREAKDOWN (MANDATORY - DETAILED):
             Title: "Year-by-Year Breakdown"
             CRITICAL: Use ONLY FUTURE YEARS from the current date. The year labels are provided in the prompt context.
             For EACH year (Year 1, Year 2, Year 3, Year 4, Year 5):
             - Year label: Use the year labels provided (e.g., "Year 1 (2026)", "Year 2 (2027)", etc. - based on current date)
-            - Theme: One line describing the year's theme
-            - Focus areas: MAXIMUM 3 bullets per year (not paragraphs) - avoid fatigue
-            Format as clear, concise subsections. Keep each year to essentials only.
+            - Theme: 2-3 sentences describing the year's theme (not just one line)
+            - Focus areas: 3-4 bullets per year with explanations (not just bullet titles)
+            - Key activities: 2-3 specific activities/approaches for this year
+            Format as clear, detailed subsections. Each year should have substantial content.
             IMPORTANT: Year 1 should be the CURRENT YEAR (starting from today), Year 2 should be CURRENT YEAR + 1, etc.
+            MINIMUM: 400-500 words total across all years
          
-         h) MAJOR TRANSITIONS (MANDATORY):
+         h) MAJOR TRANSITIONS (MANDATORY - DETAILED):
             Title: "Major Transitions Ahead"
-            Identify 3-5 major transitions in:
+            Identify 4-6 major transitions (not just 3-5) in:
             - Career (job changes, promotions, career shifts)
             - Relationships (marriage, partnerships, family changes)
             - Finances (income changes, investments, financial milestones)
@@ -836,40 +870,59 @@ export const AI_PROMPT_TEMPLATES = {
             - Education (learning phases, skill development)
             - Other significant life changes
             For each transition:
-            - Type of transition
+            - Type of transition (with 2-3 sentence description)
             - Approximate timeframe: Use FUTURE YEARS ONLY from current date (e.g., if current year is 2026, use "2026-2027", "late 2027", etc.)
-            - Description of what the transition may involve
-            - Preparation steps (2-3 actionable items)
+            - Description of what the transition may involve (3-4 sentences)
+            - Preparation steps (3-4 actionable items, not just 2-3)
+            - What to expect during this transition
             Frame as "phases when" not "will happen".
             CRITICAL: All timeframes must be in the FUTURE relative to the current date.
+            MINIMUM: 400-500 words
          
-         i) LONG-TERM OPPORTUNITIES (MANDATORY):
+         i) LONG-TERM OPPORTUNITIES (MANDATORY - DETAILED):
             Title: "Long-Term Opportunities"
-            Identify 4-6 major opportunities across:
+            Identify 5-7 major opportunities (not just 4-6) across:
             - Career growth
             - Financial accumulation
             - Relationship development
             - Personal growth
             - Health and wellness
             - Education and skills
+            - Other significant areas
             For each opportunity:
-            - Category
-            - Timeframe (which years this opportunity is most relevant)
-            - Description of the opportunity
-            - Action items (2-3 specific steps to maximize this opportunity)
+            - Category (with 2-3 sentence explanation)
+            - Timeframe (which years this opportunity is most relevant) - detailed
+            - Description of the opportunity (3-4 sentences)
+            - Action items (3-4 specific steps to maximize this opportunity, not just 2-3)
+            - How to recognize when this opportunity is approaching
             Frame as "windows when" and "periods that favor".
+            MINIMUM: 400-500 words
          
-         j) STRATEGIC GUIDANCE (MANDATORY):
+         j) CHALLENGES AND HOW TO NAVIGATE THEM (NEW - MANDATORY):
+            Title: "Challenges and How to Navigate Them"
+            Identify 3-4 major challenges or areas requiring attention during this phase
+            For each challenge:
+            - Challenge description (2-3 sentences)
+            - Why it's relevant during this phase
+            - Strategies to navigate (3-4 strategies)
+            - When to be most aware of this challenge
+            MINIMUM: 250-300 words
+         
+         k) STRATEGIC GUIDANCE (MANDATORY - DETAILED):
             Title: "How to Navigate This Phase"
             Provide:
-            • Overall strategy (2-3 lines)
-            • When to take action vs. when to wait (guidance)
-            • Key principles to follow (3-4 principles)
-            • What to prioritize (2-3 priorities)
-            • What to avoid over-emphasizing (2-3 warnings)
+            • Overall strategy (4-5 sentences, not just 2-3 lines)
+            • When to take action vs. when to wait (detailed guidance with examples)
+            • Key principles to follow (4-5 principles with explanations, not just 3-4)
+            • What to prioritize (3-4 priorities with reasoning)
+            • What to avoid over-emphasizing (3-4 warnings with context)
+            • Long-term planning considerations
             Use "tends to favor" and "may be best for" language.
+            MINIMUM: 300-350 words
          
-         k) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
+         l) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
+         
+         TOTAL REPORT LENGTH: Minimum 2000-2500 words across all sections (excluding custom fields which are parsed separately)
       
       6. LANGUAGE RULES:
          - Keep bullets to 15-20 words max
@@ -920,78 +973,104 @@ export const AI_PROMPT_TEMPLATES = {
          - Use specific planetary positions and current Dasha from the data
          - Address the decision context if provided
       
-      3. MANDATORY STRUCTURE (follow exactly):
+      3. MANDATORY STRUCTURE - MINIMUM DEPTH: Create **at least 7-9 detailed sections** (avoid short/empty reports):
          
-         a) DECISION CONTEXT (first section):
+         a) DECISION CONTEXT (first section - DETAILED):
             Title: "Decision Context"
-            Content: If decision context provided, summarize it. Otherwise, provide general guidance framework.
-            Example: "This report provides astrological guidance to support your decision-making process."
+            Content: If decision context provided, summarize it in detail (3-4 sentences). Otherwise, provide comprehensive general guidance framework (4-5 sentences explaining the report's purpose).
+            Example: "This report provides astrological guidance to support your decision-making process. It considers your birth chart, current planetary influences, and timing factors to help you make informed choices. The guidance focuses on alignment, timing, and considerations rather than definitive answers."
+            MINIMUM: 150-200 words
          
-         b) CURRENT ASTROLOGICAL CLIMATE (MANDATORY):
+         b) CURRENT ASTROLOGICAL CLIMATE (MANDATORY - DETAILED):
             Title: "Current Astrological Climate for Decision-Making"
             Include:
-            • Current Dasha period and its influence on decision-making
-            • Current planetary influences affecting major decisions
-            • Overall energy and momentum level
-            • Whether this is a time for action, planning, or waiting
-            Format as clear subsections.
+            • Current Dasha period and its influence on decision-making (3-4 sentences)
+            • Current planetary influences affecting major decisions (detailed explanation)
+            • Overall energy and momentum level (2-3 sentences)
+            • Whether this is a time for action, planning, or waiting (with detailed reasoning)
+            • Specific planetary transits affecting decision-making (2-3 transits with explanations)
+            Format as clear subsections with substantial content in each.
+            MINIMUM: 300-350 words
          
          c) DECISION OPTIONS ANALYSIS (if context provided) OR GENERAL GUIDANCE (if no context):
             Title: ${decisionContext ? "Analysis of Your Options" : "General Decision-Making Guidance"}
             ${decisionContext 
               ? `For each option mentioned in the decision context:
-                 - Option name
-                 - Astrological alignment: "High", "Medium", or "Low"
-                 - Timeframe when this option may be most favorable
-                 - Key considerations (2-3 points)
-                 - Planetary factors supporting or challenging this option
-                 Frame as guidance, not directives.`
-              : `Provide guidance on:
-                 - Career decisions (job changes, promotions, career shifts)
-                 - Financial decisions (investments, major purchases)
-                 - Relationship decisions (marriage, partnerships)
-                 - Education decisions (courses, certifications)
-                 - Location decisions (moving, relocating)
-                 - Health decisions (treatment options, lifestyle changes)
+                 - Option name with 2-3 sentence description
+                 - Astrological alignment: "High", "Medium", or "Low" (with detailed explanation)
+                 - Timeframe when this option may be most favorable (with specific dates/years)
+                 - Key considerations (4-5 points with explanations, not just 2-3)
+                 - Planetary factors supporting or challenging this option (detailed)
+                 - Potential outcomes based on timing (2-3 scenarios)
+                 Frame as guidance, not directives.
+                 MINIMUM: 400-500 words for all options combined`
+              : `Provide detailed guidance on:
+                 - Career decisions (job changes, promotions, career shifts) - 100-150 words per category
+                 - Financial decisions (investments, major purchases) - 100-150 words
+                 - Relationship decisions (marriage, partnerships) - 100-150 words
+                 - Education decisions (courses, certifications) - 100-150 words
+                 - Location decisions (moving, relocating) - 100-150 words
+                 - Health decisions (treatment options, lifestyle changes) - 100-150 words
                  For each category, provide:
-                 - Current alignment level (High/Medium/Low)
-                 - Best timing windows
-                 - Key considerations`
+                 - Current alignment level (High/Medium/Low) with explanation
+                 - Best timing windows (with specific timeframes)
+                 - Key considerations (3-4 points each)
+                 - Action steps (2-3 steps)
+                 MINIMUM: 600-700 words total`
             }
          
-         d) TIMING GUIDANCE (MANDATORY):
+         d) TIMING GUIDANCE (MANDATORY - DETAILED):
             Title: "Recommended Timing"
             Include:
-            • Best periods to make decisions (approximate months/years)
-            • Periods to avoid major decisions (with reasons)
-            • When to take action vs. when to gather more information
-            • How current planetary influences affect decision timing
+            • Best periods to make decisions (approximate months/years) - with detailed explanations (3-4 periods)
+            • Periods to avoid major decisions (with reasons and alternatives) - 2-3 periods
+            • When to take action vs. when to gather more information (detailed guidance with examples)
+            • How current planetary influences affect decision timing (3-4 sentences)
+            • Short-term vs. long-term decision timing (comparison)
             Frame as "tends to favor" not "must do now".
+            MINIMUM: 300-350 words
          
-         e) FACTORS TO CONSIDER (MANDATORY):
+         e) FACTORS TO CONSIDER (MANDATORY - DETAILED):
             Title: "Key Factors to Consider"
-            List 5-7 important factors based on the astrological chart:
-            • Planetary influences relevant to the decision
-            • Dasha period implications
-            • House influences (if relevant)
-            • Long-term vs. short-term considerations
-            • Personal strengths and challenges to consider
-            Format as clear bullets.
+            List 6-8 important factors (not just 5-7) based on the astrological chart:
+            • Planetary influences relevant to the decision (detailed explanation per planet)
+            • Dasha period implications (comprehensive explanation)
+            • House influences (if relevant) - detailed
+            • Long-term vs. short-term considerations (comparison with examples)
+            • Personal strengths and challenges to consider (detailed)
+            • External factors to monitor (2-3 factors)
+            • Timing-related factors (2-3 factors)
+            Format as clear bullets with 2-3 sentences per factor (not just one-line bullets).
+            MINIMUM: 400-450 words
          
-         f) STRATEGIC APPROACH (MANDATORY):
+         f) STRATEGIC APPROACH (MANDATORY - DETAILED):
             Title: "Recommended Approach"
             Provide:
-            • Overall strategy for decision-making (2-3 lines)
-            • Steps to take before deciding (3-4 steps)
-            • How to maximize favorable timing
-            • How to mitigate challenges
-            • When to seek additional guidance
+            • Overall strategy for decision-making (4-5 sentences, not just 2-3 lines)
+            • Steps to take before deciding (4-5 steps with explanations, not just 3-4)
+            • How to maximize favorable timing (detailed guidance)
+            • How to mitigate challenges (3-4 strategies)
+            • When to seek additional guidance (specific scenarios)
+            • Decision-making framework based on chart (2-3 principles)
             Use "may be beneficial" and "consider" language.
+            MINIMUM: 350-400 words
          
-         g) CONFIDENCE LEVEL (mandatory):
+         g) DECISION-MAKING CHECKLIST (NEW - MANDATORY):
+            Title: "Decision-Making Checklist"
+            Provide a practical checklist with 6-8 items based on astrological guidance:
+            - Items to evaluate before deciding
+            - Timing considerations
+            - Alignment factors to assess
+            - Warning signs to watch for
+            Each item should have a brief explanation (1-2 sentences).
+            MINIMUM: 200-250 words
+         
+         h) CONFIDENCE LEVEL (mandatory):
             Include: "Confidence Level: [X]/10"
             Where X is between 6-8 (decision support requires multiple factors).
             Add note: "This reflects the strength of astrological guidance. Always combine with practical considerations."
+         
+         TOTAL REPORT LENGTH: Minimum 2000-2500 words across all sections (excluding custom fields which are parsed separately)
       
       6. LANGUAGE RULES:
          - Keep bullets to 15-20 words max

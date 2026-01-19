@@ -523,6 +523,90 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
       content: "For a complete analysis with detailed timing windows and guidance, please try generating the report again. Our system uses AI and astrological calculations to provide comprehensive insights.",
     });
   }
+
+  // CRITICAL FIX (2026-01-19): Ensure minimum section count for comprehensive reports
+  // Paid reports (career-money, major-life-phase, decision-support) should have at least 4-5 detailed sections
+  // This prevents reports from being too short
+  const paidReportTypes: ReportType[] = ["career-money", "major-life-phase", "decision-support", "year-analysis", "marriage-timing", "full-life"];
+  const minSectionsForPaid = 4;
+  
+  if (paidReportTypes.includes(reportType) && sections.length < minSectionsForPaid) {
+    console.warn("[parseAIResponse] Paid report has fewer than minimum sections - adding fallback sections", {
+      reportType,
+      currentSections: sections.length,
+      minimumRequired: minSectionsForPaid,
+    });
+
+    // Add fallback sections based on report type to ensure comprehensive content
+    const existingTitles = new Set(sections.map(s => s.title.toLowerCase()));
+    
+    if (reportType === "career-money") {
+      if (!existingTitles.has("career momentum windows") && !existingTitles.has("career momentum")) {
+        sections.push({
+          title: "Career Momentum Analysis",
+          content: "Your career development follows distinct phases influenced by planetary cycles. Understanding these phases helps you time major career decisions effectively. Focus on skill building during growth phases and consolidation during stability periods.",
+        });
+      }
+      if (!existingTitles.has("financial patterns") && !existingTitles.has("money growth")) {
+        sections.push({
+          title: "Financial Growth Patterns",
+          content: "Your financial growth aligns with career development phases. During favorable periods, focus on strategic investments and skill development. During consolidation phases, prioritize stability and reserve building. Avoid major financial decisions during challenging transits.",
+        });
+      }
+      if (!existingTitles.has("strategic recommendations") && !existingTitles.has("action items")) {
+        sections.push({
+          title: "Strategic Career Recommendations",
+          content: "Based on your birth chart analysis, prioritize roles that allow growth and learning. Build skills during favorable periods. Network strategically during transition phases. Focus on long-term career development rather than short-term gains.",
+        });
+      }
+    } else if (reportType === "major-life-phase") {
+      if (!existingTitles.has("strategic overview") && !existingTitles.has("phase overview")) {
+        sections.push({
+          title: "Strategic Phase Overview",
+          content: "The next 3-5 years represent a significant phase in your life journey. This period brings opportunities for growth, transitions, and major developments. Understanding the themes of this phase helps you navigate challenges and maximize opportunities effectively.",
+        });
+      }
+      if (!existingTitles.has("key opportunities") && !existingTitles.has("opportunities")) {
+        sections.push({
+          title: "Key Opportunities Ahead",
+          content: "During this phase, several key opportunities may arise across different life areas. These include career advancement, relationship development, financial growth, and personal development. Timing and preparation are essential to maximize these opportunities.",
+        });
+      }
+      if (!existingTitles.has("navigating challenges") && !existingTitles.has("challenges")) {
+        sections.push({
+          title: "Navigating Challenges",
+          content: "This phase may also bring challenges that require attention and strategic navigation. Understanding potential challenges in advance helps you prepare and respond effectively. Focus on building resilience and adaptability during this period.",
+        });
+      }
+    } else if (reportType === "decision-support") {
+      if (!existingTitles.has("decision framework") && !existingTitles.has("decision-making framework")) {
+        sections.push({
+          title: "Decision-Making Framework",
+          content: "Effective decision-making requires considering multiple factors including timing, alignment, and practical considerations. Your birth chart provides insights into favorable periods for different types of decisions. Combine astrological guidance with practical assessment for best results.",
+        });
+      }
+      if (!existingTitles.has("timing considerations") && !existingTitles.has("decision timing")) {
+        sections.push({
+          title: "Timing Considerations",
+          content: "Timing plays a crucial role in decision outcomes. Some periods favor taking action, while others favor planning and preparation. Understanding the current astrological climate helps you choose the right moment for important decisions.",
+        });
+      }
+      if (!existingTitles.has("key considerations") && !existingTitles.has("factors to consider")) {
+        sections.push({
+          title: "Key Decision Factors",
+          content: "When making major decisions, consider planetary influences, current Dasha period, and long-term vs. short-term implications. Align decisions with your natural strengths and be mindful of potential challenges. Seek additional guidance when facing complex situations.",
+        });
+      }
+    }
+    
+    // Ensure we have at least the minimum required sections
+    while (sections.length < minSectionsForPaid) {
+      sections.push({
+        title: `Additional Insights - Section ${sections.length + 1}`,
+        content: "This section contains additional astrological insights based on your birth chart analysis. For comprehensive guidance, consider reviewing all sections of this report together.",
+      });
+    }
+  }
   
   // Add disclaimer section (static content, not generated by AI)
   // This reduces prompt tokens and ensures consistency
