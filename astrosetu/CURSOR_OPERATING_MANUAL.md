@@ -8,6 +8,20 @@
 
 ## 📋 Non-Negotiable Product Contracts
 
+### 🚨 GIT WORKFLOW - MANDATORY APPROVAL (CRITICAL)
+**Contract**: 
+- **ALWAYS keep all changes**: Commit locally to preserve work (`git add` and `git commit` are fine)
+- **ALWAYS take approval before git push**: **NEVER** push to remote without explicit user approval
+- **Show what will be pushed**: Display commit summary and changed files before asking for approval
+- **Wait for confirmation**: Do not proceed with `git push` until user explicitly approves
+
+**Enforcement**: This is a NON-NEGOTIABLE rule that cannot be bypassed under any circumstances.
+**Violation requires immediate correction.**
+
+---
+
+## Technical Non-Negotiable Product Contracts
+
 ### 1. Loader visible ⇒ timer must tick
 **Contract**: If the "Generating…" / "Verifying…" screen is visible, Elapsed must increase within 2 seconds.
 

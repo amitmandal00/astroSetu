@@ -19,7 +19,12 @@ Work in **Autopilot (safe, non-blocking)** mode:
   - Write summary to `CURSOR_ACTIONS_REQUIRED.md` including: file name, change intent, why it is safe.
   - Wait for a single "Accept", then continue automatically with the next steps.
 - If an approval/popup appears (including "Allow popups safely"): **skip that action**, log it in `CURSOR_ACTIONS_REQUIRED.md`, update `CURSOR_PROGRESS.md`, and continue with the next safe task.
-- **CRITICAL (2026-01-18)**: **ALWAYS get user approval before git push**. Commits are fine, but NEVER push without explicit user approval. Show what will be pushed and wait for confirmation.
+- **🚨 CRITICAL - GIT WORKFLOW (NON-NEGOTIABLE)**: 
+  - **ALWAYS keep all changes**: Commit locally to preserve work (`git add` and `git commit` are fine)
+  - **ALWAYS get approval before git push**: **NEVER** push to remote without explicit user approval
+  - **Show what will be pushed**: Display commit summary and changed files before asking for approval
+  - **Wait for confirmation**: Do not proceed with `git push` until user explicitly approves
+  - **This is a NON-NEGOTIABLE rule that cannot be bypassed under any circumstances.**
 - Always ask before terminal commands, installs, deletes, network/external APIs.
 - **Run checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` (if available).
 

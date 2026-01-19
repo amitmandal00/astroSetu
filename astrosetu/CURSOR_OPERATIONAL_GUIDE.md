@@ -4,6 +4,18 @@ This is the workflow Cursor must follow when changing anything related to AI Ast
 
 ## NON-NEGOTIABLES
 
+### 🚨 GIT WORKFLOW - MANDATORY APPROVAL (CRITICAL)
+- **ALWAYS keep all changes**: Commit locally to preserve work (`git add` and `git commit` are fine)
+- **ALWAYS take approval before git push**: **NEVER** push to remote without explicit user approval
+- **Show what will be pushed**: Display commit summary and changed files before asking for approval
+- **Wait for confirmation**: Do not proceed with `git push` until user explicitly approves
+
+**This is a NON-NEGOTIABLE rule that cannot be bypassed under any circumstances.**
+
+---
+
+### Technical NON-NEGOTIABLES
+
 - **Minimal diff rule**: fix only the defect; no unrelated refactors.
 - **Timer monotonic invariant**: while the generation UI is visible, elapsed time must **never** reset to 0 and must **never** decrease.
 - **Idle-only resets**: do not clear `loading`, `loadingStage`, `loadingStartTime`, `loadingStartTimeRef`, or generation locks while an attempt is active/starting.

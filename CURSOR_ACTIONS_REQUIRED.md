@@ -33,10 +33,19 @@
 - ⏳ May be Vercel/Next.js routing issue rather than code issue
 - ⏳ Need to verify if these redirects are causing the subscription loop or if they're unrelated
 
-**Git Push Approval Requirement (2026-01-18)**:
+**🚨 Git Push Approval Requirement (NON-NEGOTIABLE - 2026-01-19)**:
 - ✅ **CRITICAL**: ALL git push operations now require explicit user approval
-- ✅ Updated `CURSOR_AUTOPILOT_PROMPT.md` to require approval before git push
-- ✅ Cursor will show what will be pushed and wait for confirmation before executing
+- ✅ **ALWAYS keep all changes**: Commit locally to preserve work (`git add` and `git commit` are fine)
+- ✅ **ALWAYS get approval before git push**: **NEVER** push to remote without explicit user approval
+- ✅ **Show what will be pushed**: Display commit summary and changed files before asking for approval
+- ✅ **Wait for confirmation**: Do not proceed with `git push` until user explicitly approves
+- ✅ Updated all operational documentation files to reflect this requirement:
+  - `CURSOR_OPERATIONAL_GUIDE.md`
+  - `CURSOR_WORKFLOW_CONTROL.md`
+  - `CURSOR_PROGRESS.md`
+  - `CURSOR_AUTOPILOT_PROMPT.md`
+  - `CURSOR_ACTIONS_REQUIRED.md`
+- ✅ This is a NON-NEGOTIABLE rule that cannot be bypassed under any circumstances
 
 ---
 

@@ -350,11 +350,13 @@ Error: EPERM: operation not permitted, scandir '/Users/.../src/app/api/notificat
   - Write summary to `CURSOR_ACTIONS_REQUIRED.md` (file name, change intent, why safe)
   - Wait for single "Accept", then continue automatically
   - **Consolidate all pending edits into ONE accept step** when possible
-- **Git workflow**: 
-  - ✅ **Always keep all changes** - commit locally to preserve work
-  - ⏸️ **Always get approval before git push** - never push without explicit user approval
+- **🚨 GIT WORKFLOW - MANDATORY APPROVAL (CRITICAL)**: 
+  - ✅ **ALWAYS keep all changes** - commit locally to preserve work (`git add` and `git commit` are fine)
+  - 🚨 **ALWAYS get approval before git push** - **NEVER** push to remote without explicit user approval
   - ✅ Stage and commit locally is fine (preserves work)
-  - ⏸️ Always ask before pushing to remote
+  - 🚨 **Show what will be pushed** - Display commit summary and changed files before asking for approval
+  - 🚨 **Wait for confirmation** - Do not proceed with `git push` until user explicitly approves
+  - **This is a NON-NEGOTIABLE rule that cannot be bypassed under any circumstances.**
 - **Connection error root causes** (to prevent):
   - VPN/proxy: Disable or allowlist Cursor + API provider domains
   - OpenAI key: Check rate limit/quota/billing/model mismatch

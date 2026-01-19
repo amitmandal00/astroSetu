@@ -103,6 +103,12 @@ function PreviewContent() {
   const [loadingStage, setLoadingStage] = useState<"verifying" | "generating" | null>(null); // Track loading stage for better UX
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null); // Track when loading started for elapsed time
   
+  // Test session real/mock toggle state
+  const sessionIdFromUrl = searchParams.get("session_id") || undefined;
+  const isTestSession = !!sessionIdFromUrl && sessionIdFromUrl.startsWith("test_session_");
+  const useRealFromUrl = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+  const [useRealMode, setUseRealMode] = useState(useRealFromUrl);
+  
   // CRITICAL FIX: Use generation controller hook for report generation
   // This provides single-flight guard, cancellation, and state machine
   // CRITICAL FIX (ChatGPT): Controller now owns ALL report types (free, year-analysis, paid)
@@ -1249,7 +1255,8 @@ function PreviewContent() {
     const paymentIntentIdForGeneration = isPaidReport ? paymentIntentId : undefined;
     
     // Check for use_real parameter from URL to force real AI generation for test sessions
-    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+    // Also check toggle state (useRealMode) which syncs with URL
+    const useReal = useRealMode || searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
     
     generationController.start(inputData, reportTypeToUse, {
       sessionId: sessionIdForGeneration,
@@ -1901,8 +1908,8 @@ function PreviewContent() {
                     // CRITICAL FIX: Use generation controller for paid reports
                     isGeneratingRef.current = false;
                     usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
-                    // Check for use_real parameter from URL
-                    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+                    // Check for use_real parameter from URL (also check toggle state)
+                    const useReal = useRealMode || searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
                     
                     generationController.start(inputData, finalReportType, {
                       sessionId: urlSessionId,
@@ -1925,8 +1932,8 @@ function PreviewContent() {
                     // CRITICAL FIX: Use generation controller for paid reports
                     isGeneratingRef.current = false;
                     usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
-                    // Check for use_real parameter from URL
-                    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+                    // Check for use_real parameter from URL (also check toggle state)
+                    const useReal = useRealMode || searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
                     
                     generationController.start(inputData, reportTypeToUse, {
                       sessionId: urlSessionId,
@@ -5253,6 +5260,64 @@ function PreviewContent() {
               </div>
             </div>
           
+            {/* Test Session Toggle (only visible for test sessions) */}
+            {isTestSession && (
+              <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-amber-900 mb-1">
+                      🧪 Test Mode: Report Generation
+                    </h3>
+                    <p className="text-xs text-amber-700">
+                      Toggle between <strong>Mock Reports</strong> (fast, free) and <strong>Real AI Reports</strong> (30-60s, costs ~$0.01-0.05)
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <span className={`text-sm font-medium transition-colors ${
+                      useRealMode ? "text-purple-700" : "text-slate-600"
+                    }`}>
+                      {useRealMode ? "Real AI" : "Mock"}
+                    </span>
+                    <div
+                      className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
+                        useRealMode ? "bg-purple-600" : "bg-slate-300"
+                      }`}
+                      onClick={() => {
+                        const newValue = !useRealMode;
+                        setUseRealMode(newValue);
+                        
+                        // Update URL without page reload
+                        const newUrl = new URL(window.location.href);
+                        if (newValue) {
+                          newUrl.searchParams.set("use_real", "true");
+                        } else {
+                          newUrl.searchParams.delete("use_real");
+                          newUrl.searchParams.delete("force_real");
+                        }
+                        window.history.replaceState({}, "", newUrl);
+                        
+                        console.log(`[TEST MODE] Switched to ${newValue ? "REAL AI" : "MOCK"} reports`);
+                      }}
+                    >
+                      <div
+                        className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
+                          useRealMode ? "translate-x-7" : "translate-x-0"
+                        }`}
+                      />
+                    </div>
+                  </label>
+                </div>
+                {useRealMode && (
+                  <div className="mt-3 pt-3 border-t border-amber-200">
+                    <p className="text-xs text-amber-800">
+                      ⚠️ <strong>Real AI Mode Active</strong>: Next report generation will use OpenAI API (costs money, takes longer).
+                      Mock content will be stripped from results.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* PDF Download & Email Buttons */}
             {(isPaidReport || (isBundleReport && bundleContents.size > 0)) && (
               <div id="download-pdf" className="flex flex-col sm:flex-row gap-3 scroll-mt-20">

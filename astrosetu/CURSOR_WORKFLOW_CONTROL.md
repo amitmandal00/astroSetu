@@ -7,6 +7,18 @@
 
 ## 🚨 NON-NEGOTIABLES (Enforced by Workflows)
 
+### 🚨 0. GIT WORKFLOW - MANDATORY APPROVAL (CRITICAL)
+**MANDATORY**: 
+- **ALWAYS keep all changes**: Commit locally to preserve work (`git add` and `git commit` are fine)
+- **ALWAYS take approval before git push**: **NEVER** push to remote without explicit user approval
+- **Show what will be pushed**: Display commit summary and changed files before asking for approval
+- **Wait for confirmation**: Do not proceed with `git push` until user explicitly approves
+
+**This is a NON-NEGOTIABLE rule that cannot be bypassed under any circumstances.**
+**Violation of this rule requires immediate correction.**
+
+---
+
 ### 1. No Fix Without Failing Test First
 **MANDATORY**: Every fix must start with a failing Playwright E2E test in `tests/e2e/critical-invariants.spec.ts`.
 
@@ -219,10 +231,11 @@ npm run test:critical
 - This prevents Vercel build failures
 
 ### 8. Commit & Get Approval
-- Commit with clear message
-- **MANDATORY: Get user approval before git push**
-- Show summary of changes
-- Wait for explicit approval before pushing
+- Commit locally with clear message (`git add` and `git commit` are fine)
+- **🚨 CRITICAL: Get user approval before git push**
+- Show summary of changes (commit message, changed files, diff summary)
+- **Wait for explicit approval** before executing `git push`
+- **NEVER** push without approval, even if changes seem minor
 
 ---
 
