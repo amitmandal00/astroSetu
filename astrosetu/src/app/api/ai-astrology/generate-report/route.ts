@@ -1209,32 +1209,37 @@ export async function POST(req: Request) {
     //   1. Setting useReal=true in request body, OR
     //   2. Adding ?use_real=true or ?force_real=true to URL query params
     //   3. Setting ALLOW_REAL_FOR_TEST_SESSIONS=true environment variable
-    const allowRealForTestSessions = process.env.ALLOW_REAL_FOR_TEST_SESSIONS === "true";
+    const envVarRaw = process.env.ALLOW_REAL_FOR_TEST_SESSIONS;
+    const allowRealForTestSessions = envVarRaw === "true";
     const shouldUseRealMode = forceRealMode || allowRealForTestSessions;
     const mockMode = (isTestSession && !shouldUseRealMode) || process.env.MOCK_MODE === "true";
     
-    // DEBUG: Log environment variable check
-    console.log("[REAL MODE CHECK]", {
-      requestId,
-      isTestSession,
-      allowRealForTestSessions,
-      envVarValue: process.env.ALLOW_REAL_FOR_TEST_SESSIONS,
-      forceRealMode,
-      shouldUseRealMode,
-      mockMode,
-      sessionId: sessionIdFromQuery,
-    });
+    // DEBUG: Log environment variable check (ALWAYS log for test sessions)
+    if (isTestSession) {
+      console.log("[REAL MODE CHECK]", JSON.stringify({
+        requestId,
+        isTestSession: true,
+        envVarRaw: envVarRaw || "undefined",
+        envVarType: typeof envVarRaw,
+        allowRealForTestSessions,
+        forceRealMode,
+        shouldUseRealMode,
+        mockMode,
+        sessionId: sessionIdFromQuery,
+        allEnvVarsWithALLOW: Object.keys(process.env).filter(k => k.includes("ALLOW") || k.includes("REAL")).map(k => `${k}=${process.env[k]?.substring(0, 20)}`),
+      }, null, 2));
+    }
     
     // Log when real mode is enabled for test sessions
     if (isTestSession && shouldUseRealMode) {
-      console.log("[TEST SESSION - REAL MODE ENABLED]", {
+      console.log("[TEST SESSION - REAL MODE ENABLED]", JSON.stringify({
         requestId,
         sessionId: sessionIdFromQuery,
         forceRealMode,
         allowRealForTestSessions,
         reason: forceRealMode ? "explicit request (URL/body)" : "environment variable (ALLOW_REAL_FOR_TEST_SESSIONS=true)",
-        envVarRaw: process.env.ALLOW_REAL_FOR_TEST_SESSIONS,
-      });
+        envVarRaw: envVarRaw || "undefined",
+      }, null, 2));
     }
     
     if (mockMode) {
