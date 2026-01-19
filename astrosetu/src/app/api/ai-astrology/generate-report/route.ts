@@ -1213,7 +1213,12 @@ export async function POST(req: Request) {
       });
       
       // CRITICAL: Strip mock content before caching/storing (production safety)
-      const cleanedMockContent = stripMockContent(mockReportContent);
+      let cleanedMockContent = stripMockContent(mockReportContent);
+      
+      // CRITICAL FIX (2026-01-19): Ensure mock reports also have minimum sections
+      // Mock reports from fixtures can be too short, so we need to add fallback sections
+      const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
+      cleanedMockContent = ensureMinimumSections(cleanedMockContent, reportType);
       
       // Phase 1: Validate mock report (even mock reports should pass validation)
       const mockValidation = validateReportBeforeCompletion(cleanedMockContent, input, paymentToken);
