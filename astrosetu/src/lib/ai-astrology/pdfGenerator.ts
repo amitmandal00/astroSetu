@@ -4,6 +4,7 @@
  */
 
 import type { ReportContent, AIAstrologyInput, ReportType } from "./types";
+import { stripMockContent, shouldWatermarkPDF, getPDFWatermark } from "./mockContentGuard";
 
 // Dynamically import jsPDF to avoid SSR issues
 let jsPDF: any = null;
@@ -42,6 +43,15 @@ export async function generatePDF(
   console.log("[PDF] Starting PDF generation for", reportType);
   
   try {
+    // CRITICAL: Strip mock content before PDF generation (production safety)
+    const cleanedReport = stripMockContent(reportContent);
+    const needsWatermark = shouldWatermarkPDF();
+    const watermarkText = getPDFWatermark();
+    
+    if (needsWatermark && watermarkText) {
+      console.warn("[PDF] Mock mode detected - PDF will be watermarked:", watermarkText);
+    }
+    
     const PDF = await loadPDFLibraries();
     if (!PDF) {
       throw new Error("Failed to load PDF library");
@@ -55,11 +65,35 @@ export async function generatePDF(
       format: "a4",
     });
 
+    // CRITICAL: Add watermark function to be called on every page
+    const addWatermark = () => {
+      if (needsWatermark && watermarkText) {
+        doc.setGState(doc.GState({opacity: 0.3}));
+        doc.setFontSize(40);
+        doc.setTextColor(200, 0, 0); // Red color for visibility
+        doc.setFont("helvetica", "bold");
+        const textWidth = doc.getTextWidth(watermarkText);
+        const textX = (pageWidth - textWidth) / 2;
+        const textY = pageHeight / 2;
+        // Rotate text 45 degrees
+        doc.text(watermarkText, textX, textY, { angle: 45 });
+        doc.setGState(doc.GState({opacity: 1.0}));
+      }
+    };
+
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 15;
     const contentWidth = pageWidth - 2 * margin;
     let yPosition = margin;
+    
+    // Override addPage to automatically add watermark
+    const originalAddPage = doc.addPage.bind(doc);
+    doc.addPage = function() {
+      originalAddPage();
+      addWatermark();
+      return doc;
+    };
 
     // Helper function to add new page if needed
     const checkPageBreak = (requiredSpace: number = 20) => {
@@ -241,11 +275,14 @@ export async function generatePDF(
     
     yPosition = 55;
 
+    // CRITICAL: Add watermark to first page
+    addWatermark();
+    
     // Report Title (Large, centered)
     doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
     doc.setTextColor("#1e293b");
-    const cleanedTitle = cleanText(reportContent.title);
+    const cleanedTitle = cleanText(cleanedReport.title);
     const titleLines = doc.splitTextToSize(cleanedTitle, contentWidth);
     const titleSpacing = 24 * 1.3 * 0.3528; // Line spacing for title
     checkPageBreak(titleLines.length * titleSpacing + 15);
@@ -264,7 +301,7 @@ export async function generatePDF(
     addText(`Generated for: ${input.name}`, 12, false, "#475569", 1.5, 4);
 
     // Generated on
-    const generatedDate = new Date(reportContent.generatedAt || new Date().toISOString());
+    const generatedDate = new Date(cleanedReport.generatedAt || new Date().toISOString());
     const dateStr = generatedDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
     const timeStr = generatedDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     addText(`Generated on: ${dateStr} at ${timeStr}`, 11, false, "#64748b", 1.5, 8);
@@ -279,11 +316,11 @@ export async function generatePDF(
     yPosition += 15;
 
     // Report ID if present
-    if (reportContent.reportId) {
+    if (cleanedReport.reportId) {
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.setTextColor("#94a3b8");
-      doc.text(`Report ID: ${reportContent.reportId}`, pageWidth / 2, yPosition, { align: "center" });
+      doc.text(`Report ID: ${cleanedReport.reportId}`, pageWidth / 2, yPosition, { align: "center" });
       yPosition += 5;
     }
 
@@ -368,9 +405,9 @@ export async function generatePDF(
 
     // System used
     addText("Astrological System Used:", 10, true, "#475569", 1.4, 4);
-    const dataSourceMatch = reportContent.summary?.match(/Based on:.*?(?:\n|$)/i) || 
-                           reportContent.executiveSummary?.match(/Based on:.*?(?:\n|$)/i) ||
-                           reportContent.sections[0]?.content?.match(/Based on:.*?(?:\n|$)/i);
+    const dataSourceMatch = cleanedReport.summary?.match(/Based on:.*?(?:\n|$)/i) || 
+                           cleanedReport.executiveSummary?.match(/Based on:.*?(?:\n|$)/i) ||
+                           cleanedReport.sections[0]?.content?.match(/Based on:.*?(?:\n|$)/i);
     if (dataSourceMatch) {
       const sourceText = dataSourceMatch[0].replace(/Based on:/i, "").trim();
       const sourceLines = sourceText.split(',').map(s => `• ${s.trim()}`);
@@ -456,9 +493,9 @@ export async function generatePDF(
     const confidenceHeaderHeight = 14 * 1.4 * 0.3528;
     
     // Extract confidence from content
-    const overallConfidenceMatch = reportContent.summary?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i) || 
-                                   reportContent.executiveSummary?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i) ||
-                                   reportContent.sections[0]?.content?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i);
+    const overallConfidenceMatch = cleanedReport.summary?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i) || 
+                                   cleanedReport.executiveSummary?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i) ||
+                                   cleanedReport.sections[0]?.content?.match(/Confidence.*?(\d+\/10|★+|High|Medium|Low)/i);
     
     let confidenceText = "";
     if (overallConfidenceMatch) {
@@ -536,7 +573,7 @@ export async function generatePDF(
     addText("Summary for busy users", 10, false, "#64748b", 1.3, 5);
 
     // Display executive summary or regular summary with intelligent paragraph formatting
-    const summaryText = (reportContent.executiveSummary || reportContent.summary || "")
+    const summaryText = (cleanedReport.executiveSummary || cleanedReport.summary || "")
       .split(/\n/)
       .filter(line => 
         !line.match(/^Based on:/i) && 
@@ -589,11 +626,11 @@ export async function generatePDF(
     yPosition += 5;
 
     // Main sections
-    reportContent.sections.forEach((section, sectionIdx) => {
+    cleanedReport.sections.forEach((section, sectionIdx) => {
       checkPageBreak(30);
 
       // Section divider - reduced spacing
-      if (sectionIdx > 0 || reportContent.summary) {
+      if (sectionIdx > 0 || cleanedReport.summary) {
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.3);
         doc.line(margin, yPosition, pageWidth - margin, yPosition);
@@ -843,7 +880,7 @@ export async function generatePDF(
     });
 
     // Key Insights section (if present)
-    if (reportContent.keyInsights && reportContent.keyInsights.length > 0) {
+    if (cleanedReport.keyInsights && cleanedReport.keyInsights.length > 0) {
       checkPageBreak(30);
 
       // Key Insights divider - Matching UI amber theme
@@ -871,7 +908,7 @@ export async function generatePDF(
       doc.text("Key Insights", margin + insightsHeaderBoxPadding, yPosition + (16 * 0.3528));
       yPosition = insightsHeaderBoxStartY + insightsHeaderBoxHeight + 5;
 
-      reportContent.keyInsights.forEach((insight) => {
+      cleanedReport.keyInsights.forEach((insight) => {
         doc.setFontSize(11);
         doc.setTextColor("#78350f");
         doc.setFont("helvetica", "normal");
@@ -929,7 +966,7 @@ export async function generatePDF(
 
     // Enhanced Footer on every page with Report ID and timestamp
     const totalPages = doc.internal.pages.length - 1;
-    const footerDate = new Date(reportContent.generatedAt || new Date().toISOString());
+    const footerDate = new Date(cleanedReport.generatedAt || new Date().toISOString());
     const footerDateStr = footerDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
     const footerTimeStr = footerDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
     
@@ -964,8 +1001,8 @@ export async function generatePDF(
       );
       
       // Report ID and timestamp
-      const footerInfo = reportContent.reportId 
-        ? `Report ID: ${reportContent.reportId} | Generated: ${footerDateStr} ${footerTimeStr}`
+      const footerInfo = cleanedReport.reportId 
+        ? `Report ID: ${cleanedReport.reportId} | Generated: ${footerDateStr} ${footerTimeStr}`
         : `Generated: ${footerDateStr} ${footerTimeStr}`;
       doc.text(
         footerInfo,
@@ -1340,8 +1377,11 @@ export async function generateBundlePDF(
 
     // Generate each report in the bundle
     bundleReports.forEach((reportType, reportIdx) => {
-      const reportContent = bundleContents.get(reportType);
-      if (!reportContent) return;
+      const rawReportContent = bundleContents.get(reportType);
+      if (!rawReportContent) return;
+      
+      // CRITICAL: Strip mock content from each report in bundle
+      const cleanedBundleReport = stripMockContent(rawReportContent);
 
       // Report Separator Page
       if (reportIdx > 0) {
@@ -1359,7 +1399,7 @@ export async function generateBundlePDF(
         const separatorText = `Report ${reportIdx + 1} of ${bundleReports.length}`;
         doc.text(separatorText, pageWidth / 2, pageHeight / 2, { align: "center" });
         
-        const reportTitleText = cleanText(reportContent.title);
+        const reportTitleText = cleanText(cleanedBundleReport.title);
         doc.setFontSize(16);
         doc.setTextColor("#1e293b");
         const reportTitleLines = doc.splitTextToSize(reportTitleText, contentWidth);
@@ -1393,7 +1433,7 @@ export async function generateBundlePDF(
       doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
       doc.setTextColor("#1e293b");
-      const cleanedTitle = cleanText(reportContent.title);
+      const cleanedTitle = cleanText(cleanedBundleReport.title);
       const titleLines = doc.splitTextToSize(cleanedTitle, contentWidth);
       const titleSpacing = 20 * 1.3 * 0.3528;
       checkPageBreak(titleLines.length * titleSpacing + 15);
@@ -1410,7 +1450,7 @@ export async function generateBundlePDF(
 
       addText(`Generated for: ${input.name}`, 12, false, "#475569", 1.5, 4);
       
-      const reportDate = new Date(reportContent.generatedAt || new Date().toISOString());
+      const reportDate = new Date(cleanedBundleReport.generatedAt || new Date().toISOString());
       const reportDateStr = reportDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
       const reportTimeStr = reportDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       addText(`Generated on: ${reportDateStr} at ${reportTimeStr}`, 11, false, "#64748b", 1.5, 8);
@@ -1422,11 +1462,11 @@ export async function generateBundlePDF(
       doc.text("AI-Generated Astrological Guidance (Educational Only)", pageWidth / 2, yPosition, { align: "center" });
       yPosition += 15;
 
-      if (reportContent.reportId) {
+      if (cleanedBundleReport.reportId) {
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
         doc.setTextColor("#94a3b8");
-        doc.text(`Report ID: ${reportContent.reportId}`, pageWidth / 2, yPosition, { align: "center" });
+        doc.text(`Report ID: ${cleanedBundleReport.reportId}`, pageWidth / 2, yPosition, { align: "center" });
         yPosition += 5;
       }
 
@@ -1442,7 +1482,7 @@ export async function generateBundlePDF(
       yPosition = margin;
 
       // Executive Summary
-      const summaryText = (reportContent.executiveSummary || reportContent.summary || "")
+      const summaryText = (cleanedBundleReport.executiveSummary || cleanedBundleReport.summary || "")
         .split(/\n/)
         .filter(line => 
           !line.match(/^Based on:/i) && 
@@ -1464,10 +1504,10 @@ export async function generateBundlePDF(
       }
 
       // Sections
-      reportContent.sections.forEach((section, sectionIdx) => {
+      cleanedBundleReport.sections.forEach((section, sectionIdx) => {
         checkPageBreak(30);
 
-        if (sectionIdx > 0 || reportContent.summary) {
+        if (sectionIdx > 0 || cleanedBundleReport.summary) {
           doc.setDrawColor(226, 232, 240);
           doc.setLineWidth(0.3);
           doc.line(margin, yPosition, pageWidth - margin, yPosition);
@@ -1552,7 +1592,7 @@ export async function generateBundlePDF(
       });
 
       // Key Insights
-      if (reportContent.keyInsights && reportContent.keyInsights.length > 0) {
+      if (cleanedBundleReport.keyInsights && cleanedBundleReport.keyInsights.length > 0) {
         checkPageBreak(30);
 
         doc.setDrawColor(245, 158, 11);
@@ -1562,7 +1602,7 @@ export async function generateBundlePDF(
 
         addText("Key Insights", 16, true, "#92400e", 1.3, 5);
 
-        reportContent.keyInsights.forEach((insight) => {
+        cleanedBundleReport.keyInsights.forEach((insight) => {
           doc.setFontSize(11);
           doc.setTextColor("#78350f");
           doc.setFont("helvetica", "normal");

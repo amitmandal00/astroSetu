@@ -7,7 +7,7 @@
     "type-check:skip": "echo 'Skipping type check'",
     "verify": "npm run type-check && npm run build",
     "dev": "next dev -p 3001",
-    "build": "node scripts/generate-build-meta.mjs && next build",
+    "build": "node scripts/validate-production.mjs && node scripts/generate-build-meta.mjs && next build",
     "build:safe": "npm run type-check:skip || true && npm run build",
     "start": "next start -p 3001",
     "lint": "next lint",

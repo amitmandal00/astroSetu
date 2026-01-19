@@ -28,6 +28,7 @@ import { isProdTestUser } from "@/lib/prodAllowlist";
 import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing, getCachedReportByReportId } from "@/lib/ai-astrology/reportCache";
 import { generateSessionKey } from "@/lib/ai-astrology/openAICallTracker";
 import { ensureFutureWindows } from "@/lib/ai-astrology/ensureFutureWindows";
+import { stripMockContent } from "@/lib/ai-astrology/mockContentGuard";
 import {
   getStoredReportByIdempotencyKey,
   getStoredReportByReportId,
@@ -1205,10 +1206,13 @@ export async function POST(req: Request) {
         timeZone: input.timezone || "Australia/Melbourne",
       });
       
+      // CRITICAL: Strip mock content before caching/storing (production safety)
+      const cleanedMockContent = stripMockContent(mockReportContent);
+      
       // Cache the mock report (for idempotency)
-      cacheReport(idempotencyKey, reportId, mockReportContent, reportType, input);
+      cacheReport(idempotencyKey, reportId, cleanedMockContent, reportType, input);
       // Persist completion (best-effort, serverless-safe)
-      await markStoredReportCompleted({ idempotencyKey, reportId, content: mockReportContent });
+      await markStoredReportCompleted({ idempotencyKey, reportId, content: cleanedMockContent });
       
       const mockLog = {
         requestId,
@@ -1229,8 +1233,8 @@ export async function POST(req: Request) {
             reportId,
             reportType,
             input,
-            content: mockReportContent,
-            generatedAt: mockReportContent.generatedAt || new Date().toISOString(),
+            content: cleanedMockContent,
+            generatedAt: cleanedMockContent.generatedAt || new Date().toISOString(),
           },
           requestId,
         },
@@ -1379,10 +1383,13 @@ export async function POST(req: Request) {
       };
       console.log("[REPORT GENERATION SUCCESS]", JSON.stringify(successLog, null, 2));
       
+      // CRITICAL: Strip mock content before caching/storing (production safety - even for real reports)
+      const cleanedReportContent = stripMockContent(reportContent);
+      
       // CRITICAL: Cache the generated report to prevent duplicate OpenAI calls
-      cacheReport(idempotencyKey, reportId, reportContent, reportType, input);
+      cacheReport(idempotencyKey, reportId, cleanedReportContent, reportType, input);
       // Persist completion (best-effort, serverless-safe)
-      await markStoredReportCompleted({ idempotencyKey, reportId, content: reportContent });
+      await markStoredReportCompleted({ idempotencyKey, reportId, content: cleanedReportContent });
       const cacheSaveLog = {
         requestId,
         timestamp: new Date().toISOString(),
@@ -1756,7 +1763,8 @@ export async function POST(req: Request) {
     // Ensure content doesn't have its own reportId (remove if present to avoid duplication)
     // reportId was already generated above for idempotency check
     // Canonical reportId is stored in data.reportId, not in content.reportId
-    const contentWithoutReportId = { ...reportContent };
+    // Use cleanedReportContent (mock content already stripped)
+    const contentWithoutReportId = { ...cleanedReportContent };
     if ('reportId' in contentWithoutReportId) {
       delete contentWithoutReportId.reportId;
     }

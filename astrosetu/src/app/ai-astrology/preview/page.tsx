@@ -17,6 +17,7 @@ import type { ReportContent } from "@/lib/ai-astrology/types";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
 import { PostPurchaseUpsell } from "@/components/ai-astrology/PostPurchaseUpsell";
+import { ReportTableOfContents } from "@/components/ai-astrology/ReportTableOfContents";
 import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 import { useReportGenerationController } from "@/hooks/useReportGenerationController";
 import { getFreeLifeSummaryGateAfterSection } from "@/lib/ai-astrology/freeReportGating";
@@ -4131,9 +4132,12 @@ function PreviewContent() {
 
     return (
       <>
+                {/* P1 IMPROVEMENT: Table of Contents (ChatGPT feedback) */}
+                <ReportTableOfContents content={content} reportType={type} />
+                
                 {/* Executive Summary (for Full Life Report) */}
                 {type === "full-life" && content?.executiveSummary && (
-                  <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
+                  <div id="executive-summary" className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm scroll-mt-20">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">📋</div>
                       <h2 className="text-2xl font-bold text-purple-900">Your Key Life Insights (Summary)</h2>
@@ -4146,7 +4150,7 @@ function PreviewContent() {
 
                 {/* Enhanced Summary for Marriage Timing Report */}
                 {type === "marriage-timing" && content?.summary && (
-                  <div className="mb-8 p-6 bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 rounded-xl border-2 border-pink-300 shadow-sm">
+                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 rounded-xl border-2 border-pink-300 shadow-sm scroll-mt-20">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">💑</div>
                       <h2 className="text-2xl font-bold text-pink-900">Marriage Timing Summary</h2>
@@ -4200,7 +4204,7 @@ function PreviewContent() {
 
                 {/* Enhanced Summary for Year Analysis Report */}
                 {type === "year-analysis" && content?.summary && (
-                  <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm">
+                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm scroll-mt-20">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">📅</div>
                       <h2 className="text-2xl font-bold text-indigo-900">Year Analysis Summary</h2>
@@ -4213,7 +4217,7 @@ function PreviewContent() {
 
                 {/* Enhanced Summary for Major Life Phase Report */}
                 {type === "major-life-phase" && content?.summary && (
-                  <div className="mb-8 p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-violet-50 rounded-xl border-2 border-violet-300 shadow-sm">
+                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-violet-50 rounded-xl border-2 border-violet-300 shadow-sm scroll-mt-20">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">🗺️</div>
                       <h2 className="text-2xl font-bold text-violet-900">3-5 Year Strategic Life Phase Summary</h2>
@@ -4226,7 +4230,7 @@ function PreviewContent() {
 
                 {/* Enhanced Summary for Decision Support Report */}
                 {type === "decision-support" && content?.summary && (
-                  <div className="mb-8 p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 rounded-xl border-2 border-emerald-300 shadow-sm">
+                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 rounded-xl border-2 border-emerald-300 shadow-sm scroll-mt-20">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">🎯</div>
                       <h2 className="text-2xl font-bold text-emerald-900">Decision Support Summary</h2>
@@ -4239,7 +4243,7 @@ function PreviewContent() {
 
                 {/* Enhanced Summary for Life Summary Report (Free) */}
                 {type === "life-summary" && content?.summary && (
-                  <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 rounded-xl border-2 border-amber-300 shadow-sm">
+                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 rounded-xl border-2 border-amber-300 shadow-sm scroll-mt-20">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="text-3xl">📊</div>
                       <h2 className="text-2xl font-bold text-amber-900">Life Summary</h2>
@@ -4359,7 +4363,7 @@ function PreviewContent() {
                     isDecisionAnalysisSection ? "bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-xl border-2 border-emerald-300 shadow-sm" :
                     isRecommendationsSection ? "bg-gradient-to-br from-teal-50 to-green-50 p-6 rounded-xl border-2 border-teal-300 shadow-sm" :
                     isMajorSection ? "bg-gradient-to-br from-slate-50 to-blue-50/30 p-6 rounded-xl border border-slate-200" : ""
-                  }`}>
+                  } scroll-mt-20`} id={`section-${idx}`}>
                       <div className="flex items-start gap-3 mb-4">
                         {(isMajorSection || isDecisionGuidanceSection || isIdealWindowsSection || isDelayFactorsSection || 
                           isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection ||
