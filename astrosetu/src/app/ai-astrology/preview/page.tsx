@@ -21,6 +21,7 @@ import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 import { useReportGenerationController } from "@/hooks/useReportGenerationController";
 import { getFreeLifeSummaryGateAfterSection } from "@/lib/ai-astrology/freeReportGating";
 import { logError } from "@/lib/telemetry";
+import { stripMockContent } from "@/lib/ai-astrology/mockContentGuard";
 
 function PreviewContent() {
   const router = useRouter();
@@ -645,8 +646,11 @@ function PreviewContent() {
                 // Store content if available
                 if (statusData.data.content && statusData.data.reportId) {
                   try {
+                    // CRITICAL: Strip mock content before storing AND displaying (forceStrip = true for client-side)
+                    const cleanedContent = stripMockContent(statusData.data.content, true);
+                    
                     const reportData = JSON.stringify({
-                      content: statusData.data.content,
+                      content: cleanedContent, // Store cleaned content, not raw
                       reportType: statusData.data.reportType,
                       input: statusData.data.input,
                       generatedAt: statusData.data.generatedAt,
@@ -654,11 +658,11 @@ function PreviewContent() {
                     });
                     sessionStorage.setItem(`aiAstrologyReport_${statusData.data.reportId}`, reportData);
                     localStorage.setItem(`aiAstrologyReport_${statusData.data.reportId}`, reportData);
-                    console.log("[CLIENT] Stored report content from polling");
+                    console.log("[CLIENT] Stored cleaned report content from polling");
                     
-                    // CRITICAL FIX: Update React state with report content
+                    // CRITICAL FIX: Update React state with cleaned report content
                     // This ensures the report is displayed even if navigation doesn't happen
-                    setReportContent(statusData.data.content);
+                    setReportContent(cleanedContent);
                     if (statusData.data.input) {
                       setInput(statusData.data.input);
                     }
@@ -838,7 +842,9 @@ function PreviewContent() {
       // If no redirect (older API versions), use existing behavior
       // CRITICAL: Ensure we have content before setting it
       if (response.data?.content) {
-        setReportContent(response.data.content);
+        // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
+        const cleanedContent = stripMockContent(response.data.content, true);
+        setReportContent(cleanedContent);
         setLoading(false);
         setLoadingStage(null);
         setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
@@ -1143,7 +1149,10 @@ function PreviewContent() {
         // Set bundle contents with successful reports
         setBundleContents(bundleContentsMap);
         // Set the first successful report as the primary report for display
-        setReportContent(bundleContentsMap.get(reports[0]) || bundleContentsMap.values().next().value || null);
+        // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
+        const bundleContent = bundleContentsMap.get(reports[0]) || bundleContentsMap.values().next().value || null;
+        const cleanedBundleContent = bundleContent ? stripMockContent(bundleContent, true) : null;
+        setReportContent(cleanedBundleContent);
         setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
         reportTypeRef.current = successes[0].reportType; // Update ref immediately
         setReportType(successes[0].reportType);
@@ -1551,7 +1560,9 @@ function PreviewContent() {
           
           if (storedReport) {
             const parsed = JSON.parse(storedReport);
-            setReportContent(parsed.content);
+            // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
+            const cleanedContent = stripMockContent(parsed.content, true);
+            setReportContent(cleanedContent);
             setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
             const newReportType = parsed.reportType || (searchParams.get("reportType") as ReportType) || "life-summary";
             reportTypeRef.current = newReportType; // Update ref immediately
@@ -2583,7 +2594,9 @@ function PreviewContent() {
         }
         
         // Report has valid sections - proceed normally
-        setReportContent(generationController.reportContent);
+        // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
+        const cleanedContent = generationController.reportContent ? stripMockContent(generationController.reportContent, true) : null;
+        setReportContent(cleanedContent);
         setContentLoadTime(Date.now());
         // CRITICAL FIX (ChatGPT Feedback): When report content arrives, stop loading and timer
         // Don't check isProcessingUIRef - clear timer immediately when content arrives
@@ -3011,7 +3024,9 @@ function PreviewContent() {
         }
         if (storedReport) {
           const parsed = JSON.parse(storedReport);
-          setReportContent(parsed.content);
+          // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
+          const cleanedContent = stripMockContent(parsed.content, true);
+          setReportContent(cleanedContent);
           setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
           setInput(parsed.input);
           setReportType(parsed.reportType);

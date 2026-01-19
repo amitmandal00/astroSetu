@@ -16,9 +16,13 @@ const MOCK_INDICATORS = [
   "MOCK_MODE",
   "mock data for development",
   "real reports use",
+  "real reports provide",
+  "would appear here in a real report",
   "this is test data",
   "mock insight",
   "enable real mode",
+  "mock report summary",
+  "this is a mock report",
 ];
 
 /**
@@ -66,12 +70,15 @@ export function reportContainsMockContent(report: ReportContent): boolean {
 /**
  * Strip mock content from a report
  * Replaces mock sections with generic placeholder content
+ * @param report - The report content to clean
+ * @param forceStrip - If true, always strip mock content regardless of environment (for client-side preview)
  */
-export function stripMockContent(report: ReportContent): ReportContent {
+export function stripMockContent(report: ReportContent, forceStrip: boolean = false): ReportContent {
   const isProduction = process.env.NODE_ENV === "production" && process.env.MOCK_MODE !== "true";
   
-  // If not production or in mock mode, return as-is (will be watermarked later)
-  if (!isProduction) {
+  // If not production and not forcing, return as-is (will be watermarked later)
+  // But if forceStrip is true (for client-side preview), always strip mock content
+  if (!isProduction && !forceStrip) {
     return report;
   }
   
