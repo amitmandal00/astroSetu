@@ -1216,10 +1216,19 @@ export async function POST(req: Request) {
       // Use forceStrip: true to ensure mock content is stripped even in test sessions
       let cleanedMockContent = stripMockContent(mockReportContent, true);
       
+      // DEBUG: Log section count after stripping
+      console.log(`[MOCK REPORT] After stripping mock content: ${cleanedMockContent.sections?.length || 0} sections for ${reportType}`);
+      
       // CRITICAL FIX (2026-01-19): Ensure mock reports also have minimum sections
       // Mock reports from fixtures can be too short, so we need to add fallback sections
       const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
+      const sectionsBefore = cleanedMockContent.sections?.length || 0;
       cleanedMockContent = ensureMinimumSections(cleanedMockContent, reportType);
+      const sectionsAfter = cleanedMockContent.sections?.length || 0;
+      
+      if (sectionsAfter > sectionsBefore) {
+        console.log(`[MOCK REPORT] Added ${sectionsAfter - sectionsBefore} fallback sections (now ${sectionsAfter} total)`);
+      }
       
       // Phase 1: Validate mock report (even mock reports should pass validation)
       const mockValidation = validateReportBeforeCompletion(cleanedMockContent, input, paymentToken);
