@@ -3,7 +3,8 @@ import { checkRateLimit, handleApiError, parseJsonBody } from "@/lib/apiHelpers"
 import { generateRequestId } from "@/lib/requestId";
 import { REPORT_PRICES, SUBSCRIPTION_PRICE, isStripeConfigured } from "@/lib/ai-astrology/payments";
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
-import { isProdTestUser } from "@/lib/prodAllowlist";
+import { isProdTestUser } from "@/lib/prodAllowlist"; // CRITICAL FIX (ChatGPT Task 3): Import centralized allowlist
+import { normalizeName, normalizeDOB, normalizeTime, normalizePlace, normalizeGender } from "@/lib/betaAccess"; // CRITICAL FIX (2026-01-18): Import normalization for fallback matching
 
 /**
  * POST /api/ai-astrology/create-checkout
@@ -159,12 +160,47 @@ export async function POST(req: Request) {
     // PRIORITY: If demo mode OR (test user AND bypass enabled), return mock session (bypass Stripe)
     // Set BYPASS_PAYMENT_FOR_TEST_USERS=false to allow test users through Stripe for payment testing
     // This allows testing with $0.01 amounts without Stripe's $0.50 minimum requirement
-    // CRITICAL FIX (2026-01-18 - WORKAROUND): Force bypass payment if env var is set (temporary workaround)
-    // This allows bypassing payment even if test user detection fails
-    const forceBypassPayment = process.env.BYPASS_PAYMENT_FOR_TEST_USERS === "true" || process.env.FORCE_BYPASS_PAYMENT === "true";
-    const shouldBypassPayment = isDemoMode || (isTestUser && bypassPaymentForTestUsers) || forceBypassPayment;
+    // CRITICAL FIX (2026-01-18 - WORKAROUND): Fallback check if isProdTestUser fails
+    // If BYPASS_PAYMENT_FOR_TEST_USERS=true, perform strict matching on full birth details
+    // This ensures ONLY the 2 test users bypass payment (Amit Kumar Mandal, Ankita Surabhi)
+    // Matching criteria: name, DOB, time, place, gender (all must match using same normalization as prodAllowlist)
+    const forceBypassPaymentEnv = process.env.BYPASS_PAYMENT_FOR_TEST_USERS === "true";
+    let fallbackTestUserCheck = false;
+    if (forceBypassPaymentEnv && input && input.name && input.dob) {
+      // Use same normalization functions as betaAccess/prodAllowlist for consistency
+      // Test users (from betaAccess.ts):
+      // - Amit Kumar Mandal / 1984-11-26 / 21:40 / noamundi, jharkhand / Male
+      // - Ankita Surabhi / 1988-07-01 / 17:58 / ranchi, jharkhand / Female
+      const timeValue = input.tob || input.time || '';
+      const normalizedInput = {
+        name: normalizeName(input.name || ''),
+        dob: normalizeDOB(input.dob || ''),
+        time: normalizeTime(timeValue),
+        place: normalizePlace(input.place || ''),
+        gender: normalizeGender(input.gender || ''),
+      };
+      
+      // All required fields must be normalized successfully (same check as matchAllowlist)
+      if (normalizedInput.dob && normalizedInput.time && normalizedInput.gender) {
+        // Check against allowlist entries using exact matching (same logic as matchAllowlist)
+        const isAmit = normalizedInput.name === 'amit kumar mandal' &&
+                       normalizedInput.dob === '1984-11-26' &&
+                       normalizedInput.time === '21:40' &&
+                       normalizedInput.place === 'noamundi, jharkhand' &&
+                       normalizedInput.gender === 'Male';
+        
+        const isAnkita = normalizedInput.name === 'ankita surabhi' &&
+                         normalizedInput.dob === '1988-07-01' &&
+                         normalizedInput.time === '17:58' &&
+                         normalizedInput.place === 'ranchi, jharkhand' &&
+                         normalizedInput.gender === 'Female';
+        
+        fallbackTestUserCheck = isAmit || isAnkita;
+      }
+    }
+    const shouldBypassPayment = isDemoMode || (isTestUser && bypassPaymentForTestUsers) || fallbackTestUserCheck;
     if (shouldBypassPayment) {
-      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}, bypassPaymentForTestUsers: ${bypassPaymentForTestUsers}, forceBypassPayment: ${forceBypassPayment}) - Bypassing Stripe`);
+      console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}, bypassPaymentForTestUsers: ${bypassPaymentForTestUsers}, fallbackTestUserCheck: ${fallbackTestUserCheck}) - Bypassing Stripe`);
       
       // Use request URL to support preview deployments (derive from actual request)
       // CRITICAL FIX (ChatGPT): Make baseUrl resilient - same priority as production path

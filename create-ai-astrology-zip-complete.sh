@@ -7,11 +7,27 @@ PACKAGE_NAME="ai-astrology-complete-package-${TIMESTAMP}"
 TEMP_DIR="${PACKAGE_NAME}"
 ZIP_FILE="${PACKAGE_NAME}.zip"
 
-# Clean up previous temp directory if exists
-rm -rf "${TEMP_DIR}"
+# Clean up previous temp directory if exists (only in current directory)
+if [ -d "${TEMP_DIR}" ]; then
+  rm -rf "${TEMP_DIR}"
+fi
 
-# Create directory structure
-mkdir -p "${TEMP_DIR}"/{astrosetu/{src/{app/{ai-astrology,api/ai-astrology},lib/ai-astrology,components/{ai-astrology,layout,ui}},tests/{unit,integration,e2e,regression,critical}},docs,workflows,.cursor}
+# Create directory structure (create parent first)
+mkdir -p "${TEMP_DIR}"
+mkdir -p "${TEMP_DIR}/astrosetu/src/app/ai-astrology"
+mkdir -p "${TEMP_DIR}/astrosetu/src/app/api/ai-astrology"
+mkdir -p "${TEMP_DIR}/astrosetu/src/lib/ai-astrology"
+mkdir -p "${TEMP_DIR}/astrosetu/src/components/ai-astrology"
+mkdir -p "${TEMP_DIR}/astrosetu/src/components/layout"
+mkdir -p "${TEMP_DIR}/astrosetu/src/components/ui"
+mkdir -p "${TEMP_DIR}/astrosetu/tests/unit"
+mkdir -p "${TEMP_DIR}/astrosetu/tests/integration"
+mkdir -p "${TEMP_DIR}/astrosetu/tests/e2e"
+mkdir -p "${TEMP_DIR}/astrosetu/tests/regression"
+mkdir -p "${TEMP_DIR}/astrosetu/tests/critical"
+mkdir -p "${TEMP_DIR}/docs"
+mkdir -p "${TEMP_DIR}/workflows"
+mkdir -p "${TEMP_DIR}/.cursor"
 
 echo "📦 Creating AI Astrology Complete Package..."
 
@@ -26,6 +42,13 @@ cp -r astrosetu/src/app/api/ai-astrology/* "${TEMP_DIR}/astrosetu/src/app/api/ai
 # Copy AI Astrology libraries
 echo "  → Copying AI Astrology libraries..."
 cp -r astrosetu/src/lib/ai-astrology/* "${TEMP_DIR}/astrosetu/src/lib/ai-astrology/" 2>/dev/null || true
+
+# Copy related libraries (betaAccess, prodAllowlist, etc.)
+echo "  → Copying related libraries..."
+mkdir -p "${TEMP_DIR}/astrosetu/src/lib"
+cp astrosetu/src/lib/betaAccess.ts "${TEMP_DIR}/astrosetu/src/lib/" 2>/dev/null || true
+cp astrosetu/src/lib/prodAllowlist.ts "${TEMP_DIR}/astrosetu/src/lib/" 2>/dev/null || true
+cp astrosetu/src/lib/access-restriction.ts "${TEMP_DIR}/astrosetu/src/lib/" 2>/dev/null || true
 
 # Copy Headers and Footers
 echo "  → Copying Headers and Footers..."

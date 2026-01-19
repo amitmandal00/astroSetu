@@ -368,6 +368,16 @@ function InputFormContent() {
   };
 
   const getReportBenefits = (): string[] => {
+    // CRITICAL FIX: Check for subscription flow first - show subscription benefits
+    if (flow === "subscription") {
+      return [
+        "Monthly focus areas & themes generated automatically",
+        "Planetary influences (educational, not predictive)",
+        "Emotional & mindset guidance for reflection",
+        "Complements Year Analysis & Life Phase reports",
+        "Fully automated — no human involvement"
+      ];
+    }
     if (bundleParam && bundleReports.length > 0) {
       const benefits: string[] = [];
       
@@ -439,6 +449,10 @@ function InputFormContent() {
   };
 
   const getReportTitle = () => {
+    // CRITICAL FIX: Check for subscription flow first - show Monthly Astrology Outlook
+    if (flow === "subscription") {
+      return "Monthly Astrology Outlook";
+    }
     // Handle bundles first
     if (bundleParam === "any-2" && bundleReports.length === 2) {
       return "Any 2 Reports Bundle";
@@ -714,9 +728,11 @@ function InputFormContent() {
             <CardHeader 
               icon="🔮"
               title={getReportTitle()}
-              subtitle={bundleParam && bundleReports.length > 0 
-                ? "Confirm your personalized report generation"
-                : "Confirm your report generation"}
+              subtitle={flow === "subscription"
+                ? "Confirm your subscription setup"
+                : bundleParam && bundleReports.length > 0 
+                  ? "Confirm your personalized report generation"
+                  : "Confirm your report generation"}
             />
             <CardContent className="p-6">
               {/* What You Will Get Section */}
@@ -780,10 +796,14 @@ function InputFormContent() {
                       <span className="animate-spin">🌙</span>
                       Processing...
                     </span>
+                  ) : flow === "subscription" ? (
+                    "Continue to Subscription"
                   ) : bundleParam && bundleReports.length > 0 ? (
                     `Generate My ${bundleReports.length} Report${bundleReports.length > 1 ? 's' : ''}`
-                  ) : (
+                  ) : reportType === "life-summary" ? (
                     "Continue to Generate Report"
+                  ) : (
+                    "Continue to Payment & Generate Report"
                   )}
                 </Button>
                 <Button

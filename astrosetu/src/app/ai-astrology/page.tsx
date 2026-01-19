@@ -74,7 +74,8 @@ export default function AIAstrologyLandingPage() {
                       <div className="text-4xl sm:text-5xl font-bold text-purple-700 mb-1">
                         AU${(REPORT_PRICES["year-analysis"].amount / 100).toFixed(2)}
                       </div>
-                      <p className="text-xs sm:text-sm text-slate-600">One-time • Instant PDF</p>
+                      <p className="text-xs sm:text-sm text-slate-600 mb-1">One-time • Instant PDF</p>
+                      <p className="text-xs text-slate-500 italic">Introductory price for early users · Limited period</p>
                     </div>
                     <div className="w-full sm:w-auto">
                       <p className="text-xs text-slate-600 mb-2 text-center lg:text-left italic">
@@ -660,7 +661,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="text-3xl font-bold text-pink-600 mb-2">
                   AU${(REPORT_PRICES["marriage-timing"].amount / 100).toFixed(2)}
                 </div>
-                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 mb-1">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 italic mb-4">Introductory price for early users · Limited period</p>
                 <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
                   <Button className="cosmic-button w-full">See My Marriage Timing Windows →</Button>
                 </Link>
@@ -697,7 +699,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="text-3xl font-bold text-blue-600 mb-2">
                   AU${(REPORT_PRICES["career-money"].amount / 100).toFixed(2)}
                 </div>
-                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 mb-1">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 italic mb-4">Introductory price for early users · Limited period</p>
                 <Link href="/ai-astrology/input?reportType=career-money" className="block">
                   <Button className="cosmic-button w-full">Get My Career Decision Windows →</Button>
                 </Link>
@@ -734,7 +737,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="text-3xl font-bold text-purple-600 mb-2">
                   AU${(REPORT_PRICES["full-life"].amount / 100).toFixed(2)}
                 </div>
-                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 mb-1">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 italic mb-4">Introductory price for early users · Limited period</p>
                 <Link href="/ai-astrology/input?reportType=full-life" className="block">
                   <Button className="cosmic-button w-full bg-purple-600 hover:bg-purple-700">Get My Complete Life Insights →</Button>
                 </Link>
@@ -779,7 +783,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="text-3xl font-bold text-purple-600 mb-2">
                   AU${(REPORT_PRICES["year-analysis"].amount / 100).toFixed(2)}
                 </div>
-                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 mb-1">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 italic mb-4">Introductory price for early users · Limited period</p>
                 <Link href="/ai-astrology/input?reportType=year-analysis" className="block">
                   <Button className="cosmic-button w-full">Avoid Costly Mistakes This Year →</Button>
                 </Link>
@@ -814,7 +819,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="text-3xl font-bold text-indigo-600 mb-2">
                   AU${(REPORT_PRICES["major-life-phase"].amount / 100).toFixed(2)}
                 </div>
-                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 mb-1">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 italic mb-4">Introductory price for early users · Limited period</p>
                 <Link href="/ai-astrology/input?reportType=major-life-phase" className="block">
                   <Button className="cosmic-button w-full">Plan My Next 3-5 Years →</Button>
                 </Link>
@@ -849,7 +855,8 @@ export default function AIAstrologyLandingPage() {
                 <div className="text-3xl font-bold text-emerald-600 mb-2">
                   AU${(REPORT_PRICES["decision-support"].amount / 100).toFixed(2)}
                 </div>
-                <p className="text-xs text-slate-500 mb-4">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 mb-1">One-time report • Instant PDF • No subscription required</p>
+                <p className="text-xs text-slate-500 italic mb-4">Introductory price for early users · Limited period</p>
                 <Link href="/ai-astrology/input?reportType=decision-support" className="block">
                   <Button className="cosmic-button w-full">Get My Decision Timing Now →</Button>
                 </Link>

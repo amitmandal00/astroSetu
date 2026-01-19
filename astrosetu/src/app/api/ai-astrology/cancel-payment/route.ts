@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { checkRateLimit, handleApiError, parseJsonBody } from "@/lib/apiHelpers";
 import { generateRequestId } from "@/lib/requestId";
 import { isStripeConfigured } from "@/lib/ai-astrology/payments";
+import { markStoredReportRefunded, getStoredReportByPaymentIntentId } from "@/lib/ai-astrology/reportStore";
 
 export const dynamic = 'force-dynamic';
 
@@ -93,7 +94,25 @@ export async function POST(req: Request) {
           reason: reason || "Report generation failed",
           sessionId: sessionId?.substring(0, 20) + "..." || "N/A",
         };
-        console.log("[PAYMENT CANCELLED]", JSON.stringify(cancelSuccess, null, 2));
+          console.log("[PAYMENT CANCELLED]", JSON.stringify(cancelSuccess, null, 2));
+
+          // Phase 1: Mark report as refunded if report exists (ChatGPT feedback)
+          // Payment was cancelled (not captured), so technically no refund needed
+          // But we track it for analytics
+          try {
+            const storedReport = await getStoredReportByPaymentIntentId(paymentIntentId);
+            if (storedReport && !storedReport.refunded) {
+              // Payment cancelled = refunded (user not charged)
+              await markStoredReportRefunded({
+                idempotencyKey: storedReport.idempotency_key,
+                reportId: storedReport.report_id,
+                refundId: `cancelled_${paymentIntentId}`,
+              });
+            }
+          } catch (e) {
+            // Ignore - refund tracking is best-effort
+            console.warn("[REFUND TRACKING] Could not mark cancelled payment:", e);
+          }
 
         return NextResponse.json(
           {
@@ -237,6 +256,26 @@ export async function POST(req: Request) {
             reason: reason || "Report generation failed",
           };
           console.log("[PAYMENT REFUNDED]", JSON.stringify(refundSuccess, null, 2));
+
+          // Phase 1: Mark report as refunded in database (ChatGPT feedback)
+          try {
+            const storedReport = await getStoredReportByPaymentIntentId(paymentIntentId);
+            if (storedReport && !storedReport.refunded) {
+              await markStoredReportRefunded({
+                idempotencyKey: storedReport.idempotency_key,
+                reportId: storedReport.report_id,
+                refundId: refund.id,
+              });
+              console.log("[REPORT MARKED AS REFUNDED]", {
+                reportId: storedReport.report_id,
+                refundId: refund.id,
+                paymentIntentId,
+              });
+            }
+          } catch (refundTrackingError) {
+            // Log but don't fail - refund tracking is best-effort
+            console.warn("[REFUND TRACKING] Failed to mark report as refunded:", refundTrackingError);
+          }
 
           return NextResponse.json(
             {

@@ -97,8 +97,11 @@ export function PWAInstallPrompt() {
             <h3 className="font-bold text-slate-800 mb-1 text-lg">
               Install AstroSetu AI
             </h3>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 mb-2">
               Install our app for a faster, app-like experience with offline access.
+            </p>
+            <p className="text-xs text-slate-500 italic">
+              This installs a lightweight app-like version of the website (PWA). No download required.
             </p>
           </div>
           <button

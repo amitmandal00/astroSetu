@@ -36,7 +36,10 @@ import {
   markStoredReportCompleted,
   markStoredReportFailed,
   updateStoredReportHeartbeat,
+  markStoredReportRefunded,
+  type ReportErrorCode,
 } from "@/lib/ai-astrology/reportStore";
+import { validateReportBeforeCompletion } from "@/lib/ai-astrology/reportValidation";
 
 function getMaxProcessingMs(reportType: ReportType): number {
   // Upper bound watchdog. Without heartbeats in serverless, "processing" can become permanent if a function times out.
@@ -123,6 +126,7 @@ export async function GET(req: NextRequest) {
             idempotencyKey: storedReport.idempotency_key,
             reportId: storedReport.report_id,
             errorMessage: "Report generation timed out. Please refresh and try again.",
+            errorCode: "GENERATION_TIMEOUT",
           });
         } catch {
           // ignore
@@ -664,11 +668,13 @@ export async function POST(req: Request) {
     // In-memory is not durable on serverless and leads to "stuck processing forever" on the client.
     let storeUnavailableError: string | null = null;
     try {
+      // Phase 1: Add payment intent ID to tracking (ChatGPT feedback)
       const processing = await markStoredReportProcessing({
         idempotencyKey,
         reportId,
         reportType,
         input,
+        paymentIntentId: paymentIntentId || undefined,
       });
       if (!processing.ok) {
         if (processing.existing.status === "processing") {
@@ -1209,10 +1215,33 @@ export async function POST(req: Request) {
       // CRITICAL: Strip mock content before caching/storing (production safety)
       const cleanedMockContent = stripMockContent(mockReportContent);
       
-      // Cache the mock report (for idempotency)
-      cacheReport(idempotencyKey, reportId, cleanedMockContent, reportType, input);
-      // Persist completion (best-effort, serverless-safe)
-      await markStoredReportCompleted({ idempotencyKey, reportId, content: cleanedMockContent });
+      // Phase 1: Validate mock report (even mock reports should pass validation)
+      const mockValidation = validateReportBeforeCompletion(cleanedMockContent, input, paymentToken);
+      
+      if (!mockValidation.valid) {
+        // This should rarely happen, but handle it
+        console.warn("[MOCK REPORT VALIDATION FAILED]", JSON.stringify({
+          requestId,
+          reportId,
+          error: mockValidation.error,
+          errorCode: mockValidation.errorCode,
+        }, null, 2));
+        
+        await markStoredReportFailed({
+          idempotencyKey,
+          reportId,
+          errorMessage: mockValidation.error || "Mock report validation failed",
+          errorCode: (mockValidation.errorCode || "VALIDATION_FAILED") as ReportErrorCode,
+        });
+        
+        // In mock mode, we don't need to refund (payment not charged)
+        // But we still mark as failed for consistency
+      } else {
+        // Cache the mock report (for idempotency)
+        cacheReport(idempotencyKey, reportId, cleanedMockContent, reportType, input);
+        // Persist completion (best-effort, serverless-safe)
+        await markStoredReportCompleted({ idempotencyKey, reportId, content: cleanedMockContent });
+      }
       
       const mockLog = {
         requestId,
@@ -1386,9 +1415,49 @@ export async function POST(req: Request) {
       // CRITICAL: Strip mock content before caching/storing (production safety - even for real reports)
       const cleanedReportContent = stripMockContent(reportContent);
       
+      // Phase 1: STRICT VALIDATION before marking as "completed" (ChatGPT feedback)
+      const validation = validateReportBeforeCompletion(cleanedReportContent, input, paymentToken);
+      
+      if (!validation.valid) {
+        // Validation failed - mark as failed and trigger refund
+        const errorMessage = validation.error || "Report validation failed";
+        const errorCode = validation.errorCode || "VALIDATION_FAILED";
+        
+        console.error("[REPORT VALIDATION FAILED]", JSON.stringify({
+          requestId,
+          reportId,
+          reportType,
+          error: errorMessage,
+          errorCode,
+          timestamp: new Date().toISOString(),
+        }, null, 2));
+        
+        await markStoredReportFailed({
+          idempotencyKey,
+          reportId,
+          errorMessage,
+          errorCode: errorCode as ReportErrorCode,
+        });
+        
+        // Trigger refund if payment was made
+        if (paymentIntentId && isPaidReportType(reportType) && !shouldSkipPayment) {
+          await cancelPaymentSafely(`Report validation failed: ${errorMessage}`);
+        }
+        
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `Report validation failed: ${errorMessage}. Your payment has been automatically cancelled.`,
+            code: errorCode,
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+      
       // CRITICAL: Cache the generated report to prevent duplicate OpenAI calls
       cacheReport(idempotencyKey, reportId, cleanedReportContent, reportType, input);
-      // Persist completion (best-effort, serverless-safe)
+      // Persist completion (best-effort, serverless-safe) - only after validation passes
       await markStoredReportCompleted({ idempotencyKey, reportId, content: cleanedReportContent });
       const cacheSaveLog = {
         requestId,
@@ -1434,7 +1503,21 @@ export async function POST(req: Request) {
       // Never leave reports stuck in "processing" status - ensures catch/finally always updates status
       // This prevents reports from being stuck forever when serverless function times out
       try {
-        await markStoredReportFailed({ idempotencyKey, reportId, errorMessage });
+        // Determine error code
+        let errorCode: ReportErrorCode = "GENERATION_ERROR";
+        const errorLower = errorMessage.toLowerCase();
+        if (errorLower.includes("timeout")) {
+          errorCode = "GENERATION_TIMEOUT";
+        } else if (errorLower.includes("payment") || errorLower.includes("verification")) {
+          errorCode = "PAYMENT_VERIFICATION_FAILED";
+        }
+        
+        await markStoredReportFailed({ 
+          idempotencyKey, 
+          reportId, 
+          errorMessage,
+          errorCode,
+        });
       } catch (markFailedError) {
         // Log but don't throw - marking failed is best-effort but critical
         console.error("[MARK_FAILED] Failed to mark report as failed:", markFailedError);

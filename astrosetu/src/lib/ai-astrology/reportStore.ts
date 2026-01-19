@@ -18,6 +18,17 @@ import { createServerClient, isSupabaseConfigured } from "@/lib/supabase";
 
 export type StoredReportStatus = "processing" | "completed" | "failed";
 
+// Error codes for categorizing failures (used for refund tracking)
+export type ReportErrorCode =
+  | "MISSING_SECTIONS"
+  | "MOCK_CONTENT_DETECTED"
+  | "VALIDATION_FAILED"
+  | "USER_DATA_MISMATCH"
+  | "GENERATION_TIMEOUT"
+  | "GENERATION_ERROR"
+  | "PAYMENT_VERIFICATION_FAILED"
+  | "UNKNOWN_ERROR";
+
 export interface StoredReportRow {
   idempotency_key: string;
   report_id: string;
@@ -28,6 +39,12 @@ export interface StoredReportRow {
   created_at: string;
   updated_at: string;
   error_message: string | null;
+  // Refund tracking fields (Phase 1 - ChatGPT feedback)
+  payment_intent_id: string | null;
+  refunded: boolean;
+  refund_id: string | null;
+  refunded_at: string | null;
+  error_code: ReportErrorCode | null;
 }
 
 function isMissingTableError(err: any): boolean {
@@ -78,6 +95,7 @@ export async function markStoredReportProcessing(params: {
   reportId: string;
   reportType: ReportType;
   input: AIAstrologyInput;
+  paymentIntentId?: string;
 }): Promise<{ ok: true; row: StoredReportRow } | { ok: false; existing: StoredReportRow }> {
   if (!isSupabaseConfigured()) {
     throw new Error("SUPABASE_NOT_CONFIGURED");
@@ -95,6 +113,11 @@ export async function markStoredReportProcessing(params: {
       input: params.input,
       content: null,
       error_message: null,
+      payment_intent_id: params.paymentIntentId || null,
+      refunded: false,
+      refund_id: null,
+      refunded_at: null,
+      error_code: null,
     })
     .select("*")
     .maybeSingle();
@@ -142,6 +165,7 @@ export async function markStoredReportFailed(params: {
   idempotencyKey: string;
   reportId: string;
   errorMessage: string;
+  errorCode?: ReportErrorCode;
 }): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const supabase = createServerClient();
@@ -150,11 +174,84 @@ export async function markStoredReportFailed(params: {
     .update({
       status: "failed",
       error_message: params.errorMessage.substring(0, 500),
+      error_code: params.errorCode || "UNKNOWN_ERROR",
       updated_at: new Date().toISOString(),
     })
     .eq("idempotency_key", params.idempotencyKey)
     .eq("report_id", params.reportId);
   if (error && !isMissingTableError(error)) throw error;
+}
+
+/**
+ * Mark a report as refunded (Phase 1 - ChatGPT feedback)
+ * Called automatically when refund is processed via Stripe
+ */
+export async function markStoredReportRefunded(params: {
+  idempotencyKey: string;
+  reportId: string;
+  refundId: string;
+}): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = createServerClient();
+  const { error } = await supabase
+    .from("ai_astrology_reports")
+    .update({
+      refunded: true,
+      refund_id: params.refundId,
+      refunded_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("idempotency_key", params.idempotencyKey)
+    .eq("report_id", params.reportId);
+  if (error && !isMissingTableError(error)) throw error;
+}
+
+/**
+ * Get all reports that failed but haven't been refunded yet
+ * Useful for refund processing jobs
+ */
+export async function getUnrefundedFailedReports(): Promise<StoredReportRow[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("ai_astrology_reports")
+    .select("*")
+    .eq("status", "failed")
+    .eq("refunded", false)
+    .not("payment_intent_id", "is", null)
+    .order("created_at", { ascending: false });
+  
+  if (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+  
+  return (data as StoredReportRow[]) || [];
+}
+
+/**
+ * Get report by payment intent ID (Phase 1 - ChatGPT feedback)
+ * Used to link refunds with reports
+ */
+export async function getStoredReportByPaymentIntentId(
+  paymentIntentId: string
+): Promise<StoredReportRow | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("ai_astrology_reports")
+    .select("*")
+    .eq("payment_intent_id", paymentIntentId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  if (error) {
+    if (isMissingTableError(error)) return null;
+    throw error;
+  }
+  
+  return (data as StoredReportRow) || null;
 }
 
 /**
