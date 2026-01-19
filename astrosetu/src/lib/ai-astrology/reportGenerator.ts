@@ -525,10 +525,11 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
   }
 
   // CRITICAL FIX (2026-01-19): Ensure minimum section count for comprehensive reports
-  // Paid reports (career-money, major-life-phase, decision-support) should have at least 4-5 detailed sections
+  // Paid reports (career-money, major-life-phase, decision-support) should have at least 6-7 detailed sections
   // This prevents reports from being too short
   const paidReportTypes: ReportType[] = ["career-money", "major-life-phase", "decision-support", "year-analysis", "marriage-timing", "full-life"];
-  const minSectionsForPaid = 4;
+  // Higher minimum for individual paid reports to ensure comprehensive content
+  const minSectionsForPaid = reportType === "decision-support" || reportType === "career-money" || reportType === "major-life-phase" ? 6 : 4;
   
   if (paidReportTypes.includes(reportType) && sections.length < minSectionsForPaid) {
     console.warn("[parseAIResponse] Paid report has fewer than minimum sections - adding fallback sections", {
@@ -541,60 +542,117 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     const existingTitles = new Set(sections.map(s => s.title.toLowerCase()));
     
     if (reportType === "career-money") {
-      if (!existingTitles.has("career momentum windows") && !existingTitles.has("career momentum")) {
+      // Add comprehensive fallback sections for career-money reports
+      if (!existingTitles.has("career momentum windows") && !existingTitles.has("career momentum") && !existingTitles.has("career phases")) {
         sections.push({
-          title: "Career Momentum Analysis",
-          content: "Your career development follows distinct phases influenced by planetary cycles. Understanding these phases helps you time major career decisions effectively. Focus on skill building during growth phases and consolidation during stability periods.",
+          title: "Career Momentum and Growth Phases",
+          content: "Your career development follows distinct phases influenced by planetary cycles and Dasha periods. Growth phases favor skill building, networking, and taking on new challenges. Consolidation phases require focusing on stability, mastering current roles, and building long-term foundations. Understanding these phases helps you time major career decisions effectively.",
         });
       }
-      if (!existingTitles.has("financial patterns") && !existingTitles.has("money growth")) {
+      if (!existingTitles.has("best career directions") && !existingTitles.has("career directions") && !existingTitles.has("ideal career")) {
         sections.push({
-          title: "Financial Growth Patterns",
-          content: "Your financial growth aligns with career development phases. During favorable periods, focus on strategic investments and skill development. During consolidation phases, prioritize stability and reserve building. Avoid major financial decisions during challenging transits.",
+          title: "Best Career Directions",
+          content: "Based on your birth chart analysis, certain career directions align better with your natural strengths and planetary influences. These directions leverage your core astrological traits and provide opportunities for growth. Consider roles that match your planetary strengths and allow for the expression of your natural talents.",
         });
       }
-      if (!existingTitles.has("strategic recommendations") && !existingTitles.has("action items")) {
+      if (!existingTitles.has("financial patterns") && !existingTitles.has("money growth") && !existingTitles.has("financial cycles")) {
         sections.push({
-          title: "Strategic Career Recommendations",
-          content: "Based on your birth chart analysis, prioritize roles that allow growth and learning. Build skills during favorable periods. Network strategically during transition phases. Focus on long-term career development rather than short-term gains.",
+          title: "Financial Growth Patterns and Cycles",
+          content: "Your financial growth patterns align with career development phases and planetary influences. During favorable periods, focus on strategic investments, skill development, and income-generating activities. During consolidation phases, prioritize stability, reserve building, and careful financial planning. Understanding these cycles helps optimize financial decisions.",
+        });
+      }
+      if (!existingTitles.has("career challenges") && !existingTitles.has("navigating challenges")) {
+        sections.push({
+          title: "Career Challenges and How to Navigate Them",
+          content: "Every career journey includes challenges that require strategic navigation. Understanding potential obstacles in advance helps you prepare and respond effectively. Some challenges relate to timing, while others involve skill development or relationship dynamics. Focus on building resilience and adaptability to overcome obstacles.",
+        });
+      }
+      if (!existingTitles.has("long-term strategy") && !existingTitles.has("strategic career") && !existingTitles.has("career strategy")) {
+        sections.push({
+          title: "Long-Term Career Strategy",
+          content: "A strategic approach to career development involves understanding your long-term path and making decisions that align with it. Consider your 5-year outlook, key milestones, and areas for development. Focus on building skills and experiences that support your long-term goals while taking advantage of favorable timing windows.",
+        });
+      }
+      if (!existingTitles.has("strategic recommendations") && !existingTitles.has("action items") && !existingTitles.has("recommendations")) {
+        sections.push({
+          title: "Strategic Career and Financial Recommendations",
+          content: "Based on your birth chart analysis, prioritize roles that allow growth and learning. Build skills during favorable periods. Network strategically during transition phases. Focus on long-term career development rather than short-term gains. For finances, automate savings, invest during favorable periods, and maintain reserves during challenging times.",
         });
       }
     } else if (reportType === "major-life-phase") {
-      if (!existingTitles.has("strategic overview") && !existingTitles.has("phase overview")) {
+      // Add comprehensive fallback sections for major-life-phase reports
+      if (!existingTitles.has("strategic overview") && !existingTitles.has("phase overview") && !existingTitles.has("phase theme")) {
         sections.push({
           title: "Strategic Phase Overview",
-          content: "The next 3-5 years represent a significant phase in your life journey. This period brings opportunities for growth, transitions, and major developments. Understanding the themes of this phase helps you navigate challenges and maximize opportunities effectively.",
+          content: "The next 3-5 years represent a significant phase in your life journey. This period brings opportunities for growth, transitions, and major developments across multiple life areas. Understanding the overarching themes of this phase helps you navigate challenges and maximize opportunities effectively. This phase is characterized by specific planetary influences and Dasha periods that shape your experiences.",
         });
       }
-      if (!existingTitles.has("key opportunities") && !existingTitles.has("opportunities")) {
+      if (!existingTitles.has("year-by-year breakdown") && !existingTitles.has("year breakdown")) {
+        sections.push({
+          title: "Year-by-Year Strategic Breakdown",
+          content: "Each year within this phase has distinct themes and focus areas. Year 1 typically involves foundation building and establishing new patterns. Year 2-3 often bring expansion and growth opportunities. Later years focus on consolidation and preparation for the next phase. Understanding the progression helps you align your actions with each year's energy.",
+        });
+      }
+      if (!existingTitles.has("key opportunities") && !existingTitles.has("opportunities") && !existingTitles.has("long-term opportunities")) {
         sections.push({
           title: "Key Opportunities Ahead",
-          content: "During this phase, several key opportunities may arise across different life areas. These include career advancement, relationship development, financial growth, and personal development. Timing and preparation are essential to maximize these opportunities.",
+          content: "During this phase, several key opportunities may arise across different life areas including career advancement, relationship development, financial growth, and personal development. These opportunities align with favorable planetary transits and Dasha periods. Timing and preparation are essential to maximize these opportunities when they arise.",
+        });
+      }
+      if (!existingTitles.has("major transitions") && !existingTitles.has("transitions")) {
+        sections.push({
+          title: "Major Life Transitions",
+          content: "This phase includes significant transitions in various life areas. Career transitions may involve role changes, promotions, or shifts in direction. Relationship transitions could include marriage, partnerships, or family changes. Financial transitions involve income changes, investments, or major purchases. Understanding and preparing for these transitions helps you navigate them more smoothly.",
         });
       }
       if (!existingTitles.has("navigating challenges") && !existingTitles.has("challenges")) {
         sections.push({
-          title: "Navigating Challenges",
-          content: "This phase may also bring challenges that require attention and strategic navigation. Understanding potential challenges in advance helps you prepare and respond effectively. Focus on building resilience and adaptability during this period.",
+          title: "Navigating Challenges and Obstacles",
+          content: "This phase may also bring challenges that require attention and strategic navigation. These could include periods of uncertainty, required adjustments, or obstacles that test your resilience. Understanding potential challenges in advance helps you prepare and respond effectively. Focus on building resilience, maintaining flexibility, and seeking support when needed.",
+        });
+      }
+      if (!existingTitles.has("strategic guidance") && !existingTitles.has("how to navigate") && !existingTitles.has("navigating this phase")) {
+        sections.push({
+          title: "How to Navigate This Phase Strategically",
+          content: "Strategic navigation of this phase involves understanding when to take action versus when to wait, what to prioritize, and what principles to follow. Some periods favor decisive action, while others require patience and preparation. Key principles include maintaining balance, staying adaptable, and aligning actions with favorable timing windows.",
         });
       }
     } else if (reportType === "decision-support") {
-      if (!existingTitles.has("decision framework") && !existingTitles.has("decision-making framework")) {
+      // Add comprehensive fallback sections for decision-support reports
+      if (!existingTitles.has("decision framework") && !existingTitles.has("decision-making framework") && !existingTitles.has("current astrological climate")) {
         sections.push({
-          title: "Decision-Making Framework",
-          content: "Effective decision-making requires considering multiple factors including timing, alignment, and practical considerations. Your birth chart provides insights into favorable periods for different types of decisions. Combine astrological guidance with practical assessment for best results.",
+          title: "Current Astrological Climate for Decision-Making",
+          content: "Your current Dasha period and planetary transits create a specific decision-making environment. Understanding these influences helps you align your choices with favorable timing. Some periods favor decisive action, while others require careful planning and gathering more information. The current astrological climate indicates whether this is a time for immediate action or strategic preparation.",
         });
       }
-      if (!existingTitles.has("timing considerations") && !existingTitles.has("decision timing")) {
+      if (!existingTitles.has("decision analysis") && !existingTitles.has("astrological perspective") && !existingTitles.has("options analysis")) {
         sections.push({
-          title: "Timing Considerations",
-          content: "Timing plays a crucial role in decision outcomes. Some periods favor taking action, while others favor planning and preparation. Understanding the current astrological climate helps you choose the right moment for important decisions.",
+          title: "Astrological Analysis of Decision Options",
+          content: "From an astrological perspective, different decision options have varying levels of alignment with your birth chart patterns. Options that align with your natural strengths and current planetary influences tend to have better outcomes. Consider how each option resonates with your core astrological traits and current life phase.",
         });
       }
-      if (!existingTitles.has("key considerations") && !existingTitles.has("factors to consider")) {
+      if (!existingTitles.has("timing considerations") && !existingTitles.has("decision timing") && !existingTitles.has("optimal timing")) {
         sections.push({
-          title: "Key Decision Factors",
-          content: "When making major decisions, consider planetary influences, current Dasha period, and long-term vs. short-term implications. Align decisions with your natural strengths and be mindful of potential challenges. Seek additional guidance when facing complex situations.",
+          title: "Optimal Timing for Decisions",
+          content: "Timing is a critical factor in decision-making. Some periods are naturally more favorable for taking action, while others require patience and preparation. The alignment of planets and current Dasha period influences when decisions should be made. Understanding these timing windows helps you choose the most opportune moments for important choices.",
+        });
+      }
+      if (!existingTitles.has("strategic approach") && !existingTitles.has("recommended approach") && !existingTitles.has("decision strategy")) {
+        sections.push({
+          title: "Strategic Decision-Making Approach",
+          content: "A strategic approach to decision-making involves considering both astrological guidance and practical factors. Combine insights from your birth chart with real-world considerations, personal values, and professional advice when needed. This balanced approach ensures decisions are both aligned with astrological timing and grounded in reality.",
+        });
+      }
+      if (!existingTitles.has("key considerations") && !existingTitles.has("factors to consider") && !existingTitles.has("important factors")) {
+        sections.push({
+          title: "Important Factors to Consider",
+          content: "When making major decisions, several astrological factors should be considered. These include the current Dasha period, planetary transits affecting relevant houses, and the alignment of your decision with your natural strengths. Additionally, consider the long-term vs. short-term implications and how the decision fits into your overall life path.",
+        });
+      }
+      if (!existingTitles.has("decision categories") && !existingTitles.has("types of decisions") && !existingTitles.has("decision guidance")) {
+        sections.push({
+          title: "Guidance for Different Types of Decisions",
+          content: "Different types of decisions require different approaches based on astrological timing. Career decisions benefit from analyzing the 10th house and career-related planets. Relationship decisions involve the 7th house and Venus influences. Financial decisions relate to the 2nd and 11th houses. Understanding which astrological factors apply to your specific decision type provides more targeted guidance.",
         });
       }
     }
