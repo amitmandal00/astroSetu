@@ -1217,7 +1217,8 @@ export async function POST(req: Request) {
       let cleanedMockContent = stripMockContent(mockReportContent, true);
       
       // DEBUG: Log section count after stripping
-      console.log(`[MOCK REPORT] After stripping mock content: ${cleanedMockContent.sections?.length || 0} sections for ${reportType}`);
+      const sectionsBeforeStrip = cleanedMockContent.sections?.length || 0;
+      console.log(`[MOCK REPORT DEBUG] After stripping: ${sectionsBeforeStrip} sections for ${reportType}`);
       
       // CRITICAL FIX (2026-01-19): Ensure mock reports also have minimum sections
       // Mock reports from fixtures can be too short, so we need to add fallback sections
@@ -1226,8 +1227,25 @@ export async function POST(req: Request) {
       cleanedMockContent = ensureMinimumSections(cleanedMockContent, reportType);
       const sectionsAfter = cleanedMockContent.sections?.length || 0;
       
+      // CRITICAL: Log section details for debugging
+      console.log(`[MOCK REPORT DEBUG] Sections before fallback: ${sectionsBefore}, after: ${sectionsAfter}`);
+      console.log(`[MOCK REPORT DEBUG] Section titles: ${cleanedMockContent.sections?.map(s => s.title).join(", ") || "NONE"}`);
+      
       if (sectionsAfter > sectionsBefore) {
         console.log(`[MOCK REPORT] Added ${sectionsAfter - sectionsBefore} fallback sections (now ${sectionsAfter} total)`);
+      }
+      
+      // CRITICAL: Ensure sections array exists and is not empty
+      if (!cleanedMockContent.sections || cleanedMockContent.sections.length === 0) {
+        console.error(`[MOCK REPORT CRITICAL ERROR] No sections after ensureMinimumSections! ReportType: ${reportType}`);
+        // Force add at least one section as emergency fallback
+        cleanedMockContent = {
+          ...cleanedMockContent,
+          sections: [{
+            title: "Decision Analysis",
+            content: "This report provides comprehensive decision-making guidance based on your birth chart analysis.",
+          }],
+        };
       }
       
       // Phase 1: Validate mock report (even mock reports should pass validation)
