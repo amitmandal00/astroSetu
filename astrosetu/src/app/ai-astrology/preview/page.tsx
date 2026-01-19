@@ -1248,9 +1248,13 @@ function PreviewContent() {
     const sessionIdForGeneration = isPaidReport ? (urlSessionId || undefined) : undefined;
     const paymentIntentIdForGeneration = isPaidReport ? paymentIntentId : undefined;
     
+    // Check for use_real parameter from URL to force real AI generation for test sessions
+    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+    
     generationController.start(inputData, reportTypeToUse, {
       sessionId: sessionIdForGeneration,
-      paymentIntentId: paymentIntentIdForGeneration
+      paymentIntentId: paymentIntentIdForGeneration,
+      useReal: useReal || undefined
     }).catch((error) => {
       console.error("[Preview] Error in generationController (atomic):", error);
       hasStartedForAttemptKeyRef.current = null; // Allow retry
@@ -1897,9 +1901,13 @@ function PreviewContent() {
                     // CRITICAL FIX: Use generation controller for paid reports
                     isGeneratingRef.current = false;
                     usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                    // Check for use_real parameter from URL
+                    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+                    
                     generationController.start(inputData, finalReportType, {
                       sessionId: urlSessionId,
-                      paymentIntentId: verifyResponse.data.paymentIntentId
+                      paymentIntentId: verifyResponse.data.paymentIntentId,
+                      useReal: useReal || undefined
                     }).catch((error) => {
                       console.error("[Preview] Error in generationController:", error);
                       setLoading(false);
@@ -1917,9 +1925,13 @@ function PreviewContent() {
                     // CRITICAL FIX: Use generation controller for paid reports
                     isGeneratingRef.current = false;
                     usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                    // Check for use_real parameter from URL
+                    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+                    
                     generationController.start(inputData, reportTypeToUse, {
                       sessionId: urlSessionId,
-                      paymentIntentId: verifyResponse.data.paymentIntentId
+                      paymentIntentId: verifyResponse.data.paymentIntentId,
+                      useReal: useReal || undefined
                     }).catch((error) => {
                       console.error("[Preview] Error in generationController:", error);
                       setLoading(false);

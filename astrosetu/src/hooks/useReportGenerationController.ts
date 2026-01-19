@@ -45,6 +45,7 @@ export interface UseReportGenerationControllerReturn {
       paymentToken?: string;
       sessionId?: string;
       paymentIntentId?: string;
+      useReal?: boolean; // Force real AI generation even for test sessions
     }
   ) => Promise<void>;
   cancel: () => void;
@@ -275,6 +276,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
         paymentToken?: string;
         sessionId?: string;
         paymentIntentId?: string;
+        useReal?: boolean; // Force real AI generation even for test sessions
       }
     ) => {
       // CRITICAL: Cancel any existing attempt (single-flight guard)
@@ -296,11 +298,22 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
       );
 
       try {
-        // Build API URL with session_id if available
+        // Build API URL with session_id and use_real if available
         let apiUrl = '/api/ai-astrology/generate-report';
         const isPaid = reportType !== 'life-summary';
+        const urlParams = new URLSearchParams();
+        
         if (options?.sessionId && isPaid) {
-          apiUrl = `/api/ai-astrology/generate-report?session_id=${encodeURIComponent(options.sessionId)}`;
+          urlParams.append('session_id', options.sessionId);
+        }
+        
+        // Support URL parameter for useReal (alternative to body parameter)
+        if (options?.useReal === true) {
+          urlParams.append('use_real', 'true');
+        }
+        
+        if (urlParams.toString()) {
+          apiUrl = `/api/ai-astrology/generate-report?${urlParams.toString()}`;
         }
 
         // Call API to generate report
@@ -315,6 +328,7 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
             paymentToken: isPaid ? options?.paymentToken : undefined,
             paymentIntentId: isPaid ? options?.paymentIntentId : undefined,
             sessionId: isPaid ? (options?.sessionId || undefined) : undefined,
+            useReal: options?.useReal === true ? true : undefined, // Pass useReal in body as well
           }),
           signal: abortController.signal,
         });

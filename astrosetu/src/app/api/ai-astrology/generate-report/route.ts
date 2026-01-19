@@ -368,9 +368,15 @@ export async function POST(req: Request) {
       paymentIntentId?: string; // CRITICAL: Payment intent ID for manual capture
       sessionId?: string; // Session ID for token regeneration
       decisionContext?: string; // Optional context for decision support reports
+      useReal?: boolean; // Force real AI generation even for test sessions
     }>(req);
 
-    const { input, reportType, paymentToken, paymentIntentId, sessionId: fallbackSessionId, decisionContext } = json;
+    const { input, reportType, paymentToken, paymentIntentId, sessionId: fallbackSessionId, decisionContext, useReal } = json;
+    
+    // Check for URL query parameter to force real mode (alternative to body parameter)
+    const urlParams = new URL(req.url).searchParams;
+    const useRealFromQuery = urlParams.get("use_real") === "true" || urlParams.get("force_real") === "true";
+    const forceRealMode = useReal === true || useRealFromQuery;
     
     // Log request details for debugging (anonymized)
     const requestDetailsLog = {
@@ -1198,9 +1204,25 @@ export async function POST(req: Request) {
     console.log("[GENERATION START]", JSON.stringify(generationStartLog, null, 2));
 
     // MOCK_MODE: Return mock data for testing/development (prevents external API calls)
-    // IMPORTANT: test_session_* must always use mock generation even in production to keep test flows fast and reliable.
-    const mockMode = isTestSession || process.env.MOCK_MODE === "true";
+    // IMPORTANT: test_session_* normally uses mock generation even in production to keep test flows fast and reliable.
+    // However, you can force real mode by:
+    //   1. Setting useReal=true in request body, OR
+    //   2. Adding ?use_real=true or ?force_real=true to URL query params
+    //   3. Setting ALLOW_REAL_FOR_TEST_SESSIONS=true environment variable
+    const allowRealForTestSessions = process.env.ALLOW_REAL_FOR_TEST_SESSIONS === "true";
+    const shouldUseRealMode = forceRealMode || allowRealForTestSessions;
+    const mockMode = (isTestSession && !shouldUseRealMode) || process.env.MOCK_MODE === "true";
+    
     if (mockMode) {
+      if (isTestSession && shouldUseRealMode) {
+        console.log("[TEST SESSION - REAL MODE FORCED]", {
+          requestId,
+          sessionId: sessionIdFromQuery,
+          forceRealMode,
+          allowRealForTestSessions,
+          reason: forceRealMode ? "explicit request" : "environment variable",
+        });
+      }
       const { getMockReport, simulateApiDelay } = await import("@/lib/ai-astrology/mocks/fixtures");
       
       // Simulate API delay for realistic testing
