@@ -15,6 +15,8 @@ const MOCK_INDICATORS = [
   "enable real mode by setting",
   "MOCK_MODE",
   "mock data for development",
+  "for development and testing", // CRITICAL: Catch partial phrases
+  "development and testing", // CRITICAL: Catch without prefix
   "real reports use",
   "real reports provide",
   "would appear here in a real report",
