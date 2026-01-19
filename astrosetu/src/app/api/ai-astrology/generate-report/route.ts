@@ -1291,14 +1291,51 @@ export async function POST(req: Request) {
       };
       console.log("[MOCK MODE]", JSON.stringify(mockLog, null, 2));
       
-      // CRITICAL: Verify sections are present before returning
+      // CRITICAL: Verify sections are present before returning - force add if missing
       if (!cleanedMockContent.sections || cleanedMockContent.sections.length < 6) {
         console.error("[MOCK REPORT ERROR] Report has insufficient sections after fallback addition!", {
           reportType,
           sectionsCount: cleanedMockContent.sections?.length || 0,
           sections: cleanedMockContent.sections?.map(s => s.title) || [],
         });
+        
+        // EMERGENCY FIX: Force add sections if they're still missing
+        if (!cleanedMockContent.sections || cleanedMockContent.sections.length === 0) {
+          console.error("[MOCK REPORT CRITICAL] Forcing emergency sections for decision-support report!");
+          cleanedMockContent = {
+            ...cleanedMockContent,
+            sections: [
+              {
+                title: "Current Astrological Climate for Decision-Making",
+                content: "Your current Dasha period and planetary transits create a specific decision-making environment. Understanding these influences helps you align your choices with favorable timing. Some periods favor decisive action, while others require careful planning and gathering more information.",
+              },
+              {
+                title: "Astrological Analysis of Decision Options",
+                content: "From an astrological perspective, different decision options have varying levels of alignment with your birth chart patterns. Options that align with your natural strengths and current planetary influences tend to have better outcomes.",
+              },
+              {
+                title: "Optimal Timing for Decisions",
+                content: "Timing is a critical factor in decision-making. Some periods are naturally more favorable for taking action, while others require patience and preparation. The alignment of planets and current Dasha period influences when decisions should be made.",
+              },
+              {
+                title: "Strategic Decision-Making Approach",
+                content: "A strategic approach to decision-making involves considering both astrological guidance and practical factors. Combine insights from your birth chart with real-world considerations, personal values, and professional advice when needed.",
+              },
+              {
+                title: "Important Factors to Consider",
+                content: "When making major decisions, several astrological factors should be considered. These include the current Dasha period, planetary transits affecting relevant houses, and the alignment of your decision with your natural strengths.",
+              },
+              {
+                title: "Guidance for Different Types of Decisions",
+                content: "Different types of decisions require different approaches based on astrological timing. Career decisions benefit from analyzing the 10th house and career-related planets. Relationship decisions involve the 7th house and Venus influences. Financial decisions relate to the 2nd and 11th houses.",
+              },
+            ],
+          };
+        }
       }
+      
+      // Final verification - log section count before sending response
+      console.log(`[MOCK REPORT FINAL] ReportType: ${reportType}, Sections: ${cleanedMockContent.sections?.length || 0}, SectionTitles: ${cleanedMockContent.sections?.map(s => s.title).join(", ") || "NONE"}`);
       
       return NextResponse.json(
         {
