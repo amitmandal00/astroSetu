@@ -4745,7 +4745,7 @@ function PreviewContent() {
           
             {/* PDF Download & Email Buttons */}
             {(isPaidReport || (isBundleReport && bundleContents.size > 0)) && (
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div id="download-pdf" className="flex flex-col sm:flex-row gap-3 scroll-mt-20">
                 <Button
                   onClick={handleDownloadPDF}
                   disabled={downloadingPDF}

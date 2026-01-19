@@ -104,8 +104,8 @@ export function ReportTableOfContents({ content, reportType }: ReportTableOfCont
       window.scrollTo({ top: y, behavior: "smooth" });
       setActiveSection(id);
     } else if (id === "download-pdf") {
-      // Scroll to bottom where download button usually is
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      // If download-pdf element not found, scroll to top of page where download button is
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
