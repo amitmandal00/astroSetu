@@ -300,8 +300,8 @@ export async function generatePDF(
     // Generated for
     addText(`Generated for: ${input.name}`, 12, false, "#475569", 1.5, 4);
 
-    // Generated on
-    const generatedDate = new Date(cleanedReport.generatedAt || new Date().toISOString());
+    // Generated on - Use current date/time when PDF is actually generated
+    const generatedDate = new Date();
     const dateStr = generatedDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
     const timeStr = generatedDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     addText(`Generated on: ${dateStr} at ${timeStr}`, 11, false, "#64748b", 1.5, 8);
@@ -964,9 +964,9 @@ export async function generatePDF(
       disclaimerAddedToContent = true;
     }
 
-    // Enhanced Footer on every page with Report ID and timestamp
+    // Enhanced Footer on every page with Report ID and timestamp - Use current date/time when PDF is generated
     const totalPages = doc.internal.pages.length - 1;
-    const footerDate = new Date(cleanedReport.generatedAt || new Date().toISOString());
+    const footerDate = new Date();
     const footerDateStr = footerDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
     const footerTimeStr = footerDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
     
@@ -1450,7 +1450,8 @@ export async function generateBundlePDF(
 
       addText(`Generated for: ${input.name}`, 12, false, "#475569", 1.5, 4);
       
-      const reportDate = new Date(cleanedBundleReport.generatedAt || new Date().toISOString());
+      // Use current date/time when PDF is actually generated
+      const reportDate = new Date();
       const reportDateStr = reportDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
       const reportTimeStr = reportDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       addText(`Generated on: ${reportDateStr} at ${reportTimeStr}`, 11, false, "#64748b", 1.5, 8);
