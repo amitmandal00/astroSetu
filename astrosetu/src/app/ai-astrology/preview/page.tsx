@@ -17,7 +17,6 @@ import type { ReportContent } from "@/lib/ai-astrology/types";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
 import { PostPurchaseUpsell } from "@/components/ai-astrology/PostPurchaseUpsell";
-import { ReportTableOfContents } from "@/components/ai-astrology/ReportTableOfContents";
 import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 import { useReportGenerationController } from "@/hooks/useReportGenerationController";
 import { getFreeLifeSummaryGateAfterSection } from "@/lib/ai-astrology/freeReportGating";
@@ -4132,9 +4131,6 @@ function PreviewContent() {
 
     return (
       <>
-                {/* P1 IMPROVEMENT: Table of Contents (ChatGPT feedback) */}
-                <ReportTableOfContents content={content} reportType={type} />
-                
                 {/* Executive Summary (for Full Life Report) */}
                 {type === "full-life" && content?.executiveSummary && (
                   <div id="executive-summary" className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm scroll-mt-20">

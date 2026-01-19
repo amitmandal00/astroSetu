@@ -112,7 +112,7 @@ export function ReportTableOfContents({ content, reportType }: ReportTableOfCont
   if (!isVisible || tocItems.length === 0) return null;
 
   return (
-    <div className="hidden lg:block fixed right-8 top-1/2 -translate-y-1/2 z-40 w-64">
+    <div className="hidden lg:block fixed right-8 top-1/2 -translate-y-1/2 z-30 w-64 pointer-events-auto">
       <div className="bg-white/95 backdrop-blur-sm rounded-lg border border-purple-200 shadow-lg p-4 max-h-[70vh] overflow-y-auto">
         <h3 className="text-sm font-bold text-purple-900 mb-3 sticky top-0 bg-white/95 pb-2 border-b border-purple-100">
           📑 Table of Contents
