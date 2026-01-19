@@ -20,7 +20,7 @@ import {
   generateDecisionSupportReport,
   isAIConfigured,
 } from "@/lib/ai-astrology/reportGenerator";
-import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
+import type { AIAstrologyInput, ReportType, ReportContent } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
 import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
@@ -1291,6 +1291,7 @@ export async function POST(req: Request) {
     // Increased from 75s to 90s for better reliability with complex reports
     const REPORT_GENERATION_TIMEOUT = isComplexReport ? 90000 : (isFreeReport ? 65000 : 60000);
     let reportContent;
+    let cleanedReportContent: ReportContent | undefined; // Declared in broader scope for use in response
     
     // CRITICAL FIX (ChatGPT Feedback): Heartbeat during generation
     // Updates report's updated_at every 15-20s to prevent stuck "processing" status
@@ -1413,7 +1414,7 @@ export async function POST(req: Request) {
       console.log("[REPORT GENERATION SUCCESS]", JSON.stringify(successLog, null, 2));
       
       // CRITICAL: Strip mock content before caching/storing (production safety - even for real reports)
-      const cleanedReportContent = stripMockContent(reportContent);
+      cleanedReportContent = stripMockContent(reportContent);
       
       // Phase 1: STRICT VALIDATION before marking as "completed" (ChatGPT feedback)
       const validation = validateReportBeforeCompletion(cleanedReportContent, input, paymentToken);
@@ -1846,8 +1847,11 @@ export async function POST(req: Request) {
     // Ensure content doesn't have its own reportId (remove if present to avoid duplication)
     // reportId was already generated above for idempotency check
     // Canonical reportId is stored in data.reportId, not in content.reportId
-    // Use cleanedReportContent (mock content already stripped)
-    const contentWithoutReportId = { ...cleanedReportContent };
+    // Use cleanedReportContent (mock content already stripped, defined above)
+    if (!cleanedReportContent && reportContent) {
+      cleanedReportContent = stripMockContent(reportContent);
+    }
+    const contentWithoutReportId = cleanedReportContent ? { ...cleanedReportContent } : {};
     if ('reportId' in contentWithoutReportId) {
       delete contentWithoutReportId.reportId;
     }
