@@ -151,35 +151,53 @@ export function stripMockContent(report: ReportContent, forceStrip: boolean = fa
     ...report,
   };
   
-  // Clean sections
+  // CRITICAL FIX (ChatGPT Feedback): Sanitize sections instead of filtering them out
+  // This prevents reports from appearing "too short" due to sections being removed
+  // Only drop sections if they are truly invalid (null/undefined), not "mocky"
   if (report.sections) {
     cleanedReport.sections = report.sections
-      .filter(section => {
-        // Remove sections that are clearly mock
-        if (section.title && containsMockContent(section.title)) return false;
-        if (section.content && containsMockContent(section.content)) return false;
-        return true;
-      })
       .map(section => {
-        // Clean bullets within sections
-        let cleanedBullets = section.bullets;
-        if (section.bullets) {
-          cleanedBullets = section.bullets.filter(bullet => !containsMockContent(bullet));
+        // Only skip if section is truly invalid
+        if (!section || (!section.title && !section.content && (!section.bullets || section.bullets.length === 0))) {
+          return null; // Will filter these out at the end
         }
-        
-        // Clean content
+
+        // Clean title: replace mock content with sanitized version
+        let cleanedTitle = section.title;
+        if (section.title && containsMockContent(section.title)) {
+          // Replace mock title with generic placeholder instead of removing the section
+          cleanedTitle = section.title.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim() || "Report Section";
+        }
+
+        // Clean content: replace mock content with generic placeholder
         let cleanedContent = section.content;
         if (section.content && containsMockContent(section.content)) {
-          // Replace mock content with generic placeholder
+          // Replace mock content with generic placeholder instead of removing the section
           cleanedContent = "Detailed analysis will be generated based on your birth chart.";
+        }
+
+        // Clean bullets: filter out mock bullets, but keep section if it has title or other content
+        let cleanedBullets = section.bullets;
+        if (section.bullets && section.bullets.length > 0) {
+          cleanedBullets = section.bullets
+            .map(bullet => {
+              if (containsMockContent(bullet)) {
+                // Replace mock bullet with generic placeholder instead of removing
+                return bullet.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim() || "Insight based on your birth chart.";
+              }
+              return bullet;
+            })
+            .filter(bullet => bullet && bullet.trim().length > 0); // Only remove truly empty bullets
         }
         
         return {
           ...section,
+          title: cleanedTitle,
           content: cleanedContent,
           bullets: cleanedBullets,
         };
-      });
+      })
+      .filter(section => section !== null) as typeof report.sections; // Filter out nulls (invalid sections only)
   }
   
   // Clean summary

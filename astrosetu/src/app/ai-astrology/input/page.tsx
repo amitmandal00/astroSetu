@@ -751,14 +751,19 @@ function InputFormContent() {
               </div>
 
               {/* Terms Acceptance Checkbox */}
-              <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <div className={`mb-6 p-4 rounded-lg border-2 transition-all ${
+                termsAccepted 
+                  ? "bg-green-50 border-green-300" 
+                  : "bg-slate-50 border-slate-200"
+              }`}>
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={termsAccepted}
                     onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="mt-1 w-5 h-5 text-purple-600 border-purple-300 rounded focus:ring-purple-500 focus:ring-2"
+                    className="mt-1 w-5 h-5 text-purple-600 border-purple-300 rounded focus:ring-purple-500 focus:ring-2 cursor-pointer transition-all"
                     required
+                    aria-label="Accept terms and conditions"
                   />
                   <div className="flex-1">
                     <span className="text-sm font-semibold text-slate-900">
@@ -796,6 +801,8 @@ function InputFormContent() {
                       <span className="animate-spin">🌙</span>
                       Processing...
                     </span>
+                  ) : !termsAccepted ? (
+                    "Accept terms to continue"
                   ) : flow === "subscription" ? (
                     "Continue to Subscription"
                   ) : bundleParam && bundleReports.length > 0 ? (

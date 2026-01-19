@@ -15,6 +15,7 @@ import { apiPost, apiGet } from "@/lib/http";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import type { ReportContent } from "@/lib/ai-astrology/types";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
+import { formatPrice, formatPriceWithoutGst } from "@/lib/ai-astrology/priceFormatter";
 import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
 import { PostPurchaseUpsell } from "@/components/ai-astrology/PostPurchaseUpsell";
 import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
@@ -646,8 +647,11 @@ function PreviewContent() {
                 // Store content if available
                 if (statusData.data.content && statusData.data.reportId) {
                   try {
-                    // CRITICAL: Strip mock content before storing AND displaying (forceStrip = true for client-side)
-                    const cleanedContent = stripMockContent(statusData.data.content, true);
+                    // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+                    // For real users, trust server-side cleaning to avoid removing valid sections
+                    const sessionIdFromUrl = searchParams.get("session_id");
+                    const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
+                    const cleanedContent = stripMockContent(statusData.data.content, isTestSession);
                     
                     const reportData = JSON.stringify({
                       content: cleanedContent, // Store cleaned content, not raw
@@ -842,8 +846,11 @@ function PreviewContent() {
       // If no redirect (older API versions), use existing behavior
       // CRITICAL: Ensure we have content before setting it
       if (response.data?.content) {
-        // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
-        const cleanedContent = stripMockContent(response.data.content, true);
+        // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+        // For real users, trust server-side cleaning to avoid removing valid sections
+        const sessionIdFromUrl = searchParams.get("session_id");
+        const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
+        const cleanedContent = stripMockContent(response.data.content, isTestSession);
         setReportContent(cleanedContent);
         setLoading(false);
         setLoadingStage(null);
@@ -1149,9 +1156,11 @@ function PreviewContent() {
         // Set bundle contents with successful reports
         setBundleContents(bundleContentsMap);
         // Set the first successful report as the primary report for display
-        // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
+        // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
         const bundleContent = bundleContentsMap.get(reports[0]) || bundleContentsMap.values().next().value || null;
-        const cleanedBundleContent = bundleContent ? stripMockContent(bundleContent, true) : null;
+        const sessionIdFromUrl = searchParams.get("session_id");
+        const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
+        const cleanedBundleContent = bundleContent ? stripMockContent(bundleContent, isTestSession) : null;
         setReportContent(cleanedBundleContent);
         setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
         reportTypeRef.current = successes[0].reportType; // Update ref immediately
@@ -1560,8 +1569,11 @@ function PreviewContent() {
           
           if (storedReport) {
             const parsed = JSON.parse(storedReport);
-            // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
-            const cleanedContent = stripMockContent(parsed.content, true);
+            // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+            const sessionIdFromUrl = searchParams.get("session_id");
+            const reportIdFromUrl = searchParams.get("reportId");
+            const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || reportIdFromUrl?.startsWith("test_session_") || false;
+            const cleanedContent = stripMockContent(parsed.content, isTestSession);
             setReportContent(cleanedContent);
             setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
             const newReportType = parsed.reportType || (searchParams.get("reportType") as ReportType) || "life-summary";
@@ -2594,8 +2606,10 @@ function PreviewContent() {
         }
         
         // Report has valid sections - proceed normally
-        // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
-        const cleanedContent = generationController.reportContent ? stripMockContent(generationController.reportContent, true) : null;
+        // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+        const sessionIdFromUrl = searchParams.get("session_id");
+        const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
+        const cleanedContent = generationController.reportContent ? stripMockContent(generationController.reportContent, isTestSession) : null;
         setReportContent(cleanedContent);
         setContentLoadTime(Date.now());
         // CRITICAL FIX (ChatGPT Feedback): When report content arrives, stop loading and timer
@@ -3024,8 +3038,10 @@ function PreviewContent() {
         }
         if (storedReport) {
           const parsed = JSON.parse(storedReport);
-          // CRITICAL: Strip mock content before displaying to users (forceStrip = true for client-side)
-          const cleanedContent = stripMockContent(parsed.content, true);
+          // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+          const sessionIdFromUrl = searchParams.get("session_id");
+          const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || reportIdFromUrl?.startsWith("test_session_") || false;
+          const cleanedContent = stripMockContent(parsed.content, isTestSession);
           setReportContent(cleanedContent);
           setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
           setInput(parsed.input);
@@ -5143,7 +5159,7 @@ function PreviewContent() {
                             </Link>
                           </div>
                           <p className="text-xs text-slate-600 mt-4">
-                            All reports: AU$0.01 each • Instant access • Downloadable PDF
+                            All reports: {formatPriceWithoutGst(REPORT_PRICES["marriage-timing"].amount)} each • Instant access • Downloadable PDF
                           </p>
                         </div>
                       </div>
@@ -5317,7 +5333,7 @@ function PreviewContent() {
                       <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-amber-400 hover:border-amber-500 hover:shadow-md transition-all">
                           <div className="font-bold text-slate-800 mb-2">See My Marriage Timing (Instant)</div>
-                          <div className="text-sm text-amber-700 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <div className="text-sm text-amber-700 font-semibold mb-3">{formatPrice(REPORT_PRICES["marriage-timing"].amount)}</div>
                           <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-amber-100">
                             <li>• Best marriage windows (date ranges)</li>
                             <li>• Reasons for delay (plain English)</li>
@@ -5328,7 +5344,7 @@ function PreviewContent() {
                       <Link href="/ai-astrology/input?reportType=career-money" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
                           <div className="font-bold text-slate-800 mb-2">Unlock My Career & Money Path</div>
-                          <div className="text-sm text-slate-600 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">{formatPrice(REPORT_PRICES["career-money"].amount)}</div>
                           <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
                             <li>• Career direction</li>
                             <li>• Job-change windows</li>
@@ -5339,7 +5355,7 @@ function PreviewContent() {
                       <Link href="/ai-astrology/input?reportType=year-analysis" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
                           <div className="font-bold text-slate-800 mb-2">Year Analysis Report</div>
-                          <div className="text-sm text-slate-600 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">{formatPrice(REPORT_PRICES["career-money"].amount)}</div>
                           <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
                             <li>• Quarterly breakdown</li>
                             <li>• Year strategy & focus areas</li>
@@ -5350,7 +5366,7 @@ function PreviewContent() {
                       <Link href="/ai-astrology/input?reportType=major-life-phase" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
                           <div className="font-bold text-slate-800 mb-2">3-5 Year Strategic Life Phase Report</div>
-                          <div className="text-sm text-slate-600 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">{formatPrice(REPORT_PRICES["career-money"].amount)}</div>
                           <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
                             <li>• Long-term life phases</li>
                             <li>• Major transitions & opportunities</li>
@@ -5361,7 +5377,7 @@ function PreviewContent() {
                       <Link href="/ai-astrology/input?reportType=decision-support" className="block">
                         <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
                           <div className="font-bold text-slate-800 mb-2">Decision Support Report</div>
-                          <div className="text-sm text-slate-600 font-semibold mb-3">AU$0.01 (incl. GST)</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">{formatPrice(REPORT_PRICES["career-money"].amount)}</div>
                           <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
                             <li>• Decision options analysis</li>
                             <li>• Timing recommendations</li>
@@ -5379,7 +5395,7 @@ function PreviewContent() {
                         </div>
                         <div className="font-bold text-slate-800 mb-2 text-xl">Get My Full Life Report</div>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-xl font-bold text-purple-700">AU$0.01</span>
+                          <span className="text-xl font-bold text-purple-700">{formatPriceWithoutGst(REPORT_PRICES["full-life"].amount)}</span>
                         </div>
                         <div className="text-xs text-slate-600 mb-3 italic">Most users choose this</div>
                         <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-purple-200">
@@ -5420,8 +5436,8 @@ function PreviewContent() {
                     {/* Pricing Anchor */}
                     <div className="mt-6 pt-6 border-t border-amber-300">
                       <p className="text-xs text-slate-600 text-center">
-                        Individual reports: <strong>AU$0.01</strong> each<br />
-                        Full Life Report: <strong>AU$0.01</strong>
+                        Individual reports: <strong>{formatPriceWithoutGst(REPORT_PRICES["marriage-timing"].amount)}</strong> each<br />
+                        Full Life Report: <strong>{formatPriceWithoutGst(REPORT_PRICES["full-life"].amount)}</strong>
                       </p>
                     </div>
                   </CardContent>
