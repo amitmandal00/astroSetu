@@ -298,7 +298,13 @@ export function stripMockContent(report: ReportContent, forceStrip: boolean = fa
   
   // Clean recommendedTiming (decision-support)
   if (report.recommendedTiming) {
-    cleanedReport.recommendedTiming = report.recommendedTiming.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+    if (containsMockContent(report.recommendedTiming)) {
+      // If recommendedTiming contains mock content, replace with generic placeholder
+      cleanedReport.recommendedTiming = "The next few months show favorable alignment for decision-making based on your astrological chart.";
+    } else {
+      // Just remove any "(mock data)" markers if present
+      cleanedReport.recommendedTiming = report.recommendedTiming.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+    }
   }
   
   // Clean factorsToConsider (decision-support)
@@ -320,7 +326,13 @@ export function stripMockContent(report: ReportContent, forceStrip: boolean = fa
   
   // Clean decisionContext (decision-support)
   if (report.decisionContext) {
-    cleanedReport.decisionContext = report.decisionContext.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+    if (containsMockContent(report.decisionContext)) {
+      // If decisionContext contains mock content, replace with generic placeholder
+      cleanedReport.decisionContext = "This report helps evaluate decision options based on astrological timing and your birth chart analysis.";
+    } else {
+      // Just remove any "(mock data)" markers if present
+      cleanedReport.decisionContext = report.decisionContext.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+    }
   }
   
   // Clean quarterlyBreakdown, bestPeriods, cautionPeriods (year-analysis)

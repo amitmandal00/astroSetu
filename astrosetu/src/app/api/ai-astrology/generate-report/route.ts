@@ -1213,7 +1213,8 @@ export async function POST(req: Request) {
       });
       
       // CRITICAL: Strip mock content before caching/storing (production safety)
-      let cleanedMockContent = stripMockContent(mockReportContent);
+      // Use forceStrip: true to ensure mock content is stripped even in test sessions
+      let cleanedMockContent = stripMockContent(mockReportContent, true);
       
       // CRITICAL FIX (2026-01-19): Ensure mock reports also have minimum sections
       // Mock reports from fixtures can be too short, so we need to add fallback sections
