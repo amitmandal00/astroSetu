@@ -1265,9 +1265,22 @@ export async function POST(req: Request) {
         reportType,
         reportId,
         isTestSession,
+        sectionsCount: cleanedMockContent.sections?.length || 0,
+        hasDecisionContext: !!cleanedMockContent.decisionContext,
+        hasDecisionOptions: !!(cleanedMockContent.decisionOptions && cleanedMockContent.decisionOptions.length > 0),
+        sectionTitles: cleanedMockContent.sections?.map(s => s.title) || [],
         elapsedMs: Date.now() - startTime,
       };
       console.log("[MOCK MODE]", JSON.stringify(mockLog, null, 2));
+      
+      // CRITICAL: Verify sections are present before returning
+      if (!cleanedMockContent.sections || cleanedMockContent.sections.length < 6) {
+        console.error("[MOCK REPORT ERROR] Report has insufficient sections after fallback addition!", {
+          reportType,
+          sectionsCount: cleanedMockContent.sections?.length || 0,
+          sections: cleanedMockContent.sections?.map(s => s.title) || [],
+        });
+      }
       
       return NextResponse.json(
         {
