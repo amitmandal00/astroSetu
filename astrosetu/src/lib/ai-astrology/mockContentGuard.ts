@@ -211,9 +211,17 @@ export function stripMockContent(report: ReportContent, forceStrip: boolean = fa
     cleanedReport.executiveSummary = "Comprehensive analysis based on your unique astrological chart.";
   }
   
-  // Clean key insights
+  // Clean key insights: replace mock insights with generic placeholders
   if (report.keyInsights) {
-    cleanedReport.keyInsights = report.keyInsights.filter(insight => !containsMockContent(insight));
+    cleanedReport.keyInsights = report.keyInsights
+      .map(insight => {
+        if (containsMockContent(insight)) {
+          // Replace mock insight with generic placeholder
+          return "Key insight based on your birth chart analysis.";
+        }
+        return insight;
+      })
+      .filter(insight => insight && insight.trim().length > 0); // Remove empty insights
   }
   
   // CRITICAL FIX: Clean custom fields - timeWindows, recommendations, phaseBreakdown, etc.
