@@ -176,14 +176,15 @@ export function stripMockContent(report: ReportContent, forceStrip: boolean = fa
           cleanedContent = "Detailed analysis will be generated based on your birth chart.";
         }
 
-        // Clean bullets: filter out mock bullets, but keep section if it has title or other content
+        // Clean bullets: replace mock bullets with generic placeholders, but keep section if it has title or other content
         let cleanedBullets = section.bullets;
         if (section.bullets && section.bullets.length > 0) {
           cleanedBullets = section.bullets
             .map(bullet => {
               if (containsMockContent(bullet)) {
-                // Replace mock bullet with generic placeholder instead of removing
-                return bullet.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim() || "Insight based on your birth chart.";
+                // CRITICAL FIX: Replace entire bullet with generic placeholder if it contains mock content
+                // Don't try to remove just "(mock data)" markers - replace the whole thing
+                return "Insight based on your birth chart.";
               }
               return bullet;
             })
