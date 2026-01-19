@@ -547,7 +547,8 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
  * Used by both real AI-generated reports and mock reports
  */
 export function ensureMinimumSections(report: ReportContent, reportType: ReportType): ReportContent {
-  const { sections = [] } = report;
+  // CRITICAL: Create a new array to avoid mutating the original
+  const sections = report.sections ? [...report.sections] : [];
   
   // Paid reports (career-money, major-life-phase, decision-support) should have at least 6-7 detailed sections
   // This prevents reports from being too short
