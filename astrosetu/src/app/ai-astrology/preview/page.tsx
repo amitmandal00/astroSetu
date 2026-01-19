@@ -4160,96 +4160,567 @@ function PreviewContent() {
                 )}
 
                 {/* Enhanced Summary for Marriage Timing Report */}
-                {type === "marriage-timing" && content?.summary && (
-                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 rounded-xl border-2 border-pink-300 shadow-sm scroll-mt-20">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="text-3xl">💑</div>
-                      <h2 className="text-2xl font-bold text-pink-900">Marriage Timing Summary</h2>
-                    </div>
-                    <div className="prose prose-slate max-w-none">
-                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
-                    </div>
-                    {/* Extract and display timing strength if mentioned in summary */}
-                    {content?.summary && content.summary.toLowerCase().includes("timing strength") && (
-                      <div className="mt-4 pt-4 border-t border-pink-200">
-                        <p className="text-sm font-semibold text-pink-800">
-                          {content?.summary && (content.summary.match(/timing strength:.*?(\d+\/10|strong|moderate)/i)?.[0] || 
-                           content.summary.match(/confidence level:.*?\d+\/10/i)?.[0] || "")}
-                        </p>
+                {type === "marriage-timing" && (
+                  <>
+                    {content?.summary && (
+                      <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 rounded-xl border-2 border-pink-300 shadow-sm scroll-mt-20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">💑</div>
+                          <h2 className="text-2xl font-bold text-pink-900">Marriage Timing Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                        </div>
+                        {/* Extract and display timing strength if mentioned in summary */}
+                        {content?.summary && content.summary.toLowerCase().includes("timing strength") && (
+                          <div className="mt-4 pt-4 border-t border-pink-200">
+                            <p className="text-sm font-semibold text-pink-800">
+                              {content?.summary && (content.summary.match(/timing strength:.*?(\d+\/10|strong|moderate)/i)?.[0] || 
+                               content.summary.match(/confidence level:.*?\d+\/10/i)?.[0] || "")}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                    
+                    {/* Time Windows for Marriage Timing */}
+                    {content?.timeWindows && content.timeWindows.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 rounded-xl border-2 border-rose-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-rose-900 mb-4 flex items-center gap-2">
+                          <span>🕒</span> Ideal Marriage Timing Windows
+                        </h3>
+                        <div className="space-y-4">
+                          {content.timeWindows.map((window, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-rose-200">
+                              <h4 className="font-bold text-rose-800 mb-2">{window.title}</h4>
+                              {(window.startDate || window.endDate) && (
+                                <p className="text-sm text-rose-700 mb-2">
+                                  {window.startDate && window.endDate 
+                                    ? `${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                    : window.startDate 
+                                      ? `From ${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                      : window.endDate
+                                        ? `Until ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                        : ''}
+                                </p>
+                              )}
+                              {window.description && (
+                                <p className="text-slate-700 mb-2">{window.description}</p>
+                              )}
+                              {window.actions && window.actions.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Recommended Actions:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {window.actions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {window.avoidActions && window.avoidActions.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-sm font-semibold text-amber-600 mb-1">Actions to Avoid:</p>
+                                  <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
+                                    {window.avoidActions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Recommendations for Marriage Timing */}
+                    {content?.recommendations && content.recommendations.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-pink-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
+                          <span>💡</span> Recommendations
+                        </h3>
+                        <div className="space-y-4">
+                          {content.recommendations.map((rec, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-purple-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-purple-800">{rec.category}</h4>
+                                {rec.priority && (
+                                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                    rec.priority === "High" ? "bg-red-100 text-red-800" :
+                                    rec.priority === "Medium" ? "bg-yellow-100 text-yellow-800" :
+                                    "bg-blue-100 text-blue-800"
+                                  }`}>
+                                    {rec.priority} Priority
+                                  </span>
+                                )}
+                              </div>
+                              {rec.items && rec.items.length > 0 && (
+                                <ul className="list-disc list-inside text-slate-700 space-y-1">
+                                  {rec.items.map((item, i) => (
+                                    <li key={i}>{item}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Enhanced Summary for Career & Money Report */}
-                {type === "career-money" && content?.summary && (
-                  <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 rounded-xl border-2 border-blue-300 shadow-sm">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="text-3xl">💼</div>
-                      <h2 className="text-2xl font-bold text-blue-900">Career & Money Summary</h2>
-                    </div>
-                    <div className="prose prose-slate max-w-none">
-                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
-                    </div>
-                    {/* Extract and display confidence indicators if mentioned in summary */}
-                    {(content?.summary && (content.summary.toLowerCase().includes("career direction clarity") || 
-                      content.summary.toLowerCase().includes("money growth stability"))) && (
-                      <div className="mt-4 pt-4 border-t border-blue-200">
-                        <div className="flex flex-wrap gap-4 text-sm">
-                          {content?.summary && content.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0] && (
-                            <p className="font-semibold text-blue-800">
-                              {content.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0]}
-                            </p>
-                          )}
-                          {content?.summary && content.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0] && (
-                            <p className="font-semibold text-blue-800">
-                              {content.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0]}
-                            </p>
-                          )}
+                {type === "career-money" && (
+                  <>
+                    {content?.summary && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 rounded-xl border-2 border-blue-300 shadow-sm">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">💼</div>
+                          <h2 className="text-2xl font-bold text-blue-900">Career & Money Summary</h2>
                         </div>
-                        <p className="text-xs text-blue-700 mt-2">Directional confidence indicators, not income predictions</p>
+                        <div className="prose prose-slate max-w-none">
+                          <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                        </div>
+                        {/* Extract and display confidence indicators if mentioned in summary */}
+                        {(content?.summary && (content.summary.toLowerCase().includes("career direction clarity") || 
+                          content.summary.toLowerCase().includes("money growth stability"))) && (
+                          <div className="mt-4 pt-4 border-t border-blue-200">
+                            <div className="flex flex-wrap gap-4 text-sm">
+                              {content?.summary && content.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0] && (
+                                <p className="font-semibold text-blue-800">
+                                  {content.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0]}
+                                </p>
+                              )}
+                              {content?.summary && content.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0] && (
+                                <p className="font-semibold text-blue-800">
+                                  {content.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0]}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-xs text-blue-700 mt-2">Directional confidence indicators, not income predictions</p>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                    
+                    {/* Time Windows for Career & Money */}
+                    {content?.timeWindows && content.timeWindows.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 rounded-xl border-2 border-green-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
+                          <span>📅</span> Favorable Time Periods
+                        </h3>
+                        <div className="space-y-4">
+                          {content.timeWindows.map((window, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-green-200">
+                              <h4 className="font-bold text-green-800 mb-2">{window.title}</h4>
+                              {(window.startDate || window.endDate) && (
+                                <p className="text-sm text-green-700 mb-2">
+                                  {window.startDate && window.endDate 
+                                    ? `${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                    : window.startDate 
+                                      ? `From ${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                      : window.endDate
+                                        ? `Until ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                        : ''}
+                                </p>
+                              )}
+                              {window.description && (
+                                <p className="text-slate-700 mb-2">{window.description}</p>
+                              )}
+                              {window.actions && window.actions.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Recommended Actions:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {window.actions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {window.avoidActions && window.avoidActions.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-sm font-semibold text-amber-600 mb-1">Actions to Avoid:</p>
+                                  <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
+                                    {window.avoidActions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Recommendations for Career & Money */}
+                    {content?.recommendations && content.recommendations.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                          <span>💡</span> Recommendations
+                        </h3>
+                        <div className="space-y-4">
+                          {content.recommendations.map((rec, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-indigo-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-indigo-800">{rec.category}</h4>
+                                {rec.priority && (
+                                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                    rec.priority === "High" ? "bg-red-100 text-red-800" :
+                                    rec.priority === "Medium" ? "bg-yellow-100 text-yellow-800" :
+                                    "bg-blue-100 text-blue-800"
+                                  }`}>
+                                    {rec.priority} Priority
+                                  </span>
+                                )}
+                              </div>
+                              {rec.items && rec.items.length > 0 && (
+                                <ul className="list-disc list-inside text-slate-700 space-y-1">
+                                  {rec.items.map((item, i) => (
+                                    <li key={i}>{item}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Enhanced Summary for Year Analysis Report */}
-                {type === "year-analysis" && content?.summary && (
-                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm scroll-mt-20">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="text-3xl">📅</div>
-                      <h2 className="text-2xl font-bold text-indigo-900">Year Analysis Summary</h2>
-                    </div>
-                    <div className="prose prose-slate max-w-none">
-                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
-                    </div>
-                  </div>
+                {type === "year-analysis" && (
+                  <>
+                    {(content?.summary || content?.yearTheme) && (
+                      <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm scroll-mt-20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">📅</div>
+                          <h2 className="text-2xl font-bold text-indigo-900">Year Analysis Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          {content?.yearTheme && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium mb-3 text-lg">{content.yearTheme}</p>
+                          )}
+                          {content?.summary && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                          )}
+                        </div>
+                        {content?.confidenceLevel && (
+                          <div className="mt-4 pt-4 border-t border-indigo-200">
+                            <p className="text-sm font-semibold text-indigo-800">
+                              Confidence Level: {content.confidenceLevel}/10
+                            </p>
+                            <p className="text-xs text-indigo-700 mt-1">Based on planetary analysis and chart patterns</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Year Scorecard */}
+                    {content?.yearScorecard && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
+                          <span>⭐</span> Year Scorecard
+                        </h3>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="bg-white p-4 rounded-lg border border-purple-200 text-center">
+                            <div className="text-2xl mb-2">💼</div>
+                            <p className="text-sm font-semibold text-slate-600 mb-1">Career</p>
+                            <div className="flex justify-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <span key={i} className={i < (content.yearScorecard?.career || 0) ? "text-yellow-400" : "text-slate-300"}>⭐</span>
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{content.yearScorecard.career}/5</p>
+                          </div>
+                          <div className="bg-white p-4 rounded-lg border border-purple-200 text-center">
+                            <div className="text-2xl mb-2">💑</div>
+                            <p className="text-sm font-semibold text-slate-600 mb-1">Relationships</p>
+                            <div className="flex justify-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <span key={i} className={i < (content.yearScorecard?.relationships || 0) ? "text-yellow-400" : "text-slate-300"}>⭐</span>
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{content.yearScorecard.relationships}/5</p>
+                          </div>
+                          <div className="bg-white p-4 rounded-lg border border-purple-200 text-center">
+                            <div className="text-2xl mb-2">💰</div>
+                            <p className="text-sm font-semibold text-slate-600 mb-1">Money</p>
+                            <div className="flex justify-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <span key={i} className={i < (content.yearScorecard?.money || 0) ? "text-yellow-400" : "text-slate-300"}>⭐</span>
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{content.yearScorecard.money}/5</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Quarterly Breakdown */}
+                    {content?.quarterlyBreakdown && content.quarterlyBreakdown.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-cyan-50 via-blue-50 to-cyan-50 rounded-xl border-2 border-cyan-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-cyan-900 mb-4 flex items-center gap-2">
+                          <span>📆</span> Quarterly Breakdown
+                        </h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {content.quarterlyBreakdown.map((quarter, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-cyan-200">
+                              <h4 className="font-bold text-cyan-800 mb-2">{quarter.quarter}</h4>
+                              <p className="text-sm text-slate-700 mb-2 font-medium">{quarter.focusTheme}</p>
+                              <div className="space-y-1 text-xs text-slate-600">
+                                <p><span className="font-semibold">Career & Money:</span> {quarter.careerMoneyTone}</p>
+                                <p><span className="font-semibold">Relationships:</span> {quarter.relationshipFocus}</p>
+                                <p><span className="font-semibold">Energy:</span> <span className="capitalize">{quarter.energyLevel}</span></p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Best Periods */}
+                    {content?.bestPeriods && content.bestPeriods.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 rounded-xl border-2 border-green-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
+                          <span>✨</span> Best Periods
+                        </h3>
+                        <div className="space-y-4">
+                          {content.bestPeriods.map((period, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-green-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-green-800">{period.focus}</h4>
+                                <span className="text-sm text-green-700">{period.months.join(", ")}</span>
+                              </div>
+                              <p className="text-slate-700">{period.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Caution Periods */}
+                    {content?.cautionPeriods && content.cautionPeriods.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 rounded-xl border-2 border-amber-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2">
+                          <span>⚠️</span> Caution Periods
+                        </h3>
+                        <div className="space-y-4">
+                          {content.cautionPeriods.map((period, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-amber-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-amber-800">{period.focus}</h4>
+                                <span className="text-sm text-amber-700">{period.months.join(", ")}</span>
+                              </div>
+                              <p className="text-slate-700">{period.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Enhanced Summary for Major Life Phase Report */}
-                {type === "major-life-phase" && content?.summary && (
-                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-violet-50 rounded-xl border-2 border-violet-300 shadow-sm scroll-mt-20">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="text-3xl">🗺️</div>
-                      <h2 className="text-2xl font-bold text-violet-900">3-5 Year Strategic Life Phase Summary</h2>
-                    </div>
-                    <div className="prose prose-slate max-w-none">
-                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
-                    </div>
-                  </div>
+                {type === "major-life-phase" && (
+                  <>
+                    {(content?.summary || content?.phaseTheme) && (
+                      <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-violet-50 rounded-xl border-2 border-violet-300 shadow-sm scroll-mt-20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">🗺️</div>
+                          <h2 className="text-2xl font-bold text-violet-900">3-5 Year Strategic Life Phase Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          {content?.phaseTheme && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium mb-3">{content.phaseTheme}</p>
+                          )}
+                          {content?.phaseYears && (
+                            <p className="text-violet-700 font-semibold mb-3">Phase Period: {content.phaseYears}</p>
+                          )}
+                          {content?.summary && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Phase Breakdown */}
+                    {content?.phaseBreakdown && content.phaseBreakdown.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
+                          <span>📅</span> Phase Breakdown
+                        </h3>
+                        <div className="space-y-4">
+                          {content.phaseBreakdown.map((phase, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-purple-200">
+                              <h4 className="font-bold text-purple-800 mb-2">{phase.year}</h4>
+                              <p className="text-slate-700 mb-2">{phase.theme}</p>
+                              {phase.focusAreas && phase.focusAreas.length > 0 && (
+                                <div className="mb-2">
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Focus Areas:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {phase.focusAreas.map((area, i) => (
+                                      <li key={i}>{area}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {phase.majorInfluences && (
+                                <p className="text-sm text-slate-600 italic">{phase.majorInfluences}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Major Transitions */}
+                    {content?.majorTransitions && content.majorTransitions.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                          <span>🔄</span> Major Transitions
+                        </h3>
+                        <div className="space-y-4">
+                          {content.majorTransitions.map((transition, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-indigo-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-indigo-800 capitalize">{transition.type}</h4>
+                                <span className="text-sm text-indigo-600">{transition.timeframe}</span>
+                              </div>
+                              <p className="text-slate-700 mb-2">{transition.description}</p>
+                              {transition.preparation && transition.preparation.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Preparation:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {transition.preparation.map((item, i) => (
+                                      <li key={i}>{item}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Long-term Opportunities */}
+                    {content?.longTermOpportunities && content.longTermOpportunities.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 rounded-xl border-2 border-teal-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-teal-900 mb-4 flex items-center gap-2">
+                          <span>🌟</span> Long-term Opportunities
+                        </h3>
+                        <div className="space-y-4">
+                          {content.longTermOpportunities.map((opp, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-teal-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-teal-800">{opp.category}</h4>
+                                <span className="text-sm text-teal-600">{opp.timeframe}</span>
+                              </div>
+                              <p className="text-slate-700 mb-2">{opp.description}</p>
+                              {opp.actionItems && opp.actionItems.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Action Items:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {opp.actionItems.map((item, i) => (
+                                      <li key={i}>{item}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Enhanced Summary for Decision Support Report */}
-                {type === "decision-support" && content?.summary && (
-                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 rounded-xl border-2 border-emerald-300 shadow-sm scroll-mt-20">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="text-3xl">🎯</div>
-                      <h2 className="text-2xl font-bold text-emerald-900">Decision Support Summary</h2>
-                    </div>
-                    <div className="prose prose-slate max-w-none">
-                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
-                    </div>
-                  </div>
+                {type === "decision-support" && (
+                  <>
+                    {(content?.summary || content?.decisionContext) && (
+                      <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 rounded-xl border-2 border-emerald-300 shadow-sm scroll-mt-20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">🎯</div>
+                          <h2 className="text-2xl font-bold text-emerald-900">Decision Support Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          {content?.decisionContext && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium mb-3">{content.decisionContext}</p>
+                          )}
+                          {content?.summary && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Decision Options */}
+                    {content?.decisionOptions && content.decisionOptions.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 rounded-xl border-2 border-green-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
+                          <span>⚖️</span> Decision Options Analysis
+                        </h3>
+                        <div className="space-y-4">
+                          {content.decisionOptions.map((option, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-green-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-green-800">{option.option}</h4>
+                                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                  option.astrologicalAlignment === "high" ? "bg-green-100 text-green-800" :
+                                  option.astrologicalAlignment === "medium" ? "bg-yellow-100 text-yellow-800" :
+                                  "bg-red-100 text-red-800"
+                                }`}>
+                                  {option.astrologicalAlignment === "high" ? "✓ High Alignment" :
+                                   option.astrologicalAlignment === "medium" ? "○ Medium Alignment" :
+                                   "✗ Low Alignment"}
+                                </span>
+                              </div>
+                              {option.timeframe && (
+                                <p className="text-sm text-green-700 mb-2">⏱️ {option.timeframe}</p>
+                              )}
+                              {option.considerations && option.considerations.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Key Considerations:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {option.considerations.map((consideration, i) => (
+                                      <li key={i}>{consideration}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Recommended Timing */}
+                    {content?.recommendedTiming && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 rounded-xl border-2 border-blue-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
+                          <span>⏰</span> Recommended Timing
+                        </h3>
+                        <p className="text-slate-800 leading-relaxed">{content.recommendedTiming}</p>
+                      </div>
+                    )}
+                    
+                    {/* Factors to Consider */}
+                    {content?.factorsToConsider && content.factorsToConsider.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 rounded-xl border-2 border-amber-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2">
+                          <span>📋</span> Important Factors to Consider
+                        </h3>
+                        <ul className="list-disc list-inside text-slate-700 space-y-2">
+                          {content.factorsToConsider.map((factor, idx) => (
+                            <li key={idx} className="text-slate-800">{factor}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Enhanced Summary for Life Summary Report (Free) */}

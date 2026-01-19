@@ -44,7 +44,8 @@ export async function generatePDF(
   
   try {
     // CRITICAL: Strip mock content before PDF generation (production safety)
-    const cleanedReport = stripMockContent(reportContent);
+    // Use forceStrip=true to match preview page display (always strip for consistency)
+    const cleanedReport = stripMockContent(reportContent, true);
     const needsWatermark = shouldWatermarkPDF();
     const watermarkText = getPDFWatermark();
     
@@ -879,6 +880,329 @@ export async function generatePDF(
       yPosition += 6; // Reduced spacing between sections for better page usage
     });
 
+    // ============================================
+    // CUSTOM FIELDS RENDERING (Matching Preview Page)
+    // ============================================
+    
+    // Year Analysis Custom Fields
+    if (reportType === "year-analysis") {
+      // Year Theme
+      if (cleanedReport.yearTheme) {
+        checkPageBreak(20);
+        doc.setDrawColor(147, 51, 234); // purple-600
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Year Theme", 14, true, "#1e293b", 1.3, 3);
+        addParagraph(cleanedReport.yearTheme, 11, false, "#334155", 1.7, 8);
+      }
+      
+      // Confidence Level (if not already shown)
+      if (cleanedReport.confidenceLevel && !overallConfidenceMatch) {
+        checkPageBreak(15);
+        addText(`Confidence Level: ${cleanedReport.confidenceLevel}/10`, 11, false, "#3b82f6", 1.5, 5);
+      }
+      
+      // Year Scorecard
+      if (cleanedReport.yearScorecard) {
+        checkPageBreak(40);
+        doc.setDrawColor(147, 51, 234);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Year Scorecard", 14, true, "#1e293b", 1.3, 5);
+        doc.setFontSize(10);
+        doc.setTextColor("#334155");
+        const scorecardItems = [
+          `Career: ${"⭐".repeat(cleanedReport.yearScorecard.career)}${"☆".repeat(5 - cleanedReport.yearScorecard.career)} (${cleanedReport.yearScorecard.career}/5)`,
+          `Relationships: ${"⭐".repeat(cleanedReport.yearScorecard.relationships)}${"☆".repeat(5 - cleanedReport.yearScorecard.relationships)} (${cleanedReport.yearScorecard.relationships}/5)`,
+          `Money: ${"⭐".repeat(cleanedReport.yearScorecard.money)}${"☆".repeat(5 - cleanedReport.yearScorecard.money)} (${cleanedReport.yearScorecard.money}/5)`,
+        ];
+        scorecardItems.forEach(item => {
+          addText(item, 10, false, "#334155", 1.4, 3);
+        });
+        yPosition += 5;
+      }
+      
+      // Quarterly Breakdown
+      if (cleanedReport.quarterlyBreakdown && cleanedReport.quarterlyBreakdown.length > 0) {
+        checkPageBreak(50);
+        doc.setDrawColor(147, 51, 234);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Quarterly Breakdown", 14, true, "#1e293b", 1.3, 5);
+        cleanedReport.quarterlyBreakdown.forEach((quarter) => {
+          checkPageBreak(30);
+          addText(quarter.quarter, 12, true, "#475569", 1.3, 3);
+          addText(`Theme: ${quarter.focusTheme}`, 10, false, "#64748b", 1.4, 2);
+          addText(`Career & Money: ${quarter.careerMoneyTone}`, 10, false, "#64748b", 1.4, 2);
+          addText(`Relationships: ${quarter.relationshipFocus}`, 10, false, "#64748b", 1.4, 2);
+          addText(`Energy Level: ${quarter.energyLevel}`, 10, false, "#64748b", 1.4, 5);
+        });
+      }
+      
+      // Best Periods
+      if (cleanedReport.bestPeriods && cleanedReport.bestPeriods.length > 0) {
+        checkPageBreak(40);
+        doc.setDrawColor(34, 197, 94); // green-500
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Best Periods", 14, true, "#1e293b", 1.3, 5);
+        cleanedReport.bestPeriods.forEach((period) => {
+          checkPageBreak(25);
+          addText(`${period.months.join(", ")} - ${period.focus}`, 11, true, "#16a34a", 1.4, 2);
+          addParagraph(period.description, 10, false, "#334155", 1.5, 5);
+        });
+      }
+      
+      // Caution Periods
+      if (cleanedReport.cautionPeriods && cleanedReport.cautionPeriods.length > 0) {
+        checkPageBreak(40);
+        doc.setDrawColor(245, 158, 11); // amber-500
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Caution Periods", 14, true, "#1e293b", 1.3, 5);
+        cleanedReport.cautionPeriods.forEach((period) => {
+          checkPageBreak(25);
+          addText(`${period.months.join(", ")} - ${period.focus}`, 11, true, "#d97706", 1.4, 2);
+          addParagraph(period.description, 10, false, "#334155", 1.5, 5);
+        });
+      }
+    }
+    
+    // Marriage Timing & Career Money Custom Fields (Time Windows & Recommendations)
+    if ((reportType === "marriage-timing" || reportType === "career-money") && cleanedReport.timeWindows && cleanedReport.timeWindows.length > 0) {
+      checkPageBreak(50);
+      doc.setDrawColor(236, 72, 153); // pink-500 for marriage, green for career
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 8;
+      
+      addText(reportType === "marriage-timing" ? "Ideal Marriage Timing Windows" : "Favorable Time Periods", 14, true, "#1e293b", 1.3, 5);
+      cleanedReport.timeWindows.forEach((window) => {
+        checkPageBreak(40);
+        addText(window.title, 12, true, "#475569", 1.3, 2);
+        if (window.startDate || window.endDate) {
+          const dateStr = window.startDate && window.endDate 
+            ? `${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+            : window.startDate 
+              ? `From ${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+              : window.endDate
+                ? `Until ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                : '';
+          addText(dateStr, 10, false, "#64748b", 1.4, 2);
+        }
+        if (window.description) {
+          addParagraph(window.description, 10, false, "#334155", 1.5, 3);
+        }
+        if (window.actions && window.actions.length > 0) {
+          addText("Recommended Actions:", 10, true, "#475569", 1.4, 2);
+          window.actions.forEach(action => {
+            addText(`• ${action}`, 10, false, "#334155", 1.4, 2);
+          });
+          yPosition += 3;
+        }
+        if (window.avoidActions && window.avoidActions.length > 0) {
+          addText("Actions to Avoid:", 10, true, "#d97706", 1.4, 2);
+          window.avoidActions.forEach(action => {
+            addText(`• ${action}`, 10, false, "#92400e", 1.4, 2);
+          });
+          yPosition += 3;
+        }
+        yPosition += 5;
+      });
+    }
+    
+    // Recommendations (for Marriage Timing & Career Money)
+    if ((reportType === "marriage-timing" || reportType === "career-money") && cleanedReport.recommendations && cleanedReport.recommendations.length > 0) {
+      checkPageBreak(50);
+      doc.setDrawColor(147, 51, 234); // purple-600
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 8;
+      
+      addText("Recommendations", 14, true, "#1e293b", 1.3, 5);
+      cleanedReport.recommendations.forEach((rec) => {
+        checkPageBreak(30);
+        const priorityText = rec.priority ? ` (${rec.priority} Priority)` : "";
+        addText(`${rec.category}${priorityText}`, 12, true, "#475569", 1.3, 3);
+        if (rec.items && rec.items.length > 0) {
+          rec.items.forEach(item => {
+            addText(`• ${item}`, 10, false, "#334155", 1.4, 2);
+          });
+          yPosition += 3;
+        }
+      });
+    }
+    
+    // Major Life Phase Custom Fields
+    if (reportType === "major-life-phase") {
+      // Phase Theme & Years
+      if (cleanedReport.phaseTheme || cleanedReport.phaseYears) {
+        checkPageBreak(25);
+        doc.setDrawColor(139, 92, 246); // violet-500
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        if (cleanedReport.phaseYears) {
+          addText(`Phase Period: ${cleanedReport.phaseYears}`, 12, true, "#1e293b", 1.3, 3);
+        }
+        if (cleanedReport.phaseTheme) {
+          addParagraph(cleanedReport.phaseTheme, 11, false, "#334155", 1.7, 8);
+        }
+      }
+      
+      // Phase Breakdown
+      if (cleanedReport.phaseBreakdown && cleanedReport.phaseBreakdown.length > 0) {
+        checkPageBreak(50);
+        doc.setDrawColor(139, 92, 246);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Phase Breakdown", 14, true, "#1e293b", 1.3, 5);
+        cleanedReport.phaseBreakdown.forEach((phase) => {
+          checkPageBreak(40);
+          addText(phase.year, 12, true, "#475569", 1.3, 2);
+          addText(`Theme: ${phase.theme}`, 10, false, "#64748b", 1.4, 2);
+          if (phase.focusAreas && phase.focusAreas.length > 0) {
+            addText("Focus Areas:", 10, true, "#475569", 1.4, 2);
+            phase.focusAreas.forEach(area => {
+              addText(`• ${area}`, 10, false, "#334155", 1.4, 2);
+            });
+            yPosition += 3;
+          }
+          if (phase.majorInfluences) {
+            addText(`Major Influences: ${phase.majorInfluences}`, 10, false, "#64748b", 1.4, 5);
+          }
+        });
+      }
+      
+      // Major Transitions
+      if (cleanedReport.majorTransitions && cleanedReport.majorTransitions.length > 0) {
+        checkPageBreak(50);
+        doc.setDrawColor(99, 102, 241); // indigo-500
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Major Transitions", 14, true, "#1e293b", 1.3, 5);
+        cleanedReport.majorTransitions.forEach((transition) => {
+          checkPageBreak(35);
+          addText(`${transition.type.charAt(0).toUpperCase() + transition.type.slice(1)} (${transition.timeframe})`, 12, true, "#475569", 1.3, 2);
+          addParagraph(transition.description, 10, false, "#334155", 1.5, 3);
+          if (transition.preparation && transition.preparation.length > 0) {
+            addText("Preparation:", 10, true, "#475569", 1.4, 2);
+            transition.preparation.forEach(item => {
+              addText(`• ${item}`, 10, false, "#334155", 1.4, 2);
+            });
+            yPosition += 3;
+          }
+        });
+      }
+      
+      // Long-term Opportunities
+      if (cleanedReport.longTermOpportunities && cleanedReport.longTermOpportunities.length > 0) {
+        checkPageBreak(50);
+        doc.setDrawColor(20, 184, 166); // teal-500
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Long-term Opportunities", 14, true, "#1e293b", 1.3, 5);
+        cleanedReport.longTermOpportunities.forEach((opp) => {
+          checkPageBreak(35);
+          addText(`${opp.category} (${opp.timeframe})`, 12, true, "#475569", 1.3, 2);
+          addParagraph(opp.description, 10, false, "#334155", 1.5, 3);
+          if (opp.actionItems && opp.actionItems.length > 0) {
+            addText("Action Items:", 10, true, "#475569", 1.4, 2);
+            opp.actionItems.forEach(item => {
+              addText(`• ${item}`, 10, false, "#334155", 1.4, 2);
+            });
+            yPosition += 3;
+          }
+        });
+      }
+    }
+    
+    // Decision Support Custom Fields
+    if (reportType === "decision-support") {
+      // Decision Context
+      if (cleanedReport.decisionContext) {
+        checkPageBreak(25);
+        doc.setDrawColor(16, 185, 129); // emerald-500
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Decision Context", 14, true, "#1e293b", 1.3, 3);
+        addParagraph(cleanedReport.decisionContext, 11, false, "#334155", 1.7, 8);
+      }
+      
+      // Decision Options
+      if (cleanedReport.decisionOptions && cleanedReport.decisionOptions.length > 0) {
+        checkPageBreak(60);
+        doc.setDrawColor(16, 185, 129);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Decision Options Analysis", 14, true, "#1e293b", 1.3, 5);
+        cleanedReport.decisionOptions.forEach((option) => {
+          checkPageBreak(40);
+          const alignmentText = option.astrologicalAlignment === "high" ? "✓ High Alignment" :
+                                option.astrologicalAlignment === "medium" ? "○ Medium Alignment" :
+                                "✗ Low Alignment";
+          addText(`${option.option} - ${alignmentText}`, 12, true, "#475569", 1.3, 2);
+          if (option.timeframe) {
+            addText(`Timeframe: ${option.timeframe}`, 10, false, "#64748b", 1.4, 2);
+          }
+          if (option.considerations && option.considerations.length > 0) {
+            addText("Key Considerations:", 10, true, "#475569", 1.4, 2);
+            option.considerations.forEach(consideration => {
+              addText(`• ${consideration}`, 10, false, "#334155", 1.4, 2);
+            });
+            yPosition += 3;
+          }
+        });
+      }
+      
+      // Recommended Timing
+      if (cleanedReport.recommendedTiming) {
+        checkPageBreak(25);
+        doc.setDrawColor(59, 130, 246); // blue-500
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Recommended Timing", 14, true, "#1e293b", 1.3, 3);
+        addParagraph(cleanedReport.recommendedTiming, 11, false, "#334155", 1.7, 8);
+      }
+      
+      // Factors to Consider
+      if (cleanedReport.factorsToConsider && cleanedReport.factorsToConsider.length > 0) {
+        checkPageBreak(40);
+        doc.setDrawColor(245, 158, 11); // amber-500
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        
+        addText("Important Factors to Consider", 14, true, "#1e293b", 1.3, 5);
+        cleanedReport.factorsToConsider.forEach((factor) => {
+          addText(`• ${factor}`, 10, false, "#334155", 1.4, 3);
+        });
+      }
+    }
+
     // Key Insights section (if present)
     if (cleanedReport.keyInsights && cleanedReport.keyInsights.length > 0) {
       checkPageBreak(30);
@@ -1380,8 +1704,8 @@ export async function generateBundlePDF(
       const rawReportContent = bundleContents.get(reportType);
       if (!rawReportContent) return;
       
-      // CRITICAL: Strip mock content from each report in bundle
-      const cleanedBundleReport = stripMockContent(rawReportContent);
+      // CRITICAL: Strip mock content from each report in bundle (forceStrip=true to match preview page)
+      const cleanedBundleReport = stripMockContent(rawReportContent, true);
 
       // Report Separator Page
       if (reportIdx > 0) {
@@ -1591,6 +1915,262 @@ export async function generateBundlePDF(
 
         yPosition += 6;
       });
+
+      // ============================================
+      // CUSTOM FIELDS RENDERING (Matching Preview Page & Single PDF)
+      // ============================================
+      
+      // Year Analysis Custom Fields
+      if (reportType === "year-analysis") {
+        if (cleanedBundleReport.yearTheme) {
+          checkPageBreak(20);
+          doc.setDrawColor(147, 51, 234);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Year Theme", 14, true, "#1e293b", 1.3, 3);
+          addParagraph(cleanedBundleReport.yearTheme, 11, false, "#334155", 1.7, 8);
+        }
+        if (cleanedBundleReport.confidenceLevel) {
+          checkPageBreak(15);
+          addText(`Confidence Level: ${cleanedBundleReport.confidenceLevel}/10`, 11, false, "#3b82f6", 1.5, 5);
+        }
+        if (cleanedBundleReport.yearScorecard) {
+          checkPageBreak(40);
+          doc.setDrawColor(147, 51, 234);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Year Scorecard", 14, true, "#1e293b", 1.3, 5);
+          doc.setFontSize(10);
+          doc.setTextColor("#334155");
+          const scorecardItems = [
+            `Career: ${"⭐".repeat(cleanedBundleReport.yearScorecard.career)}${"☆".repeat(5 - cleanedBundleReport.yearScorecard.career)} (${cleanedBundleReport.yearScorecard.career}/5)`,
+            `Relationships: ${"⭐".repeat(cleanedBundleReport.yearScorecard.relationships)}${"☆".repeat(5 - cleanedBundleReport.yearScorecard.relationships)} (${cleanedBundleReport.yearScorecard.relationships}/5)`,
+            `Money: ${"⭐".repeat(cleanedBundleReport.yearScorecard.money)}${"☆".repeat(5 - cleanedBundleReport.yearScorecard.money)} (${cleanedBundleReport.yearScorecard.money}/5)`,
+          ];
+          scorecardItems.forEach(item => addText(item, 10, false, "#334155", 1.4, 3));
+          yPosition += 5;
+        }
+        if (cleanedBundleReport.quarterlyBreakdown && cleanedBundleReport.quarterlyBreakdown.length > 0) {
+          checkPageBreak(50);
+          doc.setDrawColor(147, 51, 234);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Quarterly Breakdown", 14, true, "#1e293b", 1.3, 5);
+          cleanedBundleReport.quarterlyBreakdown.forEach((quarter) => {
+            checkPageBreak(30);
+            addText(quarter.quarter, 12, true, "#475569", 1.3, 3);
+            addText(`Theme: ${quarter.focusTheme}`, 10, false, "#64748b", 1.4, 2);
+            addText(`Career & Money: ${quarter.careerMoneyTone}`, 10, false, "#64748b", 1.4, 2);
+            addText(`Relationships: ${quarter.relationshipFocus}`, 10, false, "#64748b", 1.4, 2);
+            addText(`Energy Level: ${quarter.energyLevel}`, 10, false, "#64748b", 1.4, 5);
+          });
+        }
+        if (cleanedBundleReport.bestPeriods && cleanedBundleReport.bestPeriods.length > 0) {
+          checkPageBreak(40);
+          doc.setDrawColor(34, 197, 94);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Best Periods", 14, true, "#1e293b", 1.3, 5);
+          cleanedBundleReport.bestPeriods.forEach((period) => {
+            checkPageBreak(25);
+            addText(`${period.months.join(", ")} - ${period.focus}`, 11, true, "#16a34a", 1.4, 2);
+            addParagraph(period.description, 10, false, "#334155", 1.5, 5);
+          });
+        }
+        if (cleanedBundleReport.cautionPeriods && cleanedBundleReport.cautionPeriods.length > 0) {
+          checkPageBreak(40);
+          doc.setDrawColor(245, 158, 11);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Caution Periods", 14, true, "#1e293b", 1.3, 5);
+          cleanedBundleReport.cautionPeriods.forEach((period) => {
+            checkPageBreak(25);
+            addText(`${period.months.join(", ")} - ${period.focus}`, 11, true, "#d97706", 1.4, 2);
+            addParagraph(period.description, 10, false, "#334155", 1.5, 5);
+          });
+        }
+      }
+      
+      // Marriage Timing & Career Money Custom Fields
+      if ((reportType === "marriage-timing" || reportType === "career-money") && cleanedBundleReport.timeWindows && cleanedBundleReport.timeWindows.length > 0) {
+        checkPageBreak(50);
+        doc.setDrawColor(236, 72, 153);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        addText(reportType === "marriage-timing" ? "Ideal Marriage Timing Windows" : "Favorable Time Periods", 14, true, "#1e293b", 1.3, 5);
+        cleanedBundleReport.timeWindows.forEach((window) => {
+          checkPageBreak(40);
+          addText(window.title, 12, true, "#475569", 1.3, 2);
+          if (window.startDate || window.endDate) {
+            const dateStr = window.startDate && window.endDate 
+              ? `${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+              : window.startDate 
+                ? `From ${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                : window.endDate
+                  ? `Until ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                  : '';
+            addText(dateStr, 10, false, "#64748b", 1.4, 2);
+          }
+          if (window.description) addParagraph(window.description, 10, false, "#334155", 1.5, 3);
+          if (window.actions && window.actions.length > 0) {
+            addText("Recommended Actions:", 10, true, "#475569", 1.4, 2);
+            window.actions.forEach(action => addText(`• ${action}`, 10, false, "#334155", 1.4, 2));
+            yPosition += 3;
+          }
+          if (window.avoidActions && window.avoidActions.length > 0) {
+            addText("Actions to Avoid:", 10, true, "#d97706", 1.4, 2);
+            window.avoidActions.forEach(action => addText(`• ${action}`, 10, false, "#92400e", 1.4, 2));
+            yPosition += 3;
+          }
+          yPosition += 5;
+        });
+      }
+      
+      if ((reportType === "marriage-timing" || reportType === "career-money") && cleanedBundleReport.recommendations && cleanedBundleReport.recommendations.length > 0) {
+        checkPageBreak(50);
+        doc.setDrawColor(147, 51, 234);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+        addText("Recommendations", 14, true, "#1e293b", 1.3, 5);
+        cleanedBundleReport.recommendations.forEach((rec) => {
+          checkPageBreak(30);
+          const priorityText = rec.priority ? ` (${rec.priority} Priority)` : "";
+          addText(`${rec.category}${priorityText}`, 12, true, "#475569", 1.3, 3);
+          if (rec.items && rec.items.length > 0) {
+            rec.items.forEach(item => addText(`• ${item}`, 10, false, "#334155", 1.4, 2));
+            yPosition += 3;
+          }
+        });
+      }
+      
+      // Major Life Phase Custom Fields
+      if (reportType === "major-life-phase") {
+        if (cleanedBundleReport.phaseTheme || cleanedBundleReport.phaseYears) {
+          checkPageBreak(25);
+          doc.setDrawColor(139, 92, 246);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          if (cleanedBundleReport.phaseYears) addText(`Phase Period: ${cleanedBundleReport.phaseYears}`, 12, true, "#1e293b", 1.3, 3);
+          if (cleanedBundleReport.phaseTheme) addParagraph(cleanedBundleReport.phaseTheme, 11, false, "#334155", 1.7, 8);
+        }
+        if (cleanedBundleReport.phaseBreakdown && cleanedBundleReport.phaseBreakdown.length > 0) {
+          checkPageBreak(50);
+          doc.setDrawColor(139, 92, 246);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Phase Breakdown", 14, true, "#1e293b", 1.3, 5);
+          cleanedBundleReport.phaseBreakdown.forEach((phase) => {
+            checkPageBreak(40);
+            addText(phase.year, 12, true, "#475569", 1.3, 2);
+            addText(`Theme: ${phase.theme}`, 10, false, "#64748b", 1.4, 2);
+            if (phase.focusAreas && phase.focusAreas.length > 0) {
+              addText("Focus Areas:", 10, true, "#475569", 1.4, 2);
+              phase.focusAreas.forEach(area => addText(`• ${area}`, 10, false, "#334155", 1.4, 2));
+              yPosition += 3;
+            }
+            if (phase.majorInfluences) addText(`Major Influences: ${phase.majorInfluences}`, 10, false, "#64748b", 1.4, 5);
+          });
+        }
+        if (cleanedBundleReport.majorTransitions && cleanedBundleReport.majorTransitions.length > 0) {
+          checkPageBreak(50);
+          doc.setDrawColor(99, 102, 241);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Major Transitions", 14, true, "#1e293b", 1.3, 5);
+          cleanedBundleReport.majorTransitions.forEach((transition) => {
+            checkPageBreak(35);
+            addText(`${transition.type.charAt(0).toUpperCase() + transition.type.slice(1)} (${transition.timeframe})`, 12, true, "#475569", 1.3, 2);
+            addParagraph(transition.description, 10, false, "#334155", 1.5, 3);
+            if (transition.preparation && transition.preparation.length > 0) {
+              addText("Preparation:", 10, true, "#475569", 1.4, 2);
+              transition.preparation.forEach(item => addText(`• ${item}`, 10, false, "#334155", 1.4, 2));
+              yPosition += 3;
+            }
+          });
+        }
+        if (cleanedBundleReport.longTermOpportunities && cleanedBundleReport.longTermOpportunities.length > 0) {
+          checkPageBreak(50);
+          doc.setDrawColor(20, 184, 166);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Long-term Opportunities", 14, true, "#1e293b", 1.3, 5);
+          cleanedBundleReport.longTermOpportunities.forEach((opp) => {
+            checkPageBreak(35);
+            addText(`${opp.category} (${opp.timeframe})`, 12, true, "#475569", 1.3, 2);
+            addParagraph(opp.description, 10, false, "#334155", 1.5, 3);
+            if (opp.actionItems && opp.actionItems.length > 0) {
+              addText("Action Items:", 10, true, "#475569", 1.4, 2);
+              opp.actionItems.forEach(item => addText(`• ${item}`, 10, false, "#334155", 1.4, 2));
+              yPosition += 3;
+            }
+          });
+        }
+      }
+      
+      // Decision Support Custom Fields
+      if (reportType === "decision-support") {
+        if (cleanedBundleReport.decisionContext) {
+          checkPageBreak(25);
+          doc.setDrawColor(16, 185, 129);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Decision Context", 14, true, "#1e293b", 1.3, 3);
+          addParagraph(cleanedBundleReport.decisionContext, 11, false, "#334155", 1.7, 8);
+        }
+        if (cleanedBundleReport.decisionOptions && cleanedBundleReport.decisionOptions.length > 0) {
+          checkPageBreak(60);
+          doc.setDrawColor(16, 185, 129);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Decision Options Analysis", 14, true, "#1e293b", 1.3, 5);
+          cleanedBundleReport.decisionOptions.forEach((option) => {
+            checkPageBreak(40);
+            const alignmentText = option.astrologicalAlignment === "high" ? "✓ High Alignment" :
+                                  option.astrologicalAlignment === "medium" ? "○ Medium Alignment" :
+                                  "✗ Low Alignment";
+            addText(`${option.option} - ${alignmentText}`, 12, true, "#475569", 1.3, 2);
+            if (option.timeframe) addText(`Timeframe: ${option.timeframe}`, 10, false, "#64748b", 1.4, 2);
+            if (option.considerations && option.considerations.length > 0) {
+              addText("Key Considerations:", 10, true, "#475569", 1.4, 2);
+              option.considerations.forEach(consideration => addText(`• ${consideration}`, 10, false, "#334155", 1.4, 2));
+              yPosition += 3;
+            }
+          });
+        }
+        if (cleanedBundleReport.recommendedTiming) {
+          checkPageBreak(25);
+          doc.setDrawColor(59, 130, 246);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Recommended Timing", 14, true, "#1e293b", 1.3, 3);
+          addParagraph(cleanedBundleReport.recommendedTiming, 11, false, "#334155", 1.7, 8);
+        }
+        if (cleanedBundleReport.factorsToConsider && cleanedBundleReport.factorsToConsider.length > 0) {
+          checkPageBreak(40);
+          doc.setDrawColor(245, 158, 11);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+          addText("Important Factors to Consider", 14, true, "#1e293b", 1.3, 5);
+          cleanedBundleReport.factorsToConsider.forEach((factor) => {
+            addText(`• ${factor}`, 10, false, "#334155", 1.4, 3);
+          });
+        }
+      }
 
       // Key Insights
       if (cleanedBundleReport.keyInsights && cleanedBundleReport.keyInsights.length > 0) {
