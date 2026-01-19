@@ -1213,16 +1213,31 @@ export async function POST(req: Request) {
     const shouldUseRealMode = forceRealMode || allowRealForTestSessions;
     const mockMode = (isTestSession && !shouldUseRealMode) || process.env.MOCK_MODE === "true";
     
+    // DEBUG: Log environment variable check
+    console.log("[REAL MODE CHECK]", {
+      requestId,
+      isTestSession,
+      allowRealForTestSessions,
+      envVarValue: process.env.ALLOW_REAL_FOR_TEST_SESSIONS,
+      forceRealMode,
+      shouldUseRealMode,
+      mockMode,
+      sessionId: sessionIdFromQuery,
+    });
+    
+    // Log when real mode is enabled for test sessions
+    if (isTestSession && shouldUseRealMode) {
+      console.log("[TEST SESSION - REAL MODE ENABLED]", {
+        requestId,
+        sessionId: sessionIdFromQuery,
+        forceRealMode,
+        allowRealForTestSessions,
+        reason: forceRealMode ? "explicit request (URL/body)" : "environment variable (ALLOW_REAL_FOR_TEST_SESSIONS=true)",
+        envVarRaw: process.env.ALLOW_REAL_FOR_TEST_SESSIONS,
+      });
+    }
+    
     if (mockMode) {
-      if (isTestSession && shouldUseRealMode) {
-        console.log("[TEST SESSION - REAL MODE FORCED]", {
-          requestId,
-          sessionId: sessionIdFromQuery,
-          forceRealMode,
-          allowRealForTestSessions,
-          reason: forceRealMode ? "explicit request" : "environment variable",
-        });
-      }
       const { getMockReport, simulateApiDelay } = await import("@/lib/ai-astrology/mocks/fixtures");
       
       // Simulate API delay for realistic testing
