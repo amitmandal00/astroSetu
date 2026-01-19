@@ -209,7 +209,7 @@ export async function generatePDF(
         // CRITICAL: Remove mock data markers from paragraph text
         let cleanedParagraph = cleanText(paragraph);
         cleanedParagraph = cleanedParagraph.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
-        if (!cleanedParagraph) continue; // Skip empty paragraphs after cleaning
+        if (!cleanedParagraph) return; // Skip empty paragraphs after cleaning (use return in forEach, not continue)
         
         // Check if paragraph contains bullets or is structured text
         const hasBullets = /^[•\-\*]\s/m.test(cleanedParagraph) || /^\d+\.\s/m.test(cleanedParagraph);
