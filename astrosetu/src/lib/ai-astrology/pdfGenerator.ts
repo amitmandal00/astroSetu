@@ -133,17 +133,29 @@ export async function generatePDF(
     };
 
     // Helper function to add text with wrapping and better typography
+    // Improved font rendering for better readability and presentation
     const addText = (text: string, fontSize: number = 12, isBold: boolean = false, color: string = "#000000", lineHeight: number = 1.5, addBottomSpacing: number = 6) => {
       if (!text || text.trim() === "") return;
       
-      const cleanedText = cleanText(text);
-      doc.setFontSize(fontSize);
+      // CRITICAL: Remove mock data markers from text before rendering
+      let cleanedText = cleanText(text);
+      cleanedText = cleanedText.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+      if (!cleanedText) return; // Skip empty text after cleaning
+      
+      // Ensure minimum readable font size
+      const minFontSize = 9;
+      const finalFontSize = Math.max(fontSize, minFontSize);
+      
+      doc.setFontSize(finalFontSize);
+      // Use helvetica-bold for bold text, helvetica for normal (best PDF compatibility)
       doc.setFont("helvetica", isBold ? "bold" : "normal");
       doc.setTextColor(color);
 
       const lines = doc.splitTextToSize(cleanedText, contentWidth);
       // Better line spacing calculation - convert pt to mm (1pt ≈ 0.3528mm)
-      const lineSpacing = (fontSize * lineHeight * 0.3528);
+      // Improved line height for better readability (minimum 1.2x font size)
+      const adjustedLineHeight = Math.max(lineHeight, 1.2);
+      const lineSpacing = (finalFontSize * adjustedLineHeight * 0.3528);
       const totalHeight = lines.length * lineSpacing + addBottomSpacing;
       
       // Check if we need a new page before starting
@@ -166,10 +178,21 @@ export async function generatePDF(
     };
 
     // Helper function to add paragraphs with intelligent spacing and structure
+    // Improved typography for better readability in PDFs
     const addParagraph = (text: string, fontSize: number = 11, isBold: boolean = false, color: string = "#334155", lineHeight: number = 1.7, addBottomSpacing: number = 8) => {
       if (!text || text.trim() === "") return;
       
-      doc.setFontSize(fontSize);
+      // CRITICAL: Remove mock data markers from text before rendering
+      let cleanedParagraphText = text;
+      cleanedParagraphText = cleanedParagraphText.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+      if (!cleanedParagraphText) return; // Skip empty text after cleaning
+      
+      // Ensure minimum readable font size
+      const minFontSize = 9;
+      const finalFontSize = Math.max(fontSize, minFontSize);
+      
+      doc.setFontSize(finalFontSize);
+      // Use helvetica-bold for bold text, helvetica for normal (best PDF compatibility)
       doc.setFont("helvetica", isBold ? "bold" : "normal");
       doc.setTextColor(color);
       
@@ -183,7 +206,10 @@ export async function generatePDF(
         }
         
         // Process paragraph - handle both single lines and multi-line content
-        const cleanedParagraph = cleanText(paragraph);
+        // CRITICAL: Remove mock data markers from paragraph text
+        let cleanedParagraph = cleanText(paragraph);
+        cleanedParagraph = cleanedParagraph.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+        if (!cleanedParagraph) continue; // Skip empty paragraphs after cleaning
         
         // Check if paragraph contains bullets or is structured text
         const hasBullets = /^[•\-\*]\s/m.test(cleanedParagraph) || /^\d+\.\s/m.test(cleanedParagraph);
@@ -1185,7 +1211,11 @@ export async function generatePDF(
         yPosition += 8;
         
         addText("Recommended Timing", 14, true, "#1e293b", 1.3, 3);
-        addParagraph(cleanedReport.recommendedTiming, 11, false, "#334155", 1.7, 8);
+        // CRITICAL: Strip mock content from recommendedTiming before rendering
+        const cleanedTiming = cleanedReport.recommendedTiming.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+        if (cleanedTiming) {
+          addParagraph(cleanedTiming, 11, false, "#334155", 1.7, 8);
+        }
       }
       
       // Factors to Consider
@@ -2157,7 +2187,11 @@ export async function generateBundlePDF(
           doc.line(margin, yPosition, pageWidth - margin, yPosition);
           yPosition += 8;
           addText("Recommended Timing", 14, true, "#1e293b", 1.3, 3);
-          addParagraph(cleanedBundleReport.recommendedTiming, 11, false, "#334155", 1.7, 8);
+          // CRITICAL: Strip mock content from recommendedTiming before rendering
+          const cleanedTiming = cleanedBundleReport.recommendedTiming.replace(/\s*\(mock data\)\s*/gi, "").replace(/\s*mock data\s*/gi, "").trim();
+          if (cleanedTiming) {
+            addParagraph(cleanedTiming, 11, false, "#334155", 1.7, 8);
+          }
         }
         if (cleanedBundleReport.factorsToConsider && cleanedBundleReport.factorsToConsider.length > 0) {
           checkPageBreak(40);
