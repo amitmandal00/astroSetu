@@ -1,13 +1,13 @@
 # Real Reports for Test Users - Implementation Summary
 
 **Date**: 2026-01-19  
-**Status**: ✅ Implemented
+**Status**: ✅ Implemented (Environment Variable Method)
 
 ---
 
 ## Overview
 
-Added support for generating **real AI reports** for production test users (`test_session_*`) instead of mock reports. This allows you to test the full AI generation pipeline while using test sessions.
+Real AI report generation for test users (`test_session_*`) is now controlled **exclusively** via the Vercel environment variable `ALLOW_REAL_FOR_TEST_SESSIONS`. This provides a clean, simple solution without UI complexity.
 
 ---
 
