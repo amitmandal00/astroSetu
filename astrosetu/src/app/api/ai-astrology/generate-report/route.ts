@@ -604,38 +604,52 @@ export async function POST(req: Request) {
 
     // 4. CRITICAL: Check idempotency BEFORE any OpenAI calls
     // IMPORTANT: In-memory cache is NOT durable on serverless, so prefer persistent store first.
+    // CRITICAL FIX: For test users with test_session_* IDs, bypass cache to ensure fresh real reports
+    // This prevents returning cached mock reports when test users should get real reports
+    const isTestUserForIdempotency = input ? isProdTestUser(input) : false;
+    const mockModeEnvForIdempotency = parseEnvBoolean(process.env.MOCK_MODE);
+    // Bypass cache if: test user AND (test session OR MOCK_MODE not set) - ensures fresh real reports
+    const shouldBypassCacheForTestUser = isTestUserForIdempotency && !mockModeEnvForIdempotency && isTestSession;
+    
     const idempotencyKey = generateIdempotencyKey(input, reportType, fallbackSessionId);
 
     const storedExisting = await getStoredReportByIdempotencyKey(idempotencyKey);
     if (storedExisting) {
       if (storedExisting.status === "completed" && storedExisting.content) {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
-        const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(storedExisting.report_id)}&reportType=${encodeURIComponent(reportType)}`;
-        const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+        // CRITICAL FIX: For test users with test_session_* IDs, bypass cache to ensure fresh real reports
+        // This prevents returning cached mock reports when test users should get real reports
+        if (shouldBypassCacheForTestUser) {
+          console.log(`[CACHE BYPASS] Test user with test_session_* should get real report, bypassing cached report. requestId=${requestId}, reportId=${storedExisting.report_id}, isTestUser=${isTestUserForIdempotency}, isTestSession=${isTestSession}`);
+          // Don't return cached report - continue to generate new real report
+        } else {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+          const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(storedExisting.report_id)}&reportType=${encodeURIComponent(reportType)}`;
+          const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
 
-        return NextResponse.json(
-          {
-            ok: true,
-            data: {
-              status: "completed" as const,
-              reportId: storedExisting.report_id,
-              reportType: storedExisting.report_type,
-              input: storedExisting.input,
-              content: storedExisting.content,
-              generatedAt: storedExisting.updated_at,
-              redirectUrl,
-              fullRedirectUrl,
-              fromCache: true,
+          return NextResponse.json(
+            {
+              ok: true,
+              data: {
+                status: "completed" as const,
+                reportId: storedExisting.report_id,
+                reportType: storedExisting.report_type,
+                input: storedExisting.input,
+                content: storedExisting.content,
+                generatedAt: storedExisting.updated_at,
+                redirectUrl,
+                fullRedirectUrl,
+                fromCache: true,
+              },
+              requestId,
             },
-            requestId,
-          },
-          {
-            headers: {
-              "X-Request-ID": requestId,
-              "Cache-Control": "no-cache",
-            },
-          }
-        );
+            {
+              headers: {
+                "X-Request-ID": requestId,
+                "Cache-Control": "no-cache",
+              },
+            }
+          );
+        }
       }
 
       if (storedExisting.status === "processing") {
@@ -664,46 +678,52 @@ export async function POST(req: Request) {
     const cachedReport = getCachedReport(idempotencyKey);
     
     if (cachedReport) {
-      // Report already exists - return cached version (NO OpenAI call)
-      const cacheHitLog = {
-        requestId,
-        timestamp: new Date().toISOString(),
-        action: "CACHE_HIT",
-        idempotencyKey: idempotencyKey.substring(0, 30) + "...",
-        reportId: cachedReport.reportId,
-        reportType,
-        status: cachedReport.status,
-        elapsedMs: Date.now() - startTime,
-      };
-      console.log("[IDEMPOTENCY CACHE HIT]", JSON.stringify(cacheHitLog, null, 2));
-      
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
-      const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(cachedReport.reportId)}&reportType=${encodeURIComponent(reportType)}`;
-      const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
-      
-      return NextResponse.json(
-        {
-          ok: true,
-          data: {
-            status: "completed" as const,
-            reportId: cachedReport.reportId,
-            reportType: cachedReport.reportType,
-            input: cachedReport.input,
-            content: cachedReport.content,
-            generatedAt: cachedReport.generatedAt,
-            redirectUrl,
-            fullRedirectUrl,
-            fromCache: true, // Indicate this is from cache
-          },
+      // CRITICAL FIX: For test users with test_session_* IDs, bypass cache to ensure fresh real reports
+      if (shouldBypassCacheForTestUser) {
+        console.log(`[CACHE BYPASS] Test user with test_session_* should get real report, bypassing in-memory cached report. requestId=${requestId}, reportId=${cachedReport.reportId}, isTestUser=${isTestUserForIdempotency}, isTestSession=${isTestSession}`);
+        // Don't return cached report - continue to generate new real report
+      } else {
+        // Report already exists - return cached version (NO OpenAI call)
+        const cacheHitLog = {
           requestId,
-        },
-        {
-          headers: {
-            "X-Request-ID": requestId,
-            "Cache-Control": "no-cache", // Don't cache AI-generated content
+          timestamp: new Date().toISOString(),
+          action: "CACHE_HIT",
+          idempotencyKey: idempotencyKey.substring(0, 30) + "...",
+          reportId: cachedReport.reportId,
+          reportType,
+          status: cachedReport.status,
+          elapsedMs: Date.now() - startTime,
+        };
+        console.log("[IDEMPOTENCY CACHE HIT]", JSON.stringify(cacheHitLog, null, 2));
+        
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+        const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(cachedReport.reportId)}&reportType=${encodeURIComponent(reportType)}`;
+        const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+        
+        return NextResponse.json(
+          {
+            ok: true,
+            data: {
+              status: "completed" as const,
+              reportId: cachedReport.reportId,
+              reportType: cachedReport.reportType,
+              input: cachedReport.input,
+              content: cachedReport.content,
+              generatedAt: cachedReport.generatedAt,
+              redirectUrl,
+              fullRedirectUrl,
+              fromCache: true, // Indicate this is from cache
+            },
+            requestId,
           },
-        }
-      );
+          {
+            headers: {
+              "X-Request-ID": requestId,
+              "Cache-Control": "no-cache", // Don't cache AI-generated content
+            },
+          }
+        );
+      }
     }
     
     // Check if report is already processing (prevent concurrent duplicate requests)
