@@ -537,9 +537,8 @@ export async function POST(req: Request) {
     
     // CRITICAL: Test users ALWAYS bypass access restriction (use same check as payment bypass)
     // CRITICAL FIX (2026-01-18 - ChatGPT Task 3): Use centralized allowlist function
-    // IMPORTANT: Re-check test user here to ensure we catch it (double-check for safety)
+    // IMPORTANT: Reuse isTestUserForAccess from earlier declaration (line 404) - no need to recalculate
     // This ensures test users are NEVER blocked by access restriction
-    const isTestUserForAccess = isProdTestUser(input);
     
     if (restrictAccess && !isTestUserForAccess) {
       // Only check isAllowedUser if NOT a test user
@@ -1268,7 +1267,7 @@ export async function POST(req: Request) {
     
     // CRITICAL: Test users (isTestUserForAccess) should get REAL reports by default
     // Use centralized calculation function for consistency and testability
-    const isTestUser = isProdTestUser(input);
+    // Reuse isTestUser from earlier declaration (line 444) - no need to recalculate
     const { shouldUseRealMode, mockMode } = calculateReportMode({
       isTestSession,
       isTestUserForAccess: isTestUser,
@@ -1284,7 +1283,7 @@ export async function POST(req: Request) {
       console.log(`[REAL MODE CHECK] requestId=${requestId}, sessionId=${sessionIdFromQuery || "N/A"}`);
       console.log(`[REAL MODE CHECK] isTestUser=${isTestUser}, isTestSession=${isTestSession}`);
       console.log(`[REAL MODE CHECK] allowRealForTestSessions=${allowRealForTestSessionsFinal} (raw="${process.env.ALLOW_REAL_FOR_TEST_SESSIONS || "undefined"}"), mockModeEnv=${mockModeEnvFinal} (raw="${process.env.MOCK_MODE || "undefined"}")`);
-      console.log(`[REAL MODE CHECK] forceRealMode=${forceRealMode}, shouldUseRealModeForTestUser=${shouldUseRealModeForTestUser}, shouldUseRealMode=${shouldUseRealMode}, mockMode=${mockMode}`);
+      console.log(`[REAL MODE CHECK] forceRealMode=${forceRealMode}, shouldUseRealModeForTestUser=${isTestUser && !mockModeEnvFinal}, shouldUseRealMode=${shouldUseRealMode}, mockMode=${mockMode}`);
       
       // Also log all related env vars
       const relatedEnvVars = Object.keys(process.env)

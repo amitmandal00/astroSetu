@@ -261,7 +261,7 @@ function PaymentSuccessContent() {
               <>
                 {/* P1 IMPROVEMENT: Simplified messaging - redirect happens immediately */}
                 <p className="text-slate-700 mb-4">
-                  Your {getReportName(reportType, isSubscription)} is being generated now. You'll be redirected automatically...
+                  Your {getReportName(reportType, isSubscription)} is being generated now. You&apos;ll be redirected automatically...
                 </p>
                 
                 {/* Loading indicator while redirecting */}
