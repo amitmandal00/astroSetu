@@ -53,27 +53,38 @@ export function calculateReportMode(params: {
     forceRealReportsEnv,
   } = params;
 
-  // CRITICAL: Test users (isTestUserForAccess) should get REAL reports by default
+  // Rule 1: MOCK_MODE=true overrides everything (highest priority)
+  if (mockModeEnv) {
+    return { shouldUseRealMode: false, mockMode: true };
+  }
+
+  // Rule 2: Test users (isTestUserForAccess) should get REAL reports by default
   // This aligns with the goal: "only prod test users can access reports/payments" → they should get real reports
-  // MOCK_MODE can still override if explicitly set to true (for explicit testing scenarios)
-  const shouldUseRealModeForTestUser = isTestUserForAccess && !mockModeEnv;
+  // This takes priority over test_session_* detection
+  if (isTestUserForAccess) {
+    return { shouldUseRealMode: true, mockMode: false };
+  }
 
-  // Calculate shouldUseRealMode: forceRealMode OR env var OR test user priority
-  const shouldUseRealMode =
-    forceRealMode ||
-    allowRealForTestSessions ||
-    forceRealReportsEnv ||
-    shouldUseRealModeForTestUser;
+  // Rule 3: forceRealMode (from request body/query) always forces real mode
+  if (forceRealMode) {
+    return { shouldUseRealMode: true, mockMode: false };
+  }
 
-  // Calculate mockMode:
-  // - If MOCK_MODE is explicitly true → always mock
-  // - If test session AND not using real mode → mock
-  // - Otherwise → real mode
-  const mockMode = mockModeEnv || (isTestSession && !shouldUseRealMode);
+  // Rule 4: For test sessions (test_session_*), use mock unless ALLOW_REAL_FOR_TEST_SESSIONS=true
+  if (isTestSession) {
+    if (allowRealForTestSessions) {
+      return { shouldUseRealMode: true, mockMode: false };
+    } else {
+      return { shouldUseRealMode: false, mockMode: true };
+    }
+  }
 
-  return {
-    shouldUseRealMode,
-    mockMode,
-  };
+  // Rule 5: FORCE_REAL_REPORTS env var (global override for non-test sessions/users)
+  if (forceRealReportsEnv) {
+    return { shouldUseRealMode: true, mockMode: false };
+  }
+
+  // Default: real mode if none of the mock conditions are met
+  return { shouldUseRealMode: true, mockMode: false };
 }
 

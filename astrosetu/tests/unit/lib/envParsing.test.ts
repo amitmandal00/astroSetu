@@ -169,7 +169,7 @@ describe("envParsing", () => {
         expect(result.mockMode).toBe(false);
       });
 
-      it("should override MOCK_MODE when forceRealMode=true", () => {
+      it("should NOT override MOCK_MODE when forceRealMode=true (MOCK_MODE has highest priority)", () => {
         const result = calculateReportMode({
           isTestSession: true,
           isTestUserForAccess: false,
@@ -178,8 +178,8 @@ describe("envParsing", () => {
           mockModeEnv: true,
           forceRealReportsEnv: false,
         });
-        // forceRealMode sets shouldUseRealMode=true, but MOCK_MODE still overrides
-        expect(result.shouldUseRealMode).toBe(true);
+        // MOCK_MODE=true has highest priority and overrides everything
+        expect(result.shouldUseRealMode).toBe(false);
         expect(result.mockMode).toBe(true); // MOCK_MODE still wins
       });
     });
@@ -209,8 +209,8 @@ describe("envParsing", () => {
           mockModeEnv: false,
           forceRealReportsEnv: false,
         });
-        expect(result.shouldUseRealMode).toBe(false);
-        expect(result.mockMode).toBe(false); // Normal users get real mode by default
+        expect(result.shouldUseRealMode).toBe(true); // Normal users get real mode by default
+        expect(result.mockMode).toBe(false);
       });
     });
 
