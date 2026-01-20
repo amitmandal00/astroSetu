@@ -552,21 +552,56 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     const isPlaceholder = section.content && (
       section.content.includes("We're preparing your personalized insights") ||
       section.content.includes("This is a simplified view") ||
-      section.content.includes("For a complete analysis with detailed timing windows")
+      section.content.includes("For a complete analysis with detailed timing windows") ||
+      section.content.includes("This section contains additional astrological insights") ||
+      section.content.toLowerCase().includes("additional insights") ||
+      section.content.toLowerCase().includes("simplified view")
     );
     return (hasContent || hasBullets) && !isPlaceholder;
   });
+  
+  // CRITICAL FIX for year-analysis: Check if parsed sections actually contain expected year-analysis sections
+  // If not, treat as if parsing failed and use fallback sections
+  let shouldUseFallbackForYearAnalysis = false;
+  if (reportType === "year-analysis") {
+    const expectedYearAnalysisTitles = [
+      "year strategy", "year theme", "year-at-a-glance", "quarter", "best periods",
+      "low-return", "what to do", "year-end", "decision anchor", "confidence level"
+    ];
+    const hasExpectedSections = meaningfulSections.some(section => {
+      const titleLower = section.title.toLowerCase();
+      return expectedYearAnalysisTitles.some(expected => titleLower.includes(expected));
+    });
+    
+    // Also check if sections are too short (total content < 500 chars suggests incomplete parsing)
+    const totalContentLength = meaningfulSections.reduce((sum, s) => {
+      return sum + (s.content?.length || 0) + (s.bullets?.join(" ").length || 0);
+    }, 0);
+    
+    // If no expected sections found OR total content is too short, use fallback
+    shouldUseFallbackForYearAnalysis = !hasExpectedSections || totalContentLength < 500;
+    
+    if (shouldUseFallbackForYearAnalysis) {
+      console.warn("[parseAIResponse] Year-analysis report missing expected sections or too short - using fallback sections", {
+        hasExpectedSections,
+        totalContentLength,
+        meaningfulSectionsCount: meaningfulSections.length,
+        sectionTitles: meaningfulSections.map(s => s.title),
+      });
+    }
+  }
   
   // CRITICAL FIX (2026-01-18 - ChatGPT Task 2): Fallback for empty/invalid AI response
   // If no sections were parsed or response is empty, create minimal report with 2-3 sections
   // This prevents blank screen when AI parsing fails completely
   // NOTE: For year-analysis, we skip generic fallback and let ensureMinimumSections handle it with specific sections
-  if (meaningfulSections.length === 0 || !response || response.trim().length === 0) {
+  if (meaningfulSections.length === 0 || !response || response.trim().length === 0 || shouldUseFallbackForYearAnalysis) {
     console.warn("[parseAIResponse] No meaningful sections parsed or empty response - creating fallback report", {
       reportType,
       responseLength: response?.length || 0,
       sectionsBeforeFallback: sections.length,
       meaningfulSections: meaningfulSections.length,
+      shouldUseFallbackForYearAnalysis,
     });
     
     // Clear sections array to start fresh with fallback sections
