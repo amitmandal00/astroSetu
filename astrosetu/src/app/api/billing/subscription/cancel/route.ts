@@ -39,8 +39,9 @@ export async function POST(req: Request) {
     }
 
     // CRITICAL FIX (2026-01-18): Handle test/demo sessions that don't exist in Stripe
-    // DEV/TEST SAFETY: Allow "test_session_subscription_*" to be canceled without Stripe calls
-    if (sessionId.startsWith("test_session_subscription_")) {
+    // DEV/TEST SAFETY: Allow "test_session_subscription_*" and "prodtest_subscription_*" to be canceled without Stripe calls
+    // CRITICAL FIX: Handle both demo test sessions and production test user sessions
+    if (sessionId.startsWith("test_session_subscription_") || sessionId.startsWith("prodtest_subscription_")) {
       const periodEnd = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(); // +30 days
       // Return success with cancel_at_period_end=true to simulate cancellation
       return NextResponse.json(
@@ -53,7 +54,9 @@ export async function POST(req: Request) {
             currentPeriodEnd: periodEnd,
           },
           requestId,
-          message: "Test subscription marked for cancellation (demo mode)",
+          message: sessionId.startsWith("prodtest_") 
+            ? "Test subscription marked for cancellation (production test user)"
+            : "Test subscription marked for cancellation (demo mode)",
         },
         { headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
       );

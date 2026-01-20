@@ -174,14 +174,19 @@ async function generateWithOpenAI(
   // Complex reports: 2200 tokens (optimized from 2500 for faster generation while maintaining quality)
   // Note: major-life-phase uses 2200 tokens for optimal speed/quality balance (was 2500, originally 3000)
   const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
+  const isCareerMoneyReport = reportType === "career-money";
   const isFreeReport = reportType === "life-summary";
   // Use 2200 tokens for complex reports to optimize speed while maintaining quality (reduced from 2500)
   // Free life-summary is the primary engagement surface; give it a bit more room to avoid "thin" output.
   const maxTokens = isComplexReport ? 2200 : (isFreeReport ? 1400 : 1800); // 1400 for free, 1800 for paid, 2200 for complex
   
-  // Add explicit timeout to fetch (45 seconds max per request)
+  // CRITICAL FIX: Increase timeout to match server timeout (120s for complex reports)
+  // Server timeout is 120s for complex reports, so client timeout should be slightly less (110s)
+  // to account for network overhead and other processing
+  // For non-complex reports, server timeout is 60s, so use 55s for client
+  const clientTimeoutMs = (isComplexReport || isCareerMoneyReport) ? 110000 : 55000; // 110s for complex, 55s for regular
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout per request
+  const timeoutId = setTimeout(() => controller.abort(), clientTimeoutMs);
   
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {

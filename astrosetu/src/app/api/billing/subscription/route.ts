@@ -43,8 +43,9 @@ export async function GET(req: Request) {
       );
     }
 
-    // DEV/TEST SAFETY: Allow "test_session_subscription_*" to behave like an active subscription without Stripe/Supabase.
-    if (sessionId.startsWith("test_session_subscription_")) {
+    // DEV/TEST SAFETY: Allow "test_session_subscription_*" and "prodtest_subscription_*" to behave like an active subscription without Stripe/Supabase.
+    // CRITICAL FIX: Handle both demo test sessions and production test user sessions
+    if (sessionId.startsWith("test_session_subscription_") || sessionId.startsWith("prodtest_subscription_")) {
       const periodEnd = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(); // +30 days
       return NextResponse.json(
         {
