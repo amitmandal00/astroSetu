@@ -885,13 +885,17 @@ export async function POST(req: Request) {
         const sessionId = searchParams.get("session_id");
         
         // CRITICAL: Check if this is a test session BEFORE trying Stripe verification
-        // Test sessions start with "test_session_" and should NEVER be verified with Stripe
-        if (sessionId && sessionId.startsWith("test_session_")) {
-          console.log(`[TEST SESSION] Detected test session: ${sessionId.substring(0, 30)}... - Skipping Stripe verification`);
+        // Test sessions start with "test_session_" or "prodtest_" and should NEVER be verified with Stripe
+        // CRITICAL FIX: Handle both demo test sessions and production test user sessions
+        const isDemoTestSession = sessionId && sessionId.startsWith("test_session_");
+        const isProdTestSession = sessionId && sessionId.startsWith("prodtest_");
+        if (isDemoTestSession || isProdTestSession) {
+          const sessionType = isProdTestSession ? "PROD_TEST" : "DEMO_TEST";
+          console.log(`[TEST SESSION] Detected ${sessionType} session: ${sessionId.substring(0, 30)}... - Skipping Stripe verification`);
           
           // For test sessions, generate a payment token directly (bypass Stripe)
-          // Extract reportType from session ID (format: test_session_{reportType}_{requestId})
-          const sessionPrefix = "test_session_";
+          // Extract reportType from session ID (format: test_session_{reportType}_{requestId} or prodtest_{reportType}_{requestId})
+          const sessionPrefix = isProdTestSession ? "prodtest_" : "test_session_";
           const afterPrefix = sessionId.substring(sessionPrefix.length);
           // Find the last underscore to separate reportType from requestId
           const lastUnderscoreIndex = afterPrefix.lastIndexOf("_");
@@ -1026,11 +1030,15 @@ export async function POST(req: Request) {
           const sessionId = searchParams.get("session_id");
           
           // CRITICAL: Check if this is a test session BEFORE trying Stripe verification
-          if (sessionId && sessionId.startsWith("test_session_")) {
-            console.log(`[TEST SESSION] Detected test session in token fallback: ${sessionId.substring(0, 30)}... - Skipping Stripe verification`);
+          // CRITICAL FIX: Handle both demo test sessions and production test user sessions
+          const isDemoTestSession = sessionId && sessionId.startsWith("test_session_");
+          const isProdTestSession = sessionId && sessionId.startsWith("prodtest_");
+          if (isDemoTestSession || isProdTestSession) {
+            const sessionType = isProdTestSession ? "PROD_TEST" : "DEMO_TEST";
+            console.log(`[TEST SESSION] Detected ${sessionType} session in token fallback: ${sessionId.substring(0, 30)}... - Skipping Stripe verification`);
             
-            // Extract reportType from test session ID
-            const sessionPrefix = "test_session_";
+            // Extract reportType from test session ID (format: test_session_{reportType}_{requestId} or prodtest_{reportType}_{requestId})
+            const sessionPrefix = isProdTestSession ? "prodtest_" : "test_session_";
             const afterPrefix = sessionId.substring(sessionPrefix.length);
             const lastUnderscoreIndex = afterPrefix.lastIndexOf("_");
             let extractedReportType = reportType;
