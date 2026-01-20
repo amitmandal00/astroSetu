@@ -1406,7 +1406,7 @@ export async function POST(req: Request) {
       }
       
       // Phase 1: Validate mock report (even mock reports should pass validation)
-      const mockValidation = validateReportBeforeCompletion(cleanedMockContent, input, paymentToken);
+      const mockValidation = validateReportBeforeCompletion(cleanedMockContent, input, paymentToken, reportType);
       
       if (!mockValidation.valid) {
         // This should rarely happen, but handle it
@@ -1669,7 +1669,7 @@ export async function POST(req: Request) {
       }
       
       // Phase 1: STRICT VALIDATION before marking as "completed" (ChatGPT feedback)
-      const validation = validateReportBeforeCompletion(cleanedReportContent, input, paymentToken);
+      const validation = validateReportBeforeCompletion(cleanedReportContent, input, paymentToken, reportType);
       
       if (!validation.valid) {
         // Validation failed - mark as failed and trigger refund

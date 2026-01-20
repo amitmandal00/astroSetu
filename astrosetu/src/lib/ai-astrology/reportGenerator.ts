@@ -169,16 +169,18 @@ async function generateWithOpenAI(
   
   // Optimize token counts for faster generation while maintaining quality
   // Reduced tokens for faster responses:
-  // Free reports: 1000 tokens (further reduced from 1200 for faster generation)
+  // Free reports: 1400 tokens
   // Regular paid reports: 1800 tokens - good balance, faster
-  // Complex reports: 2200 tokens (optimized from 2500 for faster generation while maintaining quality)
-  // Note: major-life-phase uses 2200 tokens for optimal speed/quality balance (was 2500, originally 3000)
-  const isComplexReport = reportType === "full-life" || reportType === "major-life-phase";
+  // Complex reports: 2400 tokens (year-analysis, full-life, major-life-phase)
+  // CRITICAL FIX: year-analysis requires 2400 tokens due to many sections (Year Strategy, Year Theme,
+  // Quarter-by-Quarter, Best Periods, Low-Return Periods, What to Do, Year-End Outlook)
+  // Without sufficient tokens, LLM response gets truncated → incomplete sections → placeholder fallback
+  const isComplexReport = reportType === "full-life" || reportType === "major-life-phase" || reportType === "year-analysis";
   const isCareerMoneyReport = reportType === "career-money";
   const isFreeReport = reportType === "life-summary";
-  // Use 2200 tokens for complex reports to optimize speed while maintaining quality (reduced from 2500)
+  // Use 2400 tokens for complex reports (increased from 2200 for year-analysis to prevent truncation)
   // Free life-summary is the primary engagement surface; give it a bit more room to avoid "thin" output.
-  const maxTokens = isComplexReport ? 2200 : (isFreeReport ? 1400 : 1800); // 1400 for free, 1800 for paid, 2200 for complex
+  const maxTokens = isComplexReport ? 2400 : (isFreeReport ? 1400 : 1800); // 1400 for free, 1800 for paid, 2400 for complex
   
   // CRITICAL FIX: Increase timeout to match server timeout (120s for complex reports)
   // Server timeout is 120s for complex reports, so client timeout should be slightly less (110s)
@@ -657,6 +659,39 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
   const paidReportTypes: ReportType[] = ["career-money", "major-life-phase", "decision-support", "year-analysis", "marriage-timing", "full-life"];
   // Higher minimum for individual paid reports to ensure comprehensive content
   const minSectionsForPaid = reportType === "decision-support" || reportType === "career-money" || reportType === "major-life-phase" ? 6 : 4;
+  
+  // CRITICAL FIX: For year-analysis, check if existing sections are weak (contain placeholders or too short)
+  // If weak, replace with fallback sections instead of appending
+  if (reportType === "year-analysis") {
+    const hasWeakContent = sections.some(s => {
+      const content = s.content?.toLowerCase() || "";
+      return content.includes("simplified view") || 
+             content.includes("we're preparing") ||
+             content.includes("try generating the report again") ||
+             content.includes("additional insights - section") ||
+             (s.content && s.content.trim().length < 50); // Very short sections
+    });
+    
+    // Check if sections have expected year-analysis titles
+    const expectedTitles = ["year strategy", "year theme", "quarter", "best periods", "low-return", "what to do"];
+    const sectionTitles = sections.map(s => s.title.toLowerCase());
+    const hasExpectedTitles = expectedTitles.some(expected => 
+      sectionTitles.some(title => title.includes(expected))
+    );
+    
+    // If content is weak OR missing expected titles OR too few sections, replace with fallback
+    if (hasWeakContent || !hasExpectedTitles || sections.length < 4) {
+      console.warn("[ensureMinimumSections] Year-analysis report has weak content - replacing with fallback sections", {
+        hasWeakContent,
+        hasExpectedTitles,
+        currentSections: sections.length,
+        sectionTitles: sections.map(s => s.title),
+      });
+      
+      // Clear and replace with fallback sections
+      sections.length = 0;
+    }
+  }
   
   if (paidReportTypes.includes(reportType) && sections.length < minSectionsForPaid) {
     console.warn("[parseAIResponse] Paid report has fewer than minimum sections - adding fallback sections", {

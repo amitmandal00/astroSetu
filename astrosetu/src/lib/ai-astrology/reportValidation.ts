@@ -6,7 +6,7 @@
  * This prevents invalid reports from being charged.
  */
 
-import type { ReportContent, AIAstrologyInput } from "./types";
+import type { ReportContent, AIAstrologyInput, ReportType } from "./types";
 import { reportContainsMockContent } from "./mockContentGuard";
 
 export type ValidationResult = {
@@ -22,7 +22,8 @@ export type ValidationResult = {
 export function validateReportContent(
   report: ReportContent,
   input: AIAstrologyInput,
-  paymentToken?: string
+  paymentToken?: string,
+  reportType?: ReportType
 ): ValidationResult {
   // 1. Required sections check
   if (!report.sections || report.sections.length === 0) {
@@ -119,6 +120,13 @@ export function validateReportContent(
       content.includes("detailed analysis will be generated") || // Old replacement text pattern
       content.includes("insight based on your birth chart") || // Old replacement text pattern
       content.includes("key insight based on your birth chart") || // Old replacement text pattern
+      // CRITICAL FIX: Catch specific placeholder patterns from failed report generation
+      content.includes("we're preparing your personalized insights") ||
+      content.includes("this is a simplified view") ||
+      content.includes("try generating the report again") ||
+      content.includes("for a complete analysis with detailed timing windows") ||
+      content.includes("additional insights - section") ||
+      content.includes("please try generating the report again") ||
       (content.trim().length < 10 && (content.includes("placeholder") || content.includes("sample"))); // Very short AND contains placeholder keywords
     
     return isObviousPlaceholder;
@@ -132,7 +140,89 @@ export function validateReportContent(
     };
   }
 
+  // 8. Structural validation by report type
+  // CRITICAL FIX: Validate that reports have expected structure and minimum content
+  if (reportType) {
+    const structureValidation = validateStructureByReportType(reportType, report.sections || []);
+    if (!structureValidation.valid) {
+      return structureValidation;
+    }
+  }
+
   // All validations passed
+  return { valid: true };
+}
+
+/**
+ * Validate report structure based on report type
+ * Ensures reports have expected sections and minimum content length
+ */
+function validateStructureByReportType(
+  reportType: ReportType,
+  sections: Array<{ title: string; content?: string; bullets?: string[] }>
+): ValidationResult {
+
+  // For year-analysis, enforce strict structure requirements
+  if (reportType === "year-analysis") {
+    // Check for expected section titles (at least 2-3 must be present)
+    const expectedTitles = [
+      "year strategy", "year theme", "year-at-a-glance", "quarter", 
+      "best periods", "low-return", "what to do", "year-end", 
+      "decision anchor", "confidence level"
+    ];
+    
+    const sectionTitles = sections.map(s => s.title.toLowerCase());
+    const hasExpectedTitles = expectedTitles.filter(expected => 
+      sectionTitles.some(title => title.includes(expected))
+    );
+    
+    if (hasExpectedTitles.length < 2) {
+      return {
+        valid: false,
+        error: `Year-analysis report missing expected sections. Found: ${hasExpectedTitles.length} of ${expectedTitles.length} expected sections`,
+        errorCode: "VALIDATION_FAILED",
+      };
+    }
+    
+    // Check minimum word count (900-1500 words for paid reports)
+    const totalWords = sections.reduce((sum, s) => {
+      const contentWords = s.content?.split(/\s+/).length || 0;
+      const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
+      return sum + contentWords + bulletWords;
+    }, 0);
+    
+    if (totalWords < 900) {
+      return {
+        valid: false,
+        error: `Year-analysis report content too short. Found ${totalWords} words, minimum 900 required`,
+        errorCode: "VALIDATION_FAILED",
+      };
+    }
+  }
+  
+  // For other paid reports, check minimum word count
+  const paidReportTypes: Array<typeof reportType> = ["career-money", "major-life-phase", "full-life", "decision-support", "marriage-timing"];
+  if (reportType && paidReportTypes.includes(reportType)) {
+    const totalWords = sections.reduce((sum, s) => {
+      const contentWords = s.content?.split(/\s+/).length || 0;
+      const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
+      return sum + contentWords + bulletWords;
+    }, 0);
+    
+    // Minimum word count varies by report type
+    const minWords = reportType === "full-life" ? 1500 : 
+                     reportType === "major-life-phase" ? 1200 : 
+                     900; // Default for other paid reports
+    
+    if (totalWords < minWords) {
+      return {
+        valid: false,
+        error: `${reportType} report content too short. Found ${totalWords} words, minimum ${minWords} required`,
+        errorCode: "VALIDATION_FAILED",
+      };
+    }
+  }
+
   return { valid: true };
 }
 
@@ -143,7 +233,8 @@ export function validateReportContent(
 export function validateReportBeforeCompletion(
   report: ReportContent | null,
   input: AIAstrologyInput,
-  paymentToken?: string
+  paymentToken?: string,
+  reportType?: ReportType
 ): ValidationResult {
   if (!report) {
     return {
@@ -153,6 +244,6 @@ export function validateReportBeforeCompletion(
     };
   }
 
-  return validateReportContent(report, input, paymentToken);
+  return validateReportContent(report, input, paymentToken, reportType);
 }
 
