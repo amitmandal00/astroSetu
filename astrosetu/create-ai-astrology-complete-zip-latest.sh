@@ -122,6 +122,22 @@ cp "${BASE_DIR}/AUTOMATIC_REFUND_REVIEW_ANALYSIS.md" "${PACKAGE_DIR}/" 2>/dev/nu
 cp "${BASE_DIR}/MOCK_CONTENT_STRIPPING_FIX_SUMMARY.md" "${PACKAGE_DIR}/" 2>/dev/null || true
 cp "${BASE_DIR}/PDF_PREVIEW_MATCHING_FIX_SUMMARY.md" "${PACKAGE_DIR}/" 2>/dev/null || true
 cp "${BASE_DIR}/REPORT_LENGTH_ANALYSIS.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/SHORT_REPORTS_ISSUE_SUMMARY.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/CHATGPT_FEEDBACK_IMPLEMENTATION_SUMMARY.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/REAL_REPORTS_ENV_VAR_ISSUE_SUMMARY.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/ENV_VAR_DEBUGGING.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/ENV_VAR_VERIFICATION_STEPS.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/ENV_VAR_TROUBLESHOOTING.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/ENV_VAR_MIGRATION_SUMMARY.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/VERCEL_ENV_VAR_SETUP.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/REAL_REPORTS_FOR_TEST_USERS_IMPLEMENTATION.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/TEST_WITH_REAL_REPORTS_GUIDE.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/STABLE_BUILD_REFERENCE.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/STABLE_BUILD_CHANGELOG.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/P0_P1_REFUND_IMPLEMENTATION_SUMMARY.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/MOCK_CONTENT_STRIPPING_EXPECTED_BEHAVIOR.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/REPORT_REVIEW_ANALYSIS.md" "${PACKAGE_DIR}/" 2>/dev/null || true
+cp "${BASE_DIR}/ISSUE_SUMMARY_TIMEOUT_BUNDLE_TIMER.md" "${PACKAGE_DIR}/" 2>/dev/null || true
 
 # Copy Headers/Footers if they exist
 echo "📁 Copying headers/footers..."
@@ -194,13 +210,20 @@ cat > "${PACKAGE_DIR}/PACKAGE_MANIFEST.md" << 'EOF'
 - `.cursor/` - Cursor IDE rules
 - `.github/workflows/` - CI/CD workflows
 
-## Recent Fixes Included (2026-01-19)
+## Recent Fixes Included (2026-01-19 to 2026-01-20)
 1. ✅ Short Reports Issue - Enhanced fallback sections for mock reports
 2. ✅ Mock Content Stripping - Comprehensive cleaning of all custom fields
 3. ✅ PDF Matching - Custom fields now included in PDF generation
 4. ✅ Report Validation - Strict validation before marking as completed
 5. ✅ Automatic Refunds - Refund tracking and automation
 6. ✅ Build Errors - Fixed TypeScript errors and ES module issues
+7. ✅ Real Reports for Test Sessions - Environment variable approach with prodtest_ prefix
+8. ✅ Enhanced Debug Logging - Simplified logging for Vercel Function Logs
+9. ✅ Price Consistency - Unified price formatting utility
+10. ✅ Checkbox Clarity - Improved UX for terms acceptance
+11. ✅ Timeout Issues - Increased timeouts for complex reports (90s → 120s)
+12. ✅ Bundle Reports - Fixed primary report selection and error handling
+13. ✅ Timer Resetting - Fixed timer resetting during state transitions
 
 ## How to Use
 1. Extract package

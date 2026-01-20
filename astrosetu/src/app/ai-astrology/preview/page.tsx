@@ -251,7 +251,9 @@ function PreviewContent() {
   // CRITICAL FIX: Use hook to compute elapsed time (single source of truth)
   // Never store elapsedTime as state - always compute it from startTime
   // CRITICAL FIX: Pass ref as fallback to fix race condition where state update hasn't flushed yet
-  const elapsedTime = useElapsedSeconds(loadingStartTime, isProcessingUI, loadingStartTimeRef);
+  // CRITICAL FIX (ChatGPT Feedback): Pass storage key for sessionStorage persistence
+  const timerStorageKey = sessionIdFromUrl || reportContent?.reportId || null;
+  const elapsedTime = useElapsedSeconds(loadingStartTime, isProcessingUI, loadingStartTimeRef, timerStorageKey);
   const reportTypeRef = useRef<ReportType | null>(null); // Track report type in ref to avoid interval recreation
   const bundleGeneratingRef = useRef(false); // Track bundle state in ref to avoid interval recreation
 

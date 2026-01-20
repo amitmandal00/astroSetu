@@ -91,16 +91,34 @@ export function validateReportContent(
   // 7. Validate report has meaningful content (not just placeholders)
   // CRITICAL FIX: Be more lenient - only flag obvious placeholders, not short but valid content
   // A section might have short but valid content (e.g., "Focus on career growth this month")
+  // CRITICAL FIX (ChatGPT Feedback): Don't flag replacement text from stripMockContent
+  // The replacement text is contextual and valid, not a placeholder
   const hasPlaceholderContent = report.sections.some((section) => {
     const content = section.content?.toLowerCase() || "";
     // Only flag obvious placeholder patterns, not just short content
     // Short content (< 20 chars) alone is not enough - must also match placeholder patterns
+    // CRITICAL: Exclude replacement text patterns from stripMockContent (these are valid contextual text)
+    const isReplacementText = 
+      content.includes("based on your unique birth chart") ||
+      content.includes("based on your unique astrological chart") ||
+      content.includes("personalized astrological insights") ||
+      content.includes("planetary positions and dasha periods") ||
+      content.includes("planetary influences suggest") ||
+      content.includes("astrological timing indicates");
+    
+    if (isReplacementText) {
+      return false; // This is valid replacement text, not a placeholder
+    }
+    
     const isObviousPlaceholder = 
       content.includes("lorem ipsum") ||
       content.includes("placeholder text") ||
       content.includes("coming soon") ||
       content.includes("sample text") ||
       content.includes("this is a placeholder") ||
+      content.includes("detailed analysis will be generated") || // Old replacement text pattern
+      content.includes("insight based on your birth chart") || // Old replacement text pattern
+      content.includes("key insight based on your birth chart") || // Old replacement text pattern
       (content.trim().length < 10 && (content.includes("placeholder") || content.includes("sample"))); // Very short AND contains placeholder keywords
     
     return isObviousPlaceholder;

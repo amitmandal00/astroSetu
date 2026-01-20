@@ -6,9 +6,12 @@
  * 
  * This eliminates timer freezing, jumping backwards, and continuing after completion.
  * 
+ * CRITICAL FIX (ChatGPT Feedback): Persists timer start in sessionStorage to prevent reset on remount.
+ * 
  * @param startTime - Start time in milliseconds (Date.now() value) or null
  * @param isRunning - Whether the timer should be running
  * @param startTimeRef - Optional ref to check if state is null (fixes race condition)
+ * @param storageKey - Optional key for sessionStorage persistence (reportId or session_id)
  * @returns Elapsed time in seconds (computed, not stored)
  */
 
@@ -17,11 +20,73 @@ import { useState, useEffect, useRef, type RefObject } from 'react';
 export function useElapsedSeconds(
   startTime: number | null,
   isRunning: boolean,
-  startTimeRef?: RefObject<number | null>
+  startTimeRef?: RefObject<number | null>,
+  storageKey?: string | null
 ): number {
   // CRITICAL: Don't store elapsedTime as state - compute it
   const [elapsed, setElapsed] = useState<number>(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // CRITICAL FIX (ChatGPT Feedback): Persist timer start in sessionStorage
+  // This prevents timer from resetting when component remounts
+  const getStorageKey = () => {
+    if (!storageKey) return null;
+    return `aiAstrologyTimer_${storageKey}`;
+  };
+  
+  // Load persisted start time from sessionStorage on mount
+  useEffect(() => {
+    const key = getStorageKey();
+    if (!key || typeof window === "undefined") return;
+    
+    try {
+      const stored = sessionStorage.getItem(key);
+      if (stored && !startTime && !startTimeRef?.current) {
+        const storedTime = Number(stored);
+        if (!isNaN(storedTime) && storedTime > 0) {
+          // Only use stored time if it's recent (within last 24 hours)
+          const now = Date.now();
+          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+          if (now - storedTime < maxAge) {
+            // Restore start time from sessionStorage
+            if (startTimeRef) {
+              startTimeRef.current = storedTime;
+            }
+            // Note: We can't set startTime state here as it's a prop, but the ref will be used
+          } else {
+            // Stored time is too old, clear it
+            sessionStorage.removeItem(key);
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore sessionStorage errors (private browsing, etc.)
+      console.warn("[useElapsedSeconds] Failed to read from sessionStorage:", e);
+    }
+  }, []); // Only run on mount
+  
+  // Save start time to sessionStorage when it changes
+  useEffect(() => {
+    const key = getStorageKey();
+    if (!key || typeof window === "undefined") return;
+    
+    const currentStartTime = startTime ?? startTimeRef?.current ?? null;
+    if (currentStartTime) {
+      try {
+        sessionStorage.setItem(key, String(currentStartTime));
+      } catch (e) {
+        // Ignore sessionStorage errors
+        console.warn("[useElapsedSeconds] Failed to write to sessionStorage:", e);
+      }
+    } else {
+      // Clear storage when start time is cleared (generation completed)
+      try {
+        sessionStorage.removeItem(key);
+      } catch (e) {
+        // Ignore sessionStorage errors
+      }
+    }
+  }, [startTime, storageKey, startTimeRef]);
 
   useEffect(() => {
     // CRITICAL FIX: If not running, stop timer but DON'T reset elapsed time if startTime is still set

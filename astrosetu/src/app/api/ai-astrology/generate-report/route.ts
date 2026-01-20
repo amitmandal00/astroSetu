@@ -1744,6 +1744,88 @@ export async function POST(req: Request) {
       // CRITICAL FIX (ChatGPT Feedback): Always stop heartbeat on error
       stopHeartbeat();
       
+      // CRITICAL FIX (ChatGPT Feedback - Issue A): Fail-fast for allowlisted users
+      // If test user and error is dependency/LLM/parsing failure, return error immediately
+      // This prevents placeholder contamination that would then be rejected by validator
+      const isDependencyError = 
+        errorMessage.includes("prokerala") ||
+        errorMessage.includes("PROKERALA") ||
+        errorMessage.includes("404") ||
+        errorMessage.includes("endpoint not available") ||
+        errorMessage.includes("API key") ||
+        errorMessage.includes("not configured") ||
+        errorMessage.includes("insufficient credit") ||
+        errorMessage.includes("quota") ||
+        errorString.includes("prokerala") ||
+        errorString.includes("endpoint_not_available");
+      
+      const isLLMError = 
+        errorMessage.includes("openai") ||
+        errorMessage.includes("OpenAI") ||
+        errorMessage.includes("model") ||
+        errorMessage.includes("token") ||
+        errorMessage.includes("parsing") ||
+        errorMessage.includes("parse") ||
+        errorString.includes("openai") ||
+        errorString.includes("model_not_found");
+      
+      const isGenerationFailure = isDependencyError || isLLMError;
+      
+      if (isTestUserForAccess && isGenerationFailure) {
+        // Fail-fast: Return error immediately instead of generating placeholder
+        const errorCode: ReportErrorCode = isDependencyError ? "DEPENDENCY_FAILURE" : "GENERATION_FAILED";
+        
+        console.error("[FAIL-FAST] Allowlisted test user - returning error instead of placeholder", {
+          requestId,
+          reportId,
+          reportType,
+          errorCode,
+          errorMessage,
+          isDependencyError,
+          isLLMError,
+        });
+        
+        // Mark as failed
+        try {
+          await markStoredReportFailed({
+            idempotencyKey,
+            reportId,
+            errorMessage: `Report generation failed: ${errorMessage}`,
+            errorCode,
+          });
+        } catch (markFailedError) {
+          console.error("[FAIL-FAST] Failed to mark report as failed:", markFailedError);
+        }
+        
+        // Cancel payment if applicable
+        if (paymentIntentId && isPaidReportType(reportType) && !shouldSkipPayment) {
+          try {
+            await cancelPaymentSafely(`Report generation failed: ${errorCode}`);
+          } catch (cancelError) {
+            console.error("[FAIL-FAST] Payment cancellation error:", cancelError);
+          }
+        }
+        
+        // Return clean error response
+        return NextResponse.json(
+          {
+            ok: false,
+            error: isDependencyError 
+              ? "Report generation failed due to upstream dependency issue. Please try again later or contact support."
+              : "Report generation failed. Please try again later or contact support.",
+            code: errorCode,
+            requestId,
+          },
+          { 
+            status: 500,
+            headers: {
+              "X-Request-ID": requestId,
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+            }
+          }
+        );
+      }
+      
       // CRITICAL FIX (ChatGPT Feedback): Always mark as failed if generation fails
       // Never leave reports stuck in "processing" status - ensures catch/finally always updates status
       // This prevents reports from being stuck forever when serverless function times out
@@ -1755,6 +1837,10 @@ export async function POST(req: Request) {
           errorCode = "GENERATION_TIMEOUT";
         } else if (errorLower.includes("payment") || errorLower.includes("verification")) {
           errorCode = "PAYMENT_VERIFICATION_FAILED";
+        } else if (isDependencyError) {
+          errorCode = "DEPENDENCY_FAILURE";
+        } else if (isLLMError) {
+          errorCode = "GENERATION_FAILED";
         }
         
         await markStoredReportFailed({ 

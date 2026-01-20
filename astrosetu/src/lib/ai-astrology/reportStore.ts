@@ -26,6 +26,8 @@ export type ReportErrorCode =
   | "USER_DATA_MISMATCH"
   | "GENERATION_TIMEOUT"
   | "GENERATION_ERROR"
+  | "GENERATION_FAILED" // LLM error, parsing error - distinct from GENERATION_ERROR
+  | "DEPENDENCY_FAILURE" // Prokerala, env vars, upstream dependencies
   | "PAYMENT_VERIFICATION_FAILED"
   | "UNKNOWN_ERROR";
 
