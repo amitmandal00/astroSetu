@@ -47,9 +47,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "session_id is required", requestId }, { status: 400 });
     }
 
-    // DEV/TEST SAFETY: Allow "test_session_subscription_*" to complete the UX journey even when Stripe isn't configured.
+    // DEV/TEST SAFETY: Allow test subscription sessions to complete the UX journey even when Stripe isn't configured.
     // This keeps the source-of-truth server-side (cookie/API), without relying on sessionStorage flags.
-    if (sessionId.startsWith("test_session_subscription_")) {
+    // CRITICAL FIX: Handle both test_session_subscription_ (demo) and prodtest_subscription_ (prod test users)
+    if (sessionId.startsWith("test_session_subscription_") || sessionId.startsWith("prodtest_subscription_")) {
       const periodEnd = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(); // +30 days
       const res = NextResponse.json(
         {

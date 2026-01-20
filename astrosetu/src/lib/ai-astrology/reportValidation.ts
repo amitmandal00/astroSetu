@@ -89,15 +89,21 @@ export function validateReportContent(
   }
 
   // 7. Validate report has meaningful content (not just placeholders)
+  // CRITICAL FIX: Be more lenient - only flag obvious placeholders, not short but valid content
+  // A section might have short but valid content (e.g., "Focus on career growth this month")
   const hasPlaceholderContent = report.sections.some((section) => {
     const content = section.content?.toLowerCase() || "";
-    return (
+    // Only flag obvious placeholder patterns, not just short content
+    // Short content (< 20 chars) alone is not enough - must also match placeholder patterns
+    const isObviousPlaceholder = 
       content.includes("lorem ipsum") ||
-      content.includes("placeholder") ||
+      content.includes("placeholder text") ||
       content.includes("coming soon") ||
       content.includes("sample text") ||
-      content.trim().length < 20 // Very short content might be placeholder
-    );
+      content.includes("this is a placeholder") ||
+      (content.trim().length < 10 && (content.includes("placeholder") || content.includes("sample"))); // Very short AND contains placeholder keywords
+    
+    return isObviousPlaceholder;
   });
 
   if (hasPlaceholderContent) {

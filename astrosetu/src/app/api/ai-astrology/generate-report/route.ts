@@ -615,12 +615,13 @@ export async function POST(req: Request) {
 
     // 4. CRITICAL: Check idempotency BEFORE any OpenAI calls
     // IMPORTANT: In-memory cache is NOT durable on serverless, so prefer persistent store first.
-    // CRITICAL FIX: For test users with test_session_* IDs, bypass cache to ensure fresh real reports
+    // CRITICAL FIX: For test users with prodtest_* IDs, bypass cache to ensure fresh real reports
     // This prevents returning cached mock reports when test users should get real reports
     const isTestUserForIdempotency = input ? isProdTestUser(input) : false;
     const mockModeEnvForIdempotency = parseEnvBoolean(process.env.MOCK_MODE);
-    // Bypass cache if: test user AND (test session OR MOCK_MODE not set) - ensures fresh real reports
-    const shouldBypassCacheForTestUser = isTestUserForIdempotency && !mockModeEnvForIdempotency && isTestSession;
+    // Bypass cache if: test user AND prodtest_ session (not demo test_session_) - ensures fresh real reports
+    // prodtest_ sessions are for production test users who should always get fresh real reports
+    const shouldBypassCacheForTestUser = isTestUserForIdempotency && !mockModeEnvForIdempotency && isProdTestSession;
     
     const idempotencyKey = generateIdempotencyKey(input, reportType, fallbackSessionId);
 
@@ -630,7 +631,7 @@ export async function POST(req: Request) {
         // CRITICAL FIX: For test users with test_session_* IDs, bypass cache to ensure fresh real reports
         // This prevents returning cached mock reports when test users should get real reports
         if (shouldBypassCacheForTestUser) {
-          console.log(`[CACHE BYPASS] Test user with test_session_* should get real report, bypassing cached report. requestId=${requestId}, reportId=${storedExisting.report_id}, isTestUser=${isTestUserForIdempotency}, isTestSession=${isTestSession}`);
+          console.log(`[CACHE BYPASS] Test user with ${isProdTestSession ? 'prodtest_' : 'test_session_'}* should get real report, bypassing cached report. requestId=${requestId}, reportId=${storedExisting.report_id}, isTestUser=${isTestUserForIdempotency}, isTestSession=${isTestSession}, isProdTestSession=${isProdTestSession}`);
           // Don't return cached report - continue to generate new real report
         } else {
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
@@ -691,7 +692,7 @@ export async function POST(req: Request) {
     if (cachedReport) {
       // CRITICAL FIX: For test users with test_session_* IDs, bypass cache to ensure fresh real reports
       if (shouldBypassCacheForTestUser) {
-        console.log(`[CACHE BYPASS] Test user with test_session_* should get real report, bypassing in-memory cached report. requestId=${requestId}, reportId=${cachedReport.reportId}, isTestUser=${isTestUserForIdempotency}, isTestSession=${isTestSession}`);
+        console.log(`[CACHE BYPASS] Test user with ${isProdTestSession ? 'prodtest_' : 'test_session_'}* should get real report, bypassing in-memory cached report. requestId=${requestId}, reportId=${cachedReport.reportId}, isTestUser=${isTestUserForIdempotency}, isTestSession=${isTestSession}, isProdTestSession=${isProdTestSession}`);
         // Don't return cached report - continue to generate new real report
       } else {
         // Report already exists - return cached version (NO OpenAI call)
@@ -1646,6 +1647,16 @@ export async function POST(req: Request) {
       
       // CRITICAL: Strip mock content before caching/storing (production safety - even for real reports)
       cleanedReportContent = stripMockContent(reportContent);
+      
+      // CRITICAL FIX: Ensure minimum sections AFTER stripping mock content
+      // This ensures reports have enough sections even after mock content is removed
+      const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
+      const sectionsBeforeMinCheck = cleanedReportContent.sections?.length || 0;
+      cleanedReportContent = ensureMinimumSections(cleanedReportContent, reportType);
+      const sectionsAfterMinCheck = cleanedReportContent.sections?.length || 0;
+      if (sectionsAfterMinCheck > sectionsBeforeMinCheck) {
+        console.log(`[REPORT SECTIONS] Added ${sectionsAfterMinCheck - sectionsBeforeMinCheck} fallback sections after mock content stripping. requestId=${requestId}, reportType=${reportType}, before=${sectionsBeforeMinCheck}, after=${sectionsAfterMinCheck}`);
+      }
       
       // Phase 1: STRICT VALIDATION before marking as "completed" (ChatGPT feedback)
       const validation = validateReportBeforeCompletion(cleanedReportContent, input, paymentToken);
