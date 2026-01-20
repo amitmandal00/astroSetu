@@ -543,25 +543,52 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     sections.push(currentSection);
   }
   
+  // Filter out sections with empty or placeholder content
+  // Check if sections have meaningful content (not just empty or placeholder text)
+  const meaningfulSections = sections.filter(section => {
+    const hasContent = section.content && section.content.trim().length > 20;
+    const hasBullets = section.bullets && section.bullets.length > 0;
+    // Exclude placeholder content patterns
+    const isPlaceholder = section.content && (
+      section.content.includes("We're preparing your personalized insights") ||
+      section.content.includes("This is a simplified view") ||
+      section.content.includes("For a complete analysis with detailed timing windows")
+    );
+    return (hasContent || hasBullets) && !isPlaceholder;
+  });
+  
   // CRITICAL FIX (2026-01-18 - ChatGPT Task 2): Fallback for empty/invalid AI response
   // If no sections were parsed or response is empty, create minimal report with 2-3 sections
   // This prevents blank screen when AI parsing fails completely
-  if (sections.length === 0 || !response || response.trim().length === 0) {
-    console.warn("[parseAIResponse] No sections parsed or empty response - creating fallback report", {
+  // NOTE: For year-analysis, we skip generic fallback and let ensureMinimumSections handle it with specific sections
+  if (meaningfulSections.length === 0 || !response || response.trim().length === 0) {
+    console.warn("[parseAIResponse] No meaningful sections parsed or empty response - creating fallback report", {
       reportType,
       responseLength: response?.length || 0,
       sectionsBeforeFallback: sections.length,
+      meaningfulSections: meaningfulSections.length,
     });
     
-    // Create minimal fallback report with 2-3 sections
-    sections.push({
-      title: "Overview",
-      content: "We're preparing your personalized insights. This is a simplified view of your report.",
-    });
-    sections.push({
-      title: "Next Steps",
-      content: "For a complete analysis with detailed timing windows and guidance, please try generating the report again. Our system uses AI and astrological calculations to provide comprehensive insights.",
-    });
+    // Clear sections array to start fresh with fallback sections
+    sections.length = 0;
+    
+    // For year-analysis, skip generic fallback - ensureMinimumSections will add specific sections
+    if (reportType !== "year-analysis") {
+      // Create minimal fallback report with 2-3 sections for other report types
+      sections.push({
+        title: "Overview",
+        content: "We're preparing your personalized insights. This is a simplified view of your report.",
+      });
+      sections.push({
+        title: "Next Steps",
+        content: "For a complete analysis with detailed timing windows and guidance, please try generating the report again. Our system uses AI and astrological calculations to provide comprehensive insights.",
+      });
+    }
+    // For year-analysis, sections array remains empty and ensureMinimumSections will populate it with specific sections
+  } else {
+    // Use meaningful sections instead of all sections
+    sections.length = 0;
+    sections.push(...meaningfulSections);
   }
 
   // Build the report object
