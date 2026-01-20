@@ -1022,10 +1022,9 @@ function PreviewContent() {
       };
 
       // Individual timeout for each report (match server timeout + buffer)
-      // Server timeout: 60s (regular) or 75s (complex), use the longer one for bundles to be safe
-      // Optimized for faster generation
+      // Server timeout: 60s (regular), 65s (free), or 120s (complex/career-money), use the longer one for bundles to be safe
       // Client timeout should be slightly longer to account for network overhead
-      const INDIVIDUAL_REPORT_TIMEOUT = 80000; // 80s - slightly longer than server max (75s, optimized)
+      const INDIVIDUAL_REPORT_TIMEOUT = 130000; // 130s - slightly longer than server max (120s for complex reports)
 
       const reportPromises = reports.map(async (reportType) => {
         const reportName = getReportName(reportType);
@@ -1161,15 +1160,21 @@ function PreviewContent() {
         setBundleContents(bundleContentsMap);
         // Set the first successful report as the primary report for display
         // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
-        const bundleContent = bundleContentsMap.get(reports[0]) || bundleContentsMap.values().next().value || null;
+        // CRITICAL FIX: Use the first report in the bundle order, not the first success
+        // This ensures we show reports in the expected order even if some fail
+        const primaryReportType = reports.find(rt => bundleContentsMap.has(rt)) || successes[0].reportType;
+        const bundleContent = bundleContentsMap.get(primaryReportType) || bundleContentsMap.values().next().value || null;
         const sessionIdFromUrl = searchParams.get("session_id");
         const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
         const cleanedBundleContent = bundleContent ? stripMockContent(bundleContent, isTestSession) : null;
         setReportContent(cleanedBundleContent);
         setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
-        reportTypeRef.current = successes[0].reportType; // Update ref immediately
-        setReportType(successes[0].reportType);
+        reportTypeRef.current = primaryReportType; // Update ref immediately
+        setReportType(primaryReportType);
         setBundleProgress(null);
+        
+        // CRITICAL FIX: Log bundle completion with success/failure details for debugging
+        console.log(`[BUNDLE COMPLETE] ${successes.length}/${reports.length} reports succeeded. Successful: ${successes.map(s => getReportName(s.reportType)).join(", ")}, Failed: ${failures.map(f => getReportName(f.reportType)).join(", ")}`);
 
         // If there were failures, show a warning but don't block the user
         if (failures.length > 0) {

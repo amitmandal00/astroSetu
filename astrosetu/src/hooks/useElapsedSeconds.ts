@@ -24,14 +24,24 @@ export function useElapsedSeconds(
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // CRITICAL FIX: If not running, ALWAYS reset to 0 and stop timer
-    // This ensures timer stops immediately when loading becomes false
+    // CRITICAL FIX: If not running, stop timer but DON'T reset elapsed time if startTime is still set
+    // This prevents timer from resetting during brief state transitions (e.g., bundle generation)
+    // Only reset elapsed time when startTime is null (generation hasn't started or has fully completed)
     if (!isRunning) {
-      setElapsed(0);
+      // Always stop the interval when not running
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      // Only reset elapsed time if startTime is null (generation fully completed or never started)
+      const currentStartTime = startTime ?? startTimeRef?.current ?? null;
+      if (!currentStartTime) {
+        setElapsed(0);
+        return;
+      }
+      // If startTime exists but not running, keep showing last elapsed time (don't reset)
+      // This prevents timer from resetting during brief state transitions
+      // The elapsed time will be computed below if isRunning becomes true again
       return;
     }
 
