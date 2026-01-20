@@ -465,6 +465,34 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
         )
       : null;
 
+  // Year-analysis specific section titles for robust parsing
+  const yearAnalysisTitleSet =
+    reportType === "year-analysis"
+      ? new Set(
+          [
+            "decision anchor",
+            "year strategy",
+            "year theme",
+            "year-at-a-glance summary",
+            "year at a glance",
+            "quarter-by-quarter breakdown",
+            "quarterly breakdown",
+            "best periods",
+            "favorable periods",
+            "low-return periods",
+            "caution periods",
+            "focus areas by month",
+            "monthly focus",
+            "year scorecard",
+            "what to do this year",
+            "year-end outlook",
+            "what this means for you",
+            "confidence level",
+            "data source",
+          ].map((s) => s.toLowerCase())
+        )
+      : null;
+
   for (const line of lines) {
     const trimmed = line.trim();
     const normalizedTitle = trimmed.replace(/^#{1,3}\s+/, "").replace(/:$/, "").trim().toLowerCase();
@@ -472,6 +500,13 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     // Life-summary robustness: LLMs sometimes output headings without ":" / "#" even when instructed.
     // If we fail to detect headings, the report collapses into 1 big section and feels "thin".
     if (lifeSummaryTitleSet && lifeSummaryTitleSet.has(normalizedTitle)) {
+      if (currentSection) sections.push(currentSection);
+      currentSection = { title: trimmed.replace(/:$/, "").trim(), content: "" };
+      continue;
+    }
+
+    // Year-analysis robustness: Handle section titles that may not have standard formatting
+    if (yearAnalysisTitleSet && yearAnalysisTitleSet.has(normalizedTitle)) {
       if (currentSection) sections.push(currentSection);
       currentSection = { title: trimmed.replace(/:$/, "").trim(), content: "" };
       continue;
@@ -683,6 +718,68 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
         sections.push({
           title: "Guidance for Different Types of Decisions",
           content: "Different types of decisions require different approaches based on astrological timing. Career decisions benefit from analyzing the 10th house and career-related planets. Relationship decisions involve the 7th house and Venus influences. Financial decisions relate to the 2nd and 11th houses. Understanding which astrological factors apply to your specific decision type provides more targeted guidance.",
+        });
+      }
+    } else if (reportType === "year-analysis") {
+      // Add comprehensive fallback sections for year-analysis reports
+      if (!existingTitles.has("year strategy") && !existingTitles.has("strategic focus") && !existingTitles.has("year focus")) {
+        sections.push({
+          title: "Year Strategy",
+          content: "This year presents opportunities for strategic growth across multiple life areas. Focus on building momentum in areas aligned with your planetary influences. Some periods favor taking action, while others require patience and preparation. Understanding the overall strategic direction helps you make the most of favorable timing windows throughout the year.",
+          bullets: [
+            "What to push: Focus on areas where planetary influences are strongest",
+            "What to avoid: Minimize energy in areas with challenging transits",
+            "What to prepare for: Anticipate opportunities coming later in the year"
+          ],
+        });
+      }
+      if (!existingTitles.has("year theme") && !existingTitles.has("overall theme") && !existingTitles.has("year overview")) {
+        sections.push({
+          title: "Year Theme",
+          content: "This year's overall theme reflects the major planetary influences and Dasha periods affecting your life. The theme provides strategic direction for how to approach the year as a whole, helping you align your actions with the prevailing astrological energies.",
+        });
+      }
+      if (!existingTitles.has("year-at-a-glance") && !existingTitles.has("year summary") && !existingTitles.has("at a glance")) {
+        sections.push({
+          title: "Year-at-a-Glance Summary",
+          content: "A quick overview of the year's key themes, opportunities, and areas requiring attention. This summary helps you understand the big picture before diving into detailed quarterly and monthly guidance.",
+          bullets: [
+            "Overall theme: Strategic growth and development",
+            "Main opportunity area: Areas aligned with favorable planetary transits",
+            "Main challenge area: Periods requiring careful navigation",
+            "Where to be cautious: Times when patience is more valuable than action",
+            "Where to invest energy: Periods with strongest favorable influences"
+          ],
+        });
+      }
+      if (!existingTitles.has("quarter") && !existingTitles.has("quarterly") && !existingTitles.has("q1") && !existingTitles.has("q2") && !existingTitles.has("q3") && !existingTitles.has("q4")) {
+        sections.push({
+          title: "Quarter-by-Quarter Breakdown",
+          content: "Each quarter of the year has distinct themes and focus areas. Q1 typically involves planning and foundation building. Q2 often brings momentum and growth opportunities. Q3 may involve consolidation and adjustment. Q4 focuses on preparation for the year ahead. Understanding quarterly themes helps you align your actions with each period's energy.",
+        });
+      }
+      if (!existingTitles.has("best periods") && !existingTitles.has("favorable periods") && !existingTitles.has("optimal timing")) {
+        sections.push({
+          title: "Best Periods",
+          content: "Certain months and periods throughout the year are more favorable for specific types of activities. These periods align with positive planetary transits and Dasha influences. Understanding these timing windows helps you schedule important activities and decisions for maximum benefit.",
+        });
+      }
+      if (!existingTitles.has("low-return") && !existingTitles.has("challenging periods") && !existingTitles.has("caution periods")) {
+        sections.push({
+          title: "Low-Return Periods",
+          content: "Some periods during the year may be less favorable for certain activities. These periods require more patience and careful planning. Rather than avoiding action entirely, use these times for preparation, reflection, and building foundations for future opportunities.",
+        });
+      }
+      if (!existingTitles.has("what to do") && !existingTitles.has("action items") && !existingTitles.has("recommendations")) {
+        sections.push({
+          title: "What to Do This Year",
+          content: "Strategic actions to take throughout the year based on astrological guidance. These recommendations align with favorable timing windows and help you make the most of the year's opportunities while navigating challenges effectively.",
+          bullets: [
+            "Strengthen areas aligned with favorable planetary influences",
+            "Focus on strategic planning during favorable periods",
+            "Use challenging periods for preparation and foundation building",
+            "Align major decisions with optimal timing windows"
+          ],
         });
       }
     }
