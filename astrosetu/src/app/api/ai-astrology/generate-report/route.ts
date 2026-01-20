@@ -623,7 +623,10 @@ export async function POST(req: Request) {
     // prodtest_ sessions are for production test users who should always get fresh real reports
     const shouldBypassCacheForTestUser = isTestUserForIdempotency && !mockModeEnvForIdempotency && isProdTestSession;
     
-    const idempotencyKey = generateIdempotencyKey(input, reportType, fallbackSessionId);
+    // CRITICAL FIX: For test users, add timestamp to idempotency key to force fresh reports
+    // This ensures test users always get new reports with latest fixes, not cached ones
+    const testUserSuffix = shouldBypassCacheForTestUser ? `-fresh-${Date.now()}` : "";
+    const idempotencyKey = generateIdempotencyKey(input, reportType, fallbackSessionId) + testUserSuffix;
 
     const storedExisting = await getStoredReportByIdempotencyKey(idempotencyKey);
     if (storedExisting) {
@@ -784,32 +787,42 @@ export async function POST(req: Request) {
           }
         }
         if (processing.existing.status === "completed" && processing.existing.content) {
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
-          const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(processing.existing.report_id)}&reportType=${encodeURIComponent(reportType)}`;
-          const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
-          return NextResponse.json(
-            {
-              ok: true,
-              data: {
-                status: "completed" as const,
-                reportId: processing.existing.report_id,
-                reportType: processing.existing.report_type,
-                input: processing.existing.input,
-                content: processing.existing.content,
-                generatedAt: processing.existing.updated_at,
-                redirectUrl,
-                fullRedirectUrl,
-                fromCache: true,
+          // CRITICAL FIX: For test users, bypass cache even if report is marked as completed
+          // This ensures test users always get fresh reports with latest fixes
+          if (shouldBypassCacheForTestUser) {
+            console.log(`[CACHE BYPASS] Test user with ${isProdTestSession ? 'prodtest_' : 'test_session_'}* should get real report, bypassing completed cached report. requestId=${requestId}, reportId=${processing.existing.report_id}, isTestUser=${isTestUserForIdempotency}, isTestSession=${isTestSession}, isProdTestSession=${isProdTestSession}`);
+            // Don't return cached report - continue to generate new real report
+            // Reuse the existing reportId to avoid creating duplicate entries
+            reportId = processing.existing.report_id;
+            bypassInMemoryLock = true;
+          } else {
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+            const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(processing.existing.report_id)}&reportType=${encodeURIComponent(reportType)}`;
+            const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+            return NextResponse.json(
+              {
+                ok: true,
+                data: {
+                  status: "completed" as const,
+                  reportId: processing.existing.report_id,
+                  reportType: processing.existing.report_type,
+                  input: processing.existing.input,
+                  content: processing.existing.content,
+                  generatedAt: processing.existing.updated_at,
+                  redirectUrl,
+                  fullRedirectUrl,
+                  fromCache: true,
+                },
+                requestId,
               },
-              requestId,
-            },
-            {
-              headers: {
-                "X-Request-ID": requestId,
-                "Cache-Control": "no-cache",
-              },
-            }
-          );
+              {
+                headers: {
+                  "X-Request-ID": requestId,
+                  "Cache-Control": "no-cache",
+                },
+              }
+            );
+          }
         }
       }
     } catch (e: any) {
