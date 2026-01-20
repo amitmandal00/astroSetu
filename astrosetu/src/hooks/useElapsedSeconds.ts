@@ -26,6 +26,9 @@ export function useElapsedSeconds(
   // CRITICAL: Don't store elapsedTime as state - compute it
   const [elapsed, setElapsed] = useState<number>(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // CRITICAL FIX: Use local mutable ref to store restored time from sessionStorage
+  // This avoids trying to modify the read-only RefObject.current
+  const restoredStartTimeRef = useRef<number | null>(null);
   
   // CRITICAL FIX (ChatGPT Feedback): Persist timer start in sessionStorage
   // This prevents timer from resetting when component remounts
@@ -48,14 +51,12 @@ export function useElapsedSeconds(
           const now = Date.now();
           const maxAge = 24 * 60 * 60 * 1000; // 24 hours
           if (now - storedTime < maxAge) {
-            // Restore start time from sessionStorage
-            if (startTimeRef) {
-              startTimeRef.current = storedTime;
-            }
-            // Note: We can't set startTime state here as it's a prop, but the ref will be used
+            // Restore start time from sessionStorage to local mutable ref
+            restoredStartTimeRef.current = storedTime;
           } else {
             // Stored time is too old, clear it
             sessionStorage.removeItem(key);
+            restoredStartTimeRef.current = null;
           }
         }
       }
@@ -70,10 +71,14 @@ export function useElapsedSeconds(
     const key = getStorageKey();
     if (!key || typeof window === "undefined") return;
     
-    const currentStartTime = startTime ?? startTimeRef?.current ?? null;
+    const currentStartTime = startTime ?? startTimeRef?.current ?? restoredStartTimeRef.current ?? null;
     if (currentStartTime) {
       try {
         sessionStorage.setItem(key, String(currentStartTime));
+        // Also update restored ref if we're using it
+        if (!startTime && !startTimeRef?.current) {
+          restoredStartTimeRef.current = currentStartTime;
+        }
       } catch (e) {
         // Ignore sessionStorage errors
         console.warn("[useElapsedSeconds] Failed to write to sessionStorage:", e);
@@ -82,6 +87,7 @@ export function useElapsedSeconds(
       // Clear storage when start time is cleared (generation completed)
       try {
         sessionStorage.removeItem(key);
+        restoredStartTimeRef.current = null;
       } catch (e) {
         // Ignore sessionStorage errors
       }
@@ -99,7 +105,7 @@ export function useElapsedSeconds(
         intervalRef.current = null;
       }
       // Only reset elapsed time if startTime is null (generation fully completed or never started)
-      const currentStartTime = startTime ?? startTimeRef?.current ?? null;
+      const currentStartTime = startTime ?? startTimeRef?.current ?? restoredStartTimeRef.current ?? null;
       if (!currentStartTime) {
         setElapsed(0);
         return;
@@ -113,7 +119,8 @@ export function useElapsedSeconds(
     // CRITICAL: Compute elapsed time immediately (don't wait for interval)
     const computeElapsed = () => {
       // Use ref if state is still null (race condition fix)
-      const currentStartTime = startTime ?? startTimeRef?.current ?? null;
+      // Also check restored time from sessionStorage
+      const currentStartTime = startTime ?? startTimeRef?.current ?? restoredStartTimeRef.current ?? null;
       if (!currentStartTime) return 0;
       const elapsed = Math.floor((Date.now() - currentStartTime) / 1000);
       // CRITICAL FIX: Clamp to 0 (can't have negative elapsed time for future startTime)
@@ -130,7 +137,7 @@ export function useElapsedSeconds(
     intervalRef.current = setInterval(() => {
       // CRITICAL FIX: Check if still running on each interval
       // This prevents timer from continuing if loading was set to false
-      const currentStartTime = startTime ?? startTimeRef?.current ?? null;
+      const currentStartTime = startTime ?? startTimeRef?.current ?? restoredStartTimeRef.current ?? null;
       if (!currentStartTime) {
         setElapsed(0);
         return;
