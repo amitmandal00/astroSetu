@@ -336,11 +336,17 @@ export async function POST(req: Request) {
         return undefined;
       }
     })();
-    const isTestSession = !!sessionIdFromQuery && sessionIdFromQuery.startsWith("test_session_");
+    // CRITICAL FIX: Distinguish between demo test sessions (test_session_) and prod test users (prodtest_)
+    // test_session_ = demo mode (mock reports)
+    // prodtest_ = production test users (real reports)
+    const isDemoTestSession = !!sessionIdFromQuery && sessionIdFromQuery.startsWith("test_session_");
+    const isProdTestSession = !!sessionIdFromQuery && sessionIdFromQuery.startsWith("prodtest_");
+    const isTestSession = isDemoTestSession || isProdTestSession;
     
     // IMMEDIATE LOG: Always log for test sessions (before any other logic)
     if (isTestSession) {
-      console.log(`[TEST SESSION DETECTED] ${sessionIdFromQuery}`);
+      const sessionType = isProdTestSession ? "PROD_TEST" : "DEMO";
+      console.log(`[TEST SESSION DETECTED] type=${sessionType}, sessionId=${sessionIdFromQuery}`);
     }
     
     // Stricter rate limiting for report generation (production-ready)
@@ -409,16 +415,21 @@ export async function POST(req: Request) {
     const forceRealReportsEnv = parseEnvBoolean(process.env.FORCE_REAL_REPORTS);
     
     // Calculate mode flags early (will be recalculated later with full context, but log early for debugging)
-    // Include test user priority in early calculation
+    // CRITICAL FIX: prodtest_ sessions should NOT trigger mock mode (they're for prod test users who want real reports)
+    // Only test_session_ (demo) should trigger mock mode for non-test-users
+    const isDemoTestSessionForMode = isDemoTestSession && !isTestUserForAccess;
     const shouldUseRealModeForTestUserEarly = isTestUserForAccess && !mockModeEnv;
-    const shouldUseRealModeEarly = forceRealMode || allowRealForTestSessions || forceRealReportsEnv || shouldUseRealModeForTestUserEarly;
-    const mockModeEarly = mockModeEnv || (isTestSession && !shouldUseRealModeEarly);
+    const shouldUseRealModeEarly = forceRealMode || allowRealForTestSessions || forceRealReportsEnv || shouldUseRealModeForTestUserEarly || isProdTestSession;
+    const mockModeEarly = mockModeEnv || (isDemoTestSessionForMode && !shouldUseRealModeEarly);
     
     // CRITICAL: [DEPLOY CHECK] log at top of handler (before any returns)
     // This helps diagnose deployment mismatches and env var issues immediately
     console.log(`[DEPLOY CHECK] requestId=${requestId}, buildId=${buildMetadata.buildId || "unknown"}, commitSha=${buildMetadata.fullSha?.substring(0, 7) || "unknown"}`);
     console.log(`[DEPLOY CHECK] allowRealForTestSessions=${allowRealForTestSessions} (raw="${process.env.ALLOW_REAL_FOR_TEST_SESSIONS || "undefined"}"), mockModeEnv=${mockModeEnv} (raw="${process.env.MOCK_MODE || "undefined"}"), forceRealReportsEnv=${forceRealReportsEnv} (raw="${process.env.FORCE_REAL_REPORTS || "undefined"}")`);
-    console.log(`[DEPLOY CHECK] isTestSession=${isTestSession}, isTestUserForAccess=${isTestUserForAccess}, shouldUseRealMode=${shouldUseRealModeEarly}, mockMode=${mockModeEarly}`);
+    console.log(`[DEPLOY CHECK] isTestSession=${isTestSession}, isDemoTestSession=${isDemoTestSession}, isProdTestSession=${isProdTestSession}, isTestUserForAccess=${isTestUserForAccess}, shouldUseRealMode=${shouldUseRealModeEarly}, mockMode=${mockModeEarly}`);
+    
+    // CRITICAL: [MODE] log - consolidated mode information for debugging
+    console.log(`[MODE] requestId=${requestId}, sessionIdPrefix=${sessionIdFromQuery ? (isProdTestSession ? "prodtest_" : isDemoTestSession ? "test_session_" : "none") : "none"}, isTestSession=${isTestSession}, isDemoTestSession=${isDemoTestSession}, isProdTestSession=${isProdTestSession}, isTestUserForAccess=${isTestUserForAccess}, mockMode=${mockModeEarly}, realMode=${shouldUseRealModeEarly}, env.ALLOW_REAL_FOR_TEST_SESSIONS=${allowRealForTestSessions}, env.MOCK_MODE=${mockModeEnv}`);
     
     // Log request details for debugging (anonymized)
     const requestDetailsLog = {
@@ -1287,9 +1298,11 @@ export async function POST(req: Request) {
     
     // CRITICAL: Test users (isTestUserForAccess) should get REAL reports by default
     // Use centralized calculation function for consistency and testability
+    // CRITICAL FIX: Pass isDemoTestSession (not isTestSession) so prodtest_ sessions don't trigger mock mode
+    // prodtest_ sessions are for production test users who should always get real reports
     // Reuse isTestUser from earlier declaration (line 444) - no need to recalculate
     const { shouldUseRealMode, mockMode } = calculateReportMode({
-      isTestSession,
+      isTestSession: isDemoTestSession, // Only demo test sessions should trigger mock mode logic
       isTestUserForAccess: isTestUser,
       forceRealMode,
       allowRealForTestSessions: allowRealForTestSessionsFinal,

@@ -240,6 +240,36 @@ describe("envParsing", () => {
         expect(result.shouldUseRealMode).toBe(true);
         expect(result.mockMode).toBe(false);
       });
+
+      it("should use real mode for test user with prodtest_ session (prodtest_ should not trigger mock mode)", () => {
+        // prodtest_ sessions are for production test users and should always get real reports
+        // This test verifies that prodtest_ sessions don't trigger mock mode logic
+        // (In practice, isTestSession=false is passed for prodtest_ sessions)
+        const result = calculateReportMode({
+          isTestSession: false, // prodtest_ sessions don't count as "test session" for mock mode
+          isTestUserForAccess: true,
+          forceRealMode: false,
+          allowRealForTestSessions: false,
+          mockModeEnv: false,
+          forceRealReportsEnv: false,
+        });
+        expect(result.shouldUseRealMode).toBe(true);
+        expect(result.mockMode).toBe(false);
+      });
+
+      it("should use mock mode for non-test user with test_session_ (demo mode)", () => {
+        // test_session_ sessions for non-test-users should use mock mode
+        const result = calculateReportMode({
+          isTestSession: true, // test_session_ counts as test session
+          isTestUserForAccess: false,
+          forceRealMode: false,
+          allowRealForTestSessions: false,
+          mockModeEnv: false,
+          forceRealReportsEnv: false,
+        });
+        expect(result.shouldUseRealMode).toBe(false);
+        expect(result.mockMode).toBe(true);
+      });
     });
   });
 });

@@ -247,8 +247,11 @@ export async function POST(req: Request) {
       }
       
       // Include reportType in session ID for test sessions so verify-payment can extract it
+      // CRITICAL FIX: Use prodtest_ prefix for production test users, test_session_ for demo mode
+      // This ensures test users get real reports while demo mode gets mock reports
       const reportTypeStr = subscription ? "subscription" : (reportType || "marriage-timing");
-      const mockSessionId = `test_session_${reportTypeStr}_${requestId}`;
+      const sessionPrefix = (isTestUser && !isDemoMode) ? "prodtest_" : "test_session_";
+      const mockSessionId = `${sessionPrefix}${reportTypeStr}_${requestId}`;
 
       // If caller provided a Stripe-style template URL (with {CHECKOUT_SESSION_ID}), substitute it for mock mode.
       const substitutedSuccessUrl =
