@@ -40,6 +40,7 @@ import {
   type ReportErrorCode,
 } from "@/lib/ai-astrology/reportStore";
 import { validateReportBeforeCompletion } from "@/lib/ai-astrology/reportValidation";
+import { parseEnvBoolean, calculateReportMode } from "@/lib/envParsing";
 
 function getMaxProcessingMs(reportType: ReportType): number {
   // Upper bound watchdog. Without heartbeats in serverless, "processing" can become permanent if a function times out.
@@ -383,6 +384,41 @@ export async function POST(req: Request) {
     const urlParams = new URL(req.url).searchParams;
     const useRealFromQuery = urlParams.get("use_real") === "true" || urlParams.get("force_real") === "true";
     const forceRealMode = useReal === true || useRealFromQuery;
+    
+    // CRITICAL: Early deployment check log (before any returns)
+    // Load build.json to get buildId for deployment verification
+    let buildMetadata: { buildId?: string; fullSha?: string; builtAt?: string } = {};
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const buildJsonPath = path.join(process.cwd(), "public", "build.json");
+      if (fs.existsSync(buildJsonPath)) {
+        const buildJsonContent = fs.readFileSync(buildJsonPath, "utf-8");
+        buildMetadata = JSON.parse(buildJsonContent);
+      }
+    } catch (buildJsonError) {
+      // Non-critical - build.json might not exist in all environments
+    }
+    
+    // Check test user status early (needed for deploy check log)
+    const isTestUserForAccess = input ? isProdTestUser(input) : false;
+    
+    // Parse environment variables with case-insensitive parsing
+    const allowRealForTestSessions = parseEnvBoolean(process.env.ALLOW_REAL_FOR_TEST_SESSIONS);
+    const mockModeEnv = parseEnvBoolean(process.env.MOCK_MODE);
+    const forceRealReportsEnv = parseEnvBoolean(process.env.FORCE_REAL_REPORTS);
+    
+    // Calculate mode flags early (will be recalculated later with full context, but log early for debugging)
+    // Include test user priority in early calculation
+    const shouldUseRealModeForTestUserEarly = isTestUserForAccess && !mockModeEnv;
+    const shouldUseRealModeEarly = forceRealMode || allowRealForTestSessions || forceRealReportsEnv || shouldUseRealModeForTestUserEarly;
+    const mockModeEarly = mockModeEnv || (isTestSession && !shouldUseRealModeEarly);
+    
+    // CRITICAL: [DEPLOY CHECK] log at top of handler (before any returns)
+    // This helps diagnose deployment mismatches and env var issues immediately
+    console.log(`[DEPLOY CHECK] requestId=${requestId}, buildId=${buildMetadata.buildId || "unknown"}, commitSha=${buildMetadata.fullSha?.substring(0, 7) || "unknown"}`);
+    console.log(`[DEPLOY CHECK] allowRealForTestSessions=${allowRealForTestSessions} (raw="${process.env.ALLOW_REAL_FOR_TEST_SESSIONS || "undefined"}"), mockModeEnv=${mockModeEnv} (raw="${process.env.MOCK_MODE || "undefined"}"), forceRealReportsEnv=${forceRealReportsEnv} (raw="${process.env.FORCE_REAL_REPORTS || "undefined"}")`);
+    console.log(`[DEPLOY CHECK] isTestSession=${isTestSession}, isTestUserForAccess=${isTestUserForAccess}, shouldUseRealMode=${shouldUseRealModeEarly}, mockMode=${mockModeEarly}`);
     
     // Log request details for debugging (anonymized)
     const requestDetailsLog = {
@@ -1210,42 +1246,74 @@ export async function POST(req: Request) {
     console.log("[GENERATION START]", JSON.stringify(generationStartLog, null, 2));
 
     // MOCK_MODE: Return mock data for testing/development (prevents external API calls)
-    // IMPORTANT: test_session_* normally uses mock generation even in production to keep test flows fast and reliable.
-    // However, you can force real mode by:
+    // CRITICAL FIX (ChatGPT Feedback): Case-insensitive env parsing + test user priority
+    // 
+    // Rules:
+    // 1. If isTestUserForAccess === true (prod test user), default to REAL mode even for test_session_*
+    //    unless MOCK_MODE is explicitly true (allows override for explicit testing)
+    // 2. For non-test-users with test_session_*: use mock unless ALLOW_REAL_FOR_TEST_SESSIONS=true
+    // 3. MOCK_MODE=true overrides everything (explicit dev/demo mode)
+    // 4. Environment variables are parsed case-insensitively (true/TRUE/True/1 all work)
+    //
+    // You can force real mode by:
     //   1. Setting useReal=true in request body, OR
     //   2. Adding ?use_real=true or ?force_real=true to URL query params
-    //   3. Setting ALLOW_REAL_FOR_TEST_SESSIONS=true environment variable
-    // CRITICAL: Check environment variable for real reports for test sessions
-    const envVarRaw = process.env.ALLOW_REAL_FOR_TEST_SESSIONS;
-    const allowRealForTestSessions = envVarRaw === "true";
-    const shouldUseRealMode = forceRealMode || allowRealForTestSessions;
-    const mockMode = (isTestSession && !shouldUseRealMode) || process.env.MOCK_MODE === "true";
+    //   3. Setting ALLOW_REAL_FOR_TEST_SESSIONS=true environment variable (case-insensitive)
+    //   4. Being a prod test user (isTestUserForAccess === true)
+    
+    // Parse environment variables with case-insensitive parsing (already done above, but recalculate with full context)
+    const allowRealForTestSessionsFinal = parseEnvBoolean(process.env.ALLOW_REAL_FOR_TEST_SESSIONS);
+    const mockModeEnvFinal = parseEnvBoolean(process.env.MOCK_MODE);
+    const forceRealReportsEnvFinal = parseEnvBoolean(process.env.FORCE_REAL_REPORTS);
+    
+    // CRITICAL: Test users (isTestUserForAccess) should get REAL reports by default
+    // Use centralized calculation function for consistency and testability
+    const isTestUser = isProdTestUser(input);
+    const { shouldUseRealMode, mockMode } = calculateReportMode({
+      isTestSession,
+      isTestUserForAccess: isTestUser,
+      forceRealMode,
+      allowRealForTestSessions: allowRealForTestSessionsFinal,
+      mockModeEnv: mockModeEnvFinal,
+      forceRealReportsEnv: forceRealReportsEnvFinal,
+    });
     
     // CRITICAL DEBUG: Log environment variable check (ALWAYS log for test sessions)
     // Using simple console.log format for better visibility in Vercel logs
-    if (isTestSession) {
-      console.log(`[REAL MODE CHECK] requestId=${requestId}, sessionId=${sessionIdFromQuery}`);
-      console.log(`[REAL MODE CHECK] envVarRaw="${envVarRaw || "undefined"}", allowRealForTestSessions=${allowRealForTestSessions}`);
-      console.log(`[REAL MODE CHECK] forceRealMode=${forceRealMode}, shouldUseRealMode=${shouldUseRealMode}, mockMode=${mockMode}`);
-      console.log(`[REAL MODE CHECK] MOCK_MODE="${process.env.MOCK_MODE || "undefined"}"`);
+    if (isTestSession || isTestUser) {
+      console.log(`[REAL MODE CHECK] requestId=${requestId}, sessionId=${sessionIdFromQuery || "N/A"}`);
+      console.log(`[REAL MODE CHECK] isTestUser=${isTestUser}, isTestSession=${isTestSession}`);
+      console.log(`[REAL MODE CHECK] allowRealForTestSessions=${allowRealForTestSessionsFinal} (raw="${process.env.ALLOW_REAL_FOR_TEST_SESSIONS || "undefined"}"), mockModeEnv=${mockModeEnvFinal} (raw="${process.env.MOCK_MODE || "undefined"}")`);
+      console.log(`[REAL MODE CHECK] forceRealMode=${forceRealMode}, shouldUseRealModeForTestUser=${shouldUseRealModeForTestUser}, shouldUseRealMode=${shouldUseRealMode}, mockMode=${mockMode}`);
       
       // Also log all related env vars
       const relatedEnvVars = Object.keys(process.env)
-        .filter(k => k.includes("ALLOW") || k.includes("REAL") || k.includes("MOCK"))
+        .filter(k => k.includes("ALLOW") || k.includes("REAL") || k.includes("MOCK") || k.includes("FORCE"))
         .map(k => `${k}=${process.env[k]}`);
       console.log(`[REAL MODE CHECK] Related env vars: ${relatedEnvVars.join(", ") || "NONE"}`);
     }
     
-    // Log when real mode is enabled for test sessions
-    if (isTestSession && shouldUseRealMode) {
-      const reason = forceRealMode ? "explicit request (URL/body)" : "environment variable (ALLOW_REAL_FOR_TEST_SESSIONS=true)";
-      console.log(`[TEST SESSION - REAL MODE ENABLED] requestId=${requestId}, reason=${reason}`);
-      console.log(`[TEST SESSION - REAL MODE ENABLED] envVarRaw="${envVarRaw || "undefined"}", allowRealForTestSessions=${allowRealForTestSessions}`);
+    // Log when real mode is enabled for test sessions or test users
+    if ((isTestSession || isTestUser) && shouldUseRealMode) {
+      let reason = "unknown";
+      if (mockModeEnvFinal) {
+        reason = "MOCK_MODE override (should not happen if real mode enabled)";
+      } else if (forceRealMode) {
+        reason = "explicit request (URL/body)";
+      } else if (isTestUser && !mockModeEnvFinal) {
+        reason = "prod test user (isTestUserForAccess=true)";
+      } else if (allowRealForTestSessionsFinal) {
+        reason = "environment variable (ALLOW_REAL_FOR_TEST_SESSIONS=true)";
+      } else if (forceRealReportsEnvFinal) {
+        reason = "environment variable (FORCE_REAL_REPORTS=true)";
+      }
+      console.log(`[TEST SESSION/USER - REAL MODE ENABLED] requestId=${requestId}, reason=${reason}`);
+      console.log(`[TEST SESSION/USER - REAL MODE ENABLED] isTestUser=${isTestUser}, isTestSession=${isTestSession}, mockMode=${mockMode}`);
     }
     
     // Log when mock mode is being used for test sessions
-    if (isTestSession && mockMode) {
-      console.log(`[TEST SESSION - MOCK MODE] requestId=${requestId}, shouldUseRealMode=${shouldUseRealMode}, allowRealForTestSessions=${allowRealForTestSessions}`);
+    if ((isTestSession || isTestUser) && mockMode) {
+      console.log(`[TEST SESSION/USER - MOCK MODE] requestId=${requestId}, shouldUseRealMode=${shouldUseRealMode}, mockModeEnv=${mockModeEnvFinal}, isTestUser=${isTestUser}`);
     }
     
     if (mockMode) {
