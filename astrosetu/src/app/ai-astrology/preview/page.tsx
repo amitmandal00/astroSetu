@@ -90,6 +90,7 @@ function PreviewContent() {
     return fromUrl && valid.includes(fromUrl) ? fromUrl : "life-summary";
   });
   const [reportContent, setReportContent] = useState<ReportContent | null>(null);
+  const [qualityWarning, setQualityWarning] = useState<"shorter_than_expected" | "below_optimal_length" | "content_repair_applied" | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
@@ -673,6 +674,12 @@ function PreviewContent() {
                     // CRITICAL FIX: Update React state with cleaned report content
                     // This ensures the report is displayed even if navigation doesn't happen
                     setReportContent(cleanedContent);
+                    // Capture quality warning if present
+                    if (statusData.data.qualityWarning) {
+                      setQualityWarning(statusData.data.qualityWarning);
+                    } else {
+                      setQualityWarning(null);
+                    }
                     if (statusData.data.input) {
                       setInput(statusData.data.input);
                     }
@@ -858,6 +865,12 @@ function PreviewContent() {
         const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
         const cleanedContent = stripMockContent(response.data.content, isTestSession);
         setReportContent(cleanedContent);
+        // Capture quality warning if present
+        if (response.data.qualityWarning) {
+          setQualityWarning(response.data.qualityWarning);
+        } else {
+          setQualityWarning(null);
+        }
         setLoading(false);
         setLoadingStage(null);
         setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
@@ -1010,8 +1023,11 @@ function PreviewContent() {
         paymentIntentId = currentPaymentIntentId;
       }
 
-      // Generate all reports in parallel for faster loading
-      // Use Promise.allSettled to handle partial failures gracefully
+      // CRITICAL FIX (ChatGPT Feedback): Generate reports with concurrency limit (2 concurrent max)
+      // This reduces rate limiting, Vercel function contention, and validation failures
+      // Concurrency=2 balances stability and speed (vs full parallel which causes overload)
+      const CONCURRENCY_LIMIT = 2;
+      
       const completedReports = new Set<ReportType>();
       const updateProgress = (reportType: ReportType, success: boolean) => {
         completedReports.add(reportType);
@@ -1028,7 +1044,8 @@ function PreviewContent() {
       // Client timeout should be slightly longer to account for network overhead
       const INDIVIDUAL_REPORT_TIMEOUT = 130000; // 130s - slightly longer than server max (120s for complex reports)
 
-      const reportPromises = reports.map(async (reportType) => {
+      // Helper function to generate a single report
+      const generateSingleReport = async (reportType: ReportType) => {
         const reportName = getReportName(reportType);
         console.log(`[BUNDLE] Starting generation: ${reportName}`);
         
@@ -1125,29 +1142,35 @@ function PreviewContent() {
             error: friendlyError
           };
         }
-      });
+      };
 
-      // Use Promise.allSettled to wait for all reports (success or failure)
-      const results = await Promise.allSettled(reportPromises);
+      // CRITICAL FIX: Concurrency-limited queue (max 2 concurrent requests)
+      // This prevents rate limiting, Vercel function contention, and reduces validation failures
+      const reportResults: Array<{ reportType: ReportType; content: ReportContent | null; success: boolean; error?: string }> = [];
+      const executing: Promise<void>[] = [];
       
-      // Extract results from settled promises
-      const reportResults = results.map((result, index) => {
-        if (result.status === 'fulfilled') {
-          return result.value;
-        } else {
-          // Promise was rejected (shouldn't happen with our error handling, but handle it)
-          return {
-            reportType: reports[index],
-            content: null,
-            success: false,
-            error: result.reason?.message || "Unexpected error occurred"
-          };
+      for (const reportType of reports) {
+        const promise = generateSingleReport(reportType).then(result => {
+          reportResults.push(result);
+          executing.splice(executing.indexOf(promise), 1);
+        });
+        
+        executing.push(promise);
+        
+        // Wait for a slot if we're at the concurrency limit
+        if (executing.length >= CONCURRENCY_LIMIT) {
+          await Promise.race(executing);
         }
-      });
+      }
+      
+      // Wait for all remaining reports to complete
+      await Promise.all(executing);
       
       // Separate successful and failed reports
       const successes = reportResults.filter(r => r.success);
       const failures = reportResults.filter(r => !r.success);
+      
+      console.log(`[BUNDLE] Completed with concurrency limit (${CONCURRENCY_LIMIT}): ${successes.length} succeeded, ${failures.length} failed`);
       
       // If we have at least one successful report, show partial success
       if (successes.length > 0) {
@@ -4188,6 +4211,28 @@ function PreviewContent() {
 
     return (
       <>
+                {/* Quality Warning Banner */}
+                {qualityWarning && (
+                  <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg shadow-sm">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3 flex-1">
+                        <h3 className="text-sm font-medium text-yellow-800">
+                          Report Quality Notice
+                        </h3>
+                        <div className="mt-2 text-sm text-yellow-700">
+                          <p>
+                            This report is shorter than expected. You can regenerate it for a longer, more detailed version.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Executive Summary (for Full Life Report) */}
                 {type === "full-life" && content?.executiveSummary && (
                   <div id="executive-summary" className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm scroll-mt-20">

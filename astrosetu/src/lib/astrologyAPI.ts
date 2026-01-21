@@ -465,7 +465,7 @@ async function executeProkeralaRequest(endpoint: string, params: Record<string, 
  * Get Kundli (Birth Chart)
  * Enhanced with progressive loading support
  */
-export async function getKundli(input: BirthDetails): Promise<KundliResult & { dosha: DoshaAnalysis; chart: KundliChart }> {
+export async function getKundli(input: BirthDetails): Promise<KundliResult & { dosha: DoshaAnalysis | null; chart: KundliChart }> {
   // If Prokerala is not configured OR coordinates are missing, fall back to local engine.
   if (!isAPIConfigured() || !input.latitude || !input.longitude) {
     if (!isAPIConfigured()) {
@@ -556,18 +556,20 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
           dosha = transformDoshaResponse(doshaResponse, kundli.planets);
           console.log("[AstroSetu] Retrieved dosha from standalone endpoint");
         } catch (doshaError: any) {
-          // If dosha endpoint fails (404), use mock dosha immediately
-          // Suppress verbose error logs for expected 404s
+          // CRITICAL FIX (ChatGPT Feedback Phase 2): Feature omission instead of mock injection
+          // If dosha endpoint fails (404), omit dosha section entirely (don't inject mock)
+          // This prevents mock content from triggering validation failures
           if (!doshaError.message?.includes("404") && !doshaError.message?.includes("No route found")) {
             console.warn("[AstroSetu] Dosha endpoint error:", doshaError?.message?.substring(0, 100));
           }
-          dosha = generateDoshaAnalysis(input, kundli.planets);
+          console.log("[AstroSetu] Dosha endpoint unavailable (404) - omitting dosha section (feature omission)");
+          dosha = null; // Feature omission - don't inject mock content
         }
       }
     } catch (doshaError: any) {
-      console.warn("[AstroSetu] Dosha extraction failed, using mock:", doshaError?.message?.substring(0, 200));
-      // Fallback to mock dosha
-      dosha = generateDoshaAnalysis(input, kundli.planets);
+      // CRITICAL FIX (ChatGPT Feedback Phase 2): Feature omission instead of mock injection
+      console.warn("[AstroSetu] Dosha extraction failed - omitting dosha section (feature omission):", doshaError?.message?.substring(0, 200));
+      dosha = null; // Feature omission - don't inject mock content
     }
     
     // Generate enhanced chart from Prokerala data (extracts actual chart structure)

@@ -168,19 +168,23 @@ async function generateWithOpenAI(
   const callStartTime = Date.now();
   
   // Optimize token counts for faster generation while maintaining quality
-  // Reduced tokens for faster responses:
-  // Free reports: 1400 tokens
-  // Regular paid reports: 1800 tokens - good balance, faster
-  // Complex reports: 2400 tokens (year-analysis, full-life, major-life-phase)
-  // CRITICAL FIX: year-analysis requires 2400 tokens due to many sections (Year Strategy, Year Theme,
-  // Quarter-by-Quarter, Best Periods, Low-Return Periods, What to Do, Year-End Outlook)
-  // Without sufficient tokens, LLM response gets truncated → incomplete sections → placeholder fallback
+  // CRITICAL FIX (ChatGPT Feedback): Increased tokens to match word count requirements
+  // Token-to-word ratio: ~0.75 (1 token ≈ 0.75 words), but actual output is 60-70% of max due to JSON structure
+  // Adjusted thresholds:
+  // - Full-life: 2800 tokens (was 2400) → targets 1300+ words
+  // - Major-life-phase: 2600 tokens (was 2400) → targets 1000+ words
+  // - Year-analysis: 2600 tokens (was 2400) → targets 800+ words (many sections need more room)
+  // - Regular paid: 1800 tokens → targets 800+ words
+  // - Free: 1400 tokens → no strict requirement
   const isComplexReport = reportType === "full-life" || reportType === "major-life-phase" || reportType === "year-analysis";
   const isCareerMoneyReport = reportType === "career-money";
   const isFreeReport = reportType === "life-summary";
-  // Use 2400 tokens for complex reports (increased from 2200 for year-analysis to prevent truncation)
-  // Free life-summary is the primary engagement surface; give it a bit more room to avoid "thin" output.
-  const maxTokens = isComplexReport ? 2400 : (isFreeReport ? 1400 : 1800); // 1400 for free, 1800 for paid, 2400 for complex
+  
+  // Increased tokens for complex reports to meet word count requirements
+  const maxTokens = reportType === "full-life" ? 2800 :  // Was 2400
+                    reportType === "major-life-phase" ? 2600 :  // Was 2400
+                    reportType === "year-analysis" ? 2600 :  // Was 2400
+                    isFreeReport ? 1400 : 1800; // Free: 1400, Regular paid: 1800
   
   // CRITICAL FIX: Increase timeout to match server timeout (120s for complex reports)
   // Server timeout is 120s for complex reports, so client timeout should be slightly less (110s)

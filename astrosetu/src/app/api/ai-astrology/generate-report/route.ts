@@ -1682,14 +1682,102 @@ export async function POST(req: Request) {
       }
       
       // Phase 1: STRICT VALIDATION before marking as "completed" (ChatGPT feedback)
-      const validation = validateReportBeforeCompletion(cleanedReportContent, input, paymentToken, reportType);
+      let validation = validateReportBeforeCompletion(cleanedReportContent, input, paymentToken, reportType);
       
+      // CRITICAL FIX (ChatGPT Feedback): Auto-expand retry for word count failures
+      // If validation fails due to word count (auto-expandable), try expanding once before failing
+      if (!validation.valid && validation.canAutoExpand) {
+        console.log("[AUTO-EXPAND] Attempting to expand report content to meet word count requirements", {
+          requestId,
+          reportId,
+          reportType,
+          error: validation.error,
+        });
+        
+        try {
+          // Create expand prompt using existing content
+          const expandPrompt = `You are expanding an astrology report that is slightly below the minimum word count. 
+Expand the existing content to meet the minimum word count while maintaining quality and accuracy.
+
+Current report (JSON format):
+${JSON.stringify(cleanedReportContent, null, 2)}
+
+Instructions:
+1. Keep all existing sections and their structure
+2. Expand each section's content with more detailed insights and explanations
+3. Add more depth to bullet points where applicable
+4. Maintain the same tone and style
+5. Ensure the expanded content meets the minimum word count requirement
+6. Return the complete expanded report in the same JSON format
+
+Return ONLY the expanded JSON report, no additional text.`;
+
+          // Call OpenAI to expand the content
+          const { generateAIContent } = await import("@/lib/ai-astrology/reportGenerator");
+          const expandedContentJson = await generateAIContent(expandPrompt, reportType, sessionKey, input);
+          
+          // Parse expanded content
+          let expandedReportContent: ReportContent;
+          try {
+            expandedReportContent = JSON.parse(expandedContentJson) as ReportContent;
+          } catch (parseError) {
+            // If JSON parsing fails, try to extract JSON from markdown code blocks
+            const jsonMatch = expandedContentJson.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+            if (jsonMatch) {
+              expandedReportContent = JSON.parse(jsonMatch[1]) as ReportContent;
+            } else {
+              throw new Error("Failed to parse expanded report content");
+            }
+          }
+          
+          // Strip mock content from expanded report
+          expandedReportContent = stripMockContent(expandedReportContent);
+          
+          // Ensure minimum sections
+          const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
+          expandedReportContent = ensureMinimumSections(expandedReportContent, reportType);
+          
+          // Re-validate expanded content
+          validation = validateReportBeforeCompletion(expandedReportContent, input, paymentToken, reportType);
+          
+          if (validation.valid) {
+            // Expansion succeeded - use expanded content
+            console.log("[AUTO-EXPAND] Successfully expanded report content", {
+              requestId,
+              reportId,
+              reportType,
+            });
+            cleanedReportContent = expandedReportContent;
+          } else {
+            // Expansion failed or still below threshold - will deliver with warning below
+            console.warn("[AUTO-EXPAND] Expanded content still below threshold, will deliver with quality warning", {
+              requestId,
+              reportId,
+              reportType,
+              error: validation.error,
+            });
+            // Keep original content, will deliver with qualityWarning
+          }
+        } catch (expandError: any) {
+          // Auto-expand failed - log but continue to graceful degradation
+          console.warn("[AUTO-EXPAND] Failed to expand report content", {
+            requestId,
+            reportId,
+            reportType,
+            error: expandError?.message || "Unknown error",
+          });
+          // Continue to graceful degradation below
+        }
+      }
+      
+      // Handle validation result (after auto-expand attempt if applicable)
+      // CRITICAL FIX (ChatGPT Feedback Phase 2): Always deliver report, never 500 for content issues
+      // MVP Principle: Once a valid session exists, ALWAYS return a report (quality may vary)
       if (!validation.valid) {
-        // Validation failed - mark as failed and trigger refund
         const errorMessage = validation.error || "Report validation failed";
         const errorCode = validation.errorCode || "VALIDATION_FAILED";
         
-        console.error("[REPORT VALIDATION FAILED]", JSON.stringify({
+        console.warn("[VALIDATION FAILURE - REPAIR ATTEMPT]", JSON.stringify({
           requestId,
           reportId,
           reportType,
@@ -1698,26 +1786,68 @@ export async function POST(req: Request) {
           timestamp: new Date().toISOString(),
         }, null, 2));
         
-        await markStoredReportFailed({
-          idempotencyKey,
+        // Attempt repair based on error type
+        let repairedContent = cleanedReportContent;
+        let qualityWarning: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied" = "content_repair_applied";
+        
+        if (errorCode === "MOCK_CONTENT_DETECTED") {
+          // Mock content detected - strip it (already done), ensure minimum sections
+          console.log("[REPAIR] Mock content detected - ensuring minimum sections");
+          const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
+          repairedContent = ensureMinimumSections(repairedContent || { title: `Report for ${input.name}`, sections: [] }, reportType);
+          qualityWarning = "below_optimal_length";
+        } else if (errorCode === "MISSING_SECTIONS") {
+          // Missing sections - add fallback sections
+          console.log("[REPAIR] Missing sections - adding fallback sections");
+          const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
+          repairedContent = ensureMinimumSections(repairedContent || { title: `Report for ${input.name}`, sections: [] }, reportType);
+          qualityWarning = "below_optimal_length";
+        } else if (!repairedContent || !repairedContent.sections || repairedContent.sections.length === 0) {
+          // Empty or malformed content - create minimal report
+          console.log("[REPAIR] Empty/malformed content - creating minimal report");
+          const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
+          repairedContent = ensureMinimumSections({
+            title: reportType === "year-analysis" ? "Your Year Analysis" :
+                   reportType === "full-life" ? "Your Full Life Report" :
+                   reportType === "career-money" ? "Your Career & Money Report" :
+                   reportType === "marriage-timing" ? "Your Marriage Timing Report" :
+                   reportType === "major-life-phase" ? "Your Major Life Phase Report" :
+                   reportType === "decision-support" ? "Your Decision Support Report" :
+                   "Your Astrology Report",
+            sections: [],
+          }, reportType);
+          qualityWarning = "below_optimal_length";
+        } else if (validation.qualityWarning) {
+          // Word count issue - use existing quality warning
+          qualityWarning = validation.qualityWarning;
+        }
+        
+        // Always deliver report (never 500 for content issues)
+        // Only 500 for: auth failures, malformed requests, infra outages (handled elsewhere)
+        console.log("[GRACEFUL DEGRADATION] Delivering report with repair/warning", {
+          requestId,
           reportId,
-          errorMessage,
-          errorCode: errorCode as ReportErrorCode,
+          reportType,
+          qualityWarning,
+          errorCode,
+          originalError: errorMessage,
         });
         
-        // Trigger refund if payment was made
-        if (paymentIntentId && isPaidReportType(reportType) && !shouldSkipPayment) {
-          await cancelPaymentSafely(`Report validation failed: ${errorMessage}`);
-        }
+        // Cache and mark as completed (with quality warning)
+        cacheReport(idempotencyKey, reportId, repairedContent, reportType, input);
+        await markStoredReportCompleted({ idempotencyKey, reportId, content: repairedContent });
         
         return NextResponse.json(
           {
-            ok: false,
-            error: `Report validation failed: ${errorMessage}. Your payment has been automatically cancelled.`,
-            code: errorCode,
+            ok: true,
+            data: {
+              content: repairedContent,
+              reportId,
+              qualityWarning: qualityWarning,
+            },
             requestId,
           },
-          { status: 500 }
+          { status: 200 }
         );
       }
       

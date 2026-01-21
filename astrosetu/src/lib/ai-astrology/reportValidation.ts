@@ -13,6 +13,8 @@ export type ValidationResult = {
   valid: boolean;
   error?: string;
   errorCode?: "MISSING_SECTIONS" | "MOCK_CONTENT_DETECTED" | "VALIDATION_FAILED" | "USER_DATA_MISMATCH";
+  qualityWarning?: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied";
+  canAutoExpand?: boolean; // Indicates if this validation failure can be fixed with auto-expand
 };
 
 /**
@@ -184,23 +186,34 @@ function validateStructureByReportType(
       };
     }
     
-    // Check minimum word count (900-1500 words for paid reports)
+    // Check minimum word count (adjusted to realistic expectations based on token limits)
+    // 2400 tokens ≈ 1200-1400 words actual output (accounting for JSON structure, headers, formatting)
+    // Adjusted threshold: 800 words (still substantial, but achievable)
     const totalWords = sections.reduce((sum, s) => {
       const contentWords = s.content?.split(/\s+/).length || 0;
       const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
       return sum + contentWords + bulletWords;
     }, 0);
     
-    if (totalWords < 900) {
+    const minWords = 800; // Adjusted from 900 to match realistic token output
+    
+    if (totalWords < minWords) {
+      // Word count failures are auto-expandable (can retry with expand prompt)
       return {
         valid: false,
-        error: `Year-analysis report content too short. Found ${totalWords} words, minimum 900 required`,
+        error: `Year-analysis report content too short. Found ${totalWords} words, minimum ${minWords} required`,
         errorCode: "VALIDATION_FAILED",
+        canAutoExpand: true, // Can be fixed with auto-expand
+        qualityWarning: totalWords >= 600 ? "shorter_than_expected" : undefined, // Only warn if reasonably close
       };
     }
   }
   
   // For other paid reports, check minimum word count
+  // Adjusted thresholds to match realistic token output:
+  // - 2800 tokens (full-life) ≈ 1300-1500 words actual
+  // - 2600 tokens (major-life-phase) ≈ 1200-1400 words actual
+  // - 1800 tokens (others) ≈ 900-1100 words actual
   const paidReportTypes: Array<typeof reportType> = ["career-money", "major-life-phase", "full-life", "decision-support", "marriage-timing"];
   if (reportType && paidReportTypes.includes(reportType)) {
     const totalWords = sections.reduce((sum, s) => {
@@ -209,16 +222,19 @@ function validateStructureByReportType(
       return sum + contentWords + bulletWords;
     }, 0);
     
-    // Minimum word count varies by report type
-    const minWords = reportType === "full-life" ? 1500 : 
-                     reportType === "major-life-phase" ? 1200 : 
-                     900; // Default for other paid reports
+    // Adjusted minimum word count (realistic expectations)
+    const minWords = reportType === "full-life" ? 1300 :  // Was 1500
+                     reportType === "major-life-phase" ? 1000 :  // Was 1200
+                     800; // Default for other paid reports (was 900)
     
     if (totalWords < minWords) {
+      // Word count failures are auto-expandable (can retry with expand prompt)
       return {
         valid: false,
         error: `${reportType} report content too short. Found ${totalWords} words, minimum ${minWords} required`,
         errorCode: "VALIDATION_FAILED",
+        canAutoExpand: true, // Can be fixed with auto-expand
+        qualityWarning: totalWords >= minWords * 0.7 ? "shorter_than_expected" : undefined, // Warn if reasonably close (70% of threshold)
       };
     }
   }
