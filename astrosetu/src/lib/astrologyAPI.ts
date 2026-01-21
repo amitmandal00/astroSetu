@@ -526,7 +526,7 @@ export async function getKundli(input: BirthDetails): Promise<KundliResult & { d
     
     // Extract dosha analysis from kundli response first (Prokerala includes mangal_dosha in kundli response)
     // The standalone /dosha endpoint may not be available in all plans, so prefer extracting from kundli
-    let dosha: DoshaAnalysis;
+    let dosha: DoshaAnalysis | null;
     try {
       // First, try to extract dosha data from the kundli response
       const kundliData = response.data || response;

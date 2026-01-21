@@ -675,8 +675,9 @@ function PreviewContent() {
                     // This ensures the report is displayed even if navigation doesn't happen
                     setReportContent(cleanedContent);
                     // Capture quality warning if present
-                    if (statusData.data.qualityWarning) {
-                      setQualityWarning(statusData.data.qualityWarning);
+                    const statusDataWithWarning = statusData.data as typeof statusData.data & { qualityWarning?: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied" };
+                    if (statusDataWithWarning.qualityWarning) {
+                      setQualityWarning(statusDataWithWarning.qualityWarning);
                     } else {
                       setQualityWarning(null);
                     }
@@ -866,8 +867,9 @@ function PreviewContent() {
         const cleanedContent = stripMockContent(response.data.content, isTestSession);
         setReportContent(cleanedContent);
         // Capture quality warning if present
-        if (response.data.qualityWarning) {
-          setQualityWarning(response.data.qualityWarning);
+        const dataWithWarning = response.data as typeof response.data & { qualityWarning?: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied" };
+        if (dataWithWarning.qualityWarning) {
+          setQualityWarning(dataWithWarning.qualityWarning);
         } else {
           setQualityWarning(null);
         }

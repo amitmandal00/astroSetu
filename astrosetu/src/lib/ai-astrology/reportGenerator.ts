@@ -136,7 +136,7 @@ export function isAIConfigured(): boolean {
 /**
  * Generate AI report using OpenAI or Anthropic
  */
-async function generateAIContent(
+export async function generateAIContent(
   prompt: string, 
   reportType?: string,
   sessionKey?: string,
