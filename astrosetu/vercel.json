@@ -4,7 +4,6 @@
   "installCommand": "npm install --legacy-peer-deps --no-audit --no-fund || npm install --legacy-peer-deps --force --no-audit --no-fund",
   "framework": "nextjs",
   "regions": ["bom1"],
-  "_deployment_trigger": "stable-build-revert-20260125",
   "env": {
     "NODE_ENV": "production",
     "CI": "true"
