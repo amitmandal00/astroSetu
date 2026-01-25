@@ -31,10 +31,19 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id");
 
-    if (!sessionId) {
+    const badPlaceholder =
+      !sessionId ||
+      sessionId.includes("{CHECKOUT_SESSION_ID") ||
+      sessionId.includes("%7BCHECKOUT_SESSION_ID%7D");
+
+    if (badPlaceholder) {
       return NextResponse.json(
-        { ok: false, error: "session_id is required" },
-        { status: 400 }
+        {
+          ok: false,
+          error: "INVALID_STRIPE_SESSION",
+          message: "Invalid payment session. Please restart checkout.",
+        },
+        { status: 400, headers: { "X-Request-ID": requestId } }
       );
     }
 

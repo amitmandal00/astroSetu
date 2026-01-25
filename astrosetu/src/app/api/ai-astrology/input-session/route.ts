@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { checkRateLimit, handleApiError, parseJsonBody } from "@/lib/apiHelpers";
+import { getClientIP, handleApiError, parseJsonBody } from "@/lib/apiHelpers";
 import { generateRequestId } from "@/lib/requestId";
 import { createClient } from "@supabase/supabase-js";
 import type { AIAstrologyInput } from "@/lib/ai-astrology/types";
+import { rateLimiter } from "@/lib/rateLimit";
 
 // CRITICAL FIX (ChatGPT): Use service role key ONLY server-side, never exposed
 // Service role key should NEVER be logged, returned, or accessible to client
@@ -33,10 +34,23 @@ export async function POST(req: Request) {
   const requestId = generateRequestId();
 
   try {
-    const rateLimitResponse = checkRateLimit(req, "/api/ai-astrology/input-session");
-    if (rateLimitResponse) {
-      rateLimitResponse.headers.set("X-Request-ID", requestId);
-      return rateLimitResponse;
+    const ip = getClientIP(req);
+    const postRateLimit = rateLimiter.check(`${ip}:input-session:post`, 10, 60000);
+    if (!postRateLimit.allowed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "RATE_LIMITED",
+          message: "Please retry in a few seconds.",
+        },
+        {
+          status: 429,
+          headers: {
+            "X-Request-ID": requestId,
+            "Retry-After": Math.ceil((postRateLimit.resetTime - Date.now()) / 1000).toString(),
+          },
+        }
+      );
     }
 
     const json = await parseJsonBody<{
@@ -179,44 +193,29 @@ export async function GET(req: Request) {
   const token = searchParams.get("token");
 
   try {
-    const rateLimitResponse = checkRateLimit(req, "/api/ai-astrology/input-session");
-    if (rateLimitResponse) {
-      rateLimitResponse.headers.set("X-Request-ID", requestId);
-      return rateLimitResponse;
+    const ip = getClientIP(req);
+    const getRateLimit = rateLimiter.check(`${ip}:input-session:get`, 60, 60000);
+    if (!getRateLimit.allowed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "RATE_LIMITED",
+          message: "Please retry in a few seconds.",
+        },
+        {
+          status: 429,
+          headers: {
+            "X-Request-ID": requestId,
+            "Retry-After": Math.ceil((getRateLimit.resetTime - Date.now()) / 1000).toString(),
+          },
+        }
+      );
     }
 
     if (!token) {
       return NextResponse.json(
         { ok: false, error: "Token is required" },
         { status: 400, headers: { "X-Request-ID": requestId } }
-      );
-    }
-
-    // CRITICAL FIX (ChatGPT): Rate limiting per token (prevent token brute-force)
-    // Additional rate limit check: max 5 requests per token per 60 seconds
-    const { rateLimiter } = await import("@/lib/rateLimit");
-    const tokenRateLimitKey = `token:${token}`;
-    const tokenRateLimit = rateLimiter.check(tokenRateLimitKey, 5, 60000); // 5 per minute per token
-    if (!tokenRateLimit.allowed) {
-      // CRITICAL FIX (ChatGPT): Log redaction - only log last 6 chars of token
-      const tokenSuffix = token.slice(-6);
-      console.warn(`[input-session] Rate limit exceeded for token: ...${tokenSuffix}`, {
-        requestId,
-        tokenSuffix: `...${tokenSuffix}`,
-      });
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Too many requests for this token. Please try again later.",
-          code: "TOKEN_RATE_LIMIT_EXCEEDED",
-        },
-        {
-          status: 429,
-          headers: {
-            "X-Request-ID": requestId,
-            "Retry-After": Math.ceil((tokenRateLimit.resetTime - Date.now()) / 1000).toString(),
-          },
-        }
       );
     }
 
@@ -251,7 +250,7 @@ export async function GET(req: Request) {
           {
             headers: {
               "X-Request-ID": requestId,
-              "Cache-Control": "no-cache",
+              "Cache-Control": "private, max-age=30",
             },
           }
         );
@@ -325,9 +324,7 @@ export async function GET(req: Request) {
       {
         headers: {
           "X-Request-ID": requestId,
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0",
+          "Cache-Control": "private, max-age=30",
         },
       }
     );
