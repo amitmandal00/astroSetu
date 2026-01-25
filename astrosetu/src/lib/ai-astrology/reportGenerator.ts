@@ -495,25 +495,55 @@ function extractEmbeddedJsonSegment(response: string): any | null {
 }
 
 function convertCandidateToSection(candidate: any, fallbackTitle: string): ReportSection | null {
-  if (!candidate || typeof candidate !== "object") return null;
+  if (candidate === null || candidate === undefined) return null;
+  if (typeof candidate === "string") {
+    const trimmed = candidate.trim();
+    if (!trimmed) return null;
+    return {
+      title: fallbackTitle,
+      content: trimmed,
+    };
+  }
+  if (Array.isArray(candidate)) {
+    const stringItems = candidate.filter((item) => typeof item === "string") as string[];
+    if (stringItems.length === 0) return null;
+    return {
+      title: fallbackTitle,
+      content: "",
+      bullets: stringItems,
+    };
+  }
+  if (typeof candidate !== "object") return null;
   const title =
     candidate.title ||
     candidate.heading ||
     candidate.name ||
     candidate.sectionTitle ||
     fallbackTitle;
-  const content =
+  let content =
     candidate.content ||
     candidate.body ||
     candidate.summary ||
     candidate.analysis ||
     candidate.description ||
+    candidate.text ||
+    candidate.detail ||
+    candidate.details ||
     "";
-  const bullets = Array.isArray(candidate.bullets) ? candidate.bullets : undefined;
+  if (!content && Array.isArray(candidate.paragraphs)) {
+    content = candidate.paragraphs.filter((p: any) => typeof p === "string").join("\n");
+  }
+  let bullets = Array.isArray(candidate.bullets) ? candidate.bullets : undefined;
+  if (!bullets && Array.isArray(candidate.points)) {
+    bullets = candidate.points;
+  }
+  if (!bullets && Array.isArray(candidate.items)) {
+    bullets = candidate.items.filter((item: any) => typeof item === "string");
+  }
   if (!content && (!bullets || bullets.length === 0)) return null;
   return {
     title: typeof title === "string" && title.trim() ? title : fallbackTitle,
-    content,
+    content: typeof content === "string" ? content : "",
     bullets,
   };
 }
@@ -713,6 +743,18 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     let structuredSections = collectSectionsFromStructuredJson(parsedJson, reportType);
     let meaningfulSections = filterMeaningfulSections(structuredSections);
     if (meaningfulSections.length === 0) {
+      try {
+        console.warn("[parseAIResponse] Structured JSON produced no sections", {
+          reportType,
+          topLevelKeys: Object.keys(parsedJson || {}),
+          sectionsType: typeof (parsedJson as any).sections,
+          contentBlocksType: typeof (parsedJson as any).contentBlocks,
+          analysisType: typeof (parsedJson as any).analysis,
+          keyInsightsType: typeof (parsedJson as any).keyInsights,
+        });
+      } catch {
+        // ignore logging errors
+      }
       const recoveredFromFields = extractJsonFromKnownFields(parsedJson);
       if (recoveredFromFields) {
         structuredSections = collectSectionsFromStructuredJson(recoveredFromFields, reportType);
