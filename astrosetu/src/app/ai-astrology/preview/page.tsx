@@ -15,6 +15,7 @@ import { apiPost, apiGet } from "@/lib/http";
 import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
 import type { ReportContent } from "@/lib/ai-astrology/types";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
+import { AVAILABLE_REPORT_TYPES } from "@/lib/ai-astrology/reportAvailability";
 import { formatPrice, formatPriceWithoutGst } from "@/lib/ai-astrology/priceFormatter";
 import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
 import { PostPurchaseUpsell } from "@/components/ai-astrology/PostPurchaseUpsell";
@@ -270,7 +271,7 @@ function PreviewContent() {
   }, [isProcessingUI, loadingStartTime]);
 
   // Valid report types for validation
-  const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
+  const validReportTypes: ReportType[] = AVAILABLE_REPORT_TYPES;
   
   // CRITICAL FIX (ChatGPT Directive): attemptKey for atomic generation
   // Format: `${session_id}:${reportType}:${auto_generate}` - unique per generation attempt

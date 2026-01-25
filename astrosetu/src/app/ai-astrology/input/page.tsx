@@ -17,6 +17,7 @@ import { isSafeReturnTo } from "@/lib/ai-astrology/returnToValidation";
 import { createOrReuseToken } from "@/lib/ai-astrology/tokenCache";
 
 import type { ReportType } from "@/lib/ai-astrology/types";
+import { AVAILABLE_REPORT_TYPES } from "@/lib/ai-astrology/reportAvailability";
 
 function InputFormContent() {
   const searchParams = useSearchParams();
@@ -26,7 +27,7 @@ function InputFormContent() {
   const reportTypeParam = searchParams.get("reportType") || searchParams.get("report");
   const bundleParam = searchParams.get("bundle"); // "any-2" or "all-3"
   const reportsParam = searchParams.get("reports"); // Comma-separated report types for bundles
-  const validReportTypes: ReportType[] = ["life-summary", "marriage-timing", "career-money", "full-life", "year-analysis", "major-life-phase", "decision-support"];
+  const validReportTypes: ReportType[] = AVAILABLE_REPORT_TYPES;
   const reportType = (reportTypeParam && validReportTypes.includes(reportTypeParam as ReportType)) 
     ? (reportTypeParam as ReportType) 
     : null;

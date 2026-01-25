@@ -1730,6 +1730,11 @@ export async function POST(req: Request) {
       // CRITICAL FIX (Priority 4): Structured debug logging
       const generationStartTime = Date.now();
       const allowFlavorRetry = parseEnvBoolean(process.env.ALLOW_FLAVOR_RETRY, false);
+      console.log("[FLAVOR RETRY STATUS]", {
+        requestId,
+        reportType,
+        allowFlavorRetry,
+      });
 
       const generateReportContent = async (extraPromptInstruction?: string): Promise<ReportContent> => {
         switch (reportType) {
