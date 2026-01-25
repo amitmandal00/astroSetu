@@ -357,10 +357,11 @@ export async function POST(req: Request) {
       const mockSessionId = `${sessionPrefix}${reportTypeStr}_${requestId}`;
 
       // If caller provided a Stripe-style template URL (with {CHECKOUT_SESSION_ID}), substitute it for mock mode.
-      const substitutedSuccessUrl =
-        successUrl && successUrl.includes("{CHECKOUT_SESSION_ID}")
-          ? successUrl.replace("{CHECKOUT_SESSION_ID}", mockSessionId)
-          : successUrl;
+      const substitutedSuccessUrl = successUrl
+        ? successUrl
+            .replace("{CHECKOUT_SESSION_ID}", mockSessionId)
+            .replace(/%7BCHECKOUT_SESSION_ID%7D/gi, mockSessionId)
+        : successUrl;
       
       // Return a mock session that can be used to bypass payment verification
       return NextResponse.json(
