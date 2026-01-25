@@ -1570,6 +1570,9 @@ export async function POST(req: Request) {
       }
     };
     
+    // Declare qualityWarning at function scope for use in both success and fallback paths
+    let qualityWarning: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied" | null = null;
+    
     try {
       // Start heartbeat when generation begins
       startHeartbeat();
@@ -1705,7 +1708,7 @@ export async function POST(req: Request) {
         // MVP FIX: Apply deterministic fallback only (no OpenAI calls, no retries)
         // ensureMinimumSections is deterministic - it adds static fallback sections
         let fallbackContent = cleanedReportContent;
-        let qualityWarning: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied" = "content_repair_applied";
+        qualityWarning = "content_repair_applied";
         
         // CRITICAL FIX: For year-analysis, check for placeholder phrases and force replacement
         if (reportType === "year-analysis") {

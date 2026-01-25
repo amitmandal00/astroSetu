@@ -110,13 +110,19 @@ cp CURSOR_AUTOPILOT_PROMPT.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp CURSOR_OPERATIONAL_GUIDE.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp NON_NEGOTIABLES.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp AUTOPILOT_WORKFLOW_COMPLETE.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+# Copy DO_NOT_TOUCH_MAP if it exists in docs/
+if [ -f "docs/DO_NOT_TOUCH_MAP.md" ]; then
+    cp docs/DO_NOT_TOUCH_MAP.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+fi
 
 # 12. Copy recent changes summary and MVP compliance documents
 echo "  → Copying recent changes summary and MVP compliance documents..."
 cp RECENT_CHANGES_SUMMARY_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp RECENT_CHANGES_SUMMARY_COMPLETE_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp RECENT_CHANGES_DETAILED_SUMMARY_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp MVP_COMPLIANCE_FIXES_SUMMARY.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp MVP_REQUIREMENTS_VERIFICATION.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp MVP_IMPLEMENTATION_VERIFICATION.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp MVP_GOALS_FINAL_LOCKED.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp MVP_GOALS_ALIGNMENT_SUMMARY.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp POST_ROLLBACK_ANALYSIS_NEXT_STEPS.md "${TEMP_DIR}/docs/" 2>/dev/null || true
@@ -127,6 +133,11 @@ cp VERCEL_LOGS_ANALYSIS_MVP_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || tru
 cp VERCEL_LOGS_MVP_ANALYSIS_FINAL_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp NEXT_STEPS_MVP_COMPLIANCE_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp IMPLEMENTATION_COMPLETE.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp CHATGPT_FEEDBACK_IMPLEMENTATION_SUMMARY.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp CRON_REMOVAL_REQUIRED.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp BUILD_FIX_SUMMARY_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp GIT_PUSH_APPROVAL_BUILD_FIX_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp PACKAGE_DELIVERY_SUMMARY_2026-01-25-FINAL.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 
 # 13. Copy defect registers
 echo "  → Copying defect registers and status reports..."

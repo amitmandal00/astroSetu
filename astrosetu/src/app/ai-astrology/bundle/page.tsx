@@ -55,13 +55,19 @@ function BundleSelectionPageContent() {
   const bundleType = (searchParams.get("type") as BundleType) || "any-2";
   const [selectedReports, setSelectedReports] = useState<PaidReportType[]>([]);
 
+  // Pre-select reports for life-decision-pack (must be before early return)
+  useEffect(() => {
+    if (bundleType === "life-decision-pack" && selectedReports.length === 0) {
+      setSelectedReports(["marriage-timing", "career-money", "year-analysis"]);
+    }
+  }, [bundleType, selectedReports.length]);
+
   // P1: Bundle Feature Flag Check (MVP Compliance - PATH A)
   if (!BUNDLES_ENABLED) {
     return (
       <div className="cosmic-bg min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-2xl w-full">
-          <CardHeader>
-            <h1 className="text-3xl font-bold text-center mb-4">Bundles Temporarily Paused</h1>
+          <CardHeader title="Bundles Temporarily Paused">
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-center text-lg">
@@ -75,7 +81,7 @@ function BundleSelectionPageContent() {
                 Browse Single Reports
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={() => router.push("/ai-astrology/input")}
                 className="w-full sm:w-auto"
               >
@@ -87,13 +93,6 @@ function BundleSelectionPageContent() {
       </div>
     );
   }
-
-  // Pre-select reports for life-decision-pack
-  useEffect(() => {
-    if (bundleType === "life-decision-pack" && selectedReports.length === 0) {
-      setSelectedReports(["marriage-timing", "career-money", "year-analysis"]);
-    }
-  }, [bundleType, selectedReports.length]);
 
   const handleReportToggle = (reportType: PaidReportType) => {
     if (bundleType === "life-decision-pack") {
