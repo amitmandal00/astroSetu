@@ -112,16 +112,42 @@ export async function POST(req: Request) {
     
     // MVP FIX: For prodtest_ sessions in production, require explicit flag
     // Check if we're about to create a prodtest_ session (isTestUser && !isDemoMode)
-    // and warn if in production without ALLOW_PROD_TEST_BYPASS flag
     const willCreateProdTestSession = isTestUser && !isDemoMode;
+    
+    // P0 FIX #2: Hard-block prodtest sessions in production unless explicitly allowed
+    // MVP SAFETY: Never create prodtest_ sessions in production without explicit flag
     if (willCreateProdTestSession && isProd && !allowProdTestBypass) {
-      console.warn("[PAYMENT BYPASS] Will create prodtest_ session in production without ALLOW_PROD_TEST_BYPASS flag", {
+      const prodtestBlockError = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        isTestUser,
+        isDemoMode,
+        willCreateProdTestSession,
+        error: "PRODTEST_DISABLED_IN_PRODUCTION",
+        message: "prodtest sessions are disabled in production. Enable ALLOW_PROD_TEST_BYPASS for controlled testing.",
+      };
+      console.error("[PRODTEST BLOCKED - PRODUCTION]", JSON.stringify(prodtestBlockError, null, 2));
+      
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "prodtest is disabled in production. Enable ALLOW_PROD_TEST_BYPASS for controlled testing.",
+          code: "PRODTEST_DISABLED",
+        },
+        { status: 403, headers: { "X-Request-ID": requestId } }
+      );
+    }
+    
+    // MVP FIX: For prodtest_ sessions in production, require explicit flag
+    // Check if we're about to create a prodtest_ session (isTestUser && !isDemoMode)
+    // and warn if in production without ALLOW_PROD_TEST_BYPASS flag (but only if not blocked above)
+    if (willCreateProdTestSession && isProd && allowProdTestBypass) {
+      console.warn("[PAYMENT BYPASS] Creating prodtest_ session in production with ALLOW_PROD_TEST_BYPASS flag", {
         requestId,
         isTestUser,
         isDemoMode,
         willCreateProdTestSession,
       });
-      // Note: bypassPaymentForTestUsers logic below will handle whether to actually bypass
     }
 
     // CRITICAL: Access restriction for production testing

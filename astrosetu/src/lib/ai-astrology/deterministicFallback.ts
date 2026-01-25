@@ -33,10 +33,12 @@ export async function applyDeterministicFallback_NO_API(
   
   const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
   
-  // CRITICAL FIX: For year-analysis, check for placeholder phrases and force replacement
+  // P0 FIX #1: For year-analysis, ALWAYS replace content completely (not append)
+  // If validation failed, the AI content is too short - replace with thick fallback template
   let fallbackContent = reportContent;
   
   if (reportType === "year-analysis") {
+    // Check if content is too short or has placeholders
     const hasPlaceholderPhrases = fallbackContent.sections?.some((s: any) => {
       const content = s.content?.toLowerCase() || "";
       return content.includes("simplified view") || 
@@ -47,9 +49,28 @@ export async function applyDeterministicFallback_NO_API(
              content.includes("coming soon");
     });
     
-    if (hasPlaceholderPhrases) {
-      // Clear sections to force ensureMinimumSections to replace with fallback
-      fallbackContent = { ...fallbackContent, sections: [] };
+    // Calculate current word count
+    const currentWordCount = fallbackContent.sections?.reduce((sum: number, s: any) => {
+      const contentWords = s.content?.split(/\s+/).length || 0;
+      const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
+      return sum + contentWords + bulletWords;
+    }, 0) || 0;
+    
+    // P0 FIX #1: If validation failed (errorCode present) OR content is too short OR has placeholders
+    // COMPLETELY REPLACE with thick fallback template (do not merge/append)
+    if (errorCode || hasPlaceholderPhrases || currentWordCount < 800 || !fallbackContent.sections || fallbackContent.sections.length === 0) {
+      console.log("[YEAR-ANALYSIS FALLBACK] Replacing content completely with thick fallback template", {
+        errorCode,
+        hasPlaceholderPhrases,
+        currentWordCount,
+        sectionsCount: fallbackContent.sections?.length || 0,
+      });
+      
+      // COMPLETELY REPLACE - start fresh with empty sections
+      fallbackContent = {
+        ...fallbackContent,
+        sections: [],
+      };
     }
   }
   
