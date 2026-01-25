@@ -111,9 +111,22 @@ cp CURSOR_OPERATIONAL_GUIDE.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp NON_NEGOTIABLES.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 cp AUTOPILOT_WORKFLOW_COMPLETE.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 
-# 12. Copy recent changes summary
-echo "  → Copying recent changes summary..."
+# 12. Copy recent changes summary and MVP compliance documents
+echo "  → Copying recent changes summary and MVP compliance documents..."
 cp RECENT_CHANGES_SUMMARY_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp RECENT_CHANGES_SUMMARY_COMPLETE_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp MVP_COMPLIANCE_FIXES_SUMMARY.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp MVP_REQUIREMENTS_VERIFICATION.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp MVP_GOALS_FINAL_LOCKED.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp MVP_GOALS_ALIGNMENT_SUMMARY.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp POST_ROLLBACK_ANALYSIS_NEXT_STEPS.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp POST_ROLLBACK_STATUS_CHECK.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp POST_ROLLBACK_SURGICAL_FIX_PLAN.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp POST_ROLLBACK_VALIDATION_PLAN.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp VERCEL_LOGS_ANALYSIS_MVP_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp VERCEL_LOGS_MVP_ANALYSIS_FINAL_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp NEXT_STEPS_MVP_COMPLIANCE_2026-01-25.md "${TEMP_DIR}/docs/" 2>/dev/null || true
+cp IMPLEMENTATION_COMPLETE.md "${TEMP_DIR}/docs/" 2>/dev/null || true
 
 # 13. Copy defect registers
 echo "  → Copying defect registers and status reports..."
@@ -229,20 +242,30 @@ cat > "${TEMP_DIR}/README.md" << 'EOF'
 
 ---
 
-## 🎯 Recent Critical Fixes (2026-01-18)
+## 🎯 Recent Critical Fixes (2026-01-25 - MVP Compliance)
 
-### 1. ✅ Free Life Summary Redirect Loop Fix
-- Fixed duplicate `input_token` parameters in URL
-- Fixed React state update race condition
-- Applied `requestAnimationFrame` to delay state updates
+### 1. ✅ Removed Auto-Expand Logic (MVP Rule #4 Compliance)
+- Removed OpenAI retry on validation failure
+- Replaced with deterministic fallback-only path
+- No automatic retries, failures are terminal
 
-### 2. ✅ Critical Redirect Loop & Stuck Screen Fixes
-- Fixed all redirect loops (purchase, bundle, free reports)
-- Fixed stuck "Redirecting..." screens
-- Fixed subscription journey returnTo flow
-- Fixed subscribe button appearing to do nothing
+### 2. ✅ Replaced Repair Attempts with Deterministic Fallback
+- Removed "REPAIR ATTEMPT" logic that always delivered reports
+- Added deterministic fallback with re-validation
+- Terminal failure if fallback also fails
+- Payment cancellation on terminal failure
 
-**See `docs/RECENT_CHANGES_SUMMARY_2026-01-25.md` for complete details.**
+### 3. ✅ Added Year-Analysis Placeholder Detection
+- Detects placeholder phrases in year-analysis reports
+- Forces fallback replacement if placeholders detected
+- Prevents delivering placeholder content
+
+### 4. ✅ Locked Production Payment Behavior
+- `BYPASS_PAYMENT_FOR_TEST_USERS` defaults to `false` in production
+- `prodtest_` sessions require `ALLOW_PROD_TEST_BYPASS=true` in production
+- No accidental payment bypass in production
+
+**See `docs/RECENT_CHANGES_SUMMARY_COMPLETE_2026-01-25.md` for complete details.**
 
 ---
 
@@ -273,6 +296,8 @@ All defects documented in `docs/DEFECT_REGISTER.md` and `docs/DEFECT_STATUS_CURR
 - ✅ **Defects**: All 11 defects fixed and verified
 - ✅ **Security**: Hardened with rate limiting, validation, error handling
 - ✅ **Documentation**: Complete and up-to-date
+- ✅ **MVP Compliance**: P0 fixes complete (5/5 implemented)
+- ✅ **Git Commit**: d2da0de (committed & pushed)
 
 ---
 

@@ -110,13 +110,18 @@ export async function POST(req: Request) {
     // prodtest_ sessions should only bypass if ALLOW_PROD_TEST_BYPASS=true
     const allowProdTestBypass = process.env.ALLOW_PROD_TEST_BYPASS === "true";
     
-    // For prodtest_ sessions in production, require explicit flag
-    if (isProdTestSession && isProd && !allowProdTestBypass) {
-      console.warn("[PAYMENT BYPASS] prodtest_ session in production without ALLOW_PROD_TEST_BYPASS flag", {
+    // MVP FIX: For prodtest_ sessions in production, require explicit flag
+    // Check if we're about to create a prodtest_ session (isTestUser && !isDemoMode)
+    // and warn if in production without ALLOW_PROD_TEST_BYPASS flag
+    const willCreateProdTestSession = isTestUser && !isDemoMode;
+    if (willCreateProdTestSession && isProd && !allowProdTestBypass) {
+      console.warn("[PAYMENT BYPASS] Will create prodtest_ session in production without ALLOW_PROD_TEST_BYPASS flag", {
         requestId,
-        sessionId: isProdTestSession ? "prodtest_*" : "N/A",
+        isTestUser,
+        isDemoMode,
+        willCreateProdTestSession,
       });
-      // Do not bypass - force through Stripe
+      // Note: bypassPaymentForTestUsers logic below will handle whether to actually bypass
     }
 
     // CRITICAL: Access restriction for production testing
