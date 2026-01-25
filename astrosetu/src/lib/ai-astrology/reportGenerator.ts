@@ -828,6 +828,8 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
       
       // Clear and replace with fallback sections
       sections.length = 0;
+      // CRITICAL FIX: Reset existingTitles when clearing sections to ensure fallback sections are added
+      existingTitles.clear();
     }
   }
   
@@ -1350,20 +1352,33 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
         const wordsNeeded = minWordsRequired - currentWordCount;
         const paddingSections = Math.ceil(wordsNeeded / 180); // ~180 words per padding section
         
-        for (let i = 0; i < paddingSections && i < 10; i++) {
+        // CRITICAL FIX: Use while loop to guarantee minimum word count
+        let paddingAttempts = 0;
+        const maxPaddingAttempts = 15;
+        while (currentWordCount < minWordsRequired && paddingAttempts < maxPaddingAttempts) {
+          paddingAttempts++;
           sections.push({
-            title: `Additional Guidance & Practical Next Steps - Section ${i + 1}`,
+            title: `Additional Guidance & Practical Next Steps - Section ${sections.length + 1}`,
             content: "This section provides additional astrological insights and practical guidance based on your birth chart analysis. The interplay between your natal chart patterns, current Dasha period, and planetary transits creates unique opportunities and challenges across all life areas. Understanding these influences helps you navigate your life path more effectively and make decisions aligned with favorable astrological timing. Regular reflection on these insights helps you stay aligned with evolving opportunities and challenges throughout your journey. Strategic planning based on astrological timing can significantly enhance your ability to make the most of favorable periods while navigating challenging times with greater ease and effectiveness. The key is to combine astrological guidance with practical wisdom, creating a holistic approach that considers multiple perspectives and supports long-term growth and fulfillment.",
           });
+          
+          // Recalculate after each addition
+          currentWordCount = sections.reduce((sum, s) => {
+            const contentWords = s.content?.split(/\s+/).length || 0;
+            const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
+            return sum + contentWords + bulletWords;
+          }, 0);
         }
         
-        // Recalculate after padding
-        currentWordCount = sections.reduce((sum, s) => {
-          const contentWords = s.content?.split(/\s+/).length || 0;
-          const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
-          return sum + contentWords + bulletWords;
-        }, 0);
-      }
+        // Final verification after padding loop
+        if (currentWordCount < minWordsRequired) {
+          console.warn("[FULL-LIFE FALLBACK] Still below minimum after padding loop, adding emergency section", {
+            currentWordCount,
+            minWordsRequired,
+            sectionsCount: sections.length,
+            paddingAttempts,
+          });
+        }
       
       // Final verification log
       if (currentWordCount < minWordsRequired) {
@@ -1377,6 +1392,48 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
           title: "Comprehensive Life Guidance",
           content: "Your birth chart provides comprehensive guidance for your life path and journey. The alignment of planetary influences, Dasha periods, and transits creates distinct patterns that shape your experiences across all life areas. Understanding these patterns helps you navigate your life path with greater awareness and strategic planning. Favorable periods support growth, achievement, and fulfillment across multiple life areas. During these times, initiatives tend to move forward smoothly, and opportunities for progress arise more naturally. Challenging periods require more patience and strategic navigation, with opportunities for growth through resilience and adaptation. The key is to align your life decisions with favorable astrological timing while building practical foundations for long-term success and fulfillment.",
         });
+        
+        // CRITICAL FIX: Recalculate word count after emergency fallback
+        currentWordCount = sections.reduce((sum, s) => {
+          const contentWords = s.content?.split(/\s+/).length || 0;
+          const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
+          return sum + contentWords + bulletWords;
+        }, 0);
+        
+        // If still short, add more sections until we meet minimum
+        let emergencyAttempts = 0;
+        const maxEmergencyAttempts = 5;
+        while (currentWordCount < minWordsRequired && emergencyAttempts < maxEmergencyAttempts) {
+          emergencyAttempts++;
+          sections.push({
+            title: `Additional Life Insights - Section ${sections.length + 1}`,
+            content: "This section provides additional astrological insights and practical guidance based on your birth chart analysis. The interplay between your natal chart patterns, current Dasha period, and planetary transits creates unique opportunities and challenges across all life areas. Understanding these influences helps you navigate your life path more effectively and make decisions aligned with favorable astrological timing. Regular reflection on these insights helps you stay aligned with evolving opportunities and challenges throughout your journey. Strategic planning based on astrological timing can significantly enhance your ability to make the most of favorable periods while navigating challenging times with greater ease and effectiveness. The key is to combine astrological guidance with practical wisdom, creating a holistic approach that considers multiple perspectives and supports long-term growth and fulfillment.",
+          });
+          
+          // Recalculate after each addition
+          currentWordCount = sections.reduce((sum, s) => {
+            const contentWords = s.content?.split(/\s+/).length || 0;
+            const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
+            return sum + contentWords + bulletWords;
+          }, 0);
+        }
+        
+        // Final log after emergency padding
+        if (currentWordCount < minWordsRequired) {
+          console.error("[FULL-LIFE FALLBACK] EMERGENCY: Still below minimum after emergency padding", {
+            currentWordCount,
+            minWordsRequired,
+            sectionsCount: sections.length,
+            emergencyAttempts,
+          });
+        } else {
+          console.log("[FULL-LIFE FALLBACK] SUCCESS: Met minimum word count after emergency padding", {
+            currentWordCount,
+            minWordsRequired,
+            sectionsCount: sections.length,
+            emergencyAttempts,
+          });
+        }
       }
     }
     
