@@ -518,6 +518,25 @@ function convertCandidateToSection(candidate: any, fallbackTitle: string): Repor
   };
 }
 
+function normalizeArraySource(source: any): any[] | null {
+  if (Array.isArray(source)) return source;
+  if (typeof source === "string") {
+    const parsed = extractEmbeddedJsonSegment(source);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === "object") {
+      if (Array.isArray((parsed as any).sections)) return (parsed as any).sections;
+      if (Array.isArray((parsed as any).contentBlocks)) return (parsed as any).contentBlocks;
+      if (Array.isArray((parsed as any).items)) return (parsed as any).items;
+    }
+  }
+  if (source && typeof source === "object") {
+    if (Array.isArray((source as any).sections)) return (source as any).sections;
+    if (Array.isArray((source as any).contentBlocks)) return (source as any).contentBlocks;
+    if (Array.isArray((source as any).items)) return (source as any).items;
+  }
+  return null;
+}
+
 function collectSectionsFromStructuredJson(parsedJson: any, reportType: ReportType): ReportSection[] {
   const sections: ReportSection[] = [];
   const arraySources = [
@@ -535,8 +554,9 @@ function collectSectionsFromStructuredJson(parsedJson: any, reportType: ReportTy
   ];
 
   arraySources.forEach((source) => {
-    if (!Array.isArray(source)) return;
-    source.forEach((item, index) => {
+    const normalized = normalizeArraySource(source);
+    if (!normalized) return;
+    normalized.forEach((item, index) => {
       const candidate = convertCandidateToSection(item, `Section ${index + 1}`);
       if (candidate) {
         sections.push(candidate);
@@ -603,6 +623,29 @@ function filterMeaningfulSections(sections: ReportSection[]): ReportSection[] {
   });
 }
 
+function extractJsonFromKnownFields(payload: any): any | null {
+  if (!payload || typeof payload !== "object") return null;
+  const candidates: Array<any> = [
+    payload.content,
+    payload.raw,
+    payload.response,
+    payload.text,
+    payload.message,
+    payload.output,
+    payload.result,
+    payload.data,
+    payload?.choices?.[0]?.message?.content,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const extracted = extractEmbeddedJsonSegment(candidate);
+    if (extracted && typeof extracted === "object") {
+      return extracted;
+    }
+  }
+  return null;
+}
+
 /**
  * Parse AI response into structured report content
  * CRITICAL FIX (Priority 2): Try JSON parsing first, fallback to regex parsing
@@ -623,9 +666,8 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
   
   // CRITICAL FIX (Priority 2): Try to parse as JSON first
   let parsedJson: any = null;
+  const cleanedResponse = response.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
   try {
-    // Remove markdown code blocks if present
-    const cleanedResponse = response.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
     parsedJson = JSON.parse(cleanedResponse);
     console.log(`[parseAIResponse] Successfully parsed JSON for reportType=${reportType}`);
   } catch (jsonError) {
@@ -644,19 +686,60 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
       errorMessage: jsonError instanceof Error ? jsonError.message : String(jsonError),
       responseLength: response.length,
     }));
-    const extracted = extractEmbeddedJsonSegment(response);
+    const extracted = extractEmbeddedJsonSegment(cleanedResponse);
     if (extracted && typeof extracted === "object") {
       parsedJson = extracted;
       console.log("[parseAIResponse] parser_extracted_json_block", {
         reportType,
         event: "PARSER_EXTRACTED_JSON_BLOCK",
+        source: "response",
       });
     }
   }
   
+  if (typeof parsedJson === "string") {
+    const extracted = extractEmbeddedJsonSegment(parsedJson);
+    if (extracted && typeof extracted === "object") {
+      parsedJson = extracted;
+      console.log("[parseAIResponse] parser_extracted_json_block", {
+        reportType,
+        event: "PARSER_EXTRACTED_JSON_BLOCK",
+        source: "stringified_json",
+      });
+    }
+  }
+
   if (parsedJson && typeof parsedJson === "object") {
-    const structuredSections = collectSectionsFromStructuredJson(parsedJson, reportType);
-    const meaningfulSections = filterMeaningfulSections(structuredSections);
+    let structuredSections = collectSectionsFromStructuredJson(parsedJson, reportType);
+    let meaningfulSections = filterMeaningfulSections(structuredSections);
+    if (meaningfulSections.length === 0) {
+      const recoveredFromFields = extractJsonFromKnownFields(parsedJson);
+      if (recoveredFromFields) {
+        structuredSections = collectSectionsFromStructuredJson(recoveredFromFields, reportType);
+        meaningfulSections = filterMeaningfulSections(structuredSections);
+        if (meaningfulSections.length > 0) {
+          console.log("[parseAIResponse] parser_extracted_json_block", {
+            reportType,
+            event: "PARSER_EXTRACTED_JSON_BLOCK",
+            source: "nested_field",
+          });
+        }
+      }
+    }
+    if (meaningfulSections.length === 0) {
+      const recoveredFromResponse = extractEmbeddedJsonSegment(cleanedResponse);
+      if (recoveredFromResponse && recoveredFromResponse !== parsedJson) {
+        structuredSections = collectSectionsFromStructuredJson(recoveredFromResponse, reportType);
+        meaningfulSections = filterMeaningfulSections(structuredSections);
+        if (meaningfulSections.length > 0) {
+          console.log("[parseAIResponse] parser_extracted_json_block", {
+            reportType,
+            event: "PARSER_EXTRACTED_JSON_BLOCK",
+            source: "response_retry",
+          });
+        }
+      }
+    }
     if (meaningfulSections.length === 0) {
       console.warn("[parseAIResponse] parser_fallback_skeleton_used", {
         reportType,
@@ -858,7 +941,15 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     // Clear sections array to start fresh with fallback sections
     sections.length = 0;
     
-    // For year-analysis, skip generic fallback - ensureMinimumSections will add specific sections
+    if (reportType === "year-analysis") {
+      console.warn("[parseAIResponse] parser_fallback_skeleton_used", {
+        reportType,
+        event: "PARSER_FALLBACK_SKELETON_USED",
+        source: "regex_fallback",
+      });
+      return ensureMinimumSections(deterministicSkeleton(reportType), reportType);
+    }
+    // Create minimal fallback report with 2-3 sections for other report types
     if (reportType !== "year-analysis") {
       // Create minimal fallback report with 2-3 sections for other report types
     sections.push({
@@ -870,7 +961,6 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
       content: "For a complete analysis with detailed timing windows and guidance, please try generating the report again. Our system uses AI and astrological calculations to provide comprehensive insights.",
     });
     }
-    // For year-analysis, sections array remains empty and ensureMinimumSections will populate it with specific sections
   } else {
     // Use meaningful sections instead of all sections
     sections.length = 0;
