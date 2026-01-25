@@ -828,8 +828,7 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
       
       // Clear and replace with fallback sections
       sections.length = 0;
-      // CRITICAL FIX: Reset existingTitles when clearing sections to ensure fallback sections are added
-      existingTitles.clear();
+      // Note: existingTitles will be redefined later when adding fallback sections
     }
   }
   
@@ -1379,6 +1378,7 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
             paddingAttempts,
           });
         }
+      }
       
       // Final verification log
       if (currentWordCount < minWordsRequired) {
