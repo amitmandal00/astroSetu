@@ -8,6 +8,7 @@
 3. **Do not ask me to click things repeatedly**. If a click is required, consolidate all pending edits into ONE accept step.
 4. **If blocked, update `CURSOR_ACTIONS_REQUIRED.md` with exact next actions**.
 5. **Never continue with partial context. Re-run tests before proceeding**.
+5a. **Always pair behavioral changes/fixes with relevant automated tests** (unit/integration/regression/E2E) so regressions can't slip through; mention the new coverage in `CURSOR_PROGRESS.md`.
 6. **MVP System Rules**: Frontend never generates reports, Worker is only execution path, Payment captured only after success, Failures are terminal, No automatic retries
 7. **Model policy**: Default to **Agent 2 (GPT-5.1 Codex Mini)** for autopilot/code work; always ask before switching to another model or agent.
 

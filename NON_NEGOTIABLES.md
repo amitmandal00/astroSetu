@@ -13,6 +13,7 @@
 - **No destructive commands**: never run `rm -rf`, `drop database`, `sudo`, disk ops, or similar.
 - **No repo-wide refactors** unless explicitly asked.
 - **No silent behavior changes**: if a behavior changes, add/adjust tests proving it.
+- **Always pair behavioral changes/fixes with automated tests** (unit/integration/regression/E2E) that cover the new expectations; document what they exercise.
 - **Keep diffs tight**: ≤ 5 files per batch, one concern per batch.
 - **CRITICAL (ChatGPT Feedback - Minimize Interruptions)**: Prefer **1 file at a time** to minimize "Confirm edit" prompts.
 - **No refactors while fixing bugs**: Fix the bug with minimal surface area.

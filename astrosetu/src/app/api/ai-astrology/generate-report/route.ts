@@ -43,10 +43,14 @@ import {
   markStoredReportRefunded,
   type ReportErrorCode,
 } from "@/lib/ai-astrology/reportStore";
-import { validateReportBeforeCompletion } from "@/lib/ai-astrology/reportValidation";
+import { validateReportBeforeCompletion, ValidationResult } from "@/lib/ai-astrology/reportValidation";
 import { parseEnvBoolean, calculateReportMode } from "@/lib/envParsing";
 import { countWordsFromSections } from "@/lib/ai-astrology/qualityThresholds";
 import { isReportTypeEnabled } from "@/lib/ai-astrology/reportAvailability";
+import {
+  deterministicSkeleton,
+  mergeReportContentWithSkeleton,
+} from "@/lib/ai-astrology/deterministicSkeleton";
 
 function getMaxProcessingMs(reportType: ReportType): number {
   // Upper bound watchdog. Without heartbeats in serverless, "processing" can become permanent if a function times out.
@@ -130,6 +134,86 @@ function computeReportFootprint(reportContent: ReportContent, reportType: Report
     shortSections,
     placeholderSections,
   };
+}
+
+type DegradationResponseParams = {
+  requestId: string;
+  reportId: string;
+  reportType: ReportType;
+  content: ReportContent;
+  validation: ValidationResult;
+  validationPath: string;
+  skeletonUsed: boolean;
+  paymentAction: string;
+  qualityWarning?: string | null;
+  warnings?: string[];
+};
+
+function buildContentStats(content: ReportContent, validation: ValidationResult) {
+  const sectionCount = content.sections?.length || 0;
+  const wordCount = validation.wordCount ?? countWordsFromSections(content.sections || []);
+  return {
+    sectionCount,
+    wordCount,
+    strictMinWords: validation.strictMinWords || 0,
+    degradedMinWords: validation.degradedMinWords || 0,
+    missingWords: validation.missingWords || 0,
+  };
+}
+
+function respondWithDegradationResponse({
+  requestId,
+  reportId,
+  reportType,
+  content,
+  validation,
+  validationPath,
+  skeletonUsed,
+  paymentAction,
+  qualityWarning,
+  warnings,
+}: DegradationResponseParams) {
+  const resolvedWarnings =
+    warnings?.length
+      ? warnings
+      : validation.error
+      ? [validation.error]
+      : ["CONTENT_TOO_SHORT_STRICT"];
+  const contentStats = buildContentStats(content, validation);
+
+  console.log("[MVP_OUTCOME_LOG]", JSON.stringify({
+    requestId,
+    reportId,
+    reportType,
+    outcome: "completed_with_degradation",
+    validationPath,
+    strictPass: validation.strictPass,
+    degradedPass: validation.degradedPass,
+    skeletonUsed,
+    paymentAction,
+    qualityWarning: qualityWarning || null,
+    contentStats,
+  }));
+
+  return NextResponse.json(
+    {
+      ok: true,
+      status: "completed_with_degradation",
+      outcome: "completed_with_degradation",
+      validationPath,
+      warnings: resolvedWarnings,
+      qualityWarning: qualityWarning || null,
+      contentStats,
+      reportId,
+      requestId,
+      reportType,
+      content,
+    },
+    {
+      status: 200,
+      headers: { "X-Request-ID": requestId },
+    }
+  );
 }
 
 function parseReportIdCreatedAtMs(reportId: string): number | null {
@@ -1980,44 +2064,20 @@ export async function POST(req: Request) {
         : "skeleton";
 
       if (!validation.strictPass && validation.degradedPass) {
-        const contentStats = {
-          sectionCount: cleanedReportContent.sections?.length || 0,
-          wordCount: validation.wordCount || (() => countWordsFromSections(cleanedReportContent.sections || []))(),
-          strictMinWords: validation.strictMinWords,
-          degradedMinWords: validation.degradedMinWords,
-          missingWords: validation.missingWords,
-        };
-        console.log("[MVP_OUTCOME_LOG]", JSON.stringify({
+        qualityWarning = validation.qualityWarning || "shorter_than_expected";
+        const paymentAction = shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured" : "none");
+        return respondWithDegradationResponse({
           requestId,
           reportId,
           reportType,
-          outcome: "completed_with_degradation",
+          content: cleanedReportContent,
+          validation,
           validationPath,
-          strictPass: validation.strictPass,
-          degradedPass: validation.degradedPass,
           skeletonUsed: false,
-          paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured" : "none"),
-          contentStats,
-        }));
-
-        return NextResponse.json(
-          {
-            ok: true,
-            status: "completed_with_degradation",
-            outcome: "completed_with_degradation",
-            validationPath,
-            warnings: validation.error ? [validation.error] : ["CONTENT_TOO_SHORT_STRICT"],
-            contentStats,
-            reportId,
-            requestId,
-            reportType,
-            content: cleanedReportContent,
-          },
-          {
-            status: 200,
-            headers: { "X-Request-ID": requestId },
-          }
-        );
+          paymentAction,
+          qualityWarning,
+          warnings: validation.error ? [validation.error] : ["CONTENT_TOO_SHORT_STRICT"],
+        });
       }
 
       if (!validation.valid) {
@@ -2194,6 +2254,41 @@ export async function POST(req: Request) {
             }, {
               status: 200,
               headers: { "X-Request-ID": requestId },
+            });
+          }
+          
+          // LAST RESORT: deterministic skeleton merge if fallback still fails
+          const skeletonSeed = deterministicSkeleton(reportType);
+          const mergedSkeletonContent = ensureMinimumSections(
+            mergeReportContentWithSkeleton(fallbackContent, skeletonSeed),
+            reportType
+          );
+          const skeletonValidation = validateReportBeforeCompletion(
+            mergedSkeletonContent,
+            input,
+            paymentToken,
+            reportType
+          );
+          if (skeletonValidation.strictPass || skeletonValidation.degradedPass) {
+            const skeletonQualityWarning = skeletonValidation.qualityWarning || "content_repair_applied";
+            const paymentAction = shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured" : "none");
+            console.warn("[SKELETON DELIVERY] Deterministic skeleton applied before terminal failure", {
+              requestId,
+              reportId,
+              reportType,
+              validationPath: "skeleton",
+            });
+            return respondWithDegradationResponse({
+              requestId,
+              reportId,
+              reportType,
+              content: mergedSkeletonContent,
+              validation: skeletonValidation,
+              validationPath: "skeleton",
+              skeletonUsed: true,
+              paymentAction,
+              qualityWarning: skeletonQualityWarning,
+              warnings: skeletonValidation.error ? [skeletonValidation.error] : undefined,
             });
           }
           

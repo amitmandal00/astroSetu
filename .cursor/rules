@@ -39,6 +39,7 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 - Avoid repo-wide scans/refactors unless explicitly asked.
 - Prefer minimal diffs; do not reformat unrelated code.
 - If a step is long-running, run it in the background when possible and continue with other work.
+- **Testing rule**: Whenever you add/modify functionality or fix a bug, **pair the change with relevant automated coverage** (unit/integration/regression/E2E) that exercises the new behavior or regression you addressed.
 
 ### Autopilot Non-Negotiables (ChatGPT Feedback - Minimize Interruptions)
 - **No broad edits**: Max 1–3 files per change set (prefer 1 file at a time).

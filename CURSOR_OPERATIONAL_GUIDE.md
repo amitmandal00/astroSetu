@@ -20,6 +20,7 @@ Use Cursor as a **safe autopilot**: keep moving forward, never corrupt the repo,
   - **Model policy**: Default to **Agent 2 (GPT-5.1 Codex Mini)** for code/autopilot work and always ask before switching to another model/agent.
   - Change **≤ 5 files per batch** (prefer 1-3 files to reduce token usage).
   - Prefer **tests-first** for regressions (add/extend a test that reproduces the defect).
+  - **Always add or extend automated tests** whenever you change behavior or fix a bug; document what the new test covers in `CURSOR_PROGRESS.md`.
   - After each batch: update `CURSOR_PROGRESS.md`.
 - **When blocked** (approvals/popups/rate limits): log it in `CURSOR_ACTIONS_REQUIRED.md` and continue with the next safe work.
 - **Cost monitoring**: Review On-Demand charges daily, document large requests (> 500K tokens) in `COST_SPIKE_ANALYSIS.md`

@@ -372,5 +372,6 @@ Error: EPERM: operation not permitted, scandir '/Users/.../src/app/api/notificat
   - VPN/proxy: Disable or allowlist Cursor + API provider domains
   - OpenAI key: Check rate limit/quota/billing/model mismatch
   - Reduce concurrent actions: Keep to 1–2 parallel tasks max
+- **Testing hygiene**: When documenting progress, always mention what new automated tests you added/updated and what behavior they lock in; this keeps the audit trail aligned with the new "tests-first" rule.
 
 

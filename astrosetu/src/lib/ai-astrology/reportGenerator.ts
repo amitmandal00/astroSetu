@@ -4,6 +4,7 @@
  */
 
 import type { AIAstrologyInput, ReportType, ReportContent, ReportSection } from "./types";
+import { deterministicSkeleton } from "./deterministicSkeleton";
 import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt, generateFullLifePrompt, generateYearAnalysisPrompt, generateMajorLifePhasePrompt, generateDecisionSupportPrompt } from "./prompts";
 import { getKundli } from "../astrologyAPI";
 import { generateKundliCacheKey, getCachedKundli, cacheKundli, getCachedDosha, cacheDosha } from "./kundliCache";
@@ -436,6 +437,172 @@ function generateReportId(): string {
   return `RPT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 }
 
+function isQuoteEscaped(text: string, index: number): boolean {
+  let slashCount = 0;
+  for (let i = index - 1; i >= 0 && text[i] === "\\"; i--) {
+    slashCount += 1;
+  }
+  return slashCount % 2 === 1;
+}
+
+function findClosingBracketIndex(text: string, start: number): number {
+  const opening = text[start];
+  const closing = opening === "{" ? "}" : opening === "[" ? "]" : "";
+  if (!closing) return -1;
+  let depth = 0;
+  let inString = false;
+
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"' && !isQuoteEscaped(text, i)) {
+      inString = !inString;
+    }
+    if (inString) continue;
+    if (char === opening) {
+      depth += 1;
+    } else if (char === closing) {
+      depth -= 1;
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function extractEmbeddedJsonSegment(response: string): any | null {
+  const cleaned = response
+    .replace(/^```json\s*/im, "")
+    .replace(/^```\s*/im, "")
+    .replace(/```$/m, "")
+    .trim();
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const char = cleaned[i];
+    if (char !== "{" && char !== "[") continue;
+    const closingIndex = findClosingBracketIndex(cleaned, i);
+    if (closingIndex <= i) continue;
+    const candidate = cleaned.substring(i, closingIndex + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function convertCandidateToSection(candidate: any, fallbackTitle: string): ReportSection | null {
+  if (!candidate || typeof candidate !== "object") return null;
+  const title =
+    candidate.title ||
+    candidate.heading ||
+    candidate.name ||
+    candidate.sectionTitle ||
+    fallbackTitle;
+  const content =
+    candidate.content ||
+    candidate.body ||
+    candidate.summary ||
+    candidate.analysis ||
+    candidate.description ||
+    "";
+  const bullets = Array.isArray(candidate.bullets) ? candidate.bullets : undefined;
+  if (!content && (!bullets || bullets.length === 0)) return null;
+  return {
+    title: typeof title === "string" && title.trim() ? title : fallbackTitle,
+    content,
+    bullets,
+  };
+}
+
+function collectSectionsFromStructuredJson(parsedJson: any, reportType: ReportType): ReportSection[] {
+  const sections: ReportSection[] = [];
+  const arraySources = [
+    parsedJson.sections,
+    parsedJson.contentBlocks,
+    parsedJson.blocks,
+    parsedJson.analysis,
+    parsedJson.analysisSections,
+    parsedJson.keyInsights,
+    parsedJson.focusAreas,
+    parsedJson.timeline,
+    parsedJson.items,
+    parsedJson.stages,
+    parsedJson.cards,
+  ];
+
+  arraySources.forEach((source) => {
+    if (!Array.isArray(source)) return;
+    source.forEach((item, index) => {
+      const candidate = convertCandidateToSection(item, `Section ${index + 1}`);
+      if (candidate) {
+        sections.push(candidate);
+      }
+    });
+  });
+
+  if (Array.isArray(parsedJson) && parsedJson.length > 0) {
+    parsedJson.forEach((item, index) => {
+      const candidate = convertCandidateToSection(item, `Section ${index + 1}`);
+      if (candidate) {
+        sections.push(candidate);
+      }
+    });
+  }
+
+  if (sections.length === 0 && parsedJson.sections && typeof parsedJson.sections === "object") {
+    Object.entries(parsedJson.sections).forEach(([key, value]) => {
+      const candidate = convertCandidateToSection(value, key);
+      if (candidate) {
+        sections.push(candidate);
+      }
+    });
+  }
+
+  if (sections.length === 0 && parsedJson.content) {
+    sections.push({
+      title: getReportTitle(reportType),
+      content: parsedJson.content,
+    });
+  }
+
+  return sections;
+}
+
+const PLACEHOLDER_PATTERNS = [
+  "lorem ipsum",
+  "placeholder text",
+  "coming soon",
+  "this is a placeholder",
+  "detailed analysis will be generated",
+  "insight based on your birth chart",
+  "key insight based on your birth chart",
+  "we're preparing your personalized insights",
+  "this is a simplified view",
+  "try generating the report again",
+  "for a complete analysis with detailed timing windows",
+  "additional insights - section",
+  "please try generating the report again",
+];
+
+function isPlaceholderSection(content?: string): boolean {
+  if (!content) return false;
+  const normalized = content.toLowerCase();
+  return PLACEHOLDER_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
+function filterMeaningfulSections(sections: ReportSection[]): ReportSection[] {
+  return sections.filter((section) => {
+    const content = section.content?.trim() || "";
+    const hasContent = content.length > 20;
+    const hasBullets = section.bullets && section.bullets.length > 0;
+    return (hasContent || hasBullets) && !isPlaceholderSection(content);
+  });
+}
+
 /**
  * Parse AI response into structured report content
  * CRITICAL FIX (Priority 2): Try JSON parsing first, fallback to regex parsing
@@ -461,87 +628,68 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     const cleanedResponse = response.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
     parsedJson = JSON.parse(cleanedResponse);
     console.log(`[parseAIResponse] Successfully parsed JSON for reportType=${reportType}`);
-    
-    // Validate JSON structure
-    if (parsedJson && typeof parsedJson === "object") {
-      // Convert JSON to ReportContent format
-      const sections: ReportContent["sections"] = [];
-      
-      // Handle sections array
-      if (Array.isArray(parsedJson.sections)) {
-        sections.push(...parsedJson.sections.map((s: any) => ({
-          title: s.title || "Section",
-          content: s.content || "",
-          bullets: Array.isArray(s.bullets) ? s.bullets : undefined,
-          subsections: Array.isArray(s.subsections) ? s.subsections.map((ss: any) => ({
-            title: ss.title || "Subsection",
-            content: ss.content || "",
-            bullets: Array.isArray(ss.bullets) ? ss.bullets : undefined,
-          })) : undefined,
-        })));
-      } else if (parsedJson.sections && typeof parsedJson.sections === "object") {
-        // Handle sections as object (convert to array)
-        Object.entries(parsedJson.sections).forEach(([key, value]: [string, any]) => {
-          sections.push({
-            title: value.title || key,
-            content: value.content || String(value),
-            bullets: Array.isArray(value.bullets) ? value.bullets : undefined,
-          });
-        });
-      }
-      
-      // Build report content from JSON
-      const reportContent: ReportContent = {
-        title: parsedJson.title || getReportTitle(reportType),
-        sections: sections.length > 0 ? sections : [{
-          title: "Overview",
-          content: parsedJson.content || parsedJson.summary || "Report content generated.",
-        }],
-        summary: parsedJson.summary,
-        executiveSummary: parsedJson.executiveSummary,
-        keyInsights: Array.isArray(parsedJson.keyInsights) ? parsedJson.keyInsights : undefined,
-        timeWindows: Array.isArray(parsedJson.timeWindows) ? parsedJson.timeWindows : undefined,
-        recommendations: Array.isArray(parsedJson.recommendations) ? parsedJson.recommendations : undefined,
-        yearTheme: parsedJson.yearTheme,
-        quarterlyBreakdown: Array.isArray(parsedJson.quarterlyBreakdown) ? parsedJson.quarterlyBreakdown : undefined,
-        bestPeriods: Array.isArray(parsedJson.bestPeriods) ? parsedJson.bestPeriods : undefined,
-        cautionPeriods: Array.isArray(parsedJson.cautionPeriods) ? parsedJson.cautionPeriods : undefined,
-        focusAreasByMonth: Array.isArray(parsedJson.focusAreasByMonth) ? parsedJson.focusAreasByMonth : undefined,
-        yearScorecard: parsedJson.yearScorecard,
-        confidenceLevel: typeof parsedJson.confidenceLevel === "number" ? parsedJson.confidenceLevel : undefined,
-        phaseTheme: parsedJson.phaseTheme,
-        phaseYears: parsedJson.phaseYears,
-        phaseBreakdown: Array.isArray(parsedJson.phaseBreakdown) ? parsedJson.phaseBreakdown : undefined,
-        majorTransitions: Array.isArray(parsedJson.majorTransitions) ? parsedJson.majorTransitions : undefined,
-        longTermOpportunities: Array.isArray(parsedJson.longTermOpportunities) ? parsedJson.longTermOpportunities : undefined,
-        decisionContext: parsedJson.decisionContext,
-        decisionOptions: Array.isArray(parsedJson.decisionOptions) ? parsedJson.decisionOptions : undefined,
-        recommendedTiming: parsedJson.recommendedTiming,
-        factorsToConsider: Array.isArray(parsedJson.factorsToConsider) ? parsedJson.factorsToConsider : undefined,
-        generatedAt: parsedJson.generatedAt || new Date().toISOString(),
-      };
-      
-      console.log(`[parseAIResponse] JSON parsed successfully, sections: ${reportContent.sections.length}`);
-      return reportContent;
-    }
   } catch (jsonError) {
-    // JSON parse failed - fallback to regex parsing
-    console.warn(`[parseAIResponse] JSON parse failed, falling back to regex parsing for reportType=${reportType}`, {
+    console.warn(`[parseAIResponse] JSON parse failed, falling back to structured extractor for reportType=${reportType}`, {
       error: jsonError instanceof Error ? jsonError.message : String(jsonError),
       responseLength: response.length,
     });
     
-    // CRITICAL FIX (Priority 4): Structured log for JSON parse failure
     console.log("[STRUCTURED_LOG]", JSON.stringify({
       reportType,
       timestamp: new Date().toISOString(),
       event: "JSON_PARSE_FAIL",
       reasonCode: "JSON_PARSE_FAIL",
-      repairStrategy: "regex_fallback",
+      repairStrategy: "structured_extractor",
       repairAttempted: false,
       errorMessage: jsonError instanceof Error ? jsonError.message : String(jsonError),
       responseLength: response.length,
     }));
+    const extracted = extractEmbeddedJsonSegment(response);
+    if (extracted && typeof extracted === "object") {
+      parsedJson = extracted;
+      console.log(`[parseAIResponse] Extracted embedded JSON for reportType=${reportType}`);
+    }
+  }
+  
+  if (parsedJson && typeof parsedJson === "object") {
+    const structuredSections = collectSectionsFromStructuredJson(parsedJson, reportType);
+    const meaningfulSections = filterMeaningfulSections(structuredSections);
+    if (meaningfulSections.length === 0) {
+      console.warn("[parseAIResponse] Parsed JSON produced no meaningful sections - using deterministic skeleton", {
+        reportType,
+      });
+      return ensureMinimumSections(deterministicSkeleton(reportType), reportType);
+    }
+
+    const reportContent: ReportContent = {
+      title: parsedJson.title || getReportTitle(reportType),
+      sections: meaningfulSections,
+      summary: parsedJson.summary,
+      executiveSummary: parsedJson.executiveSummary || (reportType === "full-life" ? parsedJson.summary : undefined),
+      keyInsights: Array.isArray(parsedJson.keyInsights) ? parsedJson.keyInsights : undefined,
+      timeWindows: Array.isArray(parsedJson.timeWindows) ? parsedJson.timeWindows : undefined,
+      recommendations: Array.isArray(parsedJson.recommendations) ? parsedJson.recommendations : undefined,
+      yearTheme: parsedJson.yearTheme,
+      quarterlyBreakdown: Array.isArray(parsedJson.quarterlyBreakdown) ? parsedJson.quarterlyBreakdown : undefined,
+      bestPeriods: Array.isArray(parsedJson.bestPeriods) ? parsedJson.bestPeriods : undefined,
+      cautionPeriods: Array.isArray(parsedJson.cautionPeriods) ? parsedJson.cautionPeriods : undefined,
+      focusAreasByMonth: Array.isArray(parsedJson.focusAreasByMonth) ? parsedJson.focusAreasByMonth : undefined,
+      yearScorecard: parsedJson.yearScorecard,
+      confidenceLevel: typeof parsedJson.confidenceLevel === "number" ? parsedJson.confidenceLevel : undefined,
+      phaseTheme: parsedJson.phaseTheme,
+      phaseYears: parsedJson.phaseYears,
+      phaseBreakdown: Array.isArray(parsedJson.phaseBreakdown) ? parsedJson.phaseBreakdown : undefined,
+      majorTransitions: Array.isArray(parsedJson.majorTransitions) ? parsedJson.majorTransitions : undefined,
+      longTermOpportunities: Array.isArray(parsedJson.longTermOpportunities) ? parsedJson.longTermOpportunities : undefined,
+      decisionContext: parsedJson.decisionContext,
+      decisionOptions: Array.isArray(parsedJson.decisionOptions) ? parsedJson.decisionOptions : undefined,
+      recommendedTiming: parsedJson.recommendedTiming,
+      factorsToConsider: Array.isArray(parsedJson.factorsToConsider) ? parsedJson.factorsToConsider : undefined,
+      generatedAt: parsedJson.generatedAt || new Date().toISOString(),
+    };
+
+    console.log(`[parseAIResponse] JSON parsed successfully, sections: ${reportContent.sections.length}`);
+    return ensureMinimumSections(reportContent, reportType);
   }
   
   // Fallback: Original regex-based parsing (for backward compatibility)
@@ -657,22 +805,7 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     sections.push(currentSection);
   }
   
-  // Filter out sections with empty or placeholder content
-  // Check if sections have meaningful content (not just empty or placeholder text)
-  const meaningfulSections = sections.filter(section => {
-    const hasContent = section.content && section.content.trim().length > 20;
-    const hasBullets = section.bullets && section.bullets.length > 0;
-    // Exclude placeholder content patterns
-    const isPlaceholder = section.content && (
-      section.content.includes("We're preparing your personalized insights") ||
-      section.content.includes("This is a simplified view") ||
-      section.content.includes("For a complete analysis with detailed timing windows") ||
-      section.content.includes("This section contains additional astrological insights") ||
-      section.content.toLowerCase().includes("additional insights") ||
-      section.content.toLowerCase().includes("simplified view")
-    );
-    return (hasContent || hasBullets) && !isPlaceholder;
-  });
+  const meaningfulSections = filterMeaningfulSections(sections);
   
   // CRITICAL FIX for year-analysis: Check if parsed sections actually contain expected year-analysis sections
   // If not, treat as if parsing failed and use fallback sections
@@ -738,6 +871,13 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     // Use meaningful sections instead of all sections
     sections.length = 0;
     sections.push(...meaningfulSections);
+  }
+
+  if (sections.length === 0 && reportType !== "year-analysis") {
+    console.warn("[parseAIResponse] No sections available after fallback parsing - using deterministic skeleton", {
+      reportType,
+    });
+    return ensureMinimumSections(deterministicSkeleton(reportType), reportType);
   }
 
   // Build the report object

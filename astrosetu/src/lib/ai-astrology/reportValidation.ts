@@ -30,6 +30,19 @@ export type ValidationResult = {
  * Validates report content before marking as "completed"
  * Returns validation result with error code if invalid
  */
+const INVALID_RESULT_TEMPLATE: ValidationResult = {
+  valid: false,
+  strictPass: false,
+  degradedPass: false,
+};
+
+function createInvalidResult(overrides: Partial<ValidationResult> = {}): ValidationResult {
+  return {
+    ...INVALID_RESULT_TEMPLATE,
+    ...overrides,
+  };
+}
+
 export function validateReportContent(
   report: ReportContent,
   input: AIAstrologyInput,
@@ -38,20 +51,18 @@ export function validateReportContent(
 ): ValidationResult {
   // 1. Required sections check
   if (!report.sections || report.sections.length === 0) {
-    return {
-      valid: false,
+    return createInvalidResult({
       error: "Report has no sections",
       errorCode: "MISSING_SECTIONS",
-    };
+    });
   }
 
   // 2. Check for mock content (critical - never allow in production)
   if (reportContainsMockContent(report)) {
-    return {
-      valid: false,
+    return createInvalidResult({
       error: "Report contains mock/test content",
       errorCode: "MOCK_CONTENT_DETECTED",
-    };
+    });
   }
 
   // 3. Validate sections have content
@@ -59,20 +70,18 @@ export function validateReportContent(
     (section) => section.content && section.content.trim().length > 0
   );
   if (!hasValidSections) {
-    return {
-      valid: false,
+    return createInvalidResult({
       error: "Report sections have no content",
       errorCode: "MISSING_SECTIONS",
-    };
+    });
   }
 
   // 4. Validate report title exists
   if (!report.title || report.title.trim().length === 0) {
-    return {
-      valid: false,
+    return createInvalidResult({
       error: "Report has no title",
       errorCode: "VALIDATION_FAILED",
-    };
+    });
   }
 
   // 5. User name matching (if payment token metadata available)
@@ -93,11 +102,10 @@ export function validateReportContent(
   // The input should match what was used for generation
   // This is already validated in the generation flow, but we can double-check here
   if (!input.dob || !input.tob || !input.place) {
-    return {
-      valid: false,
+    return createInvalidResult({
       error: "Invalid birth data in input",
       errorCode: "VALIDATION_FAILED",
-    };
+    });
   }
 
   // 7. Validate report has meaningful content (not just placeholders)
@@ -144,11 +152,10 @@ export function validateReportContent(
   });
 
   if (hasPlaceholderContent) {
-    return {
-      valid: false,
+    return createInvalidResult({
       error: "Report contains placeholder content",
       errorCode: "VALIDATION_FAILED",
-    };
+    });
   }
 
   // 8. Structural validation by report type
@@ -248,11 +255,10 @@ function validateStructureByReportType(
     );
     
     if (hasExpectedTitles.length < 2) {
-      return {
-        valid: false,
+      return createInvalidResult({
         error: `Year-analysis report missing expected sections. Found: ${hasExpectedTitles.length} of ${expectedTitles.length} expected sections`,
         errorCode: "VALIDATION_FAILED",
-      };
+      });
     }
     
     // Check minimum word count (adjusted to realistic expectations based on token limits)
@@ -268,13 +274,12 @@ function validateStructureByReportType(
     
     if (totalWords < minWords) {
       // Word count failures are auto-expandable (can retry with expand prompt)
-      return {
-        valid: false,
+      return createInvalidResult({
         error: `Year-analysis report content too short. Found ${totalWords} words, minimum ${minWords} required`,
         errorCode: "VALIDATION_FAILED",
-        canAutoExpand: true, // Can be fixed with auto-expand
-        qualityWarning: totalWords >= 600 ? "shorter_than_expected" : undefined, // Only warn if reasonably close
-      };
+        canAutoExpand: true,
+        qualityWarning: totalWords >= 600 ? "shorter_than_expected" : undefined,
+      });
     }
   }
   
@@ -298,17 +303,20 @@ function validateStructureByReportType(
     
     if (totalWords < minWords) {
       // Word count failures are auto-expandable (can retry with expand prompt)
-      return {
-        valid: false,
+      return createInvalidResult({
         error: `${reportType} report content too short. Found ${totalWords} words, minimum ${minWords} required`,
         errorCode: "VALIDATION_FAILED",
-        canAutoExpand: true, // Can be fixed with auto-expand
-        qualityWarning: totalWords >= minWords * 0.7 ? "shorter_than_expected" : undefined, // Warn if reasonably close (70% of threshold)
-      };
+        canAutoExpand: true,
+        qualityWarning: totalWords >= minWords * 0.7 ? "shorter_than_expected" : undefined,
+      });
     }
   }
 
-  return { valid: true };
+  return {
+    valid: true,
+    strictPass: true,
+    degradedPass: true,
+  };
 }
 
 /**
@@ -322,11 +330,10 @@ export function validateReportBeforeCompletion(
   reportType?: ReportType
 ): ValidationResult {
   if (!report) {
-    return {
-      valid: false,
+    return createInvalidResult({
       error: "Report content is null",
       errorCode: "VALIDATION_FAILED",
-    };
+    });
   }
 
   return validateReportContent(report, input, paymentToken, reportType);

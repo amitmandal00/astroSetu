@@ -26,6 +26,7 @@
 2. ⏳ **Validate bulk implementation** - ensure all conditions met
 3. ⏳ **Identify yearly flakiness root cause** - document exact issues
 4. ⏳ **Create "do not touch / safe to refactor" map** - surgical fixes only
+5. 🔒 **Ensure every change is backed by relevant automated tests** (unit/integration/regression/E2E) and log the new coverage in `CURSOR_PROGRESS.md`.
 
 ## 🚨 COST OPTIMIZATION ACTIONS (2026-01-25)
 
