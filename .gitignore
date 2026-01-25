@@ -4,4 +4,11 @@
 ai-astrology-holistic-testing-package.zip
 ai-astrology-holistic-testing-package/
 
+# ZIPs and logs
+*.zip
+**/*.zip
+/ai-astrology-complete-*.zip
+*.log
+.DS_Store
+
 
