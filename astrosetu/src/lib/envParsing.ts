@@ -14,8 +14,8 @@
  * @param envVar - Environment variable value (string | undefined)
  * @returns true if envVar is "true" or "1" (case-insensitive), false otherwise
  */
-export function parseEnvBoolean(envVar: string | undefined): boolean {
-  if (!envVar) return false;
+export function parseEnvBoolean(envVar: string | undefined, defaultValue = false): boolean {
+  if (envVar === undefined || envVar === null) return defaultValue;
   const normalized = String(envVar).toLowerCase().trim();
   return normalized === "true" || normalized === "1";
 }
