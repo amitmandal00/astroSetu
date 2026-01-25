@@ -45,6 +45,7 @@ import {
 } from "@/lib/ai-astrology/reportStore";
 import { validateReportBeforeCompletion } from "@/lib/ai-astrology/reportValidation";
 import { parseEnvBoolean, calculateReportMode } from "@/lib/envParsing";
+import { isReportTypeEnabled } from "@/lib/ai-astrology/reportAvailability";
 
 function getMaxProcessingMs(reportType: ReportType): number {
   // Upper bound watchdog. Without heartbeats in serverless, "processing" can become permanent if a function times out.
@@ -670,6 +671,25 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { ok: false, error: `Invalid report type. Must be one of: ${validReportTypes.join(", ")}` },
         { status: 400, headers: { "X-Request-ID": requestId } }
+      );
+    }
+
+    if (!isReportTypeEnabled(reportType)) {
+      console.warn("[REPORT DISABLED]", {
+        requestId,
+        reportType,
+        message: "Report type disabled via reportAvailability",
+      });
+      await cancelPaymentSafely("Disabled report type");
+      return NextResponse.json(
+        {
+          ok: false,
+          errorCode: "REPORT_DISABLED",
+          reportType,
+          redirectTo: "life-summary",
+          message: "This report type is temporarily unavailable. Please try Life Summary.",
+        },
+        { status: 409, headers: { "X-Request-ID": requestId } }
       );
     }
 
