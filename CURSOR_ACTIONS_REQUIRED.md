@@ -1,7 +1,31 @@
 # CURSOR ACTIONS REQUIRED
 
-**Last Updated**: 2026-01-18  
-**Status**: 🔄 **IN PROGRESS - REDIRECT RACE CONDITION FIX APPLIED, 307 REDIRECTS UNDER INVESTIGATION**
+**Last Updated**: 2026-01-25  
+**Status**: 🔄 **MVP GOALS LOCKED - ROLLBACK TO LAST STABLE BUILD REQUIRED**
+
+---
+
+## 🎯 MVP Goals Alignment (2026-01-25)
+
+**MVP Definition**: "A user authorizes payment once and always gets either a fully delivered report (or bundle) or no charge — with zero stuck states and zero money leakage."
+
+**Core Intent**: Stability > cleverness, Predictability > speed, One correct path > many flexible ones
+
+**Key Decisions**:
+- ✅ Bulk reports allowed (with strict conditions) - they worked in last stable build
+- ✅ Yearly analysis flakiness acknowledged - needs strict timeouts/validation/fallback
+- ✅ Priority = stability > scope purity
+- ✅ Rollback to last stable build required
+
+**Next Actions**:
+1. ⏳ **Rollback to last stable build** where bulk reports worked
+2. ⏳ **Validate bulk implementation** - ensure all conditions met
+3. ⏳ **Identify yearly flakiness root cause** - document exact issues
+4. ⏳ **Create "do not touch / safe to refactor" map** - surgical fixes only
+
+---
+
+## Previous Status (2026-01-18)
 
 ---
 

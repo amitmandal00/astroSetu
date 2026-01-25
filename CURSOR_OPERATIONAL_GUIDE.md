@@ -3,6 +3,14 @@
 ## Goal
 Use Cursor as a **safe autopilot**: keep moving forward, never corrupt the repo, and always leave a clean audit trail when blocked.
 
+## MVP Goals Alignment (2026-01-25)
+- **Follow `MVP_GOALS_FINAL_LOCKED.md`**: MVP goals are LOCKED and take precedence
+- **MVP Definition**: "A user authorizes payment once and always gets either a fully delivered report (or bundle) or no charge — with zero stuck states and zero money leakage."
+- **Core Intent**: Stability > cleverness, Predictability > speed, One correct path > many flexible ones
+- **No cron-for-correctness**: System must be correct without cron jobs
+- **No automatic retries**: Failures are terminal and visible
+- **Worker is the only execution path**: Frontend never generates reports
+
 ## Daily workflow (recommended)
 - **Before starting**: read `CURSOR_PROGRESS.md` and `CURSOR_ACTIONS_REQUIRED.md`.
 - **While working**:
@@ -24,6 +32,7 @@ Use Cursor as a **safe autopilot**: keep moving forward, never corrupt the repo,
 - **Subscription journey**: “Subscribe” must not loop back to the same page; verify-session must persist and survive refresh.
 
 ## Where the guardrails live
+- `MVP_GOALS_FINAL_LOCKED.md` - **LOCKED MVP goals (takes precedence)**
 - `.cursor/rules`
 - `CURSOR_AUTOPILOT_PROMPT.md`
 - `NON_NEGOTIABLES.md`

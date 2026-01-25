@@ -1,0 +1,17 @@
+## Top-level
+root/.cursor/rules
+root/CURSOR_ACTIONS_REQUIRED.md
+root/CURSOR_AUTH_POPUP_PLAYBOOK.md
+root/CURSOR_AUTOPILOT_PROMPT.md
+root/CURSOR_OPERATIONAL_GUIDE.md
+root/CURSOR_PROGRESS.md
+root/NON_NEGOTIABLES.md
+
+## Astrosetu (selected)
+astrosetu/package.json
+astrosetu/vercel.json
+astrosetu/playwright.config.ts
+astrosetu/vitest.config.ts
+astrosetu/src/app/api/ai-astrology/*
+astrosetu/src/lib/ai-astrology/*
+astrosetu/tests/*

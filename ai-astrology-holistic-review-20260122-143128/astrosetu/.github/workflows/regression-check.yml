@@ -1,0 +1,53 @@
+name: Regression Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  regression-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Type Check
+        run: npm run type-check
+
+      - name: Build Check
+        run: npm run build
+
+      - name: Critical Unit Tests
+        run: npm run test:unit -- --run tests/unit/lib/validators.test.ts tests/unit/lib/dateHelpers.test.ts
+
+      - name: Regression Tests
+        run: npm run test:unit -- --run tests/regression/critical-flows.test.ts
+
+      - name: Integration Tests
+        run: npm run test:integration -- --run tests/integration/api/contact.test.ts tests/integration/api/payments.test.ts
+
+      - name: Regression Check Script
+        run: bash scripts/regression-check.sh
+
+      # CRITICAL FIX (ChatGPT): Release Gate - Block merges if this fails
+      - name: Release Gate
+        run: npm run release:gate
+        env:
+          # Add any required env vars for build/test (these should be set in GitHub Secrets)
+          # NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          # NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Note: Env vars are optional for type-check, but may be needed for build/test
+

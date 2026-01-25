@@ -95,9 +95,29 @@ export async function POST(req: Request) {
     }
     
     const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
-    // CRITICAL: Default to true (bypass payment) for test users to avoid payment verification errors
-    // Set BYPASS_PAYMENT_FOR_TEST_USERS=false explicitly if you want test users to go through Stripe
-    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS !== "false";
+    // MVP FIX: Lock production payment behavior - avoid accidental bypass
+    // Default to false in production (only allow bypass in local/preview OR explicitly enabled)
+    const isProd = process.env.VERCEL_ENV === "production";
+    const isLocalOrPreview = process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview";
+    
+    // Allow bypass only if:
+    // 1. Explicitly enabled via env var, OR
+    // 2. Local/preview environment (not production)
+    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS === "true" || 
+                                       (!isProd && isLocalOrPreview);
+    
+    // MVP FIX: Gate prodtest_ behavior behind dedicated env flag
+    // prodtest_ sessions should only bypass if ALLOW_PROD_TEST_BYPASS=true
+    const allowProdTestBypass = process.env.ALLOW_PROD_TEST_BYPASS === "true";
+    
+    // For prodtest_ sessions in production, require explicit flag
+    if (isProdTestSession && isProd && !allowProdTestBypass) {
+      console.warn("[PAYMENT BYPASS] prodtest_ session in production without ALLOW_PROD_TEST_BYPASS flag", {
+        requestId,
+        sessionId: isProdTestSession ? "prodtest_*" : "N/A",
+      });
+      // Do not bypass - force through Stripe
+    }
 
     // CRITICAL: Access restriction for production testing
     // Prevent unauthorized users from creating payment sessions

@@ -3,11 +3,23 @@
 ### Goals
 - Keep moving forward with minimal interruptions.
 - Never take irreversible/destructive actions without explicit approval.
-- When blocked, **log and continue** (don’t stall on “Resume/Try again” loops).
+- When blocked, **log and continue** (don't stall on "Resume/Try again" loops).
 
 ### Non-negotiables (repo contract)
 - Follow `NON_NEGOTIABLES.md`.
+- Follow `MVP_GOALS_FINAL_LOCKED.md` - MVP goals are LOCKED and take precedence.
 - Use `CURSOR_OPERATIONAL_GUIDE.md` as the workflow for testing/stability.
+
+### MVP Goals Alignment (CRITICAL - 2026-01-25)
+- **MVP Definition**: "A user authorizes payment once and always gets either a fully delivered report (or bundle) or no charge — with zero stuck states and zero money leakage."
+- **Core Intent**: Stability > cleverness, Predictability > speed, One correct path > many flexible ones
+- **No cron-for-correctness**: System must be correct without cron jobs
+- **No automatic retries**: Failures are terminal and visible
+- **Worker is the only execution path**: Frontend never generates reports
+- **Payment captured only after success**: Never charge unless report/bundle is fully delivered
+- **Bulk reports allowed with strict conditions**: Only if all conditions met (see MVP_GOALS_FINAL_LOCKED.md)
+- **Yearly analysis flakiness acknowledged**: Needs strict timeouts, validation, fallback "lite yearly" mode
+- **Rollback to last stable build**: Priority = stability > scope purity
 
 ### Non-blocking fallback ladder (what to do next when blocked)
 When a step would trigger a permission popup, “Allow popups safely”, “Resume”, or “Try again”, do **not** wait idle. Switch immediately to the next safest useful work in this order:
@@ -279,6 +291,47 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
   - This runs: typecheck → build → critical tests
   - Writes output + next steps into `CURSOR_PROGRESS.md`
   - If failure: writes "what to do next" into `CURSOR_ACTIONS_REQUIRED.md`
+
+### MVP System Rules (CRITICAL - 2026-01-25)
+- **Frontend never generates reports**: All heavy work runs async via worker
+- **Worker is the only execution path**: No frontend generation allowed
+- **Payment is captured only after success**: Capture happens only after single report → completed OR bundle → all items completed
+- **Failures are terminal and visible**: On failure, PaymentIntent is cancelled immediately, status = failed, no background retry
+- **Refreshing the page must not change backend state**: Preview page is idempotent - reload resumes polling, never re-enqueues jobs automatically
+- **No build is pushed unless build + tests are green**: Mandatory CI + pre-push gate
+- **No new abstractions without explicit approval**: Keep system simple and predictable
+- **Same input must always produce same outcome**: Deterministic behavior required
+- **Any change violating these is reverted immediately**
+
+### MVP Bulk Reports Conditions (CRITICAL - 2026-01-25)
+Bulk is allowed **only if all below are true**:
+- Bundle behaves as one logical unit
+- Payment capture happens only after entire bundle succeeds
+- No partial delivery to user
+- One retry applies to the whole bundle
+- UI sees one bundle status, not per-item complexity
+**If any condition is broken → bulk is frozen.**
+
+### MVP Yearly Analysis Special Rules (CRITICAL - 2026-01-25)
+- **Known flakiness acknowledged**: Yearly analysis had known flakiness in last stable build
+- **Strict requirements**:
+  - Strict timeouts
+  - Validation
+  - Fallback "lite yearly" mode if needed
+- **Never break the entire order**: If safe degradation is possible, use it
+- **Never block on perfect yearly report**: Graceful degradation > perfect depth
+
+### MVP Retry Rules (CRITICAL - 2026-01-25)
+- **Retry allowed only if**:
+  - `status = failed`
+  - `retry_count = 0`
+  - within 24h
+- **Retry behavior**:
+  - reuse same order
+  - reuse same PaymentIntent (if valid)
+  - one manual retry max
+- **After retry**: Order becomes terminal
+- **No automatic retries**: All retries are manual user-initiated only
 
 ### Release Gate (ChatGPT Feedback - CRITICAL)
 ### Production Readiness Rules (ChatGPT Feedback - CRITICAL)

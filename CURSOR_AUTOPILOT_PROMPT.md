@@ -3,9 +3,11 @@
 ## CURSOR AUTOPILOT MODE – minimal interruptions
 
 **CRITICAL RULES**:
-1. **Do not ask me to click things repeatedly**. If a click is required, consolidate all pending edits into ONE accept step.
-2. **If blocked, update `CURSOR_ACTIONS_REQUIRED.md` with exact next actions**.
-3. **Never continue with partial context. Re-run tests before proceeding**.
+1. **Follow `MVP_GOALS_FINAL_LOCKED.md`**: MVP goals are LOCKED and take precedence over all other rules
+2. **Do not ask me to click things repeatedly**. If a click is required, consolidate all pending edits into ONE accept step.
+3. **If blocked, update `CURSOR_ACTIONS_REQUIRED.md` with exact next actions**.
+4. **Never continue with partial context. Re-run tests before proceeding**.
+5. **MVP System Rules**: Frontend never generates reports, Worker is only execution path, Payment captured only after success, Failures are terminal, No automatic retries
 
 Work in **Autopilot (safe, non-blocking)** mode:
 - Keep moving end-to-end; do not wait idle for popups/approvals.

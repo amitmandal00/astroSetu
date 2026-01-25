@@ -1,5 +1,14 @@
 # NON‑NEGOTIABLES (Do Not Break)
 
+## MVP Goals Alignment (CRITICAL - 2026-01-25)
+- **Follow `MVP_GOALS_FINAL_LOCKED.md`**: MVP goals are LOCKED and take precedence over all other rules
+- **MVP Definition**: "A user authorizes payment once and always gets either a fully delivered report (or bundle) or no charge — with zero stuck states and zero money leakage."
+- **Core Intent**: Stability > cleverness, Predictability > speed, One correct path > many flexible ones
+- **No cron-for-correctness**: System must be correct without cron jobs
+- **No automatic retries**: Failures are terminal and visible
+- **Worker is the only execution path**: Frontend never generates reports
+- **Payment captured only after success**: Never charge unless report/bundle is fully delivered
+
 ## Engineering safety
 - **No destructive commands**: never run `rm -rf`, `drop database`, `sudo`, disk ops, or similar.
 - **No repo-wide refactors** unless explicitly asked.
@@ -17,6 +26,47 @@
 - **Free report quality**: free life-summary must be structured, readable, and feel valuable (no "thin" output due to parsing).
 - **session_id ≠ processing state**: session_id in URL is an identifier, NOT a state signal. UI must be driven by controller status, never by URL params.
 - **Bundle processing isolation**: bundleProcessing can ONLY affect bundle reports. If bundleProcessing is true but reportType is not a bundle, log invariant violation. (Future: promote to Sentry warning + soft error in non-prod)
+
+## MVP System Rules (CRITICAL - 2026-01-25)
+- **Frontend never generates reports**: All heavy work runs async via worker. Frontend only creates order, redirects to preview, polls status, renders result.
+- **Worker is the only execution path**: No frontend generation allowed. Single source of truth: report/bundle status ∈ `queued | processing | completed | failed`.
+- **Payment is captured only after success**: Capture happens only after single report → completed OR bundle → all items completed. On failure, PaymentIntent is cancelled immediately.
+- **Failures are terminal and visible**: Status = failed, payment cancelled, no background retry. No automatic retries allowed.
+- **Refreshing the page must not change backend state**: Preview page is idempotent - reload resumes polling, never re-enqueues jobs automatically.
+- **No build is pushed unless build + tests are green**: Mandatory CI + pre-push gate (build, tests, lint/typecheck).
+- **No new abstractions without explicit approval**: Keep system simple and predictable. Stability > cleverness.
+- **Same input must always produce same outcome**: Deterministic behavior required.
+- **Any change violating these is reverted immediately**.
+
+## MVP Bulk Reports Conditions (CRITICAL - 2026-01-25)
+Bulk is allowed **only if all below are true**:
+- Bundle behaves as one logical unit
+- Payment capture happens only after entire bundle succeeds
+- No partial delivery to user
+- One retry applies to the whole bundle
+- UI sees one bundle status, not per-item complexity
+**If any condition is broken → bulk is frozen.**
+
+## MVP Yearly Analysis Special Rules (CRITICAL - 2026-01-25)
+- **Known flakiness acknowledged**: Yearly analysis had known flakiness in last stable build. This is acknowledged and acceptable.
+- **Strict requirements**:
+  - Strict timeouts
+  - Validation
+  - Fallback "lite yearly" mode if needed
+- **Never break the entire order**: If safe degradation is possible, use it. Never block on perfect yearly report.
+- **Graceful degradation > perfect depth**: Better to deliver "lite yearly" than fail entire order.
+
+## MVP Retry Rules (CRITICAL - 2026-01-25)
+- **Retry allowed only if**:
+  - `status = failed`
+  - `retry_count = 0`
+  - within 24h
+- **Retry behavior**:
+  - reuse same order
+  - reuse same PaymentIntent (if valid)
+  - one manual retry max
+- **After retry**: Order becomes terminal
+- **No automatic retries**: All retries are manual user-initiated only. Worker `max_attempts = 1`.
 
 ## Polling & Generation Invariants (ChatGPT Feedback)
 - **Polling stop conditions**: polling loops may ONLY terminate on:

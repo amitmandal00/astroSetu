@@ -1,0 +1,32 @@
+# AstroSetu — Cursor Guardrails (NON-NEGOTIABLE)
+#
+# These rules exist to prevent regressions in the AI Astrology report generation flow.
+# If a request conflicts with these rules, STOP and ask for clarification rather than “best-effort” changes.
+
+## Scope control
+- Prefer the smallest possible diff. Do not refactor unrelated code while fixing a defect.
+- Any refactor must be separated from bug fixes (separate PR/commit).
+
+## Report generation invariants (MUST HOLD)
+- **Monotonic timer invariant**: while the generation UI is visible, elapsed time must never reset to 0 and must never go backwards.
+- **Idle-only reset rule**: no `useEffect` may clear `loading`, `loadingStage`, `loadingStartTime`, `loadingStartTimeRef`, or generation locks while an attempt is active or starting.
+- **UI owner rule**: only one “owner” controls generation state at a time (controller vs legacy). Switching owners must be explicit and tested.
+- **URL param contract**: paid-flow continuity relies on `session_id` (snake_case). Do not introduce `sessionId` (camelCase) into the URL contract.
+
+## When changing report generation, you MUST:
+- Update or add a reproducer test.
+  - UI/timer bugs → Playwright test in `tests/e2e/` that fails before and passes after.
+  - Logic bugs → Vitest unit/integration test in `tests/unit` or `tests/integration`.
+- Verify against the contract in `tests/contracts/report-flow.contract.md`.
+
+## When changing subscription/billing, you MUST:
+- Add or update an E2E test proving Subscribe redirects to Stripe (see `tests/e2e/billing-subscribe-flow.spec.ts`).
+- Verify session_id server-side (never on client-only state).
+- Keep the DB/API as source of truth (no sessionStorage-based subscription flags).
+
+## Operational commands (choose the smallest set relevant to your change)
+- Unit tests (targeted): `npx vitest run <paths...>`
+- E2E tests (targeted): `npx playwright test <spec...>`
+- Critical CI gate (heavier): `npm run ci:critical`
+
+

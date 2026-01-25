@@ -3,7 +3,15 @@
 Use this file as the single “where things stand” view during long Cursor sessions.
 
 ## Objective
+- **MVP Goal**: "A user authorizes payment once and always gets either a fully delivered report (or bundle) or no charge — with zero stuck states and zero money leakage."
 - Stabilize AI astrology report generation + subscription journey end-to-end, and harden Cursor autopilot workflows so the agent never stalls on popups/provider errors.
+- **Priority**: Stability > cleverness, Predictability > speed, One correct path > many flexible ones
+- **Rollback Strategy**: Rollback to last stable build where bulk reports worked (with conditions) and yearly analysis had known flakiness (acknowledged)
+
+## MVP Goals Status (2026-01-25)
+- ✅ **MVP Goals Document**: Created `MVP_GOALS_FINAL_LOCKED.md` - LOCKED and takes precedence
+- ✅ **Documentation Updated**: `.cursor/rules`, `NON_NEGOTIABLES.md`, operational guides aligned with MVP goals
+- ⏳ **Next**: Rollback to last stable build, validate bulk implementation, identify yearly flakiness root cause
 
 ## Current status
 - **State**: 🔄 **REDIRECT RACE CONDITION FIXED** (2026-01-18)

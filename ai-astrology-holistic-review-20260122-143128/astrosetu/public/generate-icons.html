@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Icons</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      margin: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      background: #F97316;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #ea580c;
+    }
+  </style>
+</head>
+<body>
+  <h1>Generate AstroSetu Icons</h1>
+  <p>Click the button below to generate icon-192.png and icon-512.png</p>
+  <button onclick="generateIcons()">Generate Icons</button>
+  <div id="output"></div>
+
+  <script>
+    function generateIcons() {
+      const sizes = [192, 512];
+      const output = document.getElementById('output');
+      output.innerHTML = '<p>Generating icons...</p>';
+
+      sizes.forEach(size => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Create saffron gradient background
+        const gradient = ctx.createLinearGradient(0, 0, size, size);
+        gradient.addColorStop(0, '#F97316'); // Saffron
+        gradient.addColorStop(1, '#EA580C'); // Darker saffron
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+
+        // Draw white circle for symbol background
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size * 0.3, 0, 2 * Math.PI);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+        ctx.strokeStyle = '#EA580C';
+        ctx.lineWidth = size * 0.02;
+        ctx.stroke();
+        
+        // Draw Om symbol or simple astrological symbol
+        ctx.fillStyle = '#F97316';
+        ctx.font = `bold ${size * 0.5}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Try emoji first, fallback to text
+        try {
+          ctx.fillText('🕉️', size / 2, size / 2);
+        } catch (e) {
+          ctx.font = `bold ${size * 0.3}px Arial`;
+          ctx.fillText('Om', size / 2, size / 2);
+        }
+
+        // Convert to blob and download
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `icon-${size}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+
+        output.appendChild(canvas);
+      });
+
+      output.innerHTML += '<p style="color: green; margin-top: 20px;">✓ Icons generated! Check your downloads folder and move them to the public folder.</p>';
+    }
+  </script>
+</body>
+</html>
+
