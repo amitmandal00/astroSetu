@@ -10,12 +10,43 @@
 // Previous: Used require() inside functions which can cause build failures
 import { getCurrentYear, ensureFutureYear } from "../time/futureWindows";
 
+/**
+ * CRITICAL FIX (Priority 2): Add JSON schema instruction to prompts
+ * This ensures model outputs valid JSON that can be parsed reliably
+ */
+const JSON_SCHEMA_INSTRUCTION = `
+
+CRITICAL OUTPUT FORMAT:
+You MUST output valid JSON only, following this exact schema:
+{
+  "title": "Report Title",
+  "sections": [
+    {
+      "title": "Section Title",
+      "content": "Section content text...",
+      "bullets": ["bullet 1", "bullet 2"]
+    }
+  ],
+  "summary": "Overall summary text",
+  "executiveSummary": "Executive summary (for full-life reports)",
+  "keyInsights": ["insight 1", "insight 2"]
+}
+
+OUTPUT RULES:
+- Output ONLY valid JSON, no markdown code blocks, no explanations
+- Ensure all sections have both "title" and "content" fields
+- Minimum 4-6 sections for comprehensive reports
+- Each section content should be 150-300 words
+- Total word count must meet minimum requirements (800+ words for most reports, 1300+ for full-life)
+`;
+
 export const AI_PROMPT_SYSTEM_MESSAGE = `
 You are a calm, experienced Vedic astrologer.
 Explain in plain English.
 Avoid fear language.
 Focus on guidance and timing.
 Provide clear, actionable insights.
+${JSON_SCHEMA_INSTRUCTION}
 
 TIME WINDOW GUARDRail (NON-NEGOTIABLE):
 - You will be given NOW_ISO (today) and CURRENT_YEAR.

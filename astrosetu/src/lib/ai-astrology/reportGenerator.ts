@@ -206,15 +206,16 @@ async function generateWithOpenAI(
         messages: [
           {
             role: "system",
-            content: "You are a helpful assistant that generates astrology reports in a clear, structured format.",
+            content: "You are a helpful assistant that generates astrology reports. You MUST output valid JSON only, following the exact schema provided. Do not include any text before or after the JSON.",
           },
           {
             role: "user",
-            content: prompt,
+            content: prompt + "\n\nIMPORTANT: Output ONLY valid JSON. Do not include markdown code blocks, explanations, or any text outside the JSON object.",
           },
         ],
         temperature: 0.7,
         max_tokens: maxTokens,
+        response_format: { type: "json_object" }, // CRITICAL FIX (Priority 2): Force JSON output
       }),
       signal: controller.signal,
     });
@@ -308,14 +309,29 @@ async function generateWithOpenAI(
     // Parse response with error handling and timeout protection
     try {
       const data = await response.json();
-      const content = data.choices[0]?.message?.content || "";
+      let content = data.choices[0]?.message?.content || "";
       const tokensUsed = data.usage?.total_tokens;
       const callDuration = Date.now() - callStartTime;
+      
+      // CRITICAL FIX (Priority 2): Try to parse as JSON first
+      let parsedJson: any = null;
+      try {
+        // Remove markdown code blocks if present
+        const cleanedContent = content.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+        parsedJson = JSON.parse(cleanedContent);
+        console.log(`[OpenAI] Successfully parsed JSON response for reportType=${reportType || "unknown"}`);
+      } catch (jsonError) {
+        // JSON parse failed - will fallback to regex parsing in parseAIResponse
+        console.warn(`[OpenAI] JSON parse failed, will use regex fallback for reportType=${reportType || "unknown"}`, {
+          error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+          contentLength: content.length,
+        });
+      }
       
       if (!content) {
         console.warn(`[OpenAI] Empty content in response for reportType=${reportType || "unknown"}`);
       }
-      console.log(`[OpenAI] Response parsed successfully, content length: ${content.length} chars${tokensUsed ? `, tokens: ${tokensUsed}` : ""}`);
+      console.log(`[OpenAI] Response parsed successfully, content length: ${content.length} chars${tokensUsed ? `, tokens: ${tokensUsed}` : ""}, isJSON: ${!!parsedJson}`);
       
       // Track successful OpenAI call (if sessionKey provided)
       if (sessionKey && typeof require !== "undefined") {
@@ -327,7 +343,8 @@ async function generateWithOpenAI(
         }
       }
       
-      return content;
+      // Return parsed JSON string if available, otherwise return raw content for regex parsing
+      return parsedJson ? JSON.stringify(parsedJson) : content;
     } catch (parseError: any) {
       console.error(`[OpenAI] Failed to parse response JSON for reportType=${reportType || "unknown"}`, {
         error: parseError.message,
@@ -421,11 +438,9 @@ function generateReportId(): string {
 
 /**
  * Parse AI response into structured report content
+ * CRITICAL FIX (Priority 2): Try JSON parsing first, fallback to regex parsing
  */
 function parseAIResponse(response: string, reportType: ReportType, reportId?: string): ReportContent {
-  // For MVP, return simple structured content
-  // In production, use more sophisticated parsing (regex, markdown parsing, etc.)
-  
   // Handle empty or invalid responses
   if (!response || typeof response !== "string" || response.trim().length === 0) {
     return {
@@ -435,10 +450,103 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
         content: "Unable to generate report content. Please try again.",
       }],
       summary: "Report generation encountered an issue. Please try again.",
-      // Don't include reportId in content - it's in the API response data
       generatedAt: new Date().toISOString(),
     };
   }
+  
+  // CRITICAL FIX (Priority 2): Try to parse as JSON first
+  let parsedJson: any = null;
+  try {
+    // Remove markdown code blocks if present
+    const cleanedResponse = response.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+    parsedJson = JSON.parse(cleanedResponse);
+    console.log(`[parseAIResponse] Successfully parsed JSON for reportType=${reportType}`);
+    
+    // Validate JSON structure
+    if (parsedJson && typeof parsedJson === "object") {
+      // Convert JSON to ReportContent format
+      const sections: ReportContent["sections"] = [];
+      
+      // Handle sections array
+      if (Array.isArray(parsedJson.sections)) {
+        sections.push(...parsedJson.sections.map((s: any) => ({
+          title: s.title || "Section",
+          content: s.content || "",
+          bullets: Array.isArray(s.bullets) ? s.bullets : undefined,
+          subsections: Array.isArray(s.subsections) ? s.subsections.map((ss: any) => ({
+            title: ss.title || "Subsection",
+            content: ss.content || "",
+            bullets: Array.isArray(ss.bullets) ? ss.bullets : undefined,
+          })) : undefined,
+        })));
+      } else if (parsedJson.sections && typeof parsedJson.sections === "object") {
+        // Handle sections as object (convert to array)
+        Object.entries(parsedJson.sections).forEach(([key, value]: [string, any]) => {
+          sections.push({
+            title: value.title || key,
+            content: value.content || String(value),
+            bullets: Array.isArray(value.bullets) ? value.bullets : undefined,
+          });
+        });
+      }
+      
+      // Build report content from JSON
+      const reportContent: ReportContent = {
+        title: parsedJson.title || getReportTitle(reportType),
+        sections: sections.length > 0 ? sections : [{
+          title: "Overview",
+          content: parsedJson.content || parsedJson.summary || "Report content generated.",
+        }],
+        summary: parsedJson.summary,
+        executiveSummary: parsedJson.executiveSummary,
+        keyInsights: Array.isArray(parsedJson.keyInsights) ? parsedJson.keyInsights : undefined,
+        timeWindows: Array.isArray(parsedJson.timeWindows) ? parsedJson.timeWindows : undefined,
+        recommendations: Array.isArray(parsedJson.recommendations) ? parsedJson.recommendations : undefined,
+        yearTheme: parsedJson.yearTheme,
+        quarterlyBreakdown: Array.isArray(parsedJson.quarterlyBreakdown) ? parsedJson.quarterlyBreakdown : undefined,
+        bestPeriods: Array.isArray(parsedJson.bestPeriods) ? parsedJson.bestPeriods : undefined,
+        cautionPeriods: Array.isArray(parsedJson.cautionPeriods) ? parsedJson.cautionPeriods : undefined,
+        focusAreasByMonth: Array.isArray(parsedJson.focusAreasByMonth) ? parsedJson.focusAreasByMonth : undefined,
+        yearScorecard: parsedJson.yearScorecard,
+        confidenceLevel: typeof parsedJson.confidenceLevel === "number" ? parsedJson.confidenceLevel : undefined,
+        phaseTheme: parsedJson.phaseTheme,
+        phaseYears: parsedJson.phaseYears,
+        phaseBreakdown: Array.isArray(parsedJson.phaseBreakdown) ? parsedJson.phaseBreakdown : undefined,
+        majorTransitions: Array.isArray(parsedJson.majorTransitions) ? parsedJson.majorTransitions : undefined,
+        longTermOpportunities: Array.isArray(parsedJson.longTermOpportunities) ? parsedJson.longTermOpportunities : undefined,
+        decisionContext: parsedJson.decisionContext,
+        decisionOptions: Array.isArray(parsedJson.decisionOptions) ? parsedJson.decisionOptions : undefined,
+        recommendedTiming: parsedJson.recommendedTiming,
+        factorsToConsider: Array.isArray(parsedJson.factorsToConsider) ? parsedJson.factorsToConsider : undefined,
+        generatedAt: parsedJson.generatedAt || new Date().toISOString(),
+      };
+      
+      console.log(`[parseAIResponse] JSON parsed successfully, sections: ${reportContent.sections.length}`);
+      return reportContent;
+    }
+  } catch (jsonError) {
+    // JSON parse failed - fallback to regex parsing
+    console.warn(`[parseAIResponse] JSON parse failed, falling back to regex parsing for reportType=${reportType}`, {
+      error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+      responseLength: response.length,
+    });
+    
+    // CRITICAL FIX (Priority 4): Structured log for JSON parse failure
+    console.log("[STRUCTURED_LOG]", JSON.stringify({
+      reportType,
+      timestamp: new Date().toISOString(),
+      event: "JSON_PARSE_FAIL",
+      reasonCode: "JSON_PARSE_FAIL",
+      repairStrategy: "regex_fallback",
+      repairAttempted: false,
+      errorMessage: jsonError instanceof Error ? jsonError.message : String(jsonError),
+      responseLength: response.length,
+    }));
+  }
+  
+  // Fallback: Original regex-based parsing (for backward compatibility)
+  // For MVP, return simple structured content
+  // In production, use more sophisticated parsing (regex, markdown parsing, etc.)
   
   const sections: ReportContent["sections"] = [];
   const lines = response.split("\n").filter(line => line.trim());

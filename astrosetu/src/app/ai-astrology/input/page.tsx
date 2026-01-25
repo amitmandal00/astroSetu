@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { AutocompleteInput, type PlaceSuggestion } from "@/components/ui/AutocompleteInput";
 import { resolvePlaceCoordinates } from "@/lib/indianCities";
-import { apiPost } from "@/lib/http";
 import { isSafeReturnTo } from "@/lib/ai-astrology/returnToValidation";
+import { createOrReuseToken } from "@/lib/ai-astrology/tokenCache";
 
 import type { ReportType } from "@/lib/ai-astrology/types";
 
@@ -190,24 +190,21 @@ function InputFormContent() {
 
       // CRITICAL FIX (ChatGPT): Store input in server-side Supabase, not just sessionStorage
       // This prevents redirect loops when sessionStorage is unavailable (incognito, Safari ITP, etc.)
+      // CRITICAL FIX (Priority 1): Use token cache utility to prevent duplicate requests
+      // Implements: token caching, in-flight lock, one token per tab/session
       let inputToken: string | null = null;
       try {
-        const tokenResponse = await apiPost<{
-          ok: boolean;
-          data?: { token: string };
-          error?: string;
-        }>("/api/ai-astrology/input-session", {
-          input: inputData,
-          reportType: finalReportType,
-          bundleType: bundleParam || undefined,
-          bundleReports: bundleReports.length > 0 ? bundleReports : undefined,
-        });
-
-        if (tokenResponse.ok && tokenResponse.data?.token) {
-          inputToken = tokenResponse.data.token;
-          console.log("[Input] Stored input session, token:", inputToken);
+        inputToken = await createOrReuseToken(
+          inputData,
+          finalReportType,
+          bundleParam || undefined,
+          bundleReports.length > 0 ? bundleReports : undefined
+        );
+        
+        if (inputToken) {
+          console.log("[Input] Stored input session, token:", inputToken.slice(-6));
         } else {
-          console.warn("[Input] Failed to store input session, falling back to sessionStorage:", tokenResponse.error);
+          console.warn("[Input] Failed to create token, falling back to sessionStorage");
         }
       } catch (tokenError) {
         console.warn("[Input] Input session API error, falling back to sessionStorage:", tokenError);

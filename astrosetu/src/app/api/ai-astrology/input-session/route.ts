@@ -78,7 +78,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           ok: true,
-          data: { token: mockToken },
+          data: { token: mockToken, expiresIn: 1800 },
           requestId,
           mock: true,
         },
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         ok: true,
-        data: { token },
+        data: { token, expiresIn },
         requestId,
       },
       {

@@ -1297,6 +1297,70 @@ export async function POST(req: Request) {
     };
     console.log("[GENERATION START]", JSON.stringify(generationStartLog, null, 2));
 
+    // CRITICAL FIX (Priority 3): Async jobs for heavy reports (full-life, year-analysis)
+    // Prevents serverless timeouts and improves reliability
+    const heavyReportTypes: ReportType[] = ["full-life", "year-analysis"];
+    const isHeavyReport = heavyReportTypes.includes(reportType);
+    
+    if (isHeavyReport) {
+      // Queue job for async processing
+      console.log(`[ASYNC_JOB] Queuing heavy report for async processing`, {
+        requestId,
+        reportId,
+        reportType,
+        idempotencyKey: idempotencyKey.substring(0, 30) + "...",
+      });
+      
+      // Trigger worker asynchronously (fire-and-forget)
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+      (async () => {
+        try {
+          await fetch(`${baseUrl}/api/ai-astrology/report-worker`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reportId,
+              reportType,
+              input,
+              idempotencyKey,
+              paymentIntentId: paymentIntentId || undefined,
+              sessionId: fallbackSessionId || undefined,
+            }),
+          });
+        } catch (workerError) {
+          console.error(`[ASYNC_JOB] Failed to trigger worker`, {
+            requestId,
+            reportId,
+            reportType,
+            error: workerError instanceof Error ? workerError.message : String(workerError),
+          });
+        }
+      })().catch(() => {
+        // Ignore errors - worker will be retried via polling
+      });
+      
+      // Return immediately with processing status
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "processing" as const,
+            reportId,
+            reportType,
+            message: "Report generation queued. Please wait while we process your report.",
+          },
+          requestId,
+        },
+        {
+          status: 202, // Accepted - processing
+          headers: {
+            "X-Request-ID": requestId,
+            "Retry-After": "5", // Suggest polling every 5 seconds
+          },
+        }
+      );
+    }
+
     // MOCK_MODE: Return mock data for testing/development (prevents external API calls)
     // CRITICAL FIX (ChatGPT Feedback): Case-insensitive env parsing + test user priority
     // 
@@ -1585,8 +1649,22 @@ export async function POST(req: Request) {
         }, REPORT_GENERATION_TIMEOUT);
       });
 
-      // Generate session key for OpenAI call tracking
-      const sessionKey = generateSessionKey(input);
+      // CRITICAL FIX (Priority 4): Structured debug logging
+      const generationStartTime = Date.now();
+      let modelName: string | undefined;
+      let tokenUsage: number | undefined;
+      let retryAttempt = 0;
+      
+      // Log generation start with structured data
+      console.log("[STRUCTURED_LOG]", JSON.stringify({
+        requestId,
+        reportId,
+        reportType,
+        timestamp: new Date().toISOString(),
+        event: "GENERATION_START",
+        modelName: "gpt-4o", // Default model
+        retryAttempt: 0,
+      }));
       
       // Race between report generation and timeout
       const reportGenerationPromise = (async () => {
@@ -1646,6 +1724,36 @@ export async function POST(req: Request) {
         throw raceError;
       }
 
+      // CRITICAL FIX (Priority 4): Enhanced structured logging after generation
+      const generationLatency = Date.now() - generationStartTime;
+      const sectionCount = reportContent?.sections?.length || 0;
+      const wordCount = reportContent ? (() => {
+        const text = JSON.stringify(reportContent);
+        return text.split(/\s+/).filter(Boolean).length;
+      })() : 0;
+      const placeholderDetected = reportContent ? (() => {
+        const contentStr = JSON.stringify(reportContent).toLowerCase();
+        return contentStr.includes("placeholder") || 
+               contentStr.includes("simplified view") ||
+               contentStr.includes("we're preparing") ||
+               contentStr.includes("try generating");
+      })() : false;
+      
+      console.log("[STRUCTURED_LOG]", JSON.stringify({
+        requestId,
+        reportId,
+        reportType,
+        timestamp: new Date().toISOString(),
+        event: "GENERATION_COMPLETE",
+        modelName: modelName || "gpt-4o",
+        latency: generationLatency,
+        tokenUsage,
+        sectionCount,
+        wordCount,
+        placeholderDetected,
+        retryAttempt,
+      }));
+      
       // CENTRAL GUARDRail: Ensure all timing windows are future-only before caching/storing/rendering.
       // This fixes LLM “past year” leakage and also protects users when prompts are imperfect.
       reportContent = ensureFutureWindows(reportType, reportContent, {
@@ -1703,6 +1811,24 @@ export async function POST(req: Request) {
           error: errorMessage,
           errorCode,
           timestamp: new Date().toISOString(),
+          // CRITICAL FIX (Priority 4): Enhanced structured logging
+          sectionCount: cleanedReportContent.sections?.length || 0,
+          wordCount: (() => {
+            const text = JSON.stringify(cleanedReportContent);
+            return text.split(/\s+/).filter(Boolean).length;
+          })(),
+          placeholderDetected: (() => {
+            const contentStr = JSON.stringify(cleanedReportContent).toLowerCase();
+            return contentStr.includes("placeholder") || 
+                   contentStr.includes("simplified view") ||
+                   contentStr.includes("we're preparing");
+          })(),
+          reasonCode: errorCode === "VALIDATION_FAILED" && errorMessage.toLowerCase().includes("too short") 
+            ? "VALIDATION_TOO_SHORT" 
+            : errorCode === "MOCK_CONTENT_DETECTED" || errorMessage.toLowerCase().includes("placeholder")
+            ? "PLACEHOLDER"
+            : errorCode,
+          repairStrategy: "deterministic_fallback_no_api",
         }, null, 2));
         
         // MVP FIX: Apply deterministic fallback only (no OpenAI calls, no retries)
@@ -1861,6 +1987,28 @@ export async function POST(req: Request) {
             fallbackError: fallbackValidation.error,
             canAllowDegradation: false,
             reason: reportType === "year-analysis" ? "validation_error_not_content_too_short" : "degradation_not_allowed_for_this_report_type",
+            // CRITICAL FIX (Priority 4): Enhanced structured logging
+            sectionCount: fallbackContent.sections?.length || 0,
+            wordCount: (() => {
+              const text = JSON.stringify(fallbackContent);
+              return text.split(/\s+/).filter(Boolean).length;
+            })(),
+            placeholderDetected: (() => {
+              const contentStr = JSON.stringify(fallbackContent).toLowerCase();
+              return contentStr.includes("placeholder") || 
+                     contentStr.includes("simplified view") ||
+                     contentStr.includes("we're preparing");
+            })(),
+            reasonCode: fallbackValidation.errorCode === "VALIDATION_FAILED" && 
+                       typeof fallbackValidation.error === "string" &&
+                       fallbackValidation.error.toLowerCase().includes("too short")
+              ? "VALIDATION_TOO_SHORT"
+              : fallbackValidation.errorCode === "MOCK_CONTENT_DETECTED" || 
+                (typeof fallbackValidation.error === "string" && fallbackValidation.error.toLowerCase().includes("placeholder"))
+              ? "PLACEHOLDER"
+              : fallbackValidation.errorCode || "VALIDATION_FAILED",
+            repairStrategy: "deterministic_fallback_no_api",
+            repairAttempted: true,
           });
           
           // Mark as failed
@@ -1965,6 +2113,33 @@ export async function POST(req: Request) {
     };
     
     console.error("[REPORT GENERATION ERROR]", JSON.stringify(errorContext, null, 2));
+    
+    // CRITICAL FIX (Priority 4): Structured log for errors
+    const errorReasonCode = (() => {
+      const errorLower = errorMessage.toLowerCase();
+      if (errorLower.includes("timeout")) return "TIMEOUT";
+      if (errorLower.includes("json") || errorLower.includes("parse")) return "JSON_PARSE_FAIL";
+      if (errorLower.includes("validation")) return "VALIDATION_FAILED";
+      if (errorLower.includes("placeholder")) return "PLACEHOLDER";
+      if (errorLower.includes("too short")) return "VALIDATION_TOO_SHORT";
+      return "GENERATION_ERROR";
+    })();
+    
+    console.log("[STRUCTURED_LOG]", JSON.stringify({
+      requestId,
+      reportId,
+      reportType,
+      timestamp: new Date().toISOString(),
+      event: "GENERATION_ERROR",
+      modelName: modelName || "gpt-4o",
+      latency: totalTime,
+      tokenUsage,
+      reasonCode: errorReasonCode,
+      repairStrategy: "none",
+      retryAttempt,
+      errorType: error.constructor?.name || "Unknown",
+      errorMessage: error.message || "Unknown error",
+    }));
     
     // Provide user-friendly error message without exposing internal details
     const errorMessage = error.message || "Unknown error";
@@ -2098,8 +2273,27 @@ export async function POST(req: Request) {
           reportType,
           timeoutMs: REPORT_GENERATION_TIMEOUT,
           errorType: "TIMEOUT",
+          // CRITICAL FIX (Priority 4): Enhanced structured logging
+          reasonCode: "TIMEOUT",
+          repairStrategy: "none",
+          repairAttempted: false,
         };
         console.error("[REPORT GENERATION TIMEOUT]", JSON.stringify(timeoutErrorContext, null, 2));
+        
+        // CRITICAL FIX (Priority 4): Structured log for timeout
+        console.log("[STRUCTURED_LOG]", JSON.stringify({
+          requestId,
+          reportId,
+          reportType,
+          timestamp: new Date().toISOString(),
+          event: "GENERATION_TIMEOUT",
+          modelName: modelName || "gpt-4o",
+          latency: REPORT_GENERATION_TIMEOUT,
+          tokenUsage,
+          reasonCode: "TIMEOUT",
+          repairStrategy: "none",
+          retryAttempt,
+        }));
       }
       
       // Check for third-party quota / credit exhaustion (403 with "insufficient credit balance")
