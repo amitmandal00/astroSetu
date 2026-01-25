@@ -815,6 +815,21 @@ const PADDING_FOCUS: Record<ReportType, string> = {
   "daily-guidance": "energy focus, mindset shifts, and reflective prompts",
 };
 
+const EXTRA_FALLBACK_TEMPLATE_SECTIONS: ReportSection[] = [
+  {
+    title: "Holistic Pattern Review",
+    content: "Weave together the planetary drivers, Dasha overlaps, and key timing windows so the reader can feel how their chart interlocks across life areas. Focus on the interplay between career, relationships, and inner growth so the guidance feels cohesive.",
+  },
+  {
+    title: "Strategic Transition Checklist",
+    content: "List the concrete actions for the next 3-6 months, the quarterly checkpoints to reassess, and the broader strategic habits to cultivate. Emphasize timing cues and what to observe before the next major decision.",
+  },
+  {
+    title: "Confidence & Mindset Calibration",
+    content: "Clarify how each planetary window shifts confidence levels, invite the reader to track their energy, and remind them that astrology sets context, not destiny. Include a short “What this means for you” line at the end.",
+  },
+];
+
 type PaddingRecord = {
   attempt: number;
   title: string;
@@ -922,6 +937,16 @@ function padSectionsToWordCount(sections: ReportSection[], reportType: ReportTyp
   info.wordsAfter = currentWords;
   info.sectionsAfter = sections.length;
   info.records = records;
+
+  if (records.length > 3) {
+    console.warn("[padSectionsToWordCount] Extensive padding required", {
+      targetWords,
+      wordsBefore,
+      wordsAfter: currentWords,
+      paddingAttempts: records.length,
+      reportType,
+    });
+  }
   return info;
 }
 
@@ -1675,6 +1700,32 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
           addedWords: paddingInfo.addedWords,
           addedSections: paddingInfo.addedSections,
           records: paddingInfo.records,
+        });
+      }
+      if (paddingInfo.wordsAfter < paddingInfo.targetWords) {
+        console.warn("[ensureMinimumSections][TEMPLATE MERGE]", {
+          reportType,
+          targetWords: paddingInfo.targetWords,
+          wordsAfter: paddingInfo.wordsAfter,
+          deficiency: paddingInfo.targetWords - paddingInfo.wordsAfter,
+        });
+        let idx = 0;
+        let currentWords = paddingInfo.wordsAfter;
+        while (currentWords < paddingInfo.targetWords && idx < EXTRA_FALLBACK_TEMPLATE_SECTIONS.length) {
+          const template = EXTRA_FALLBACK_TEMPLATE_SECTIONS[idx];
+          const templateCopy = {
+            title: `${template.title} (Extra ${idx + 1})`,
+            content: template.content,
+          };
+          sections.push(templateCopy);
+          const added = countWordsInSection(templateCopy);
+          currentWords += added;
+          idx += 1;
+        }
+        console.log("[ensureMinimumSections][TEMPLATE APPLIED]", {
+          reportType,
+          wordsAfter: currentWords,
+          addedTemplateSections: idx,
         });
       }
     }

@@ -53,6 +53,21 @@ CRITICAL WORD-COUNT BUFFER:
 - Aim to deliver 25%-30% more content than each report's minimum word-count target so the final payload comfortably clears validation while the backend trims any excess.
 - When a minimum target is specified (e.g., 1000 words for major-life-phase), aim for ~1250-1300 words when designing each section and the report narrative.
 - For major paid reports (major-life-phase, marriage-timing, full-life), ensure you produce **at least 12 meaningful sections** and **a minimum of 1,250 words** before validation – the padding buffer should be built into the prompt itself.
+- Use the template below to guarantee coverage; each section should be ~100-130 words and include a “What this means for you” line.
+
+MAJOR REPORT TEMPLATE (structured reference):
+1. Decision Anchor + Confidence (direction + 75-120 words)
+2. Overview + Strategic Theme (130 words)
+3. Year 1 Focus
+4. Year 2 Focus
+5. Year 3 Focus
+6. Year 4 Focus
+7. Year 5 Focus (each Year section ~100 words with “What this means for you”)
+8. Major Transitions Ahead
+9. Opportunities to Pursue
+10. Challenges & Navigation
+11. Action Plan & Timing
+12. What This Means For You (final summary)
 
 TIME WINDOW GUARDRail (NON-NEGOTIABLE):
 - You will be given NOW_ISO (today) and CURRENT_YEAR.
