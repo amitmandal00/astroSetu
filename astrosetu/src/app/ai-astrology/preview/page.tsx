@@ -170,6 +170,8 @@ function PreviewContent() {
   const redirectInitiatedRef = useRef(false); // CRITICAL FIX (ChatGPT): Track if redirect has been initiated to prevent watchdog false-fires
   const redirectWatchdogTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track watchdog timeout for cleanup
   const inputTokenLoadedRef = useRef(false); // CRITICAL FIX (2026-01-18): Track if input was successfully loaded from token to prevent race condition
+  const tokenFetchRetryRef = useRef(0);
+  const tokenRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -177,6 +179,9 @@ function PreviewContent() {
       isMountedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (tokenRetryTimeoutRef.current) {
+        clearTimeout(tokenRetryTimeoutRef.current);
       }
     };
   }, []);
@@ -1361,7 +1366,7 @@ function PreviewContent() {
     // CRITICAL FIX (2026-01-18): Reset ref when starting new token fetch
     inputTokenLoadedRef.current = false;
     
-    (async () => {
+    const fetchToken = async () => {
       try {
         const tokenResponse = await apiGet<{
           ok: boolean;
@@ -1438,18 +1443,39 @@ function PreviewContent() {
           hasRedirectedRef.current = true; // Prevent auto-redirect - user can click "Start again" button
         }
       } catch (tokenError: any) {
+        const errorMessage = tokenError?.message || "Failed to load your birth details. Please try again.";
+        if (errorMessage.toLowerCase().includes("too many requests")) {
+          if (tokenFetchRetryRef.current < 2) {
+            tokenFetchRetryRef.current += 1;
+            const retryDelayMs = 800 + tokenFetchRetryRef.current * 800;
+            console.warn("[Preview] Rate limited fetching input_token. Retrying...", {
+              attempt: tokenFetchRetryRef.current,
+              retryDelayMs,
+            });
+            if (tokenRetryTimeoutRef.current) {
+              clearTimeout(tokenRetryTimeoutRef.current);
+            }
+            tokenRetryTimeoutRef.current = setTimeout(() => {
+              if (isMountedRef.current) {
+                fetchToken();
+              }
+            }, retryDelayMs);
+            return;
+          }
+        }
         // CRITICAL FIX (2026-01-18): When apiGet throws (404/410/network error), handle it explicitly
         // Don't redirect immediately - show error state so user can retry
         console.error("[Preview] Failed to fetch input_token:", tokenError);
         inputTokenLoadedRef.current = false; // Reset ref - token fetch failed
-        const errorMessage = tokenError?.message || "Failed to load your birth details. Please try again.";
         setError(errorMessage);
         setLoading(false);
         setTokenLoading(false);
         hasRedirectedRef.current = true; // Prevent auto-redirect - user can click "Start again" button
         // Don't redirect - let error state show "Start again" button
       }
-    })();
+    };
+
+    fetchToken();
   }, [searchParams, input]); // Run when input_token changes or when input is cleared
 
   // CRITICAL FIX (2026-01-18): Separate redirect check that runs AFTER token loading
