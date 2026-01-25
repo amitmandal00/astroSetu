@@ -1541,6 +1541,27 @@ function PreviewContent() {
         // Fall through to redirect
       }
     }
+
+    // Fallback: check localStorage by session_id (survives redirects)
+    const sessionIdForLookup = searchParams.get("session_id");
+    if (sessionIdForLookup) {
+      try {
+        const cached = localStorage.getItem(`aiAstrologyInputBySession:${sessionIdForLookup}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.input) {
+            setInput(parsed.input);
+            if (parsed.reportType) {
+              setReportType(parsed.reportType as ReportType);
+            }
+            console.log("[Preview] Loaded input from localStorage via session_id");
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("[Preview] Failed to load input from localStorage by session_id:", e);
+      }
+    }
     
     // No input found - redirect to input page
     console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token_after_token_load");
@@ -2485,6 +2506,17 @@ function PreviewContent() {
       if (response.data?.url) {
         const checkoutUrl = response.data.url;
         const sessionId = response.data.sessionId;
+
+        if (sessionId && input) {
+          try {
+            localStorage.setItem(
+              `aiAstrologyInputBySession:${sessionId}`,
+              JSON.stringify({ input, reportType })
+            );
+          } catch (storageError) {
+            console.warn("[Purchase] Failed to cache input for session_id:", storageError);
+          }
+        }
         
         // Check if this is a mock/test session:
         // 1. Response has testMode flag
