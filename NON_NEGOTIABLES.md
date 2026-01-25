@@ -156,6 +156,7 @@ Bulk is allowed **only if all below are true**:
 - **If confirmation required**: write `CURSOR_ACTIONS_REQUIRED.md` first, then pause.
   - Include: file name(s), change intent, why it is safe, exact next steps after acceptance.
 - **Never proceed after connection error** without logging next actions to `CURSOR_ACTIONS_REQUIRED.md`.
+- **Model policy**: Default to **Agent 2 (GPT-5.1 Codex Mini)** for code/autopilot work and always ask before switching to another model/agent.
 - **Connection error handling**:
   - Retry with exponential backoff: 30s, 60s, 120s (3 attempts total).
   - If still failing: write exact pending steps into `CURSOR_ACTIONS_REQUIRED.md` and stop.

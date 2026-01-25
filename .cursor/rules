@@ -5,6 +5,10 @@
 - Never take irreversible/destructive actions without explicit approval.
 - When blocked, **log and continue** (don't stall on "Resume/Try again" loops).
 
+### Default Model
+- Default to **Agent 2: GPT-5.1 Codex Mini** for all coding/autopilot work (budget-friendly, code-focused).
+- Always ask for explicit approval before switching to any other model or agent.
+
 ### Non-negotiables (repo contract)
 - Follow `NON_NEGOTIABLES.md`.
 - Follow `MVP_GOALS_FINAL_LOCKED.md` - MVP goals are LOCKED and take precedence.

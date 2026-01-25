@@ -354,6 +354,7 @@ Error: EPERM: operation not permitted, scandir '/Users/.../src/app/api/notificat
   - Build passes
   - Critical tests pass
 - **Cost monitoring**: Review On-Demand charges daily, document large requests in `COST_SPIKE_ANALYSIS.md`
+- **Model policy**: Default to **Agent 2 (GPT-5.1 Codex Mini)** for code/autopilot work and always ask before switching to another model or agent.
 - If the provider fails ("Try again/Resume"): retry with exponential backoff (30s, 60s, 120s). If still failing, write to `CURSOR_ACTIONS_REQUIRED.md` and stop.
 - If blocked by a popup/approval ("Confirm edit" / "Accept"):
   - **STOP making further changes** immediately

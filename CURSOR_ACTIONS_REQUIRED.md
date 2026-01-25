@@ -11,6 +11,10 @@
 
 **Core Intent**: Stability > cleverness, Predictability > speed, One correct path > many flexible ones
 
+## 💡 Model defaults
+- Default to **Agent 2: GPT-5.1 Codex Mini** for all coding/autopilot tasks.
+- Always ask the user before switching to any other model or agent, even temporarily.
+
 **Key Decisions**:
 - ✅ Bulk reports allowed (with strict conditions) - they worked in last stable build
 - ✅ Yearly analysis flakiness acknowledged - needs strict timeouts/validation/fallback

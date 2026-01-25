@@ -17,6 +17,7 @@ Use Cursor as a **safe autopilot**: keep moving forward, never corrupt the repo,
 - **While working**:
   - **ALWAYS use scoped requests**: Focus on specific files/directories, use @filename mentions
   - **NEVER analyze entire codebase**: Break into smaller, focused requests (< 500K tokens)
+  - **Model policy**: Default to **Agent 2 (GPT-5.1 Codex Mini)** for code/autopilot work and always ask before switching to another model/agent.
   - Change **≤ 5 files per batch** (prefer 1-3 files to reduce token usage).
   - Prefer **tests-first** for regressions (add/extend a test that reproduces the defect).
   - After each batch: update `CURSOR_PROGRESS.md`.

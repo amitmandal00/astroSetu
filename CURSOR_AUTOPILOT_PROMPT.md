@@ -9,6 +9,7 @@
 4. **If blocked, update `CURSOR_ACTIONS_REQUIRED.md` with exact next actions**.
 5. **Never continue with partial context. Re-run tests before proceeding**.
 6. **MVP System Rules**: Frontend never generates reports, Worker is only execution path, Payment captured only after success, Failures are terminal, No automatic retries
+7. **Model policy**: Default to **Agent 2 (GPT-5.1 Codex Mini)** for autopilot/code work; always ask before switching to another model or agent.
 
 Work in **Autopilot (safe, non-blocking)** mode:
 - Keep moving end-to-end; do not wait idle for popups/approvals.
