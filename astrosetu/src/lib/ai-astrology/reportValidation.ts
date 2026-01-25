@@ -8,13 +8,22 @@
 
 import type { ReportContent, AIAstrologyInput, ReportType } from "./types";
 import { reportContainsMockContent } from "./mockContentGuard";
+import { countWordsFromSections, getThresholds } from "./qualityThresholds";
 
 export type ValidationResult = {
   valid: boolean;
+  strictPass: boolean;
+  degradedPass: boolean;
   error?: string;
   errorCode?: "MISSING_SECTIONS" | "MOCK_CONTENT_DETECTED" | "VALIDATION_FAILED" | "USER_DATA_MISMATCH";
   qualityWarning?: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied";
-  canAutoExpand?: boolean; // Indicates if this validation failure can be fixed with auto-expand
+  strictMinWords?: number;
+  degradedMinWords?: number;
+  wordCount?: number;
+  missingWords?: number;
+  sectionCount?: number;
+  reasonCode?: string;
+  canAutoExpand?: boolean;
 };
 
 /**
@@ -151,8 +160,68 @@ export function validateReportContent(
     }
   }
 
-  // All validations passed
-  return { valid: true };
+  const lengthResult = evaluateLength(report, reportType);
+  if (lengthResult.strictPass) {
+    return {
+      valid: true,
+      strictPass: true,
+      degradedPass: true,
+      wordCount: lengthResult.wordCount,
+      sectionCount: report.sections.length,
+    };
+  }
+
+  return {
+    valid: false,
+    strictPass: lengthResult.strictPass,
+    degradedPass: lengthResult.degradedPass,
+    error: lengthResult.degradedPass
+      ? `Report content shorter than preferred but still usable. Found ${lengthResult.wordCount} words.`
+      : `Report content too short. Found ${lengthResult.wordCount} words, minimum ${lengthResult.strictMinWords} required.`,
+    errorCode: "VALIDATION_FAILED",
+    qualityWarning: lengthResult.degradedPass ? "below_optimal_length" : "shorter_than_expected",
+    strictMinWords: lengthResult.strictMinWords,
+    degradedMinWords: lengthResult.degradedMinWords,
+    wordCount: lengthResult.wordCount,
+    missingWords: lengthResult.missingWords,
+    sectionCount: report.sections.length,
+    reasonCode: lengthResult.reasonCode,
+  };
+}
+
+type LengthResult = {
+  strictPass: boolean;
+  degradedPass: boolean;
+  strictMinWords: number;
+  degradedMinWords: number;
+  wordCount: number;
+  missingWords: number;
+  sectionCount: number;
+  reasonCode: string;
+};
+
+function evaluateLength(report: ReportContent, reportType?: ReportType): LengthResult {
+  const sections = report.sections || [];
+  const sectionCount = sections.length;
+  const wordCount = countWordsFromSections(sections);
+  const thresholds = reportType ? getThresholds(reportType) : { strictMinWords: 0, degradedMinWords: 0, minSections: 0 };
+
+  const strictPass = sectionCount >= thresholds.minSections && wordCount >= thresholds.strictMinWords;
+  const degradedPass = sectionCount >= thresholds.minSections && wordCount >= thresholds.degradedMinWords;
+  const missingWords = Math.max(0, thresholds.strictMinWords - wordCount);
+  const reasonCode =
+    sectionCount < thresholds.minSections ? "VALIDATION_TOO_FEW_SECTIONS" : "VALIDATION_TOO_SHORT";
+
+  return {
+    strictPass,
+    degradedPass,
+    strictMinWords: thresholds.strictMinWords,
+    degradedMinWords: thresholds.degradedMinWords,
+    wordCount,
+    missingWords,
+    sectionCount,
+    reasonCode,
+  };
 }
 
 /**

@@ -45,6 +45,7 @@ import {
 } from "@/lib/ai-astrology/reportStore";
 import { validateReportBeforeCompletion } from "@/lib/ai-astrology/reportValidation";
 import { parseEnvBoolean, calculateReportMode } from "@/lib/envParsing";
+import { countWordsFromSections } from "@/lib/ai-astrology/qualityThresholds";
 import { isReportTypeEnabled } from "@/lib/ai-astrology/reportAvailability";
 
 function getMaxProcessingMs(reportType: ReportType): number {
@@ -1972,6 +1973,53 @@ export async function POST(req: Request) {
       
       // Handle validation result with deterministic fallback only
       // MVP Principle: Failures are terminal, but deterministic fallback (no API calls) is allowed
+      const validationPath = validation.strictPass
+        ? "normal"
+        : validation.degradedPass
+        ? "degraded"
+        : "skeleton";
+
+      if (!validation.strictPass && validation.degradedPass) {
+        const contentStats = {
+          sectionCount: cleanedReportContent.sections?.length || 0,
+          wordCount: validation.wordCount || (() => countWordsFromSections(cleanedReportContent.sections || []))(),
+          strictMinWords: validation.strictMinWords,
+          degradedMinWords: validation.degradedMinWords,
+          missingWords: validation.missingWords,
+        };
+        console.log("[MVP_OUTCOME_LOG]", JSON.stringify({
+          requestId,
+          reportId,
+          reportType,
+          outcome: "completed_with_degradation",
+          validationPath,
+          strictPass: validation.strictPass,
+          degradedPass: validation.degradedPass,
+          skeletonUsed: false,
+          paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured" : "none"),
+          contentStats,
+        }));
+
+        return NextResponse.json(
+          {
+            ok: true,
+            status: "completed_with_degradation",
+            outcome: "completed_with_degradation",
+            validationPath,
+            warnings: validation.error ? [validation.error] : ["CONTENT_TOO_SHORT_STRICT"],
+            contentStats,
+            reportId,
+            requestId,
+            reportType,
+            content: cleanedReportContent,
+          },
+          {
+            status: 200,
+            headers: { "X-Request-ID": requestId },
+          }
+        );
+      }
+
       if (!validation.valid) {
         const errorMessage = validation.error || "Report validation failed";
         const errorCode = validation.errorCode || "VALIDATION_FAILED";
