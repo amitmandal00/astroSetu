@@ -21,6 +21,8 @@ import {
   isAIConfigured,
   WORD_COUNT_BUFFER_FACTOR,
   BASE_WORD_COUNT_TARGETS,
+  ensureMinimumSections,
+  getFlavorRetryPromptAddendum,
 } from "@/lib/ai-astrology/reportGenerator";
 import type { AIAstrologyInput, ReportType, ReportContent } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
@@ -1727,6 +1729,88 @@ export async function POST(req: Request) {
 
       // CRITICAL FIX (Priority 4): Structured debug logging
       const generationStartTime = Date.now();
+      const allowFlavorRetry = parseEnvBoolean(process.env.ALLOW_FLAVOR_RETRY, false);
+
+      const generateReportContent = async (extraPromptInstruction?: string): Promise<ReportContent> => {
+        switch (reportType) {
+          case "life-summary":
+            return await generateLifeSummaryReport(input, sessionKey, extraPromptInstruction);
+          case "marriage-timing":
+            return await generateMarriageTimingReport(input, sessionKey, extraPromptInstruction);
+          case "career-money":
+            return await generateCareerMoneyReport(input, sessionKey);
+          case "full-life":
+            return await generateFullLifeReport(input, sessionKey, extraPromptInstruction);
+          case "year-analysis": {
+            const yearRange = getYearAnalysisDateRange();
+            return await generateYearAnalysisReport(
+              input,
+              sessionKey,
+              {
+                startYear: yearRange.startYear,
+                startMonth: yearRange.startMonth,
+                endYear: yearRange.endYear,
+                endMonth: yearRange.endMonth,
+              },
+              extraPromptInstruction
+            );
+          }
+          case "major-life-phase":
+            return await generateMajorLifePhaseReport(input, sessionKey, extraPromptInstruction);
+          case "decision-support":
+            return await generateDecisionSupportReport(input, decisionContext, sessionKey);
+          default:
+            throw new Error(`Unknown report type: ${reportType}`);
+        }
+      };
+
+      async function processContent(rawContent: ReportContent, attemptLabel: string) {
+        const footprint = computeReportFootprint(rawContent, reportType);
+        console.log("[CONTENT_FOOTPRINT]", JSON.stringify({
+          requestId,
+          reportId,
+          reportType,
+          attempt: attemptLabel,
+          ...footprint,
+        }));
+        if (footprint.wordGap > 50 || footprint.shortSections > 2) {
+          console.warn("[CONTENT WARNING]", JSON.stringify({
+            requestId,
+            reportId,
+            reportType,
+            attempt: attemptLabel,
+            reason: "shape_of_output",
+            wordGap: footprint.wordGap,
+            shortSections: footprint.shortSections,
+          }));
+        }
+
+        const normalizedContent = ensureFutureWindows(reportType, rawContent, {
+          timeZone: input.timezone || "Australia/Melbourne",
+        });
+        const cleaned = stripMockContent(normalizedContent);
+        const sectionsBefore = cleaned.sections?.length || 0;
+        const ensured = ensureMinimumSections(cleaned, reportType);
+        const sectionsAfter = ensured.sections?.length || 0;
+        if (sectionsAfter > sectionsBefore) {
+          console.log("[REPORT SECTIONS]", JSON.stringify({
+            requestId,
+            reportId,
+            reportType,
+            added: sectionsAfter - sectionsBefore,
+            before: sectionsBefore,
+            after: sectionsAfter,
+            attempt: attemptLabel,
+          }));
+        }
+
+        const validationResult = validateReportBeforeCompletion(ensured, input, paymentToken, reportType);
+        return {
+          content: ensured,
+          validation: validationResult,
+          footprint,
+        };
+      }
       
       // Log generation start with structured data
       console.log("[STRUCTURED_LOG]", JSON.stringify({
@@ -1742,32 +1826,7 @@ export async function POST(req: Request) {
       // Race between report generation and timeout
       const reportGenerationPromise = (async () => {
         try {
-          switch (reportType) {
-            case "life-summary":
-              return await generateLifeSummaryReport(input, sessionKey);
-            case "marriage-timing":
-              return await generateMarriageTimingReport(input, sessionKey);
-            case "career-money":
-              return await generateCareerMoneyReport(input, sessionKey);
-            case "full-life":
-              return await generateFullLifeReport(input, sessionKey);
-            case "year-analysis":
-              // Use next 12 months from current date (intelligent date window)
-              // This provides guidance for the actual upcoming year period, not just calendar year
-              const yearAnalysisRange = getYearAnalysisDateRange();
-              return await generateYearAnalysisReport(input, sessionKey, {
-                startYear: yearAnalysisRange.startYear,
-                startMonth: yearAnalysisRange.startMonth,
-                endYear: yearAnalysisRange.endYear,
-                endMonth: yearAnalysisRange.endMonth,
-              });
-            case "major-life-phase":
-              return await generateMajorLifePhaseReport(input, sessionKey);
-            case "decision-support":
-              return await generateDecisionSupportReport(input, decisionContext, sessionKey);
-            default:
-              throw new Error(`Unknown report type: ${reportType}`);
-          }
+          return await generateReportContent();
         } finally {
           // Always stop heartbeat when generation completes (success or failure)
           stopHeartbeat();
@@ -1799,7 +1858,41 @@ export async function POST(req: Request) {
 
       // CRITICAL FIX (Priority 4): Enhanced structured logging after generation
       const generationLatency = Date.now() - generationStartTime;
-      const contentFootprint = reportContent ? computeReportFootprint(reportContent, reportType) : null;
+      let processedResult = await processContent(reportContent, "initial");
+      let cleanedReportContent = processedResult.content;
+      let validation = processedResult.validation;
+      let contentFootprint = processedResult.footprint;
+      let flavorRetryAttempted = false;
+
+      if (
+        !validation.valid &&
+        allowFlavorRetry &&
+        validation.errorCode === "VALIDATION_FAILED" &&
+        typeof validation.error === "string" &&
+        validation.error.toLowerCase().includes("too short")
+      ) {
+        const retryInstruction = getFlavorRetryPromptAddendum(reportType);
+        if (retryInstruction) {
+          flavorRetryAttempted = true;
+          retryAttempt = 1;
+          console.warn("[FLAVOR RETRY] Re-running report with stricter buffer", {
+            requestId,
+            reportId,
+            reportType,
+          });
+          startHeartbeat();
+          try {
+            const retryRaw = await generateReportContent(retryInstruction);
+            processedResult = await processContent(retryRaw, "flavor-retry");
+            cleanedReportContent = processedResult.content;
+            validation = processedResult.validation;
+            contentFootprint = processedResult.footprint;
+          } finally {
+            stopHeartbeat();
+          }
+        }
+      }
+
       const sectionCount = contentFootprint?.sectionCount || 0;
       const wordCount = contentFootprint?.wordCount || 0;
       const placeholderDetected = (contentFootprint?.placeholderSections || 0) > 0;
@@ -1827,13 +1920,7 @@ export async function POST(req: Request) {
           ...contentFootprint,
         }));
       }
-      
-      // CENTRAL GUARDRail: Ensure all timing windows are future-only before caching/storing/rendering.
-      // This fixes LLM “past year” leakage and also protects users when prompts are imperfect.
-      reportContent = ensureFutureWindows(reportType, reportContent, {
-        timeZone: input.timezone || "Australia/Melbourne",
-      });
-      
+
       // Log successful completion with timing
       const generationTime = Date.now() - startTime;
       const successLog = {
@@ -1843,31 +1930,17 @@ export async function POST(req: Request) {
         reportType,
         userName: input.name,
         userDOB: input.dob ? `${input.dob.substring(0, 4)}-XX-XX` : "N/A",
-        contentLength: reportContent ? JSON.stringify(reportContent).length : 0,
-        hasReportId: !!reportContent?.reportId,
-        reportId: reportContent?.reportId || "N/A",
+        contentLength: cleanedReportContent ? JSON.stringify(cleanedReportContent).length : 0,
+        hasReportId: !!cleanedReportContent?.reportId,
+        reportId: cleanedReportContent?.reportId || "N/A",
         generationTimeMs: generationTime,
         isTestUser,
         isDemoMode,
         elapsedMs: generationTime,
       };
       console.log("[REPORT GENERATION SUCCESS]", JSON.stringify(successLog, null, 2));
-      
-      // CRITICAL: Strip mock content before caching/storing (production safety - even for real reports)
-      cleanedReportContent = stripMockContent(reportContent);
-      
-      // CRITICAL FIX: Ensure minimum sections AFTER stripping mock content
-      // This ensures reports have enough sections even after mock content is removed
-      const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
-      const sectionsBeforeMinCheck = cleanedReportContent.sections?.length || 0;
-      cleanedReportContent = ensureMinimumSections(cleanedReportContent, reportType);
-      const sectionsAfterMinCheck = cleanedReportContent.sections?.length || 0;
-      if (sectionsAfterMinCheck > sectionsBeforeMinCheck) {
-        console.log(`[REPORT SECTIONS] Added ${sectionsAfterMinCheck - sectionsBeforeMinCheck} fallback sections after mock content stripping. requestId=${requestId}, reportType=${reportType}, before=${sectionsBeforeMinCheck}, after=${sectionsAfterMinCheck}`);
-      }
-      
+
       // Phase 1: STRICT VALIDATION before marking as "completed" (ChatGPT feedback)
-      let validation = validateReportBeforeCompletion(cleanedReportContent, input, paymentToken, reportType);
       
       // MVP FIX: Remove auto-expand logic that calls OpenAI (violates MVP Rule #4 - no automatic retries)
       // Only deterministic fallback is allowed (ensureMinimumSections - no external calls)

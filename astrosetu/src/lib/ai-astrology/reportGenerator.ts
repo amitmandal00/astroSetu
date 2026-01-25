@@ -778,6 +778,21 @@ const BUFFERED_REPORT_TYPES = new Set<ReportType>([
   "decision-support",
 ]);
 
+const FLAVOR_RETRY_PROMPT_ADDENDUM: Partial<Record<ReportType, string>> = {
+  "major-life-phase":
+    "This retry must deliver at least 12 distinct sections, a minimum of 1,250 words, and open every section with a 1-2 line key takeaway. Focus on the 3-5 year themes, transitions, and practical navigation steps, and align the language to clear timing windows.",
+  "full-life":
+    "This retry must deliver at least 12 sections, target 1,250+ words, and keep every section tightly focused on life patterns (career, relationships, health, purpose) with clear action steps. Start each section with a summary sentence and end with a “What this means for you” note.",
+  "marriage-timing":
+    "This retry must deliver at least 12 sections, 1,250+ words, and include explicit timing windows (primary/secondary) for marriage readiness. Each section should start with a short summary, explain what it means in daily life, and reinforce the confidence level and decision anchor.",
+  "year-analysis":
+    "This retry must deliver at least 12 sections, partner 1,250+ words, and include quarter-by-quarter breakdowns, best periods, and actionable guidance. Begin each section with a key takeaway and close with a “What this means for you” line.",
+};
+
+export function getFlavorRetryPromptAddendum(reportType: ReportType): string | undefined {
+  return FLAVOR_RETRY_PROMPT_ADDENDUM[reportType];
+}
+
 const PADDING_CONTEXT: Record<ReportType, string> = {
   "marriage-timing": "marriage timing readiness, relationship readiness, and emotional clarity",
   "career-money": "career momentum, financial timing, and strategic positioning",
@@ -800,6 +815,13 @@ const PADDING_FOCUS: Record<ReportType, string> = {
   "daily-guidance": "energy focus, mindset shifts, and reflective prompts",
 };
 
+type PaddingRecord = {
+  attempt: number;
+  title: string;
+  addedWords: number;
+  wordsAfter: number;
+};
+
 type PaddingInfo = {
   targetWords: number;
   wordsBefore: number;
@@ -808,6 +830,7 @@ type PaddingInfo = {
   sectionsBefore: number;
   sectionsAfter: number;
   addedSections: number;
+  records: PaddingRecord[];
 };
 
 function countWordsInText(text: string = ""): number {
@@ -858,11 +881,13 @@ function padSectionsToWordCount(sections: ReportSection[], reportType: ReportTyp
     sectionsBefore,
     sectionsAfter: sectionsBefore,
     addedSections: 0,
+    records: [],
   };
 
+  const records: PaddingRecord[] = [];
   let currentWords = wordsBefore;
   let ordinal = 1;
-  const maxPaddingSections = 6;
+  const maxPaddingSections = 10;
 
   while (currentWords < targetWords && info.addedSections < maxPaddingSections) {
     const paddingSection = buildPaddingSection(reportType, ordinal);
@@ -872,6 +897,12 @@ function padSectionsToWordCount(sections: ReportSection[], reportType: ReportTyp
     info.addedWords += added;
     info.addedSections += 1;
     ordinal += 1;
+    records.push({
+      attempt: info.addedSections,
+      title: paddingSection.title,
+      addedWords: added,
+      wordsAfter: currentWords,
+    });
   }
 
   if (currentWords < targetWords && sections.length > 0) {
@@ -880,10 +911,17 @@ function padSectionsToWordCount(sections: ReportSection[], reportType: ReportTyp
     const extraWords = countWordsInText(extraParagraph);
     currentWords += extraWords;
     info.addedWords += extraWords;
+    records.push({
+      attempt: info.addedSections,
+      title: sections[sections.length - 1].title,
+      addedWords: extraWords,
+      wordsAfter: currentWords,
+    });
   }
 
   info.wordsAfter = currentWords;
   info.sectionsAfter = sections.length;
+  info.records = records;
   return info;
 }
 
@@ -1628,6 +1666,17 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
     }
     if (BUFFERED_REPORT_TYPES.has(reportType)) {
       paddingInfo = padSectionsToWordCount(sections, reportType);
+      if (paddingInfo.addedWords > 0) {
+        console.log("[ensureMinimumSections][PADDING]", {
+          reportType,
+          targetWords: paddingInfo.targetWords,
+          wordsBefore: paddingInfo.wordsBefore,
+          wordsAfter: paddingInfo.wordsAfter,
+          addedWords: paddingInfo.addedWords,
+          addedSections: paddingInfo.addedSections,
+          records: paddingInfo.records,
+        });
+      }
     }
   }
   
@@ -1699,7 +1748,7 @@ function getReportTitle(reportType: ReportType): string {
 /**
  * Generate Life Summary Report (Free)
  */
-export async function generateLifeSummaryReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
+export async function generateLifeSummaryReport(input: AIAstrologyInput, sessionKey?: string, extraPromptInstruction?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateLifeSummaryReport] Starting report generation for ${input.name}`);
@@ -1717,7 +1766,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput, session
     console.log(`[generateLifeSummaryReport] Planetary data extracted (${planets.length} planets)`);
 
     // Generate prompt
-    const prompt = generateLifeSummaryPrompt(
+    const promptBase = generateLifeSummaryPrompt(
       {
         name: input.name,
         dob: input.dob,
@@ -1733,6 +1782,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput, session
         planets,
       }
     );
+    const prompt = extraPromptInstruction ? `${promptBase}\n\n${extraPromptInstruction}` : promptBase;
 
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateLifeSummaryReport] Generating AI content...`);
@@ -1756,7 +1806,7 @@ export async function generateLifeSummaryReport(input: AIAstrologyInput, session
 /**
  * Generate Marriage Timing Report (Paid)
  */
-export async function generateMarriageTimingReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
+export async function generateMarriageTimingReport(input: AIAstrologyInput, sessionKey?: string, extraPromptInstruction?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateMarriageTimingReport] Starting report generation for ${input.name}`);
@@ -1795,7 +1845,7 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput, sess
     // timingWindows already fetched in parallel above, use it here
     
     // Generate prompt
-    const prompt = generateMarriageTimingPrompt(
+    const promptBase = generateMarriageTimingPrompt(
       {
         name: input.name,
         dob: input.dob,
@@ -1835,6 +1885,7 @@ export async function generateMarriageTimingReport(input: AIAstrologyInput, sess
       },
       timingWindows
     );
+    const prompt = extraPromptInstruction ? `${promptBase}\n\n${extraPromptInstruction}` : promptBase;
 
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateMarriageTimingReport] Generating AI content...`);
@@ -1936,7 +1987,7 @@ export async function generateCareerMoneyReport(input: AIAstrologyInput, session
 /**
  * Generate Full Life Report (Paid - comprehensive report)
  */
-export async function generateFullLifeReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
+export async function generateFullLifeReport(input: AIAstrologyInput, sessionKey?: string, extraPromptInstruction?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateFullLifeReport] Starting report generation for ${input.name}`);
@@ -1972,7 +2023,7 @@ export async function generateFullLifeReport(input: AIAstrologyInput, sessionKey
     };
 
     // Generate prompt using dedicated Full Life prompt
-    const prompt = generateFullLifePrompt(
+    const promptBase = generateFullLifePrompt(
       {
         name: input.name,
         dob: input.dob,
@@ -1982,6 +2033,7 @@ export async function generateFullLifeReport(input: AIAstrologyInput, sessionKey
       },
       comprehensivePlanetaryData
     );
+    const prompt = extraPromptInstruction ? `${promptBase}\n\n${extraPromptInstruction}` : promptBase;
 
     // Generate AI content (pass reportType for complex report handling)
     console.log(`[generateFullLifeReport] Generating AI content...`);
@@ -2033,7 +2085,8 @@ export async function generateFullLifeReport(input: AIAstrologyInput, sessionKey
 export async function generateYearAnalysisReport(
   input: AIAstrologyInput,
   sessionKey?: string,
-  dateRange?: { startYear: number; startMonth: number; endYear: number; endMonth: number }
+  dateRange?: { startYear: number; startMonth: number; endYear: number; endMonth: number },
+  extraPromptInstruction?: string
 ): Promise<ReportContent> {
   const startTime = Date.now();
   try {
@@ -2067,7 +2120,7 @@ export async function generateYearAnalysisReport(
     
     // Generate prompt using Year Analysis prompt template
     console.log(`[generateYearAnalysisReport] Generating prompt...`);
-    const prompt = generateYearAnalysisPrompt(
+    const promptBase = generateYearAnalysisPrompt(
       {
         name: input.name,
         dob: input.dob,
@@ -2081,6 +2134,7 @@ export async function generateYearAnalysisReport(
       yearRange.endYear,
       yearRange.endMonth
     );
+    const prompt = extraPromptInstruction ? `${promptBase}\n\n${extraPromptInstruction}` : promptBase;
 
     // Generate AI content (pass reportType for proper retry handling and logging)
     console.log(`[generateYearAnalysisReport] Calling generateAIContent...`);
@@ -2104,7 +2158,7 @@ export async function generateYearAnalysisReport(
 /**
  * Generate Major Life Phase Report (Paid - 3-5 year outlook)
  */
-export async function generateMajorLifePhaseReport(input: AIAstrologyInput, sessionKey?: string): Promise<ReportContent> {
+export async function generateMajorLifePhaseReport(input: AIAstrologyInput, sessionKey?: string, extraPromptInstruction?: string): Promise<ReportContent> {
   const startTime = Date.now();
   try {
     console.log(`[generateMajorLifePhaseReport] Starting report generation for ${input.name}`);
@@ -2135,7 +2189,7 @@ export async function generateMajorLifePhaseReport(input: AIAstrologyInput, sess
     const dateWindows = getMajorLifePhaseWindows();
     
     // Generate prompt with dynamic date windows
-    const prompt = generateMajorLifePhasePrompt(
+    const promptBase = generateMajorLifePhasePrompt(
       {
         name: input.name,
         dob: input.dob,
@@ -2146,6 +2200,7 @@ export async function generateMajorLifePhaseReport(input: AIAstrologyInput, sess
       planetaryData,
       dateWindows
     );
+    const prompt = extraPromptInstruction ? `${promptBase}\n\n${extraPromptInstruction}` : promptBase;
 
     // Generate AI content (pass reportType for complex report handling)
     console.log(`[generateMajorLifePhaseReport] Generating AI content...`);

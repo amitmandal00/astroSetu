@@ -52,6 +52,7 @@ ${JSON_SCHEMA_INSTRUCTION}
 CRITICAL WORD-COUNT BUFFER:
 - Aim to deliver 25%-30% more content than each report's minimum word-count target so the final payload comfortably clears validation while the backend trims any excess.
 - When a minimum target is specified (e.g., 1000 words for major-life-phase), aim for ~1250-1300 words when designing each section and the report narrative.
+- For major paid reports (major-life-phase, marriage-timing, full-life), ensure you produce **at least 12 meaningful sections** and **a minimum of 1,250 words** before validation – the padding buffer should be built into the prompt itself.
 
 TIME WINDOW GUARDRail (NON-NEGOTIABLE):
 - You will be given NOW_ISO (today) and CURRENT_YEAR.
@@ -199,7 +200,7 @@ export const AI_PROMPT_TEMPLATES = {
          Where X is 6-8. Always add the strategic context in parentheses.
          This prevents disputes before they happen.
       
-      5. STRUCTURE REQUIREMENTS:
+      5. STRUCTURE REQUIREMENTS (MINIMUM DEPTH: 12 sections, 1,250+ words):
          a) DATA SOURCE LABEL (at the very beginning):
             "Based on: Ascendant + Moon Sign + Transit Sequencing + Dasha Analysis (refined timing analysis)"
          
@@ -514,7 +515,7 @@ export const AI_PROMPT_TEMPLATES = {
          - Use specific planetary positions from the data
          - Make every section feel personal and integrated
       
-      3. MVP STRUCTURE (6-8 core sections - follow exactly):
+      3. MVP STRUCTURE (12+ core sections - produce at least 1,250 words before fallback):
          
          a) DATA SOURCE LABEL (at the very beginning):
             "Based on: Ascendant + Moon Sign + Dasha overview (comprehensive life analysis)"
@@ -729,7 +730,7 @@ export const AI_PROMPT_TEMPLATES = {
          Where X is 6-8 (for 3-5 year outlook). Always add the strategic context in parentheses.
          Add note: "This reflects guidance strength for longer-term patterns, not certainty."
       
-      5. MANDATORY STRUCTURE - MINIMUM DEPTH: Create **at least 7-9 detailed sections** (avoid short/empty reports):
+      5. MANDATORY STRUCTURE - MINIMUM DEPTH: Create **at least 12 detailed sections** and deliver **1,250+ words** (avoid short/empty reports):
          
          a) DATA SOURCE LABEL (at the very beginning):
             "Based on: Ascendant + Moon Sign + Dasha Analysis + Long-term Transit Patterns (3-5 year strategic guidance)"
