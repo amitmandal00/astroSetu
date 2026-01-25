@@ -33,11 +33,18 @@ export async function applyDeterministicFallback_NO_API(
   
   const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
   
-  // P0.3: For year-analysis, ALWAYS ensure complete replacement if content is insufficient
+  // P0 FIX: For year-analysis, marriage-timing, and full-life, ALWAYS ensure complete replacement if content is insufficient
   // If validation failed OR content is too short OR has placeholders, replace completely
   let fallbackContent = reportContent;
   
-  if (reportType === "year-analysis") {
+  const criticalReportTypes = ["year-analysis", "marriage-timing", "full-life"];
+  const minWordsByType: Record<string, number> = {
+    "year-analysis": 800,
+    "marriage-timing": 800,
+    "full-life": 1300,
+  };
+  
+  if (criticalReportTypes.includes(reportType)) {
     // Check if content is too short or has placeholders
     const hasPlaceholderPhrases = fallbackContent.sections?.some((s: any) => {
       const content = s.content?.toLowerCase() || "";
@@ -56,16 +63,19 @@ export async function applyDeterministicFallback_NO_API(
       return sum + contentWords + bulletWords;
     }, 0) || 0;
     
-    // P0.3: If validation failed OR content is too short OR has placeholders OR no sections
+    const minWordsRequired = minWordsByType[reportType] || 800;
+    
+    // P0 FIX: If validation failed OR content is too short OR has placeholders OR no sections
     // COMPLETELY REPLACE with guaranteed fallback template (do not merge/append)
-    // This ensures year-analysis ALWAYS meets minimum requirements
-    if (errorCode || hasPlaceholderPhrases || currentWordCount < 800 || !fallbackContent.sections || fallbackContent.sections.length === 0) {
-      console.log("[YEAR-ANALYSIS FALLBACK] Replacing content completely with guaranteed fallback template", {
+    // This ensures critical reports ALWAYS meet minimum requirements
+    if (errorCode || hasPlaceholderPhrases || currentWordCount < minWordsRequired || !fallbackContent.sections || fallbackContent.sections.length === 0) {
+      console.log(`[${reportType.toUpperCase()} FALLBACK] Replacing content completely with guaranteed fallback template`, {
         errorCode,
         hasPlaceholderPhrases,
         currentWordCount,
+        minWordsRequired,
         sectionsCount: fallbackContent.sections?.length || 0,
-        reason: errorCode ? "validation_failed" : currentWordCount < 800 ? "too_short" : hasPlaceholderPhrases ? "placeholders" : "no_sections",
+        reason: errorCode ? "validation_failed" : currentWordCount < minWordsRequired ? "too_short" : hasPlaceholderPhrases ? "placeholders" : "no_sections",
       });
       
       // COMPLETELY REPLACE - start fresh with empty sections
