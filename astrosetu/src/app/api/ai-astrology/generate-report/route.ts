@@ -1297,18 +1297,21 @@ export async function POST(req: Request) {
     };
     console.log("[GENERATION START]", JSON.stringify(generationStartLog, null, 2));
 
-    // CRITICAL FIX (Priority 3): Async jobs for heavy reports (full-life, year-analysis)
-    // Prevents serverless timeouts and improves reliability
+    // CRITICAL FIX (Priority 3 + ChatGPT Feedback): Async jobs for heavy reports (OPTIONAL - feature-flagged)
+    // Async jobs are disabled by default (MVP-first: lighten reports first, async as fallback)
+    // Enable via ASYNC_JOBS_ENABLED=true environment variable if needed
+    const asyncJobsEnabled = parseEnvBoolean(process.env.ASYNC_JOBS_ENABLED);
     const heavyReportTypes: ReportType[] = ["full-life", "year-analysis"];
     const isHeavyReport = heavyReportTypes.includes(reportType);
     
-    if (isHeavyReport) {
-      // Queue job for async processing
-      console.log(`[ASYNC_JOB] Queuing heavy report for async processing`, {
+    if (isHeavyReport && asyncJobsEnabled) {
+      // Queue job for async processing (only if feature flag enabled)
+      console.log(`[ASYNC_JOB] Queuing heavy report for async processing (feature flag enabled)`, {
         requestId,
         reportId,
         reportType,
         idempotencyKey: idempotencyKey.substring(0, 30) + "...",
+        asyncJobsEnabled,
       });
       
       // Trigger worker asynchronously (fire-and-forget)
@@ -1359,6 +1362,15 @@ export async function POST(req: Request) {
           },
         }
       );
+    } else if (isHeavyReport && !asyncJobsEnabled) {
+      // Heavy report but async disabled - log and proceed with sync generation
+      console.log(`[ASYNC_JOB] Heavy report detected but async disabled (proceeding with sync)`, {
+        requestId,
+        reportId,
+        reportType,
+        asyncJobsEnabled: false,
+        reason: "ASYNC_JOBS_ENABLED not set or false - MVP-first approach: lighter prompts should handle this",
+      });
     }
 
     // MOCK_MODE: Return mock data for testing/development (prevents external API calls)

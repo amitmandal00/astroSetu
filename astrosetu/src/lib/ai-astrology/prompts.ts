@@ -62,8 +62,8 @@ CRITICAL REPETITION RULES:
 - Avoid repeating similar ideas across Summary, Breakdown, and Conclusion sections
 
 REPORT-SPECIFIC INTELLIGENCE LAYERS (CRITICAL - Use different approaches per report type):
-- Full Life Report: Deep, foundational, timeless insights. Focus on core personality, life themes, and long-term patterns. Avoid calendar-specific details. This is a COMPREHENSIVE report - be detailed, thorough, and cover all major life areas extensively (2500-3500 words total).
-- Year Analysis Report: Tactical, calendar-based guidance. Focus on quarterly breakdowns, specific months, and actionable timing. Avoid repeating life phase themes.
+- Full Life Report: Integrated, coherent narrative covering all major life areas. Focus on life patterns and integration. Single coherent report, not stitched sub-reports. Target: ~1100-1300 words (MVP streamlined).
+- Year Analysis Report: Tactical, calendar-based guidance. Focus on quarterly breakdowns and actionable timing. MVP structure: 4-6 core sections only. Target: ~800-900 words.
 - Life Phase Report: Strategic, directional guidance. Focus on 3-5 year transitions, major opportunities, and directional shifts. Avoid repeating year-by-year details.
 - Monthly Outlook: Lightweight, reflective guidance. Focus on current themes, gentle awareness, and mindset shifts. Avoid deep analysis or predictions.
 - Marriage Timing Report: Precise & narrow focus. Focus on specific date ranges, timing windows, and marriage-specific factors. Avoid general life guidance.
@@ -493,148 +493,90 @@ export const AI_PROMPT_TEMPLATES = {
       Here is the planetary data: ${JSON.stringify(planetaryData, null, 2)}
 
       OUTPUT:
-      Generate a comprehensive "Full Life Report" that combines personality, marriage timing, career, and finances.
-      This is a COMPREHENSIVE report - it should be detailed, thorough, and cover all major life areas extensively.
+      Generate a comprehensive "Full Life Report" that provides a coherent narrative covering all major life areas.
+      This is a SINGLE COHERENT REPORT - not stitched sub-reports. Focus on integration and life patterns.
       
-      CRITICAL STRUCTURE REQUIREMENTS:
-      1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
-         Create a prominent box titled "Decision Anchor (Read This First)" with:
-         "Based on this report, the most productive focus for you right now is: [Single clear statement about overall life focus]"
-         This does NOT make predictions - it gives users closure and direction.
-         Example: "Based on this report, the most productive focus for you right now is: Strengthening career foundations while preparing for relationship opportunities in the coming 2-3 year timeframe."
+      CRITICAL STRUCTURE REQUIREMENTS (MVP - Streamlined):
+      1. THIS IS STRATEGIC GUIDANCE, NOT PREDICTIONS:
+         - Focus on themes, tendencies, and strategic guidance
+         - NO specific dates or event predictions
+         - NO guarantees or certainties
+         - Use language: "favors", "tends to", "more favorable for"
+         - NEVER say: "will happen", "must do", "will fail"
       
-      2. DATA SOURCE LABEL (add at the very beginning):
-         "Based on: Ascendant + Moon Sign + Dasha overview (high-level analysis)"
+      2. PERSONALIZE EVERYTHING:
+         - Reference ${birthDetails.name}, birth date ${birthDetails.dob}
+         - Use specific planetary positions from the data
+         - Make every section feel personal and integrated
       
-      3. DECISION ANCHOR BOX (immediately after data source - see requirement #1)
+      3. MVP STRUCTURE (6-8 core sections - follow exactly):
+         
+         a) DATA SOURCE LABEL (at the very beginning):
+            "Based on: Ascendant + Moon Sign + Dasha overview (comprehensive life analysis)"
+         
+         b) LIFE PATH OVERVIEW (MANDATORY - ~200 words):
+            Title: "Life Path Overview"
+            Include:
+            - Core life themes: 2-3 sentences describing main life patterns
+            - Key strengths: 2-3 sentences on natural abilities
+            - Life direction: 2-3 sentences on overall trajectory
+            Keep integrated and strategic, not verbose.
+         
+         c) CAREER & MONEY (MANDATORY - ~200 words):
+            Title: "Career & Money"
+            Include:
+            - Career patterns: Brief description of career phases and patterns (3-4 sentences)
+            - Financial patterns: Brief description of money flow patterns (2-3 sentences)
+            - Best approaches: 3-4 bullet points on career/money strategies
+            - Timing guidance: Brief mention of favorable periods (1-2 sentences)
+            Keep focused on patterns, not detailed timing windows.
+         
+         d) RELATIONSHIPS (MANDATORY - ~200 words):
+            Title: "Relationships & Personal Life"
+            Include:
+            - Relationship patterns: Brief description of how you relate to others (3-4 sentences)
+            - Marriage timing: High-level overview (e.g., "favorable periods in coming years") with 2-3 sentences
+            - Family dynamics: Brief description (2-3 sentences)
+            - Strengthening relationships: 3-4 bullet points
+            Keep strategic, not detailed timing.
+         
+         e) HEALTH & ENERGY (MANDATORY - ~150 words):
+            Title: "Health & Energy"
+            Include:
+            - Health patterns: Brief description of health themes (2-3 sentences)
+            - Areas to focus on: 3-4 bullet points
+            - Preventive care: 2-3 bullet points
+            Keep practical and actionable.
+         
+         f) SPIRITUAL GROWTH (MANDATORY - ~150 words):
+            Title: "Spiritual Growth & Life Purpose"
+            Include:
+            - Life purpose themes: Brief description (2-3 sentences)
+            - Growth opportunities: 3-4 bullet points
+            - Inner development: 2-3 sentences
+            Keep meaningful but concise.
+         
+         g) ACTION PLAN (MANDATORY - ~200 words):
+            Title: "Action Plan"
+            Include:
+            - Priority actions: 5-7 specific action items with brief explanations
+            - Focus areas: What to prioritize now (3-4 bullet points)
+            - Strategic approach: How to approach the next 2-3 years (2-3 sentences)
+            Keep actionable and integrated across all life areas.
       
-      4. CONFIDENCE LEVEL (add early, after Decision Anchor):
-         Include: "Confidence Level: [X]/10 (Strong for strategic planning, weaker for exact dates)"
-         Where X is 5-6 (high-level overview). Always add the strategic context in parentheses.
+      4. LANGUAGE RULES:
+         - Keep bullets to 12-15 words max
+         - Use calm, strategic language
+         - NO fear-based language
+         - NO absolute statements
+         - Focus on guidance and themes
+         - Compress text - avoid repetition
+         - Total target: ~1100-1300 words (meets validation requirement)
       
-      5. TIMING HIERARCHY DISCLAIMER (add after Executive Summary):
-         "Note: This report provides a high-level overview. Timing-specific insights are refined in dedicated reports. 
-          For precise marriage timing windows, see the Marriage Timing Report. For detailed career phases, see the Career & Money Report."
-      
-      6. EXECUTIVE SUMMARY (must be first section - make this DETAILED):
-         Create a section titled "Your Key Life Insights (Summary)" with:
-         - Marriage: Best window between [specific date range - use BROAD range based on current date, e.g., "2026-2029" if current year is 2026] with 2-3 sentences of context
-         - Career: Major growth phase [description] with 2-3 sentences explaining the phase
-         - Money: [Description] over next 3-5 years with 2-3 sentences on financial patterns
-         - Health: [Overview] with 1-2 sentences on health themes
-         - Family & Relationships: [Overview] with 1-2 sentences
-         - Focus: [Key action items] - provide 3-4 specific action items
-         This should be comprehensive (200-300 words), not just brief bullets.
-         IMPORTANT: Use broader ranges here (high-level), not precise windows.
-      
-      7. COMPREHENSIVE SECTION REQUIREMENTS (each section should be DETAILED):
-         For EVERY major section (Personality, Marriage Timing, Career, Money, Health, Family, Education, Spiritual Growth):
-         - Start with section name followed by "- Key Insight"
-         - Add confidence indicator: "Confidence: ★★★★☆ (High)" or "Confidence: ★★★☆☆ (Medium)"
-         - Provide 2-3 line summary at the top (not just 1-2 lines)
-         - Then provide DETAILED content with:
-           * Multiple subsections (3-5 subsections per major section)
-           * Each subsection should have 4-6 bullet points
-           * Each bullet point can be up to 25 words (not just 20)
-           * Include specific examples and practical applications
-         - Use PERSONAL ANCHORS: Reference ${birthDetails.name}, birth date ${birthDetails.dob}, specific planetary positions throughout
-         - End with "What this means for you" in plain English (2-3 sentences, not just 1)
-      
-      8. Marriage Timing Section (make this COMPREHENSIVE):
-         - Start with: "High-level marriage timing overview (for precise windows, see dedicated Marriage Timing Report)"
-         - Provide BROAD window (e.g., "2026-2029 timeframe" if current year is 2026) with detailed explanation, using future years only
-         - Include subsections:
-           * Favorable periods (2-3 periods with explanations)
-           * Factors influencing timing (3-4 factors)
-           * Readiness indicators (3-4 indicators)
-           * What to focus on now (3-4 action items)
-         - Explain: "This overview considers major planetary periods. For refined timing based on transit sequencing, 
-                    the dedicated Marriage Timing Report provides more precise windows."
-         - Add confidence: "Confidence: ★★★☆☆ (Medium - high-level overview)"
-         - Total length: 300-400 words minimum
-      
-      9. Career Section (make this COMPREHENSIVE):
-         - Start with: "Career growth phases (for detailed momentum windows, see Career & Money Report)"
-         - Include subsections:
-           * Career strengths and natural talents (4-5 points)
-           * Career phases over next 5 years (3-4 phases with descriptions)
-           * Best career directions (3-4 directions with explanations)
-           * Challenges and how to navigate them (3-4 challenges)
-           * Action items for career growth (4-5 specific actions)
-         - Focus on phases and patterns, not exact timing
-         - Add confidence: "Confidence: ★★★☆☆ (Medium - phase-based guidance)"
-         - Total length: 400-500 words minimum
-      
-      10. Money & Finance Section (make this COMPREHENSIVE):
-          - Include subsections:
-            * Financial patterns and tendencies (4-5 points)
-            * Money growth phases (3-4 phases)
-            * Investment guidance (3-4 recommendations)
-            * Financial challenges and remedies (3-4 challenges)
-            * Action items for financial growth (4-5 specific actions)
-          - Total length: 300-400 words minimum
-      
-      11. Personality & Core Traits Section (make this COMPREHENSIVE):
-          - Include subsections:
-            * Core personality traits (5-6 traits with explanations)
-            * Strengths and natural abilities (4-5 strengths)
-            * Areas for growth (3-4 areas)
-            * How you relate to others (3-4 points)
-            * Life themes and patterns (3-4 themes)
-          - Total length: 400-500 words minimum
-      
-      12. Health Section (add this - make it COMPREHENSIVE):
-          - Include subsections:
-            * Health patterns and tendencies (3-4 points)
-            * Areas to focus on (3-4 areas)
-            * Preventive care guidance (3-4 recommendations)
-          - Total length: 200-300 words minimum
-      
-      13. Family & Relationships Section (add this - make it COMPREHENSIVE):
-          - Include subsections:
-            * Family dynamics (3-4 points)
-            * Relationship patterns (3-4 patterns)
-            * How to strengthen relationships (3-4 actions)
-          - Total length: 200-300 words minimum
-      
-      14. Education & Learning Section (add this if relevant):
-          - Include learning styles, educational opportunities, knowledge areas to focus on
-          - Total length: 150-200 words
-      
-      15. Spiritual Growth & Life Purpose Section (add this):
-          - Include life purpose themes, spiritual growth opportunities, inner development
-          - Total length: 200-300 words
-      
-      16. Remedies & Guidance Section (make this COMPREHENSIVE):
-          - Include 5-7 practical, non-religious remedies
-          - Each remedy should have 2-3 sentences of explanation
-          - Total length: 300-400 words minimum
-      
-      17. Language guidelines:
-          - After every technical term (Ascendant, Nakshatra, etc.), add "What this means in daily life" explanation
-          - Use bullet points (15-25 words each - allow more length for comprehensive content)
-          - Avoid repeating similar traits
-          - Use ranges, tendencies, and probabilities (not guarantees)
-          - AVOID generic phrases like "focus on personal development" - use specific dates/phases/anchors
-          - Be DETAILED and THOROUGH - this is a comprehensive report, not a summary
-      
-      18. Section organization (COMPREHENSIVE structure):
-          - Executive Summary (200-300 words)
-          - Personality & Core Traits (400-500 words with 4-5 subsections)
-          - Marriage Timing (300-400 words with 4-5 subsections)
-          - Career & Professional Life (400-500 words with 5-6 subsections)
-          - Money & Finance (300-400 words with 4-5 subsections)
-          - Health & Wellbeing (200-300 words with 3-4 subsections)
-          - Family & Relationships (200-300 words with 3-4 subsections)
-          - Education & Learning (150-200 words, if relevant)
-          - Spiritual Growth & Life Purpose (200-300 words)
-          - Remedies & Practical Guidance (300-400 words with 5-7 remedies)
-          - Final Summary: "What This Means For You" (100-150 words)
-      
-      19. TOTAL REPORT LENGTH:
-          This report should be COMPREHENSIVE - aim for 2500-3500 words total.
-          Each major section should be substantial and detailed, not brief.
-          This is a "Full Life Report" - it should feel complete and thorough.
+      5. DISCLAIMER (include at end):
+         "This report provides comprehensive life guidance based on astrological patterns. 
+         These are themes and tendencies, not predictions. Use this guidance to plan thoughtfully, 
+         not as definitive outcomes. Your actions and circumstances always play a role in outcomes."
       `,
 
     yearAnalysis: (birthDetails: any, planetaryData: any, targetYear: number, startMonth?: number, endYear?: number, endMonth?: number, dateDescription?: string) => {
@@ -663,139 +605,83 @@ export const AI_PROMPT_TEMPLATES = {
       OUTPUT:
       Generate a "Year Analysis Report" for ${periodDescription} that provides strategic 12-month guidance with quarterly breakdowns.
       
-      CRITICAL REQUIREMENTS:
-      1. DECISION ANCHOR BOX (MANDATORY - add immediately after data source label):
-         Create a prominent box titled "Decision Anchor (Read This First)" with:
-         "Based on this report, the most productive focus for you right now is: [Single clear statement about strategic focus for ${periodDescription}]"
-         This does NOT make predictions - it gives users closure and direction.
-         Example: "Based on this report, the most productive focus for you right now is: Building career momentum in Q2-Q3 while strengthening relationships in Q4."
-      
-      2. THIS IS STRATEGIC GUIDANCE, NOT PREDICTIONS:
+      CRITICAL REQUIREMENTS (MVP - Simplified Structure):
+      1. THIS IS STRATEGIC GUIDANCE, NOT PREDICTIONS:
          - Focus on themes, tendencies, and strategic guidance
          - NO specific dates or event predictions
          - NO guarantees or certainties
          - Use language: "favors", "best used for", "tends to", "more favorable for"
          - NEVER say: "will happen", "don't do", "must avoid", "will fail"
       
-      3. PERSONALIZE EVERYTHING:
+      2. PERSONALIZE EVERYTHING:
          - Reference ${birthDetails.name}, birth date ${birthDetails.dob}
          - Use specific planetary positions from the data
          - Make every section feel personal, not generic
       
-      4. MANDATORY STRUCTURE (follow exactly):
+      3. MVP STRUCTURE (4-6 core sections only - follow exactly):
          
          a) DATA SOURCE LABEL (at the very beginning):
             "Based on: Ascendant + Moon Sign + Dasha + Transit Analysis for ${periodDescription} (strategic year guidance)"
          
-         b) DECISION ANCHOR BOX (immediately after data source - see requirement #1)
-         
-         c) YEAR STRATEGY BLOCK (NEW - add immediately after Decision Anchor, before detailed breakdown):
-            Title: "Year Strategy"
-            Include EXACTLY 3 bullets only:
-            • What to push: [Specific area/action to focus energy on]
-            • What to avoid: [Specific area/action to minimize]
-            • What to prepare for: [Specific area/opportunity coming later in year]
-            Keep each bullet to 12-15 words max. This sets strategic direction early.
-         
-         d) CONFIDENCE LEVEL (add right after Year Strategy, BEFORE detailed breakdown):
-            Include: "Confidence Level: [X]/10 (Strong for strategic planning, weaker for exact dates)"
-            Where X is between 6-9 (never 10, never below 6 for strategic guidance).
-            Always add the strategic context in parentheses. Move this HIGHER than before.
-         
-         e) YEAR THEME:
-            Title: "Year Theme"
-            Content: One clear sentence describing the overall theme of ${periodDescription}
-            Example: "${periodDescription} is a period of consolidation and relationship alignment for you."
-            This should be the main strategic theme, not detailed predictions.
-         
-         f) YEAR-AT-A-GLANCE SUMMARY (MANDATORY - one screen only):
-            Title: "Year-at-a-Glance Summary"
+         b) YEAR THEME & PLANETARY DRIVERS (MANDATORY - ~150 words):
+            Title: "Year Theme & Planetary Drivers"
             Include:
-            • Overall theme of the year (1 line)
-            • Main opportunity area (1 line)
-            • Main challenge area (1 line)
-            • Where to be cautious (1 line)
-            • Where to invest energy (1 line)
-            Format as clear bullet points, max 15 words each.
+            - Overall theme: One clear sentence describing the main strategic theme for ${periodDescription}
+            - Key planetary influences: Brief explanation of major planetary drivers (2-3 sentences)
+            - Strategic focus: What areas to prioritize this year (1-2 sentences)
+            Keep concise and strategic, not verbose.
          
-         g) QUARTER-BY-QUARTER BREAKDOWN (MANDATORY - users LOVE quarters):
+         c) QUARTER-BY-QUARTER BREAKDOWN (MANDATORY - ~400 words total):
             Title: "Quarter-by-Quarter Breakdown"
             For EACH quarter (Q1, Q2, Q3, Q4), include:
             - Quarter name: "Q1: [Jan-Mar]", "Q2: [Apr-Jun]", "Q3: [Jul-Sep]", "Q4: [Oct-Dec]"
             - Focus theme: One line describing the theme
-            - Career & money tone: Description (e.g., "planning & preparation", "momentum begins")
-            - Relationship / personal focus: Description
+            - Career & money tone: Brief description (e.g., "planning & preparation", "momentum begins")
+            - Relationship / personal focus: Brief description
             - Energy level: "low", "moderate", or "high"
             Format as clear subsections for each quarter.
-            TOKEN BUDGET: ≤ 600 words total (4 quarters × 150 words max per quarter)
+            TOKEN BUDGET: ~100 words per quarter (4 quarters × 100 words = ~400 words total)
+            Keep concise - focus on key themes, not detailed prose.
          
-         h) BEST PERIODS (MANDATORY):
+         d) BEST PERIODS (MANDATORY - ~150 words):
             Title: "Best Periods"
-            Include three subsections:
-            - Best months for action: List months (e.g., "March, July, November")
-            - Best months for relationships: List months
-            - Best months for finances: List months
-            For each, provide brief description (1 line) of why these periods are favorable.
+            Include three consolidated subsections:
+            - Best months for action: List months (e.g., "March, July, November") with brief 1-line description
+            - Best months for relationships: List months with brief 1-line description
+            - Best months for finances: List months with brief 1-line description
             Use strategic language, not predictions.
-            TOKEN BUDGET: ≤ 200 words (3 subsections × 60-70 words max each)
+            TOKEN BUDGET: ~50 words per subsection (3 subsections × 50 words = ~150 words total)
          
-         i) LOW-RETURN PERIODS (RENAMED - was "Caution Periods"):
-            Title: "Low-Return Periods" (NOT "Caution Periods" - sounds less negative, more strategic)
+         e) RISKS & CAUTIONS (MANDATORY - ~100 words):
+            Title: "Risks & Cautions"
             Include:
-            - Emotional volatility periods: Months and brief description
-            - Financial risk periods: Months and brief description  
-            - Decision fatigue periods: Months and brief description
+            - Periods requiring extra care: List months and brief description (1 line each)
+            - Areas to be mindful of: Brief strategic guidance (2-3 sentences)
             Frame as "more challenging for" and "lower return on investment" - NOT "avoid" or "will fail".
             Use strategic, less fear-based language.
-            TOKEN BUDGET: ≤ 180 words (3 subsections × 60 words max each)
+            TOKEN BUDGET: ~100 words total
          
-         j) FOCUS AREAS BY MONTH (optional but valuable):
-            Title: "Focus Areas by Month"
-            Create a simple table/list format:
-            Month | Focus
-            Jan   | Planning
-            Mar   | Action
-            Jul   | Lower activity
-            Nov   | Consolidate
-            Keep to 2-4 words per month focus.
-         
-         k) YEAR SCORECARD (visual indicator):
-            Title: "Year Scorecard"
-            Rate on 1-5 star scale (use ★ symbols):
-            • Career: ★★★★☆ (4/5) - Brief explanation
-            • Relationships: ★★★☆☆ (3/5) - Brief explanation
-            • Money: ★★★★☆ (4/5) - Brief explanation
-            Frame as "favorability" not "guaranteed success".
-         
-         l) WHAT TO DO THIS YEAR (actionable guidance):
-            Title: "What to Do This Year"
+         f) ACTIONABLE GUIDANCE (MANDATORY - ~200 words):
+            Title: "Actionable Guidance"
             Clear bullet actions:
-            • Strengthen [specific area]
-            • Focus on [specific approach]
-            • Best used for [specific actions]
-            • Favors [specific behaviors]
-            • Avoid over-emphasizing [specific areas]
+            • Strengthen [specific area] over the next 6-12 months
+            • Focus on [specific approach] during favorable periods
+            • Best used for [specific actions] - NOT generic "good for anyone"
+            • Favors [specific behaviors] - concrete guidance
+            Include 5-7 specific action items with brief explanations.
             Use "favors" and "best used for" language, NOT "must do" or "don't do".
-         
-         m) YEAR-END OUTLOOK (closing section):
-            Title: "Year-End Outlook"
-            Include:
-            • What improves by year-end (1-2 lines)
-            • What carries forward into next year (1-2 lines)
-            Frame as themes and tendencies, not predictions.
-         
-         n) End with "What This Means For You" summary (ONLY place where repetition from summary is allowed)
+            TOKEN BUDGET: ~200 words total
       
-      5. LANGUAGE RULES:
+      4. LANGUAGE RULES:
          - Keep bullets to 12-15 words max
          - Use calm, strategic language
          - NO fear-based language
          - NO absolute statements
          - Focus on guidance and themes
-         - After technical terms, explain what they mean in daily life
-         - Compress text - avoid repetition except in Executive Summary and final "What This Means For You"
+         - Compress text - avoid repetition
+         - Total target: ~800-900 words (meets validation requirement)
       
-      6. DISCLAIMER (include at end):
+      5. DISCLAIMER (include at end):
          "This report provides strategic guidance for ${periodDescription} based on astrological patterns. 
          These are themes and tendencies, not predictions. Use this guidance to plan thoughtfully, 
          not as definitive outcomes. Your actions and circumstances always play a role in outcomes."
