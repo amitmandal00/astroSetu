@@ -20,7 +20,7 @@ import {
   markStoredReportFailed,
   updateStoredReportHeartbeat,
 } from "@/lib/ai-astrology/reportStore";
-import { validateReportContent } from "@/lib/ai-astrology/validation";
+import { validateReportBeforeCompletion } from "@/lib/ai-astrology/reportValidation";
 import { applyDeterministicFallback_NO_API } from "@/lib/ai-astrology/deterministicFallback";
 
 export const runtime = "nodejs";
@@ -100,8 +100,8 @@ export async function POST(req: NextRequest) {
       }
 
       // Validate report content
-      const validation = validateReportContent(reportContent, reportType);
-      if (!validation.isValid) {
+      const validation = validateReportBeforeCompletion(reportContent, input, undefined, reportType);
+      if (!validation.valid) {
         console.warn(`[REPORT_WORKER] Validation failed, applying fallback`, {
           requestId,
           reportId,
@@ -110,15 +110,15 @@ export async function POST(req: NextRequest) {
         });
 
         // Apply deterministic fallback
-        const fallbackContent = applyDeterministicFallback_NO_API(
+        const fallbackContent = await applyDeterministicFallback_NO_API(
           reportContent,
           reportType,
-          input
+          validation.errorCode || "VALIDATION_FAILED"
         );
 
         // Re-validate fallback
-        const fallbackValidation = validateReportContent(fallbackContent, reportType);
-        if (!fallbackValidation.isValid) {
+        const fallbackValidation = validateReportBeforeCompletion(fallbackContent, input, undefined, reportType);
+        if (!fallbackValidation.valid) {
           // Check if we can allow degradation (year-analysis only)
           const isContentTooShort =
             fallbackValidation.errorCode === "VALIDATION_FAILED" &&

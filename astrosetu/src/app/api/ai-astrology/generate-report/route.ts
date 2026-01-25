@@ -1649,6 +1649,12 @@ export async function POST(req: Request) {
     // Declare qualityWarning at function scope for use in both success and fallback paths
     let qualityWarning: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied" | null = null;
     
+    // Declare variables at function scope for use in catch blocks
+    let modelName: string | undefined;
+    let tokenUsage: number | undefined;
+    let retryAttempt = 0;
+    const sessionKey = `sync-${requestId}`;
+    
     try {
       // Start heartbeat when generation begins
       startHeartbeat();
@@ -1663,9 +1669,6 @@ export async function POST(req: Request) {
 
       // CRITICAL FIX (Priority 4): Structured debug logging
       const generationStartTime = Date.now();
-      let modelName: string | undefined;
-      let tokenUsage: number | undefined;
-      let retryAttempt = 0;
       
       // Log generation start with structured data
       console.log("[STRUCTURED_LOG]", JSON.stringify({
@@ -1927,7 +1930,7 @@ export async function POST(req: Request) {
               reason: "MVP Rule #7 Special Rule - safe degradation allowed for year-analysis",
             });
             
-            qualityWarning = fallbackValidation.error || "content_below_optimal_length";
+            qualityWarning = "below_optimal_length";
             
             // Cache + complete anyway (don't fail paid UX)
             cacheReport(idempotencyKey, reportId, fallbackContent, reportType, input);

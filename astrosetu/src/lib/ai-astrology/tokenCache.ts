@@ -160,47 +160,52 @@ export async function createOrReuseToken(
   // Create new token request
   const { apiPost } = await import("@/lib/http");
   
-  const tokenPromise = (async (): Promise<string | null> => {
-    try {
-      const tokenResponse = await apiPost<{
-        ok: boolean;
-        data?: { token: string; expiresIn?: number };
-        error?: string;
-      }>("/api/ai-astrology/input-session", {
-        input,
-        reportType,
-        bundleType,
-        bundleReports: bundleReports && bundleReports.length > 0 ? bundleReports : undefined,
-      });
-      
-      if (tokenResponse.ok && tokenResponse.data?.token) {
-        const token = tokenResponse.data.token;
-        const expiresIn = tokenResponse.data.expiresIn || 1800; // Default 30 minutes
-        
-        // Cache the token
-        cacheToken(token, expiresIn, input, reportType, bundleType, bundleReports);
-        
-        console.log("[TokenCache] Created and cached new token", {
-          tokenSuffix: token.slice(-6),
-          expiresIn,
+  // Create the promise - use a wrapper to avoid TypeScript control flow issues
+  const createTokenPromise = (): Promise<string | null> => {
+    return (async (): Promise<string | null> => {
+      try {
+        const tokenResponse = await apiPost<{
+          ok: boolean;
+          data?: { token: string; expiresIn?: number };
+          error?: string;
+        }>("/api/ai-astrology/input-session", {
+          input,
+          reportType,
+          bundleType,
+          bundleReports: bundleReports && bundleReports.length > 0 ? bundleReports : undefined,
         });
         
-        return token;
-      } else {
-        console.warn("[TokenCache] Failed to create token:", tokenResponse.error);
+        if (tokenResponse.ok && tokenResponse.data?.token) {
+          const token = tokenResponse.data.token;
+          const expiresIn = tokenResponse.data.expiresIn || 1800; // Default 30 minutes
+          
+          // Cache the token
+          cacheToken(token, expiresIn, input, reportType, bundleType, bundleReports);
+          
+          console.log("[TokenCache] Created and cached new token", {
+            tokenSuffix: token.slice(-6),
+            expiresIn,
+          });
+          
+          return token;
+        } else {
+          console.warn("[TokenCache] Failed to create token:", tokenResponse.error);
+          return null;
+        }
+      } catch (error: any) {
+        console.error("[TokenCache] Token creation error:", error);
         return null;
+      } finally {
+        // Clear in-flight lock - reference is set below before promise executes
+        if (inFlightTokenRequest === tokenPromise) {
+          inFlightTokenRequest = null;
+          inFlightTokenInput = null;
+        }
       }
-    } catch (error: any) {
-      console.error("[TokenCache] Token creation error:", error);
-      return null;
-    } finally {
-      // Clear in-flight lock
-      if (inFlightTokenRequest === tokenPromise) {
-        inFlightTokenRequest = null;
-        inFlightTokenInput = null;
-      }
-    }
-  })();
+    })();
+  };
+  
+  const tokenPromise = createTokenPromise();
   
   // Set in-flight lock
   inFlightTokenRequest = tokenPromise;
