@@ -3,7 +3,7 @@
  * Generates astrology reports using AI prompts and astrology calculation data
  */
 
-import type { AIAstrologyInput, ReportType, ReportContent } from "./types";
+import type { AIAstrologyInput, ReportType, ReportContent, ReportSection } from "./types";
 import { generateLifeSummaryPrompt, generateMarriageTimingPrompt, generateCareerMoneyPrompt, generateFullLifePrompt, generateYearAnalysisPrompt, generateMajorLifePhasePrompt, generateDecisionSupportPrompt } from "./prompts";
 import { getKundli } from "../astrologyAPI";
 import { generateKundliCacheKey, getCachedKundli, cacheKundli, getCachedDosha, cacheDosha } from "./kundliCache";
@@ -757,6 +757,138 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
   return reportWithFallbacks;
 }
 
+export const WORD_COUNT_BUFFER_FACTOR = 1.25;
+export const BASE_WORD_COUNT_TARGETS: Record<ReportType, number> = {
+  "life-summary": 700,
+  "daily-guidance": 400,
+  "marriage-timing": 800,
+  "career-money": 900,
+  "full-life": 1300,
+  "year-analysis": 800,
+  "major-life-phase": 1000,
+  "decision-support": 900,
+};
+
+const BUFFERED_REPORT_TYPES = new Set<ReportType>([
+  "career-money",
+  "major-life-phase",
+  "full-life",
+  "year-analysis",
+  "marriage-timing",
+  "decision-support",
+]);
+
+const PADDING_CONTEXT: Record<ReportType, string> = {
+  "marriage-timing": "marriage timing readiness, relationship readiness, and emotional clarity",
+  "career-money": "career momentum, financial timing, and strategic positioning",
+  "full-life": "integrated life patterns across career, relationships, health, and purpose",
+  "year-analysis": "quarter-by-quarter timing cues for the upcoming year",
+  "major-life-phase": "3-5 year phase themes, transitions, and opportunities",
+  "decision-support": "decision timing, options alignment, and confidence framing",
+  "life-summary": "core strengths, personality themes, and guiding trends",
+  "daily-guidance": "short-term focus areas and mindset support",
+};
+
+const PADDING_FOCUS: Record<ReportType, string> = {
+  "marriage-timing": "readiness cues, emotional preparation, and relational timing",
+  "career-money": "momentum windows, financial cycles, and strategic positioning",
+  "full-life": "long-term integration across life areas and practical action plans",
+  "year-analysis": "seasonal shifts, quarterly priorities, and timing signals",
+  "major-life-phase": "extended phase transitions, opportunities, and navigation tips",
+  "decision-support": "options analysis, timing, and decision confidence",
+  "life-summary": "identity anchors, strengths, and guiding themes",
+  "daily-guidance": "energy focus, mindset shifts, and reflective prompts",
+};
+
+type PaddingInfo = {
+  targetWords: number;
+  wordsBefore: number;
+  wordsAfter: number;
+  addedWords: number;
+  sectionsBefore: number;
+  sectionsAfter: number;
+  addedSections: number;
+};
+
+function countWordsInText(text: string = ""): number {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+}
+
+function countWordsInSection(section: ReportSection): number {
+  const content = section.content || "";
+  const bullets = section.bullets?.join(" ") || "";
+  return countWordsInText(content) + countWordsInText(bullets);
+}
+
+function generatePaddingParagraph(reportType: ReportType, index: number): string {
+  const context = PADDING_CONTEXT[reportType] || "astrological guidance";
+  const focus = PADDING_FOCUS[reportType] || "timing cues and strategic clarity";
+  const prefix = index === 1 ? "This expanded insight" : `This additional insight (${index})`;
+  const sentences = [
+    `${prefix} continues the ${context} narrative by focusing on ${focus} that keep the guidance practical and grounded.`,
+    `It names timing cues, energy shifts, and preparation steps so you can respond with clarity rather than reacting to surprise shifts.`,
+    `What this means for you is a clearer signal about when to move forward, when to pause quietly, and how to turn astrology into deliberate action.`,
+    `Keep this paragraph close as you revisit the report; it keeps the thread of insight alive and supports calm, confident planning.`,
+    `Let the extra detail remind you that the guidance is about processes and preparation, not predictions etched in stone.`,
+  ];
+  return sentences.join(" ");
+}
+
+function buildPaddingSection(reportType: ReportType, index: number): ReportSection {
+  const titleBase = reportType === "major-life-phase" ? "Phase Clarity" : "Expanded Insight";
+  return {
+    title: `${titleBase} ${index}`,
+    content: generatePaddingParagraph(reportType, index),
+  };
+}
+
+function padSectionsToWordCount(sections: ReportSection[], reportType: ReportType): PaddingInfo {
+  const sectionsBefore = sections.length;
+  const wordsBefore = sections.reduce((sum, section) => sum + countWordsInSection(section), 0);
+  const minWords = BASE_WORD_COUNT_TARGETS[reportType] || 800;
+  const targetWords = Math.ceil(minWords * WORD_COUNT_BUFFER_FACTOR);
+  const info: PaddingInfo = {
+    targetWords,
+    wordsBefore,
+    wordsAfter: wordsBefore,
+    addedWords: 0,
+    sectionsBefore,
+    sectionsAfter: sectionsBefore,
+    addedSections: 0,
+  };
+
+  let currentWords = wordsBefore;
+  let ordinal = 1;
+  const maxPaddingSections = 6;
+
+  while (currentWords < targetWords && info.addedSections < maxPaddingSections) {
+    const paddingSection = buildPaddingSection(reportType, ordinal);
+    sections.push(paddingSection);
+    const added = countWordsInSection(paddingSection);
+    currentWords += added;
+    info.addedWords += added;
+    info.addedSections += 1;
+    ordinal += 1;
+  }
+
+  if (currentWords < targetWords && sections.length > 0) {
+    const extraParagraph = generatePaddingParagraph(reportType, ordinal);
+    sections[sections.length - 1].content += ` ${extraParagraph}`;
+    const extraWords = countWordsInText(extraParagraph);
+    currentWords += extraWords;
+    info.addedWords += extraWords;
+  }
+
+  info.wordsAfter = currentWords;
+  info.sectionsAfter = sections.length;
+  return info;
+}
+
+/**
+
 /**
  * CRITICAL FIX (2026-01-19): Ensure minimum section count for comprehensive reports
  * This function can be called on any ReportContent to add fallback sections if needed
@@ -771,6 +903,7 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
   const paidReportTypes: ReportType[] = ["career-money", "major-life-phase", "decision-support", "year-analysis", "marriage-timing", "full-life"];
   // Higher minimum for individual paid reports to ensure comprehensive content
   const minSectionsForPaid = reportType === "decision-support" || reportType === "career-money" || reportType === "major-life-phase" ? 6 : 4;
+  let paddingInfo: PaddingInfo | null = null;
   
   // FIX 1: Helper functions to replace short sections, not just add missing ones
   const getSectionWords = (s: any): number => {
@@ -1493,6 +1626,9 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
         content: "This section contains additional astrological insights based on your birth chart analysis. For comprehensive guidance, consider reviewing all sections of this report together.",
       });
     }
+    if (BUFFERED_REPORT_TYPES.has(reportType)) {
+      paddingInfo = padSectionsToWordCount(sections, reportType);
+    }
   }
   
   // Add disclaimer section (static content, not generated by AI)
@@ -1516,6 +1652,7 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
     reportType,
     finalSectionsCount: sections.length,
     sectionTitles: sections.map(s => s.title),
+    paddingInfo: paddingInfo?.addedWords ? paddingInfo : undefined,
   });
   
   return finalReport;

@@ -19,6 +19,8 @@ import {
   generateMajorLifePhaseReport,
   generateDecisionSupportReport,
   isAIConfigured,
+  WORD_COUNT_BUFFER_FACTOR,
+  BASE_WORD_COUNT_TARGETS,
 } from "@/lib/ai-astrology/reportGenerator";
 import type { AIAstrologyInput, ReportType, ReportContent } from "@/lib/ai-astrology/types";
 import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/paymentToken";
@@ -68,6 +70,62 @@ function isProcessingStale(params: { updatedAtIso?: string | null; reportType?: 
   const updatedMs = parseIsoToMs(params.updatedAtIso);
   if (!updatedMs || !params.reportType) return false;
   return Date.now() - updatedMs > getMaxProcessingMs(params.reportType);
+}
+
+type ReportFootprint = {
+  sectionCount: number;
+  wordCount: number;
+  targetWords: number;
+  wordGap: number;
+  shortSections: number;
+  placeholderSections: number;
+};
+
+function countWordsInText(text: string = ""): number {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+}
+
+function containsPlaceholderPhrase(text: string = ""): boolean {
+  const normalized = text.toLowerCase();
+  const placeholderPatterns = [
+    "lorem ipsum",
+    "placeholder text",
+    "coming soon",
+    "this is a placeholder",
+    "detailed analysis will be generated",
+    "insight based on your birth chart",
+    "key insight based on your birth chart",
+    "we're preparing your personalized insights",
+    "this is a simplified view",
+    "try generating the report again",
+    "for a complete analysis with detailed timing windows",
+    "additional insights - section",
+    "please try generating the report again",
+  ];
+  return placeholderPatterns.some((pattern) => normalized.includes(pattern));
+}
+
+function computeReportFootprint(reportContent: ReportContent, reportType: ReportType): ReportFootprint {
+  const sections = reportContent.sections || [];
+  const wordCount = sections.reduce((sum, section) => {
+    const text = `${section.content || ""} ${(section.bullets?.join(" ") || "")}`;
+    return sum + countWordsInText(text);
+  }, 0);
+  const shortSections = sections.filter((section) => countWordsInText(section.content || "") < 120).length;
+  const placeholderSections = sections.filter((section) => containsPlaceholderPhrase(section.content || "")).length;
+  const targetWords = Math.ceil((BASE_WORD_COUNT_TARGETS[reportType] || 800) * WORD_COUNT_BUFFER_FACTOR);
+  const wordGap = Math.max(0, targetWords - wordCount);
+  return {
+    sectionCount: sections.length,
+    wordCount,
+    targetWords,
+    wordGap,
+    shortSections,
+    placeholderSections,
+  };
 }
 
 function parseReportIdCreatedAtMs(reportId: string): number | null {
@@ -1741,18 +1799,10 @@ export async function POST(req: Request) {
 
       // CRITICAL FIX (Priority 4): Enhanced structured logging after generation
       const generationLatency = Date.now() - generationStartTime;
-      const sectionCount = reportContent?.sections?.length || 0;
-      const wordCount = reportContent ? (() => {
-        const text = JSON.stringify(reportContent);
-        return text.split(/\s+/).filter(Boolean).length;
-      })() : 0;
-      const placeholderDetected = reportContent ? (() => {
-        const contentStr = JSON.stringify(reportContent).toLowerCase();
-        return contentStr.includes("placeholder") || 
-               contentStr.includes("simplified view") ||
-               contentStr.includes("we're preparing") ||
-               contentStr.includes("try generating");
-      })() : false;
+      const contentFootprint = reportContent ? computeReportFootprint(reportContent, reportType) : null;
+      const sectionCount = contentFootprint?.sectionCount || 0;
+      const wordCount = contentFootprint?.wordCount || 0;
+      const placeholderDetected = (contentFootprint?.placeholderSections || 0) > 0;
       
       console.log("[STRUCTURED_LOG]", JSON.stringify({
         requestId,
@@ -1768,6 +1818,15 @@ export async function POST(req: Request) {
         placeholderDetected,
         retryAttempt,
       }));
+
+      if (contentFootprint) {
+        console.log("[CONTENT_FOOTPRINT]", JSON.stringify({
+          requestId,
+          reportId,
+          reportType,
+          ...contentFootprint,
+        }));
+      }
       
       // CENTRAL GUARDRail: Ensure all timing windows are future-only before caching/storing/rendering.
       // This fixes LLM “past year” leakage and also protects users when prompts are imperfect.

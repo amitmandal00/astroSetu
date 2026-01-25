@@ -38,6 +38,7 @@ OUTPUT RULES:
 - Minimum 4-6 sections for comprehensive reports
 - Each section content should be 150-300 words
 - Total word count must meet minimum requirements (800+ words for most reports, 1300+ for full-life)
+- Aim for 125%-130% of the minimum word count to create a deterministic buffer before backend validation (extra detail can be pruned but undershooting increases rejection risk)
 `;
 
 export const AI_PROMPT_SYSTEM_MESSAGE = `
@@ -47,6 +48,10 @@ Avoid fear language.
 Focus on guidance and timing.
 Provide clear, actionable insights.
 ${JSON_SCHEMA_INSTRUCTION}
+
+CRITICAL WORD-COUNT BUFFER:
+- Aim to deliver 25%-30% more content than each report's minimum word-count target so the final payload comfortably clears validation while the backend trims any excess.
+- When a minimum target is specified (e.g., 1000 words for major-life-phase), aim for ~1250-1300 words when designing each section and the report narrative.
 
 TIME WINDOW GUARDRail (NON-NEGOTIABLE):
 - You will be given NOW_ISO (today) and CURRENT_YEAR.
