@@ -647,7 +647,10 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     const extracted = extractEmbeddedJsonSegment(response);
     if (extracted && typeof extracted === "object") {
       parsedJson = extracted;
-      console.log(`[parseAIResponse] Extracted embedded JSON for reportType=${reportType}`);
+      console.log("[parseAIResponse] parser_extracted_json_block", {
+        reportType,
+        event: "PARSER_EXTRACTED_JSON_BLOCK",
+      });
     }
   }
   
@@ -655,8 +658,9 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
     const structuredSections = collectSectionsFromStructuredJson(parsedJson, reportType);
     const meaningfulSections = filterMeaningfulSections(structuredSections);
     if (meaningfulSections.length === 0) {
-      console.warn("[parseAIResponse] Parsed JSON produced no meaningful sections - using deterministic skeleton", {
+      console.warn("[parseAIResponse] parser_fallback_skeleton_used", {
         reportType,
+        event: "PARSER_FALLBACK_SKELETON_USED",
       });
       return ensureMinimumSections(deterministicSkeleton(reportType), reportType);
     }

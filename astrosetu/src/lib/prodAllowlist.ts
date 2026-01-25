@@ -9,7 +9,20 @@
  */
 
 import type { AIAstrologyInput } from './ai-astrology/types';
+import { createHash } from "crypto";
 import { matchAllowlist, normalizeDOB, normalizeTime, normalizeGender } from './betaAccess';
+
+const buildInputFingerprintSuffix = (dob?: string, time?: string, gender?: string, place?: string): string => {
+  const canonical = [
+    dob?.trim().toLowerCase() || "",
+    time?.trim().toLowerCase() || "",
+    gender?.trim().toLowerCase() || "",
+    place?.trim().toLowerCase() || "",
+  ].join("|");
+  if (!canonical) return "none";
+  const digest = createHash("sha256").update(canonical).digest("hex");
+  return digest.slice(-6);
+};
 
 /**
  * Check if user input matches production test user allowlist
@@ -27,15 +40,6 @@ export function isProdTestUser(input: AIAstrologyInput | { name?: string; dob?: 
   // This is more strict than the old checkIfTestUser which only checked name
   // But ChatGPT specifically requested matching based on name, DOB, time, place, and gender
   
-  // For minimum matching: at least name + DOB should be provided
-  // If only name is provided, we can't match properly, so return false
-  // This ensures we don't accidentally allow users who just happen to have similar names
-  if (!input.dob) {
-    // Log for debugging but don't match (missing DOB)
-    console.log(`[PROD_ALLOWLIST] Name provided but DOB missing - cannot verify: ${input.name}`);
-    return false;
-  }
-
   // Use betaAccess matching (which requires name, dob, time, place, gender)
   // AIAstrologyInput uses 'tob' (time of birth), while betaAccess uses 'time'
   // Handle both field names for compatibility
@@ -44,6 +48,21 @@ export function isProdTestUser(input: AIAstrologyInput | { name?: string; dob?: 
     : ('tob' in input && input.tob) 
       ? input.tob 
       : '';
+
+  // For minimum matching: at least name + DOB should be provided
+  // If only name is provided, we can't match properly, so return false
+  // This ensures we don't accidentally allow users who just happen to have similar names
+  if (!input.dob) {
+    // Log for debugging but don't include PII
+    console.log("[PROD_ALLOWLIST] Name provided but DOB missing - cannot verify", {
+      inputFingerprintSuffix: buildInputFingerprintSuffix(input.dob, timeValue, input.gender, input.place),
+      hasDOB: false,
+      hasTime: !!timeValue,
+      hasPlace: !!input.place,
+      hasGender: !!input.gender,
+    });
+    return false;
+  }
 
   // CRITICAL FIX (2026-01-18): Log input fields before matching for debugging
   const inputForMatch = {
@@ -54,16 +73,12 @@ export function isProdTestUser(input: AIAstrologyInput | { name?: string; dob?: 
     gender: input.gender || '',
   };
   
-  console.log(`[PROD_ALLOWLIST] Matching input:`, {
-    name: inputForMatch.name.substring(0, 20),
+  console.log("[PROD_ALLOWLIST] Matching input", {
+    inputFingerprintSuffix: buildInputFingerprintSuffix(inputForMatch.dob, inputForMatch.time, inputForMatch.gender, inputForMatch.place),
     hasDOB: !!inputForMatch.dob,
     hasTime: !!inputForMatch.time,
     hasPlace: !!inputForMatch.place,
     hasGender: !!inputForMatch.gender,
-    dob: inputForMatch.dob || 'N/A',
-    time: inputForMatch.time || 'N/A',
-    gender: inputForMatch.gender || 'N/A',
-    place: inputForMatch.place?.substring(0, 30) || 'N/A',
   });
 
   // CRITICAL FIX (2026-01-18): matchAllowlist now supports partial matching (fixed in betaAccess.ts)
@@ -82,15 +97,11 @@ export function isProdTestUser(input: AIAstrologyInput | { name?: string; dob?: 
       gender: inputForMatch.gender ? normalizeGender(inputForMatch.gender) : null,
     };
     
-    console.log(`[PROD_ALLOWLIST] No match found for user: ${inputForMatch.name.substring(0, 20)}`, {
-      normalizedDOB: normalized.dob || 'FAILED/MISSING',
-      normalizedTime: normalized.time || 'FAILED/MISSING',
-      normalizedGender: normalized.gender || 'FAILED/MISSING',
-      missingFields: [
-        !normalized.dob && 'dob',
-        !normalized.time && 'time',
-        !normalized.gender && 'gender',
-      ].filter(Boolean),
+    console.log("[PROD_ALLOWLIST] No match found", {
+      inputFingerprintSuffix: buildInputFingerprintSuffix(inputForMatch.dob, inputForMatch.time, inputForMatch.gender, inputForMatch.place),
+      hasDOB: !!normalized.dob,
+      hasTime: !!normalized.time,
+      hasGender: !!normalized.gender,
     });
   }
 
