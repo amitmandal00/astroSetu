@@ -114,9 +114,11 @@ export async function POST(req: Request) {
     // Check if we're about to create a prodtest_ session (isTestUser && !isDemoMode)
     const willCreateProdTestSession = isTestUser && !isDemoMode;
     
-    // P0 FIX #2: Hard-block prodtest sessions in production unless explicitly allowed
+    // P0 FIX #2: Hard-block prodtest sessions in production unless explicitly allowed OR test user
     // MVP SAFETY: Never create prodtest_ sessions in production without explicit flag
-    if (willCreateProdTestSession && isProd && !allowProdTestBypass) {
+    // EXCEPTION: Test users (Amit/Ankita) are always allowed (they're the controlled test users)
+    // Test users are identified by isProdTestUser() which checks against allowlist
+    if (willCreateProdTestSession && isProd && !allowProdTestBypass && !isTestUser) {
       const prodtestBlockError = {
         requestId,
         timestamp: new Date().toISOString(),
@@ -138,16 +140,25 @@ export async function POST(req: Request) {
       );
     }
     
-    // MVP FIX: For prodtest_ sessions in production, require explicit flag
+    // MVP FIX: For prodtest_ sessions in production, require explicit flag OR test user
     // Check if we're about to create a prodtest_ session (isTestUser && !isDemoMode)
-    // and warn if in production without ALLOW_PROD_TEST_BYPASS flag (but only if not blocked above)
-    if (willCreateProdTestSession && isProd && allowProdTestBypass) {
-      console.warn("[PAYMENT BYPASS] Creating prodtest_ session in production with ALLOW_PROD_TEST_BYPASS flag", {
-        requestId,
-        isTestUser,
-        isDemoMode,
-        willCreateProdTestSession,
-      });
+    // Log if creating prodtest session (either with flag or as test user)
+    if (willCreateProdTestSession && isProd) {
+      if (allowProdTestBypass) {
+        console.warn("[PAYMENT BYPASS] Creating prodtest_ session in production with ALLOW_PROD_TEST_BYPASS flag", {
+          requestId,
+          isTestUser,
+          isDemoMode,
+          willCreateProdTestSession,
+        });
+      } else if (isTestUser) {
+        console.log("[PAYMENT BYPASS] Creating prodtest_ session in production for test user (allowlisted)", {
+          requestId,
+          isTestUser,
+          isDemoMode,
+          willCreateProdTestSession,
+        });
+      }
     }
 
     // CRITICAL: Access restriction for production testing
