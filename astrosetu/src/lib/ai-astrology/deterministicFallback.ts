@@ -78,6 +78,13 @@ export async function applyDeterministicFallback_NO_API(
   if (errorCode === "MOCK_CONTENT_DETECTED" || errorCode === "MISSING_SECTIONS" || 
       !fallbackContent || !fallbackContent.sections || fallbackContent.sections.length === 0) {
     // Empty, malformed, or missing sections - create minimal report with fallback
+    console.log("[DETERMINISTIC_FALLBACK] Empty/missing sections detected - creating fallback report", {
+      reportType,
+      errorCode,
+      hasSections: !!fallbackContent?.sections,
+      sectionsCount: fallbackContent?.sections?.length || 0,
+    });
+    
     fallbackContent = ensureMinimumSections(
       fallbackContent || {
         title: reportType === "year-analysis" ? "Your Year Analysis" :
@@ -91,9 +98,37 @@ export async function applyDeterministicFallback_NO_API(
       },
       reportType as any
     );
+    
+    // CRITICAL: Log after ensureMinimumSections to verify sections were added
+    console.log("[DETERMINISTIC_FALLBACK] After ensureMinimumSections", {
+      reportType,
+      sectionsCount: fallbackContent.sections?.length || 0,
+      wordCount: fallbackContent.sections?.reduce((sum: number, s: any) => {
+        const contentWords = s.content?.split(/\s+/).length || 0;
+        const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
+        return sum + contentWords + bulletWords;
+      }, 0) || 0,
+    });
   } else {
     // Content exists but validation failed - try applying fallback to improve it
+    console.log("[DETERMINISTIC_FALLBACK] Content exists but validation failed - applying fallback", {
+      reportType,
+      errorCode,
+      sectionsCount: fallbackContent.sections?.length || 0,
+    });
+    
     fallbackContent = ensureMinimumSections(fallbackContent, reportType as any);
+    
+    // CRITICAL: Log after ensureMinimumSections to verify sections were added
+    console.log("[DETERMINISTIC_FALLBACK] After ensureMinimumSections (existing content)", {
+      reportType,
+      sectionsCount: fallbackContent.sections?.length || 0,
+      wordCount: fallbackContent.sections?.reduce((sum: number, s: any) => {
+        const contentWords = s.content?.split(/\s+/).length || 0;
+        const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
+        return sum + contentWords + bulletWords;
+      }, 0) || 0,
+    });
   }
   
   return fallbackContent;
