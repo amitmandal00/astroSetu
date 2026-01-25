@@ -18,6 +18,7 @@ function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get("session_id");
+  const inputToken = searchParams.get("input_token");
 
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
@@ -130,7 +131,8 @@ function PaymentSuccessContent() {
           // Pass auto_generate=true to trigger automatic report generation
           if (!subscription && paymentReportType && paymentReportType !== "subscription") {
             // Redirect immediately (no countdown) for smoother UX
-            router.replace(`/ai-astrology/preview?session_id=${encodeURIComponent(sid)}&reportType=${encodeURIComponent(paymentReportType)}&auto_generate=true`);
+            const inputTokenParam = inputToken ? `&input_token=${encodeURIComponent(inputToken)}` : "";
+            router.replace(`/ai-astrology/preview?session_id=${encodeURIComponent(sid)}&reportType=${encodeURIComponent(paymentReportType)}&auto_generate=true${inputTokenParam}`);
           }
         } else {
           setError("Payment not completed");

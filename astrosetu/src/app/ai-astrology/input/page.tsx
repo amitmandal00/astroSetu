@@ -17,7 +17,7 @@ import { isSafeReturnTo } from "@/lib/ai-astrology/returnToValidation";
 import { createOrReuseToken } from "@/lib/ai-astrology/tokenCache";
 
 import type { ReportType } from "@/lib/ai-astrology/types";
-import { AVAILABLE_REPORT_TYPES } from "@/lib/ai-astrology/reportAvailability";
+import { ALL_REPORT_TYPES, AVAILABLE_REPORT_TYPES, isReportTypeEnabled } from "@/lib/ai-astrology/reportAvailability";
 
 function InputFormContent() {
   const searchParams = useSearchParams();
@@ -27,14 +27,16 @@ function InputFormContent() {
   const reportTypeParam = searchParams.get("reportType") || searchParams.get("report");
   const bundleParam = searchParams.get("bundle"); // "any-2" or "all-3"
   const reportsParam = searchParams.get("reports"); // Comma-separated report types for bundles
-  const validReportTypes: ReportType[] = AVAILABLE_REPORT_TYPES;
+  const validReportTypes: ReportType[] = ALL_REPORT_TYPES;
+  const availableReportTypes: ReportType[] = AVAILABLE_REPORT_TYPES;
   const reportType = (reportTypeParam && validReportTypes.includes(reportTypeParam as ReportType)) 
     ? (reportTypeParam as ReportType) 
     : null;
+  const isReportDisabled = reportType ? !isReportTypeEnabled(reportType) : false;
   
   // Parse bundle reports if bundle is specified
   const bundleReports: ReportType[] = reportsParam 
-    ? reportsParam.split(",").filter(r => validReportTypes.includes(r as ReportType)) as ReportType[]
+    ? reportsParam.split(",").filter(r => availableReportTypes.includes(r as ReportType)) as ReportType[]
     : [];
 
   // Optional: allow other journeys (e.g. subscription onboarding) to collect birth details and return.
@@ -120,7 +122,8 @@ function InputFormContent() {
     }
   };
 
-  const canSubmit = name.trim().length >= 2 && 
+  const canSubmit = !isReportDisabled &&
+                   name.trim().length >= 2 && 
                    dob.length === 10 && 
                    tob.length >= 5 && 
                    place.trim().length >= 2 &&
@@ -658,6 +661,18 @@ function InputFormContent() {
                   <div className="flex items-start gap-2 text-red-700 font-semibold text-sm sm:text-base">
                     <span className="text-lg">⚠️</span>
                     <span>{error}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Report Disabled Warning */}
+              {isReportDisabled && reportType && (
+                <div className="p-3 sm:p-4 rounded-xl bg-amber-50 border-2 border-amber-200">
+                  <div className="flex items-start gap-2 text-amber-800 font-semibold text-sm sm:text-base">
+                    <span className="text-lg">⚠️</span>
+                    <span>
+                      {getReportTitle()} is temporarily unavailable. Please choose another report type.
+                    </span>
                   </div>
                 </div>
               )}

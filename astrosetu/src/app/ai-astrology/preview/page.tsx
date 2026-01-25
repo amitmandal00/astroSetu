@@ -17,7 +17,7 @@ import type { ReportContent } from "@/lib/ai-astrology/types";
 import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 import { formatPrice, formatPriceWithoutGst } from "@/lib/ai-astrology/priceFormatter";
 import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
-import { AVAILABLE_REPORT_TYPES } from "@/lib/ai-astrology/reportAvailability";
+import { ALL_REPORT_TYPES, isReportTypeEnabled } from "@/lib/ai-astrology/reportAvailability";
 import { PostPurchaseUpsell } from "@/components/ai-astrology/PostPurchaseUpsell";
 import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 import { useReportGenerationController } from "@/hooks/useReportGenerationController";
@@ -278,7 +278,8 @@ function PreviewContent() {
   }, [isProcessingUI, loadingStartTime]);
 
   // Valid report types for validation
-  const validReportTypes: ReportType[] = AVAILABLE_REPORT_TYPES;
+  const validReportTypes: ReportType[] = ALL_REPORT_TYPES;
+  const isReportDisabled = reportType ? !isReportTypeEnabled(reportType) : false;
   
   // CRITICAL FIX (ChatGPT Directive): attemptKey for atomic generation
   // Format: `${session_id}:${reportType}:${auto_generate}` - unique per generation attempt
@@ -322,6 +323,15 @@ function PreviewContent() {
         return "Life Summary";
     }
   };
+
+  useEffect(() => {
+    if (!reportType || !isReportDisabled) return;
+    if (error) return;
+    setError(`${getReportName(reportType)} is temporarily unavailable. Please choose another report.`);
+    setLoading(false);
+    setLoadingStage(null);
+    usingControllerRef.current = false;
+  }, [reportType, isReportDisabled, error]);
 
   // Get value propositions for the report type (shown during loading)
   const getReportBenefits = (type: ReportType | null): string[] => {
@@ -1446,6 +1456,13 @@ function PreviewContent() {
   // This runs regardless of auto_generate, so it works for input_token flows
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    if (isReportDisabled && reportType) {
+      if (!error) {
+        setError(`${getReportName(reportType)} is temporarily unavailable. Please choose another report.`);
+      }
+      return;
+    }
     
     // CRITICAL: If input_token is in URL, ALWAYS wait for token loading to complete
     // Don't redirect while token is being fetched or while there's a chance it's still loading
@@ -1557,7 +1574,7 @@ function PreviewContent() {
     const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
     console.info("[PREVIEW_REDIRECT]", fullUrl);
     window.location.assign(fullUrl);
-  }, [tokenLoading, input, searchParams, error]); // Run when token loading completes, input changes, or error is set
+  }, [tokenLoading, input, searchParams, error, reportType, isReportDisabled]); // Run when token loading completes, input changes, or error is set
 
   // CRITICAL FIX (2026-01-18): Auto-generate free reports when input is loaded via input_token
   // The main auto-generation logic (line 1606+) is gated by auto_generate=true, which input_token flows don't have
@@ -2399,6 +2416,9 @@ function PreviewContent() {
       isSubmittingRef.current = true; // Set single-flight guard immediately
       setLoading(true);
       setError(null); // Clear any previous errors
+
+      const inputTokenParams = searchParams.getAll("input_token");
+      const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
       
       // CRITICAL: For bundles, send bundleReports to create separate line items for each report
       // CRITICAL FIX (ChatGPT): Include checkout attempt ID for server-side tracing
@@ -2406,6 +2426,13 @@ function PreviewContent() {
         input,
         checkoutAttemptId, // Include for server-side correlation
       };
+
+      if (inputToken && typeof window !== "undefined") {
+        const successUrl = new URL("/ai-astrology/payment/success", window.location.origin);
+        successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
+        successUrl.searchParams.set("input_token", inputToken);
+        checkoutPayload.successUrl = successUrl.toString();
+      }
       
       if (isBundle) {
         // Bundle: Send bundle information for separate charges
