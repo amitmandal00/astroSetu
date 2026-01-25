@@ -1609,6 +1609,14 @@ function PreviewContent() {
   useEffect(() => {
     // Check if sessionStorage is available
     if (typeof window === "undefined") return;
+
+    // CRITICAL FIX: If input_token is present, let token flow own the state.
+    // This prevents the sessionStorage fallback from redirecting back to /input
+    // while token-based loading is in progress.
+    const tokenParams = searchParams.getAll("input_token");
+    if (tokenParams.length > 0) {
+      return;
+    }
     
     // CRITICAL FIX: Prevent redirect loops by checking if we're already redirecting
     // BUT: Don't skip if loading - we need to check sessionStorage even during initial loading
