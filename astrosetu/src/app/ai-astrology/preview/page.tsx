@@ -24,6 +24,9 @@ import { getFreeLifeSummaryGateAfterSection } from "@/lib/ai-astrology/freeRepor
 import { logError } from "@/lib/telemetry";
 import { stripMockContent } from "@/lib/ai-astrology/mockContentGuard";
 
+// P1: Bundle Feature Flag (MVP Compliance)
+const BUNDLES_ENABLED = process.env.NEXT_PUBLIC_BUNDLES_ENABLED === "true";
+
 function PreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -956,6 +959,17 @@ function PreviewContent() {
   }, [upsellShown, router]);
 
   const generateBundleReports = useCallback(async (inputData: AIAstrologyInput, reports: ReportType[], currentSessionId?: string, currentPaymentIntentId?: string) => {
+    // P1: Bundle Feature Flag Check (MVP Compliance - PATH A)
+    if (!BUNDLES_ENABLED) {
+      console.warn("[Bundle Generation] Bundles are disabled - redirecting to single reports");
+      setError("Bundles are temporarily paused for stability. Please purchase single reports instead.");
+      setLoading(false);
+      setBundleGenerating(false);
+      bundleGeneratingRef.current = false;
+      isGeneratingRef.current = false;
+      return;
+    }
+
     // Prevent concurrent requests
     if (isGeneratingRef.current || bundleGenerating) {
       console.warn("[Bundle Generation] Request ignored - already generating reports");

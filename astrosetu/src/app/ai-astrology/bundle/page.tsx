@@ -8,6 +8,9 @@ import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
 import type { ReportType } from "@/lib/ai-astrology/types";
 import Link from "next/link";
 
+// P1: Bundle Feature Flag (MVP Compliance)
+const BUNDLES_ENABLED = process.env.NEXT_PUBLIC_BUNDLES_ENABLED === "true";
+
 type BundleType = "any-2" | "all-3" | "life-decision-pack";
 
 // Only paid reports are available for bundles (excludes "life-summary" which is free)
@@ -51,6 +54,39 @@ function BundleSelectionPageContent() {
   const searchParams = useSearchParams();
   const bundleType = (searchParams.get("type") as BundleType) || "any-2";
   const [selectedReports, setSelectedReports] = useState<PaidReportType[]>([]);
+
+  // P1: Bundle Feature Flag Check (MVP Compliance - PATH A)
+  if (!BUNDLES_ENABLED) {
+    return (
+      <div className="cosmic-bg min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-2xl w-full">
+          <CardHeader>
+            <h1 className="text-3xl font-bold text-center mb-4">Bundles Temporarily Paused</h1>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-center text-lg">
+              Bundles are temporarily paused for stability improvements. Please purchase single reports instead.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                onClick={() => router.push("/ai-astrology")}
+                className="w-full sm:w-auto"
+              >
+                Browse Single Reports
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push("/ai-astrology/input")}
+                className="w-full sm:w-auto"
+              >
+                Get Started
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Pre-select reports for life-decision-pack
   useEffect(() => {

@@ -1780,6 +1780,16 @@ export async function POST(req: Request) {
           cacheReport(idempotencyKey, reportId, fallbackContent, reportType, input);
           await markStoredReportCompleted({ idempotencyKey, reportId, content: fallbackContent });
           
+          // P2.1: MVP Safety Log Line (per request)
+          console.log("[MVP_SAFETY_LOG]", JSON.stringify({
+            requestId,
+            reportId,
+            reportType,
+            validationPath: "fallback",
+            paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured" : "none"),
+            qualityWarning: qualityWarning || null,
+          }));
+
           return NextResponse.json(
             {
               ok: true,
@@ -1845,6 +1855,16 @@ export async function POST(req: Request) {
             });
           }
           
+          // P2.1: MVP Safety Log Line (per request)
+          console.log("[MVP_SAFETY_LOG]", JSON.stringify({
+            requestId,
+            reportId,
+            reportType,
+            validationPath: "terminal_failed",
+            paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "cancel_requested" : "none"),
+            qualityWarning: null,
+          }));
+
           return NextResponse.json(
             {
               ok: false,
@@ -2383,6 +2403,17 @@ export async function POST(req: Request) {
       redirectUrl,
       status: "completed",
     });
+
+    // P2.1: MVP Safety Log Line (per request)
+    console.log("[MVP_SAFETY_LOG]", JSON.stringify({
+      requestId,
+      reportId,
+      reportType,
+      validationPath: "normal",
+      paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured" : "none"),
+      qualityWarning: qualityWarning || null,
+    }));
+
     return NextResponse.json(
       responseData,
       {
