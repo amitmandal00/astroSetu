@@ -950,8 +950,6 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
       return ensureMinimumSections(deterministicSkeleton(reportType), reportType);
     }
     // Create minimal fallback report with 2-3 sections for other report types
-    if (reportType !== "year-analysis") {
-      // Create minimal fallback report with 2-3 sections for other report types
     sections.push({
       title: "Overview",
       content: "We're preparing your personalized insights. This is a simplified view of your report.",
@@ -960,7 +958,6 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
       title: "Next Steps",
       content: "For a complete analysis with detailed timing windows and guidance, please try generating the report again. Our system uses AI and astrological calculations to provide comprehensive insights.",
     });
-    }
   } else {
     // Use meaningful sections instead of all sections
     sections.length = 0;
