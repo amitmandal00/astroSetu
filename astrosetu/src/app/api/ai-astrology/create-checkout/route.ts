@@ -95,36 +95,57 @@ export async function POST(req: Request) {
     }
     
     const isStripeTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
-    // MVP FIX: Lock production payment behavior - avoid accidental bypass
-    // Default to false in production (only allow bypass in local/preview OR explicitly enabled)
-    const isProd = process.env.VERCEL_ENV === "production";
+    
+    // P0.1: HARD-BLOCK MOCK SESSIONS IN PRODUCTION
+    // MVP SAFETY: In production, NEVER create mock/prodtest sessions unless explicitly enabled
+    // This ensures predictable behavior and prevents accidental payment bypass
+    const isProd = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
     const isLocalOrPreview = process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview";
-    
-    // Allow bypass only if:
-    // 1. Explicitly enabled via env var, OR
-    // 2. Local/preview environment (not production)
-    const bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS === "true" || 
-                                       (!isProd && isLocalOrPreview);
-    
-    // MVP FIX: Gate prodtest_ behavior behind dedicated env flag
-    // prodtest_ sessions should only bypass if ALLOW_PROD_TEST_BYPASS=true
     const allowProdTestBypass = process.env.ALLOW_PROD_TEST_BYPASS === "true";
     
-    // MVP FIX: For prodtest_ sessions in production, require explicit flag
+    // P0.1: In production, force all bypass flags to false unless explicitly enabled
+    // This is a structural guard to prevent any code path from creating mock sessions
+    let bypassPaymentForTestUsers: boolean;
+    if (isProd && !allowProdTestBypass) {
+      // Force demo mode OFF in production
+      isDemoMode = false;
+      
+      // Force bypass flags OFF in production
+      // Test users can only bypass if ALLOW_PROD_TEST_BYPASS=true
+      bypassPaymentForTestUsers = false;
+      
+      // Log the enforcement
+      console.log("[PRODUCTION_GUARD] Enforcing production payment behavior - mock sessions disabled", {
+        requestId,
+        isProd,
+        allowProdTestBypass,
+        isTestUser,
+        isDemoMode: false, // Forced
+        bypassPaymentForTestUsers: false, // Forced
+      });
+    } else {
+      // Non-production or explicitly enabled: allow bypass based on flags
+      // Allow bypass only if:
+      // 1. Explicitly enabled via env var, OR
+      // 2. Local/preview environment (not production)
+      bypassPaymentForTestUsers = process.env.BYPASS_PAYMENT_FOR_TEST_USERS === "true" || 
+                                  (!isProd && isLocalOrPreview);
+    }
+    
+    // P0.1: Hard-block prodtest sessions in production unless explicitly enabled
     // Check if we're about to create a prodtest_ session (isTestUser && !isDemoMode)
     const willCreateProdTestSession = isTestUser && !isDemoMode;
     
-    // P0 FIX #2: Hard-block prodtest sessions in production unless explicitly allowed OR test user
-    // MVP SAFETY: Never create prodtest_ sessions in production without explicit flag
-    // EXCEPTION: Test users (Amit/Ankita) are always allowed (they're the controlled test users)
-    // Test users are identified by isProdTestUser() which checks against allowlist
-    if (willCreateProdTestSession && isProd && !allowProdTestBypass && !isTestUser) {
+    // P0.1: In production, NEVER create prodtest_ sessions unless ALLOW_PROD_TEST_BYPASS=true
+    // This is a structural guard - no exceptions, no test user bypass without flag
+    if (willCreateProdTestSession && isProd && !allowProdTestBypass) {
       const prodtestBlockError = {
         requestId,
         timestamp: new Date().toISOString(),
         isTestUser,
         isDemoMode,
         willCreateProdTestSession,
+        allowProdTestBypass,
         error: "PRODTEST_DISABLED_IN_PRODUCTION",
         message: "prodtest sessions are disabled in production. Enable ALLOW_PROD_TEST_BYPASS for controlled testing.",
       };
@@ -140,25 +161,15 @@ export async function POST(req: Request) {
       );
     }
     
-    // MVP FIX: For prodtest_ sessions in production, require explicit flag OR test user
-    // Check if we're about to create a prodtest_ session (isTestUser && !isDemoMode)
-    // Log if creating prodtest session (either with flag or as test user)
-    if (willCreateProdTestSession && isProd) {
-      if (allowProdTestBypass) {
-        console.warn("[PAYMENT BYPASS] Creating prodtest_ session in production with ALLOW_PROD_TEST_BYPASS flag", {
-          requestId,
-          isTestUser,
-          isDemoMode,
-          willCreateProdTestSession,
-        });
-      } else if (isTestUser) {
-        console.log("[PAYMENT BYPASS] Creating prodtest_ session in production for test user (allowlisted)", {
-          requestId,
-          isTestUser,
-          isDemoMode,
-          willCreateProdTestSession,
-        });
-      }
+    // P0.1: Log if creating prodtest session in production (only if explicitly enabled)
+    if (willCreateProdTestSession && isProd && allowProdTestBypass) {
+      console.warn("[PAYMENT BYPASS] Creating prodtest_ session in production with ALLOW_PROD_TEST_BYPASS flag", {
+        requestId,
+        isTestUser,
+        isDemoMode,
+        willCreateProdTestSession,
+        allowProdTestBypass,
+      });
     }
 
     // CRITICAL: Access restriction for production testing
@@ -260,11 +271,22 @@ export async function POST(req: Request) {
         fallbackTestUserCheck = isAmit || isAnkita;
       }
     }
-    // CRITICAL FIX: Test users ALWAYS bypass payment (they're the controlled test users)
-    // Test users are identified by isProdTestUser() OR fallback check
-    // Demo mode always bypasses
-    // Non-test users bypass only if BYPASS_PAYMENT_FOR_TEST_USERS is enabled
-    const shouldBypassForTestUser = isTestUser || fallbackTestUserCheck;
+    
+    // P0.1: Determine if payment should be bypassed
+    // In production: ONLY bypass if ALLOW_PROD_TEST_BYPASS=true AND user is test user
+    // In non-production: Allow bypass based on flags
+    let shouldBypassForTestUser = false;
+    if (isProd) {
+      // Production: Only bypass if explicitly enabled AND user is test user
+      shouldBypassForTestUser = allowProdTestBypass && (isTestUser || fallbackTestUserCheck);
+    } else {
+      // Non-production: Allow test users to bypass
+      shouldBypassForTestUser = isTestUser || fallbackTestUserCheck;
+    }
+    
+    // P0.1: Final bypass decision
+    // In production: Only bypass if explicitly enabled
+    // In non-production: Allow demo mode and test users
     const shouldBypassPayment = isDemoMode || shouldBypassForTestUser || (bypassPaymentForTestUsers && !isTestUser);
     
     // DEBUG: Log bypass decision

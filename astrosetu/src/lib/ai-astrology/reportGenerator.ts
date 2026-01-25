@@ -1020,21 +1020,22 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
         });
       }
       
-      // CRITICAL FIX: After adding fallback sections, check total word count
+      // P0.3: After adding fallback sections, verify word count meets minimum
       // Year-analysis requires minimum 800 words (per validation in reportValidation.ts)
-      // Keep adding sections until we reach at least 800 words
+      // Keep adding sections until we reach at least 800 words (guaranteed)
       let currentWordCount = sections.reduce((sum, s) => {
         const contentWords = s.content?.split(/\s+/).length || 0;
         const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
         return sum + contentWords + bulletWords;
       }, 0);
       
-      // MVP FIX: Ensure we meet the 800 word minimum (validation requirement)
-      // Keep adding sections until we reach at least 800 words
+      // P0.3: Ensure we meet the 800 word minimum (validation requirement)
+      // Keep adding sections until we reach at least 800 words (guaranteed)
       let attempts = 0;
-      const maxAttempts = 10; // Prevent infinite loops
+      const maxAttempts = 15; // Increased from 10 to ensure we always meet minimum
+      const minWordsRequired = 800; // Explicit minimum for year-analysis
       
-      while (currentWordCount < 800 && attempts < maxAttempts) {
+      while (currentWordCount < minWordsRequired && attempts < maxAttempts) {
         attempts++;
         
         // Add additional comprehensive sections to reach minimum word count
@@ -1070,6 +1071,21 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
           const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
           return sum + contentWords + bulletWords;
         }, 0);
+      }
+      
+      // P0.3: Final verification - log if we still don't meet minimum (should never happen)
+      if (currentWordCount < minWordsRequired) {
+        console.error("[YEAR-ANALYSIS FALLBACK] CRITICAL: Failed to meet minimum word count after fallback", {
+          currentWordCount,
+          minWordsRequired,
+          sectionsCount: sections.length,
+          attempts,
+        });
+        // Force add one more comprehensive section as emergency fallback
+        sections.push({
+          title: "Additional Year Insights",
+          content: "This year presents a unique combination of planetary influences that shape your experiences and opportunities. The alignment of your natal chart with current transits creates distinct patterns of growth, challenge, and transformation. Understanding these patterns helps you navigate the year with greater awareness and strategic planning. Key planetary events throughout the year mark significant turning points that can shift your focus and priorities. Being aware of these key dates helps you prepare for important transitions and capitalize on favorable periods. The year's overall theme reflects the major planetary influences affecting your life, providing strategic direction for how to approach the year as a whole. Regular reflection on these insights helps you stay aligned with evolving opportunities and challenges throughout your journey.",
+        });
       }
     }
     

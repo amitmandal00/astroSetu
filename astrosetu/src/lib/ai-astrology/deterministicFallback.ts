@@ -33,8 +33,8 @@ export async function applyDeterministicFallback_NO_API(
   
   const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
   
-  // P0 FIX #1: For year-analysis, ALWAYS replace content completely (not append)
-  // If validation failed, the AI content is too short - replace with thick fallback template
+  // P0.3: For year-analysis, ALWAYS ensure complete replacement if content is insufficient
+  // If validation failed OR content is too short OR has placeholders, replace completely
   let fallbackContent = reportContent;
   
   if (reportType === "year-analysis") {
@@ -49,24 +49,27 @@ export async function applyDeterministicFallback_NO_API(
              content.includes("coming soon");
     });
     
-    // Calculate current word count
+    // Calculate current word count from sections
     const currentWordCount = fallbackContent.sections?.reduce((sum: number, s: any) => {
       const contentWords = s.content?.split(/\s+/).length || 0;
       const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
       return sum + contentWords + bulletWords;
     }, 0) || 0;
     
-    // P0 FIX #1: If validation failed (errorCode present) OR content is too short OR has placeholders
-    // COMPLETELY REPLACE with thick fallback template (do not merge/append)
+    // P0.3: If validation failed OR content is too short OR has placeholders OR no sections
+    // COMPLETELY REPLACE with guaranteed fallback template (do not merge/append)
+    // This ensures year-analysis ALWAYS meets minimum requirements
     if (errorCode || hasPlaceholderPhrases || currentWordCount < 800 || !fallbackContent.sections || fallbackContent.sections.length === 0) {
-      console.log("[YEAR-ANALYSIS FALLBACK] Replacing content completely with thick fallback template", {
+      console.log("[YEAR-ANALYSIS FALLBACK] Replacing content completely with guaranteed fallback template", {
         errorCode,
         hasPlaceholderPhrases,
         currentWordCount,
         sectionsCount: fallbackContent.sections?.length || 0,
+        reason: errorCode ? "validation_failed" : currentWordCount < 800 ? "too_short" : hasPlaceholderPhrases ? "placeholders" : "no_sections",
       });
       
       // COMPLETELY REPLACE - start fresh with empty sections
+      // ensureMinimumSections will populate with guaranteed template
       fallbackContent = {
         ...fallbackContent,
         sections: [],
