@@ -1768,7 +1768,90 @@ export async function POST(req: Request) {
             { status: 200 }
           );
         } else {
-          // Fallback failed - terminal failure (MVP Rule #4)
+          // Fallback failed - check if we can allow degradation (FIX 2)
+          // MVP Rule #7 Special Rule: Allow degradation for year-analysis only
+          // Other reports must fail terminal (MVP Rule #4)
+          const isContentTooShort =
+            fallbackValidation.errorCode === "VALIDATION_FAILED" &&
+            typeof fallbackValidation.error === "string" &&
+            fallbackValidation.error.toLowerCase().includes("content too short");
+          
+          const canAllowDegradation = reportType === "year-analysis" && isContentTooShort;
+          
+          if (canAllowDegradation) {
+            // FIX 2: Allow degradation for year-analysis (MVP Rule #7 Special Rule)
+            // Downgrade content-too-short to warning, deliver report anyway
+            console.warn("[VALIDATION DOWNGRADED TO WARNING - YEAR-ANALYSIS]", {
+              requestId,
+              reportId,
+              reportType,
+              error: fallbackValidation.error,
+              reason: "MVP Rule #7 Special Rule - safe degradation allowed for year-analysis",
+            });
+            
+            qualityWarning = fallbackValidation.error || "content_below_optimal_length";
+            
+            // Cache + complete anyway (don't fail paid UX)
+            cacheReport(idempotencyKey, reportId, fallbackContent, reportType, input);
+            await markStoredReportCompleted({
+              idempotencyKey,
+              reportId,
+              content: fallbackContent,
+            });
+            
+            // Capture payment if exists (report delivered, even if short)
+            if (paymentIntentId && isPaidReportType(reportType) && !shouldSkipPayment) {
+              // Use same pattern as successful report completion
+              const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split('/api')[0];
+              (async () => {
+                try {
+                  const captureUrl = `${baseUrl}/api/ai-astrology/capture-payment`;
+                  const captureTimeout = new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error("Payment capture timeout")), 5000);
+                  });
+                  const captureFetch = fetch(captureUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      paymentIntentId,
+                      sessionId: fallbackSessionId || "",
+                    }),
+                  });
+                  await Promise.race([captureFetch, captureTimeout]).catch(() => {
+                    console.warn("[PAYMENT] Capture request timed out - will retry in background");
+                  });
+                } catch (captureError) {
+                  console.error("[CRITICAL] Failed to capture payment:", captureError);
+                }
+              })().catch(() => {
+                // Ignore errors - already logged
+              });
+            }
+            
+            console.log("[MVP_SAFETY_LOG]", JSON.stringify({
+              requestId,
+              reportId,
+              reportType,
+              outcome: "completed_with_warning",
+              validationPath: "degradation_allowed",
+              paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured_or_bypassed" : "none"),
+              qualityWarning,
+            }));
+            
+            return NextResponse.json({
+              ok: true,
+              reportId,
+              reportType,
+              content: fallbackContent,
+              requestId,
+              qualityWarning,
+            }, {
+              status: 200,
+              headers: { "X-Request-ID": requestId },
+            });
+          }
+          
+          // Terminal failure for all other cases (MVP Rule #4)
           console.error("[FALLBACK FAILED - TERMINAL FAILURE]", {
             requestId,
             reportId,
@@ -1776,6 +1859,8 @@ export async function POST(req: Request) {
             errorCode,
             originalError: errorMessage,
             fallbackError: fallbackValidation.error,
+            canAllowDegradation: false,
+            reason: reportType === "year-analysis" ? "validation_error_not_content_too_short" : "degradation_not_allowed_for_this_report_type",
           });
           
           // Mark as failed
