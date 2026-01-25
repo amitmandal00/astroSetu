@@ -1706,64 +1706,25 @@ export async function POST(req: Request) {
         }, null, 2));
         
         // MVP FIX: Apply deterministic fallback only (no OpenAI calls, no retries)
-        // ensureMinimumSections is deterministic - it adds static fallback sections
-        let fallbackContent = cleanedReportContent;
-        qualityWarning = "content_repair_applied";
+        // P2.1: Extract fallback logic into dedicated helper with explicit NO-API guarantee
+        const { applyDeterministicFallback_NO_API } = await import("@/lib/ai-astrology/deterministicFallback");
         
-        // CRITICAL FIX: For year-analysis, check for placeholder phrases and force replacement
-        if (reportType === "year-analysis") {
-          const hasPlaceholderPhrases = fallbackContent.sections?.some(s => {
-            const content = s.content?.toLowerCase() || "";
-            return content.includes("simplified view") || 
-                   content.includes("we're preparing") ||
-                   content.includes("try generating the report again") ||
-                   content.includes("additional insights - section") ||
-                   content.includes("placeholder") ||
-                   content.includes("coming soon");
-          });
-          
-          if (hasPlaceholderPhrases) {
-            console.warn("[YEAR-ANALYSIS] Placeholder phrases detected - forcing fallback replacement", {
-              requestId,
-              reportId,
-            });
-            // Clear sections to force ensureMinimumSections to replace with fallback
-            fallbackContent = { ...fallbackContent, sections: [] };
-          }
-        }
+        console.log("[DETERMINISTIC FALLBACK] Applying fallback (NO API CALLS)", {
+          requestId,
+          reportId,
+          reportType,
+          errorCode,
+        });
         
-        // Apply deterministic fallback (ensureMinimumSections - no API calls)
-        const { ensureMinimumSections } = await import("@/lib/ai-astrology/reportGenerator");
+        const fallbackContent = await applyDeterministicFallback_NO_API(
+          cleanedReportContent,
+          reportType,
+          errorCode
+        );
         
-        if (errorCode === "MOCK_CONTENT_DETECTED" || errorCode === "MISSING_SECTIONS" || 
-            !fallbackContent || !fallbackContent.sections || fallbackContent.sections.length === 0) {
-          // Empty, malformed, or missing sections - create minimal report with fallback
-          console.log("[DETERMINISTIC FALLBACK] Applying ensureMinimumSections", {
-            requestId,
-            reportId,
-            reportType,
-            errorCode,
-          });
-          
-          fallbackContent = ensureMinimumSections(
-            fallbackContent || {
-              title: reportType === "year-analysis" ? "Your Year Analysis" :
-                     reportType === "full-life" ? "Your Full Life Report" :
-                     reportType === "career-money" ? "Your Career & Money Report" :
-                     reportType === "marriage-timing" ? "Your Marriage Timing Report" :
-                     reportType === "major-life-phase" ? "Your Major Life Phase Report" :
-                     reportType === "decision-support" ? "Your Decision Support Report" :
-                     "Your Astrology Report",
-              sections: [],
-            },
-            reportType
-          );
-          qualityWarning = "below_optimal_length";
-        } else {
-          // Content exists but validation failed - try applying fallback to improve it
-          fallbackContent = ensureMinimumSections(fallbackContent, reportType);
-          qualityWarning = validation.qualityWarning || "below_optimal_length";
-        }
+        qualityWarning = errorCode === "MOCK_CONTENT_DETECTED" || errorCode === "MISSING_SECTIONS" 
+          ? "below_optimal_length" 
+          : (validation.qualityWarning || "content_repair_applied");
         
         // Re-validate fallback content
         const fallbackValidation = validateReportBeforeCompletion(fallbackContent, input, paymentToken, reportType);
@@ -1783,11 +1744,12 @@ export async function POST(req: Request) {
           cacheReport(idempotencyKey, reportId, fallbackContent, reportType, input);
           await markStoredReportCompleted({ idempotencyKey, reportId, content: fallbackContent });
           
-          // P2.1: MVP Safety Log Line (per request)
-          console.log("[MVP_SAFETY_LOG]", JSON.stringify({
+          // P2.2: Structured MVP Outcome Log (per request)
+          console.log("[MVP_OUTCOME_LOG]", JSON.stringify({
             requestId,
             reportId,
             reportType,
+            outcome: "completed_with_fallback",
             validationPath: "fallback",
             paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured" : "none"),
             qualityWarning: qualityWarning || null,
@@ -1858,11 +1820,12 @@ export async function POST(req: Request) {
             });
           }
           
-          // P2.1: MVP Safety Log Line (per request)
-          console.log("[MVP_SAFETY_LOG]", JSON.stringify({
+          // P2.2: Structured MVP Outcome Log (per request)
+          console.log("[MVP_OUTCOME_LOG]", JSON.stringify({
             requestId,
             reportId,
             reportType,
+            outcome: "failed",
             validationPath: "terminal_failed",
             paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "cancel_requested" : "none"),
             qualityWarning: null,
@@ -2407,11 +2370,12 @@ export async function POST(req: Request) {
       status: "completed",
     });
 
-    // P2.1: MVP Safety Log Line (per request)
-    console.log("[MVP_SAFETY_LOG]", JSON.stringify({
+    // P2.2: Structured MVP Outcome Log (per request)
+    console.log("[MVP_OUTCOME_LOG]", JSON.stringify({
       requestId,
       reportId,
       reportType,
+      outcome: "completed",
       validationPath: "normal",
       paymentAction: shouldSkipPayment ? "skipped" : (paymentIntentId ? "captured" : "none"),
       qualityWarning: qualityWarning || null,
