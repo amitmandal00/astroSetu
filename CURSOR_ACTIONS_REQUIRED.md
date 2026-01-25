@@ -23,6 +23,27 @@
 3. ⏳ **Identify yearly flakiness root cause** - document exact issues
 4. ⏳ **Create "do not touch / safe to refactor" map** - surgical fixes only
 
+## 🚨 COST OPTIMIZATION ACTIONS (2026-01-25)
+
+### Immediate Actions Required
+- [ ] **Monitor On-Demand charges daily**: Check Cursor Settings → Usage
+- [ ] **Implement scoped requests**: Use @filename mentions, focus on specific files
+- [ ] **Break large tasks**: Split into smaller requests (< 500K tokens each)
+- [ ] **Review cost patterns**: Document large requests in `COST_SPIKE_ANALYSIS.md`
+
+### Cost Alert Thresholds
+- **⚠️ WARNING**: Request > 500K tokens → Alert user, suggest scoping
+- **🔴 CRITICAL**: Request > 1M tokens → Require explicit approval
+- **💥 BLOCK**: Request > 2M tokens → Block immediately, require breakdown
+
+### Weekly Review
+- [ ] Check On-Demand usage vs $50/month limit
+- [ ] Review large requests (> 500K tokens)
+- [ ] Identify optimization opportunities
+- [ ] Adjust workflow if needed
+
+**See `COST_SPIKE_ANALYSIS.md` and `COST_ALERT_SYSTEM.md` for detailed guidelines.**
+
 ---
 
 ## Previous Status (2026-01-18)

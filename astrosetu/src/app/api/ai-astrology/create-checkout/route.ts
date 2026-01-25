@@ -266,6 +266,20 @@ export async function POST(req: Request) {
     // Non-test users bypass only if BYPASS_PAYMENT_FOR_TEST_USERS is enabled
     const shouldBypassForTestUser = isTestUser || fallbackTestUserCheck;
     const shouldBypassPayment = isDemoMode || shouldBypassForTestUser || (bypassPaymentForTestUsers && !isTestUser);
+    
+    // DEBUG: Log bypass decision
+    console.log(`[PAYMENT_BYPASS_CHECK]`, JSON.stringify({
+      requestId,
+      isDemoMode,
+      isTestUser,
+      fallbackTestUserCheck,
+      shouldBypassForTestUser,
+      bypassPaymentForTestUsers,
+      shouldBypassPayment,
+      hasInput: !!input,
+      userName: input?.name?.substring(0, 20) || "N/A",
+    }, null, 2));
+    
     if (shouldBypassPayment) {
       console.log(`[DEMO MODE] Returning mock checkout session (test user: ${isTestUser}, demo mode: ${isDemoMode}, bypassPaymentForTestUsers: ${bypassPaymentForTestUsers}, fallbackTestUserCheck: ${fallbackTestUserCheck}) - Bypassing Stripe`);
       

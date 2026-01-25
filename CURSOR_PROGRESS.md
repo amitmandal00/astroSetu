@@ -347,11 +347,13 @@ Error: EPERM: operation not permitted, scandir '/Users/.../src/app/api/notificat
 4. ⏳ Run `npm run stability:full` to ensure all tests pass
 
 ## Notes
-- Keep changes small: **≤ 3 files per batch** (prefer 1 file at a time to minimize "Confirm edit" prompts).
+- Keep changes small: **≤ 3 files per batch** (prefer 1 file at a time to minimize "Confirm edit" prompts AND reduce token usage).
+- **🚨 COST OPTIMIZATION (2026-01-25)**: ALWAYS use scoped requests, NEVER analyze entire codebase, ALERT if > 500K tokens, BLOCK if > 2M tokens
 - **Checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` to verify:
   - Type check passes
   - Build passes
   - Critical tests pass
+- **Cost monitoring**: Review On-Demand charges daily, document large requests in `COST_SPIKE_ANALYSIS.md`
 - If the provider fails ("Try again/Resume"): retry with exponential backoff (30s, 60s, 120s). If still failing, write to `CURSOR_ACTIONS_REQUIRED.md` and stop.
 - If blocked by a popup/approval ("Confirm edit" / "Accept"):
   - **STOP making further changes** immediately

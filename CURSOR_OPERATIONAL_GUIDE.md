@@ -13,11 +13,15 @@ Use Cursor as a **safe autopilot**: keep moving forward, never corrupt the repo,
 
 ## Daily workflow (recommended)
 - **Before starting**: read `CURSOR_PROGRESS.md` and `CURSOR_ACTIONS_REQUIRED.md`.
+- **🚨 COST CHECK (2026-01-25)**: Check Cursor Usage dashboard for On-Demand charges. Alert if > $10/day or > 80% of $50/month limit.
 - **While working**:
-  - Change **≤ 5 files per batch**.
+  - **ALWAYS use scoped requests**: Focus on specific files/directories, use @filename mentions
+  - **NEVER analyze entire codebase**: Break into smaller, focused requests (< 500K tokens)
+  - Change **≤ 5 files per batch** (prefer 1-3 files to reduce token usage).
   - Prefer **tests-first** for regressions (add/extend a test that reproduces the defect).
   - After each batch: update `CURSOR_PROGRESS.md`.
 - **When blocked** (approvals/popups/rate limits): log it in `CURSOR_ACTIONS_REQUIRED.md` and continue with the next safe work.
+- **Cost monitoring**: Review On-Demand charges daily, document large requests (> 500K tokens) in `COST_SPIKE_ANALYSIS.md`
 
 ## Testing workflow (stability bar)
 - **Fast local**: `npm run test:unit` → `npm run test:integration`
@@ -33,8 +37,10 @@ Use Cursor as a **safe autopilot**: keep moving forward, never corrupt the repo,
 
 ## Where the guardrails live
 - `MVP_GOALS_FINAL_LOCKED.md` - **LOCKED MVP goals (takes precedence)**
-- `.cursor/rules`
-- `CURSOR_AUTOPILOT_PROMPT.md`
-- `NON_NEGOTIABLES.md`
+- `.cursorrules` - **Cursor rules (includes cost optimization)**
+- `CURSOR_AUTOPILOT_PROMPT.md` - **Autopilot workflow (includes cost alerts)**
+- `NON_NEGOTIABLES.md` - **Non-negotiable rules (includes cost optimization)**
+- `COST_SPIKE_ANALYSIS.md` - **Cost analysis and optimization guide**
+- `COST_ALERT_SYSTEM.md` - **Cost alert thresholds and prevention rules**
 
 

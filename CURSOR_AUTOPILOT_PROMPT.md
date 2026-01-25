@@ -4,16 +4,19 @@
 
 **CRITICAL RULES**:
 1. **Follow `MVP_GOALS_FINAL_LOCKED.md`**: MVP goals are LOCKED and take precedence over all other rules
-2. **Do not ask me to click things repeatedly**. If a click is required, consolidate all pending edits into ONE accept step.
-3. **If blocked, update `CURSOR_ACTIONS_REQUIRED.md` with exact next actions**.
-4. **Never continue with partial context. Re-run tests before proceeding**.
-5. **MVP System Rules**: Frontend never generates reports, Worker is only execution path, Payment captured only after success, Failures are terminal, No automatic retries
+2. **🚨 COST OPTIMIZATION (2026-01-25)**: ALWAYS use scoped requests, NEVER analyze entire codebase, ALERT if > 500K tokens, BLOCK if > 2M tokens
+3. **Do not ask me to click things repeatedly**. If a click is required, consolidate all pending edits into ONE accept step.
+4. **If blocked, update `CURSOR_ACTIONS_REQUIRED.md` with exact next actions**.
+5. **Never continue with partial context. Re-run tests before proceeding**.
+6. **MVP System Rules**: Frontend never generates reports, Worker is only execution path, Payment captured only after success, Failures are terminal, No automatic retries
 
 Work in **Autopilot (safe, non-blocking)** mode:
 - Keep moving end-to-end; do not wait idle for popups/approvals.
-- **Work in batches of one file at a time** (minimizes "Confirm edit" prompts).
+- **🚨 COST-AWARE**: ALWAYS use scoped requests (< 500K tokens), use @filename mentions, break large tasks into smaller requests
+- **Work in batches of one file at a time** (minimizes "Confirm edit" prompts AND reduces token usage).
 - **After each edit**: run `npm run ci:critical`. If it fails, revert and try again.
 - Batch changes: **≤ 3 files per batch** (prefer 1 file), one concern per batch. No repo-wide changes unless I ask.
+- **Before large requests**: Estimate tokens, calculate cost, alert if > 500K, require approval if > 1M, block if > 2M
 - If the model/provider fails ("Try again/Resume"): retry with exponential backoff **30s → 60s → 120s** (3 attempts total).
   - If still failing: write exact pending steps into `CURSOR_ACTIONS_REQUIRED.md` and stop.
 - If "Confirm edit" / "Accept" prompt appears:

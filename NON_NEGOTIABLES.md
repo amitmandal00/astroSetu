@@ -19,6 +19,35 @@
 - **Always green before next change**: Must pass `npm run ci:critical` after every change set.
 - **CRITICAL (2026-01-18)**: **ALWAYS get user approval before git push**. Commits are fine, but NEVER push without explicit user approval. Show what will be pushed and wait for confirmation.
 
+## 🚨 COST OPTIMIZATION (CRITICAL - 2026-01-25)
+**These rules prevent expensive On-Demand charges and MUST be followed.**
+
+### Mandatory Cost Rules
+- **ALWAYS use scoped requests**: Focus on specific files/directories, NOT entire codebase
+- **ALWAYS use @filename mentions**: Limit context to specific files when possible
+- **ALWAYS break large tasks**: Split into smaller requests (< 500K tokens each)
+- **NEVER analyze entire codebase**: Use targeted analysis instead
+- **NEVER process > 2M tokens**: Block and require breakdown
+
+### Cost Alert Thresholds
+- **⚠️ WARNING (> 500K tokens)**: Alert user, suggest scoping
+- **🔴 CRITICAL (> 1M tokens)**: Require explicit approval ("APPROVE LARGE REQUEST")
+- **💥 BLOCK (> 2M tokens)**: Block immediately, log to CURSOR_ACTIONS_REQUIRED.md
+
+### Before Large Requests
+1. Estimate token count (count open files, estimate context)
+2. Calculate approximate cost (~$1.30-1.50 per 1M tokens)
+3. If > 500K: Show warning and suggest scoping
+4. If > 1M: Require explicit approval
+5. If > 2M: Block and require breakdown
+
+### Cost Monitoring
+- **Daily**: Check On-Demand charges, alert if > $10/day
+- **Weekly**: Review On-Demand usage vs $50/month limit
+- **Monthly**: Calculate projection, adjust workflow if needed
+
+**See `COST_SPIKE_ANALYSIS.md` and `COST_ALERT_SYSTEM.md` for detailed guidelines.**
+
 ## AstroSetu product invariants
 - **Future-only timing**: reports must never present timing windows/years in the past (for 20xx years).
 - **Generation stability**: loader/timer must not reset to 0 mid-run or get stuck.
