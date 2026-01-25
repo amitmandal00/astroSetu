@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * E2E Test: Purchase No-Op Prevented
@@ -9,11 +10,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Purchase No-Op Prevented", () => {
   test("Purchase button redirects to input when no input present", async ({ page, context }) => {
     // Clear sessionStorage and localStorage
-    await context.clearCookies();
-    await page.addInitScript(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Navigate to preview page with reportType but no input
     const reportType = "year-analysis";
@@ -60,9 +57,7 @@ test.describe("Purchase No-Op Prevented", () => {
 
   test("Purchase button works when input is present (via input_token)", async ({ page, context }) => {
     // Clear sessionStorage
-    await page.addInitScript(() => {
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Mock input-session API
     await page.route("**/api/ai-astrology/input-session", async (route) => {

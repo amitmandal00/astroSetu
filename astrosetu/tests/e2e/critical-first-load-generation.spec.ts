@@ -14,16 +14,13 @@
  */
 
 import { test, expect, Page } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 test.describe("Critical First-Load Generation", () => {
   test("should start generation exactly once on first load (no race condition)", async ({ page, context }) => {
     // CRITICAL: Start with fresh browser context (no cookies, no storage)
     // This simulates the exact "first load" scenario where the bug occurs
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage with mock birth details (simulates input page redirect)
     const mockInput = {
@@ -131,11 +128,7 @@ test.describe("Critical First-Load Generation", () => {
 
   test("should not reset timer after starting (monotonic timer invariant)", async ({ page, context }) => {
     // Fresh context
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage
     const mockInput = {
@@ -184,11 +177,7 @@ test.describe("Critical First-Load Generation", () => {
 
   test("should complete or fail explicitly within 180s (no infinite spinner)", async ({ page, context }) => {
     // Fresh context
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage
     const mockInput = {

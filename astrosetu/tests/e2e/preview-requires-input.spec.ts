@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * E2E Test: Preview Requires Input
@@ -9,11 +10,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Preview Requires Input", () => {
   test("Preview redirects to input when no input_token and no sessionStorage", async ({ page, context }) => {
     // Clear sessionStorage and localStorage
-    await context.clearCookies();
-    await page.addInitScript(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Navigate to preview page with reportType but no input_token
     const reportType = "year-analysis";
@@ -44,9 +41,7 @@ test.describe("Preview Requires Input", () => {
 
   test("Preview loads input from input_token and doesn't redirect", async ({ page, context }) => {
     // Clear sessionStorage
-    await page.addInitScript(() => {
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Mock input-session API to return valid token data
     let capturedToken: string | null = null;

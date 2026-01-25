@@ -180,7 +180,20 @@ function InputFormContent() {
 
       // CRITICAL FIX: Re-read reportType from URL params to ensure it's preserved
       // This prevents the issue where reportType becomes null and defaults to "life-summary"
-      const currentReportTypeParam = searchParams.get("reportType") || searchParams.get("report");
+      const returnToReportType = (() => {
+        if (!returnTo || typeof window === "undefined") return null;
+        try {
+          const urlObj = new URL(returnTo, window.location.origin);
+          const rt = urlObj.searchParams.get("reportType");
+          return rt && validReportTypes.includes(rt as ReportType) ? rt : null;
+        } catch {
+          return null;
+        }
+      })();
+      const currentReportTypeParam =
+        searchParams.get("reportType") ||
+        searchParams.get("report") ||
+        returnToReportType;
       const currentReportType = (currentReportTypeParam && validReportTypes.includes(currentReportTypeParam as ReportType)) 
         ? (currentReportTypeParam as ReportType) 
         : reportType; // Fallback to state if URL param is missing
@@ -282,7 +295,10 @@ function InputFormContent() {
             urlObj.searchParams.set("input_token", inputToken); // set() replaces if exists
             // Check if it's a free report and add auto_generate=true if missing
             const reportTypeParam = urlObj.searchParams.get("reportType");
-            if (reportTypeParam === "life-summary" && !urlObj.searchParams.has("auto_generate")) {
+            if (!reportTypeParam && finalReportType) {
+              urlObj.searchParams.set("reportType", finalReportType);
+            }
+            if (urlObj.searchParams.get("reportType") === "life-summary" && !urlObj.searchParams.has("auto_generate")) {
               urlObj.searchParams.set("auto_generate", "true");
             }
             returnUrl = urlObj.pathname + urlObj.search;
@@ -290,9 +306,16 @@ function InputFormContent() {
             // Fallback to string concatenation if URL parsing fails
             console.warn("[Input] Failed to parse returnTo URL, using string concatenation:", urlError);
             const separator = sanitizedReturnTo.includes("?") ? "&" : "?";
-            const isFreeReportInReturnTo = sanitizedReturnTo.includes("reportType=life-summary");
-            const autoGenerateForReturnTo = isFreeReportInReturnTo && !sanitizedReturnTo.includes("auto_generate") ? "&auto_generate=true" : "";
-            returnUrl = `${sanitizedReturnTo}${separator}input_token=${encodeURIComponent(inputToken)}${autoGenerateForReturnTo}`;
+            const hasReportTypeInReturnTo = sanitizedReturnTo.includes("reportType=");
+            const hasQueryInReturnTo = sanitizedReturnTo.includes("?");
+            const reportTypeParamFallback = !hasReportTypeInReturnTo && finalReportType
+              ? `${hasQueryInReturnTo ? "&" : "?"}reportType=${encodeURIComponent(finalReportType)}`
+              : "";
+            const returnToWithReportType = `${sanitizedReturnTo}${reportTypeParamFallback}`;
+            const isFreeReportInReturnTo = returnToWithReportType.includes("reportType=life-summary");
+            const autoGenerateForReturnTo = isFreeReportInReturnTo && !returnToWithReportType.includes("auto_generate") ? "&auto_generate=true" : "";
+            const tokenSeparator = (hasQueryInReturnTo || reportTypeParamFallback) ? "&" : "?";
+            returnUrl = `${returnToWithReportType}${tokenSeparator}input_token=${encodeURIComponent(inputToken)}${autoGenerateForReturnTo}`;
           }
         }
         const fullUrl = typeof window !== "undefined" ? new URL(returnUrl, window.location.origin).toString() : returnUrl;

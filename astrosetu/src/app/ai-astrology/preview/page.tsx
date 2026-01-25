@@ -82,6 +82,7 @@ function PreviewContent() {
   const [tokenLoading, setTokenLoading] = useState(false);
   const [reportType, setReportType] = useState<ReportType>(() => {
     const fromUrl = searchParams.get("reportType") as ReportType | null;
+    const sessionId = searchParams.get("session_id");
     const valid: ReportType[] = [
       "life-summary",
       "marriage-timing",
@@ -91,7 +92,13 @@ function PreviewContent() {
       "major-life-phase",
       "decision-support",
     ];
-    return fromUrl && valid.includes(fromUrl) ? fromUrl : "life-summary";
+
+    const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const fromSessionId = sessionId
+      ? valid.find((type) => new RegExp(`(?:^|[_-])${escapeRegExp(type)}(?:[_-]|$)`).test(sessionId)) ?? null
+      : null;
+
+    return fromUrl && valid.includes(fromUrl) ? fromUrl : fromSessionId ?? "life-summary";
   });
   const [reportContent, setReportContent] = useState<ReportContent | null>(null);
   const [qualityWarning, setQualityWarning] = useState<"shorter_than_expected" | "below_optimal_length" | "content_repair_applied" | null>(null);
@@ -1526,8 +1533,14 @@ function PreviewContent() {
       ? `${window.location.pathname}${window.location.search}`
       : "";
     
-    // Preserve reportType from URL params
-    const urlReportType = searchParams.get("reportType");
+    // Preserve reportType from URL params (fallback to session_id if needed)
+    const redirectSessionId = searchParams.get("session_id");
+    const reportTypeFromSessionId = redirectSessionId
+      ? validReportTypes.find((type) =>
+          new RegExp(`(?:^|[_-])${type.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[_-]|$)`).test(redirectSessionId)
+        ) ?? null
+      : null;
+    const urlReportType = searchParams.get("reportType") || reportTypeFromSessionId;
     const redirectUrl = returnTo && urlReportType
       ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}&returnTo=${encodeURIComponent(returnTo)}`
       : urlReportType 
@@ -1831,7 +1844,13 @@ function PreviewContent() {
         // This prevents "Redirecting..." dead states
         if (!effectiveSavedInput) {
           if (typeof window !== "undefined" && !hasRedirectedRef.current) {
-            const rt = searchParams.get("reportType");
+            const resumeSessionId = searchParams.get("session_id");
+            const rtFromSessionId = resumeSessionId
+              ? validReportTypes.find((type) =>
+                  new RegExp(`(?:^|[_-])${type.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[_-]|$)`).test(resumeSessionId)
+                ) ?? null
+              : null;
+            const rt = searchParams.get("reportType") || rtFromSessionId;
             const returnTo = `${window.location.pathname}${window.location.search}`;
             hasRedirectedRef.current = true;
             router.push(
@@ -1846,7 +1865,13 @@ function PreviewContent() {
         const inputData = JSON.parse(effectiveSavedInput);
         // CRITICAL: Prefer reportType from URL params (most reliable), then sessionStorage, then default
         // URL params are most reliable because they persist even if sessionStorage is cleared
-        const urlReportTypeForUse = searchParams.get("reportType") as ReportType | null;
+        const urlSessionIdForUse = searchParams.get("session_id");
+        const reportTypeFromSessionIdForUse = urlSessionIdForUse
+          ? validReportTypes.find((type) =>
+              new RegExp(`(?:^|[_-])${type.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[_-]|$)`).test(urlSessionIdForUse)
+            ) ?? null
+          : null;
+        const urlReportTypeForUse = (searchParams.get("reportType") as ReportType | null) || reportTypeFromSessionIdForUse;
         let reportTypeToUse: ReportType;
         
         if (urlReportTypeForUse && validReportTypes.includes(urlReportTypeForUse)) {

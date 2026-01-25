@@ -9,6 +9,10 @@ import { test, expect } from "@playwright/test";
  * - POST /api/billing/subscription returns 401 private_beta
  */
 test.describe("Beta Access Blocks API Routes", () => {
+  test.use({
+    extraHTTPHeaders: { "x-playwright-private-beta": "true" },
+  });
+
   test.beforeEach(async ({ context }) => {
     // Clear all cookies to ensure no beta_access cookie exists
     await context.clearCookies();

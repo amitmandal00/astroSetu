@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * CRITICAL FIX (ChatGPT): Subscribe must never silently return (no-op)
@@ -12,11 +13,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Subscription No-Op Prevented", () => {
   test("subscribe button redirects to input when no input exists", async ({ page }) => {
     // Clear sessionStorage to ensure no input exists
-    await page.goto("/ai-astrology/subscription");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page);
 
     // Navigate to subscription page with no input
     await page.goto("/ai-astrology/subscription");
@@ -42,10 +39,7 @@ test.describe("Subscription No-Op Prevented", () => {
 
   test("subscribe button shows error message when no input exists", async ({ page }) => {
     // Clear sessionStorage
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page);
 
     // Navigate to subscription page
     await page.goto("/ai-astrology/subscription");
@@ -63,10 +57,7 @@ test.describe("Subscription No-Op Prevented", () => {
 
   test("subscribe button does NOT cause silent no-op (page stays same)", async ({ page }) => {
     // Clear sessionStorage
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page);
 
     // Navigate to subscription page
     const initialUrl = "/ai-astrology/subscription";

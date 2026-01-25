@@ -13,6 +13,10 @@ import { test, expect } from "@playwright/test";
  * 2. Ankita Surabhi | 1988-07-01 | 17:58 | Ranchi, Jharkhand | Female
  */
 test.describe("Beta Access Allows After Verification", () => {
+  test.use({
+    extraHTTPHeaders: { "x-playwright-private-beta": "true" },
+  });
+
   test.beforeEach(async ({ context }) => {
     // Clear all cookies to ensure clean state
     await context.clearCookies();

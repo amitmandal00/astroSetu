@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * CRITICAL FIX (Step 4): Verify no redirect while token loading
@@ -47,10 +48,8 @@ test.describe("No Redirect While Token Loading", () => {
 
     // Step 2: Navigate to preview with input_token (simulating redirect from input)
     const testToken = "test_token_12345";
+    await resetStorage(page);
     await page.goto(`/ai-astrology/preview?reportType=year-analysis&input_token=${testToken}`);
-    await page.evaluate(() => {
-      sessionStorage.clear(); // Ensure no stale sessionStorage data
-    });
 
     // Step 3: CRITICAL - Within 1s, verify "Loading your details..." is visible
     // This proves tokenLoading=true is working
@@ -124,10 +123,8 @@ test.describe("No Redirect While Token Loading", () => {
 
     // Step 2: Navigate to subscription with input_token
     const testToken = "test_token_67890";
+    await resetStorage(page);
     await page.goto(`/ai-astrology/subscription?input_token=${testToken}`);
-    await page.evaluate(() => {
-      sessionStorage.clear();
-    });
 
     // Step 3: CRITICAL - Verify "Loading your details..." is visible within 1s
     const loadingText = page.getByText("Loading your details...");

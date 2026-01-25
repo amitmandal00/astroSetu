@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * CRITICAL FIX (ChatGPT): Preview must never show "Redirecting..." dead-state
@@ -12,11 +13,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Preview No Dead Redirecting State", () => {
   test("preview with reportType but no input redirects to input within 2s", async ({ page }) => {
     // Clear sessionStorage to ensure no input exists
-    await page.goto("/ai-astrology/preview?reportType=life-summary");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page);
 
     // Navigate to preview with reportType but no input
     await page.goto("/ai-astrology/preview?reportType=life-summary");
@@ -33,11 +30,7 @@ test.describe("Preview No Dead Redirecting State", () => {
 
   test("preview with reportType=year-analysis but no input redirects to input within 2s", async ({ page }) => {
     // Clear sessionStorage to ensure no input exists
-    await page.goto("/ai-astrology/preview?reportType=year-analysis");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page);
 
     // Navigate to preview with reportType but no input
     await page.goto("/ai-astrology/preview?reportType=year-analysis");
@@ -53,10 +46,7 @@ test.describe("Preview No Dead Redirecting State", () => {
 
   test("preview does NOT show 'Redirecting...' UI unless redirect was actually initiated", async ({ page }) => {
     // Clear sessionStorage
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page);
 
     // Navigate to preview with reportType but no input
     await page.goto("/ai-astrology/preview?reportType=life-summary");

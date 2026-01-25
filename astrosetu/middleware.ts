@@ -13,7 +13,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check if private beta gating is enabled
-  const privateBetaEnabled = process.env.NEXT_PUBLIC_PRIVATE_BETA === "true";
+  const isPlaywright = process.env.PLAYWRIGHT_TESTING === "true";
+  const playwrightGateHeader = request.headers.get("x-playwright-private-beta");
+  const privateBetaEnabled = isPlaywright
+    ? playwrightGateHeader === "true"
+    : process.env.NEXT_PUBLIC_PRIVATE_BETA === "true";
 
   // If gating is disabled, allow all requests
   if (!privateBetaEnabled) {

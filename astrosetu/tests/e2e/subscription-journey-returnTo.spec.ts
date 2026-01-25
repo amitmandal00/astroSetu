@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 test.describe("Subscription Journey ReturnTo Flow", () => {
   test("monthly subscription → input → subscription dashboard with input_token → NO redirect to free life report", async ({ page }) => {
-    // Start at subscription page
+    // Start with clean storage, then hit subscription page
+    await resetStorage(page);
     await page.goto("/ai-astrology/subscription");
-    await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
 
     // Should redirect to input page with flow=subscription
     await page.waitForURL(/\/ai-astrology\/input.*flow=subscription/, { timeout: 3000 });
@@ -60,8 +61,8 @@ test.describe("Subscription Journey ReturnTo Flow", () => {
 
     // Navigate to subscription page with input_token (simulating return from input)
     const mockToken = "test_token_123";
+    await resetStorage(page);
     await page.goto(`/ai-astrology/subscription?input_token=${mockToken}`);
-    await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
 
     // Wait for token to load
     await page.waitForTimeout(2000);
@@ -115,8 +116,8 @@ test.describe("Subscription Journey ReturnTo Flow", () => {
     });
 
     const mockToken = "test_token_slow";
+    await resetStorage(page);
     await page.goto(`/ai-astrology/subscription?input_token=${mockToken}`);
-    await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
 
     // Should show "Loading your details..." while token is loading
     await expect(page.getByText("Loading your details...")).toBeVisible({ timeout: 1000 });

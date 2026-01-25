@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * CRITICAL FIX (ChatGPT): Purchase must not loop back to input after returning from input
@@ -17,11 +18,8 @@ import { test, expect } from "@playwright/test";
 test.describe("Purchase Redirects to Input Then Back (No Loop)", () => {
   test("purchase → input → preview with input_token → preview does NOT redirect back to input", async ({ page }) => {
     // Step 1: Start at preview paywall (no input)
+    await resetStorage(page);
     await page.goto("/ai-astrology/preview?reportType=year-analysis");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
 
     // Step 2: Click purchase → should go to input
     const purchaseButton = page.getByRole("button", { name: /purchase/i });

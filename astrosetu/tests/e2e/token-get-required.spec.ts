@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * CRITICAL FIX (Step 4): Verify token GET is required after input submit
@@ -15,11 +16,8 @@ import { test, expect } from "@playwright/test";
 test.describe("Token GET Required After Input Submit", () => {
   test("input submit → preview with input_token → GET token within 2s", async ({ page }) => {
     // Clear storage to ensure clean state
+    await resetStorage(page);
     await page.goto("/ai-astrology/input?reportType=year-analysis");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
 
     // Step 1: Wait for form to load, then fill input form
     await page.waitForSelector('input[name="name"]', { timeout: 10000 });
@@ -83,11 +81,8 @@ test.describe("Token GET Required After Input Submit", () => {
 
   test("input submit → subscription with input_token → GET token within 2s", async ({ page }) => {
     // Clear storage
+    await resetStorage(page);
     await page.goto("/ai-astrology/input?reportType=life-summary&flow=subscription&returnTo=/ai-astrology/subscription");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
 
     // Wait for form to load, then fill input form
     await page.waitForSelector('input[name="name"]', { timeout: 10000 });

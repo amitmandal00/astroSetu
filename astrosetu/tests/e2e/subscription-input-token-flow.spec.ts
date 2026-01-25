@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * E2E Test: Subscription Input Token Flow
@@ -46,7 +47,7 @@ test.describe("Subscription Input Token Flow", () => {
     // Verify URL is clean (no input_token)
     const url = page.url();
     expect(url).not.toContain("input_token");
-    expect(url).toContain("/ai-astrology/subscription");
+    expect(url).toContain(encodeURIComponent("/ai-astrology/subscription"));
     
     // Verify Subscribe button is enabled (input loaded)
     const subscribeButton = page.getByRole("button", { name: /subscribe/i });
@@ -64,11 +65,7 @@ test.describe("Subscription Input Token Flow", () => {
 
   test("Subscription redirects to input with flow=subscription when no input_token and no sessionStorage", async ({ page, context }) => {
     // Clear sessionStorage and localStorage
-    await context.clearCookies();
-    await page.addInitScript(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Navigate to subscription page without input_token
     await page.goto("/ai-astrology/subscription");
@@ -86,9 +83,7 @@ test.describe("Subscription Input Token Flow", () => {
 
   test("Input page redirects to subscription when flow=subscription", async ({ page, context }) => {
     // Clear sessionStorage
-    await page.addInitScript(() => {
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Mock input-session API to return token
     await page.route("**/api/ai-astrology/input-session", async (route) => {

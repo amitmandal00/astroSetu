@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 test.describe("No Redirect Loop After Input Submit", () => {
   test("purchase yearly analysis → input → preview with input_token → NO redirect back to input", async ({ page }) => {
-    // Start at preview page (simulating purchase button click)
+    // Start clean, then hit preview (simulating purchase button click)
+    await resetStorage(page);
     await page.goto("/ai-astrology/preview?reportType=year-analysis");
-    await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
 
     // Should redirect to input page
     await page.waitForURL(/\/ai-astrology\/input/, { timeout: 3000 });
@@ -47,8 +48,8 @@ test.describe("No Redirect Loop After Input Submit", () => {
   });
 
   test("bundle reports → input → preview with input_token → NO redirect back to input", async ({ page }) => {
+    await resetStorage(page);
     await page.goto("/ai-astrology/input?reportType=year-analysis&bundleType=any-2&bundleReports=year-analysis,career-money");
-    await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
 
     await page.waitForSelector('input[name="name"]', { timeout: 10000 });
     await page.fill('input[name="name"]', "Test User");
@@ -74,8 +75,8 @@ test.describe("No Redirect Loop After Input Submit", () => {
   });
 
   test("free life summary → input → preview with input_token → NO redirect back to input", async ({ page }) => {
+    await resetStorage(page);
     await page.goto("/ai-astrology/preview?reportType=life-summary");
-    await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
 
     await page.waitForURL(/\/ai-astrology\/input/, { timeout: 3000 });
 

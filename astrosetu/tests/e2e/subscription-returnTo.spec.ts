@@ -11,16 +11,13 @@
  */
 
 import { test, expect, Page } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 test.describe("Subscription ReturnTo Contract", () => {
   test("Subscription → Input (with returnTo) → Returns to Subscription", async ({ page, context }) => {
     // CRITICAL: Start with fresh browser context (no cookies, no storage)
     // This simulates a new user visiting subscription page without birth details
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Step 1: Navigate to subscription page
     await page.goto("/ai-astrology/subscription", { waitUntil: "domcontentloaded" });
@@ -91,11 +88,7 @@ test.describe("Subscription ReturnTo Contract", () => {
     // ChatGPT Feedback: "You do not route to returnTo" - but we verified it DOES (lines 211-214)
     // This test proves it works correctly
 
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Navigate directly to input page WITH returnTo parameter
     const returnToPath = "/ai-astrology/subscription";

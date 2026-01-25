@@ -13,16 +13,13 @@
  */
 
 import { test, expect, Page } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 test.describe("Critical First-Load Paid Session Generation", () => {
   test("should complete or fail explicitly within 2-5 seconds (not infinite spinner)", async ({ page, context }) => {
     // CRITICAL: Start with fresh browser context (no cookies, no storage)
     // This simulates the exact "first load" scenario where the bug occurs
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage with mock birth details (simulates input page redirect)
     const mockInput = {
@@ -169,11 +166,7 @@ test.describe("Critical First-Load Paid Session Generation", () => {
     // CRITICAL: This test verifies the core fix: session_id is NOT a state signal
     // UI must be driven by controller status, not URL params
 
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Navigate to preview page with session_id but WITHOUT auto_generate (should not start generation)
     const sessionId = `test_session_year-analysis_req-${Date.now()}-test`;

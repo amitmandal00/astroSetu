@@ -12,16 +12,13 @@
  */
 
 import { test, expect, Page } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 test.describe("Stale Session Retry Contract", () => {
   test("should show Retry within 30s for stale session_id and Retry starts new attemptKey", async ({ page, context }) => {
     // CRITICAL: Start with fresh browser context (no cookies, no storage)
     // This simulates a first-load scenario with a stale session_id
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage with mock birth details (simulates input page redirect)
     const mockInput = {
@@ -148,11 +145,7 @@ test.describe("Stale Session Retry Contract", () => {
     // CRITICAL: This test verifies the "happy path" - fresh session_id should work correctly
     // It's the opposite of the stale session test - ensures we didn't break normal flow
 
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage with mock birth details
     const mockInput = {

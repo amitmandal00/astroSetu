@@ -15,15 +15,12 @@
  */
 
 import { test, expect, Page } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 test.describe("Preview No Processing Without Start (Canary Test)", () => {
   test("should NOT show Generating... UI when session_id exists but auto_generate=false", async ({ page, context }) => {
     // CRITICAL: Start with fresh browser context (no cookies, no storage)
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage with mock birth details (simulates valid input available)
     const mockInput = {
@@ -102,11 +99,7 @@ test.describe("Preview No Processing Without Start (Canary Test)", () => {
     // CRITICAL: This is the positive case - when auto_generate=true, UI SHOULD show processing
     // This ensures we didn't break the normal flow
 
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage with mock birth details
     const mockInput = {

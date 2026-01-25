@@ -9,6 +9,10 @@ import { test, expect } from "@playwright/test";
  * - Other /ai-astrology/* routes also redirect
  */
 test.describe("Beta Access Blocks AI Astrology Pages", () => {
+  test.use({
+    extraHTTPHeaders: { "x-playwright-private-beta": "true" },
+  });
+
   test.beforeEach(async ({ context }) => {
     // Clear all cookies to ensure no beta_access cookie exists
     await context.clearCookies();

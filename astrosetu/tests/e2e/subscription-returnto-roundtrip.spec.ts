@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 import { fillInputForm } from "./test-helpers";
 
 /**
@@ -11,10 +12,7 @@ import { fillInputForm } from "./test-helpers";
 test.describe("Subscription onboarding returnTo roundtrip", () => {
   test("subscription → input onboarding → returns to subscription dashboard", async ({ page }) => {
     // Ensure clean browser storage (simulate first-time user)
-    await page.addInitScript(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page);
 
     await page.goto("/ai-astrology/subscription", { waitUntil: "domcontentloaded" });
 

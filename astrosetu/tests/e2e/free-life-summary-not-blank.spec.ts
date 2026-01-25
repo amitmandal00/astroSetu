@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 /**
  * E2E Test: Free Life Summary Not Blank
@@ -17,11 +18,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Free Life Summary Not Blank", () => {
   test("Free life summary never shows blank screen during generation", async ({ page, context }) => {
     // Clear sessionStorage and cookies
-    await context.clearCookies();
-    await page.addInitScript(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Mock input-session API to return valid token data
     let capturedToken: string | null = null;
@@ -170,11 +167,7 @@ test.describe("Free Life Summary Not Blank", () => {
 
   test("Free life summary shows loader immediately after input submission", async ({ page, context }) => {
     // Clear sessionStorage
-    await context.clearCookies();
-    await page.addInitScript(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Mock input-session API
     await page.route("**/api/ai-astrology/input-session", async (route) => {

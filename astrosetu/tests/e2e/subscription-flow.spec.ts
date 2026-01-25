@@ -10,16 +10,13 @@
  */
 
 import { test, expect } from "@playwright/test";
+import { resetStorage } from "./helpers/storage";
 
 test.describe("Subscription Flow - Subscribe Button Redirects", () => {
   test("Subscribe button redirects away from subscription page (not silent refresh)", async ({ page, context }) => {
     // CRITICAL: Start with fresh browser context (no cookies, no storage)
     // This simulates first-time user clicking Subscribe
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Seed sessionStorage with birth details (required for subscription page)
     await page.addInitScript(() => {
@@ -274,11 +271,7 @@ test.describe("Subscription Flow - Subscribe Button Redirects", () => {
 
   test("Monthly flow returnTo contract - Subscription → Input → Returns to Subscription", async ({ page, context }) => {
     // CRITICAL: Fresh browser context (no saved input)
-    await context.clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await resetStorage(page, context);
 
     // Navigate to subscription page (no birth details in storage)
     await page.goto("/ai-astrology/subscription", { waitUntil: "domcontentloaded" });
