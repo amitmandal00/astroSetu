@@ -1137,6 +1137,11 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
     } else if (reportType === "year-analysis") {
       // Add comprehensive fallback sections for year-analysis reports
       // CRITICAL: These sections must total at least 900 words to pass validation
+      console.log("[ensureMinimumSections] Entering year-analysis fallback branch", {
+        reportType,
+        currentSections: sections.length,
+        existingTitlesSize: existingTitles.size,
+      });
       if (!existingTitles.has("year strategy") && !existingTitles.has("strategic focus") && !existingTitles.has("year focus")) {
         sections.push({
           title: "Year Strategy",
@@ -1213,6 +1218,13 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
         const bulletWords = s.bullets?.join(" ").split(/\s+/).length || 0;
         return sum + contentWords + bulletWords;
       }, 0);
+      
+      console.log("[ensureMinimumSections] Year-analysis initial sections added", {
+        reportType,
+        sectionsCount: sections.length,
+        currentWordCount,
+        sectionTitles: sections.map(s => s.title),
+      });
       
       // P0.3: Ensure we meet the 800 word minimum (validation requirement)
       // Keep adding sections until we reach at least 800 words (guaranteed)
@@ -1495,11 +1507,24 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
     });
   }
   
-  return {
+  const finalReport = {
     ...report,
     sections,
   };
+  
+  console.log("[ensureMinimumSections] Final report sections", {
+    reportType,
+    finalSectionsCount: sections.length,
+    sectionTitles: sections.map(s => s.title),
+  });
+  
+  return finalReport;
 }
+
+/**
+ * Test-only export: allows unit tests to validate parsing behavior without calling external astrology APIs.
+ * Do not use in production code.
+ */
 
 /**
  * Test-only export: allows unit tests to validate parsing behavior without calling external astrology APIs.
