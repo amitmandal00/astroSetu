@@ -11,7 +11,6 @@ export const ALL_REPORT_TYPES: ReportType[] = [
 ];
 
 export const DISABLED_REPORT_TYPES = new Set<ReportType>([
-  "marriage-timing",
 ]);
 
 export const AVAILABLE_REPORT_TYPES = ALL_REPORT_TYPES.filter(
