@@ -382,6 +382,16 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
               attemptId,
               abortController.signal
             );
+          } else if (data.data.content) {
+            // Backward-compat: content-only response (no status) -> completed
+            setState((prev) =>
+              transitionState(prev, 'completed', {
+                reportId: data.data.reportId,
+                error: null,
+                startTime: null,
+              })
+            );
+            setReportContent(data.data.content);
           } else {
             // Other status
             setState((prev) =>
