@@ -649,7 +649,9 @@ function filterMeaningfulSections(sections: ReportSection[]): ReportSection[] {
     const content = section.content?.trim() || "";
     const hasContent = content.length > 20;
     const hasBullets = section.bullets && section.bullets.length > 0;
-    return (hasContent || hasBullets) && !isPlaceholderSection(content);
+    const title = section.title?.trim() || "";
+    const isGenericTitle = /^section\s+\d+$/i.test(title);
+    return (hasContent || hasBullets) && !isPlaceholderSection(content) && !isGenericTitle;
   });
 }
 

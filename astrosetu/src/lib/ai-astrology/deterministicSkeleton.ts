@@ -19,12 +19,23 @@ const buildSectionContent = (focusPhrases: string[], minWords = 200): string => 
     return "This section keeps the narrative focused on the key guidance even when the AI response was incomplete.";
   }
 
-  let paragraph = focusPhrases.map((phrase, idx) => `${idx + 1}. ${phrase}`).join(" ");
+  const sentenceize = (phrase: string) => {
+    const trimmed = phrase.trim();
+    if (!trimmed) return trimmed;
+    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  };
+
+  let paragraph = focusPhrases.map((phrase) => sentenceize(phrase)).join(" ");
   let index = 0;
+  const fillers = [
+    "Use this guidance to set priorities for the phase ahead.",
+    "Revisit these themes as new opportunities or challenges appear.",
+    "Small, consistent steps will reinforce the larger direction described here.",
+  ];
 
   while (countWordsFromText(paragraph) < minWords) {
-    const phrase = focusPhrases[index % focusPhrases.length];
-    paragraph += ` ${phrase} Maintaining focus on this guidance keeps your planning practical and grounded.`;
+    const filler = fillers[index % fillers.length];
+    paragraph += ` ${filler}`;
     index += 1;
   }
 
