@@ -4319,7 +4319,7 @@ function PreviewContent() {
     // show a loading state while waiting for report generation to start
     // This prevents blank screen when input is loaded but generation hasn't started yet
     // The unified loading screen (line 2980) will take over once isProcessingUI becomes true
-    if (hasInput && !reportContent && !isProcessingUI) {
+    if (hasInput && !reportContent && !isProcessingUI && (!isPaidReport || paymentVerified)) {
       return (
         <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-2xl w-full mx-4">
