@@ -193,6 +193,90 @@ async function generateWithAnthropic(prompt: string): Promise<string> {
  * Parse AI response into structured monthly outlook guidance
  */
 function parseDailyGuidance(response: string, date: string): DailyGuidance {
+  const trimmed = response.trim();
+  const jsonCandidate = trimmed.startsWith("```")
+    ? trimmed.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim()
+    : trimmed;
+  if (jsonCandidate.startsWith("{") || jsonCandidate.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(jsonCandidate);
+      const contentRoot = parsed?.content ?? parsed;
+      const sections = Array.isArray(contentRoot?.sections) ? contentRoot.sections : [];
+
+      const findSection = (label: string) =>
+        sections.find((s: any) => typeof s?.title === "string" && s.title.toLowerCase().includes(label));
+
+      const themeSection =
+        findSection("theme") ||
+        findSection("monthly") ||
+        findSection("current theme");
+
+      const focusSection = findSection("focus areas");
+      const helpfulSection = findSection("helpful");
+      const mindfulSection = findSection("be mindful");
+      const reflectionSection = findSection("reflection");
+
+      const focusAreas = (() => {
+        const bullets = Array.isArray(focusSection?.bullets) ? focusSection.bullets : [];
+        const areas = { mindset: "", work: "", relationships: "", energy: "" };
+        for (const bullet of bullets) {
+          if (typeof bullet !== "string") continue;
+          const [label, rest] = bullet.split(":");
+          const value = (rest || "").trim();
+          const key = label.toLowerCase();
+          if (key.includes("mindset")) areas.mindset = value;
+          if (key.includes("work")) areas.work = value;
+          if (key.includes("relationship")) areas.relationships = value;
+          if (key.includes("energy")) areas.energy = value;
+        }
+        if (!areas.mindset || !areas.work || !areas.relationships || !areas.energy) return undefined;
+        return areas;
+      })();
+
+      const helpfulThisMonth = Array.isArray(helpfulSection?.bullets)
+        ? helpfulSection.bullets
+            .filter((b: any) => typeof b === "string")
+            .map((b: string) => b.replace(/^Do:\s*/i, "").trim())
+            .filter((b: string) => b.length > 10)
+        : undefined;
+
+      const beMindfulOf = Array.isArray(mindfulSection?.bullets)
+        ? mindfulSection.bullets
+            .filter((b: any) => typeof b === "string")
+            .map((b: string) => b.replace(/^Avoid:\s*/i, "").trim())
+            .filter((b: string) => b.length > 10)
+        : undefined;
+
+      const reflectionPrompt =
+        typeof reflectionSection?.content === "string" && reflectionSection.content.trim().length > 10
+          ? reflectionSection.content.trim()
+          : undefined;
+
+      const guidanceText =
+        (typeof themeSection?.content === "string" && themeSection.content.trim()) ||
+        (typeof contentRoot?.summary === "string" && contentRoot.summary.trim()) ||
+        (typeof contentRoot?.executiveSummary === "string" && contentRoot.executiveSummary.trim()) ||
+        "";
+
+      if (guidanceText || focusAreas || helpfulThisMonth || beMindfulOf || reflectionPrompt) {
+        return {
+          date,
+          input: {} as AIAstrologyInput,
+          todayGoodFor: [],
+          avoidToday: [],
+          actions: [],
+          planetaryInfluence: "",
+          guidance: guidanceText || "This period favors thoughtful action and steady progress. Maintain balance between action and rest, and avoid rushing decisions.",
+          focusAreas,
+          helpfulThisMonth: helpfulThisMonth && helpfulThisMonth.length > 0 ? helpfulThisMonth : undefined,
+          beMindfulOf: beMindfulOf && beMindfulOf.length > 0 ? beMindfulOf : undefined,
+          reflectionPrompt,
+        };
+      }
+    } catch {
+      // Fall through to legacy parsing
+    }
+  }
   // Extract Monthly Theme (main guidance content)
   const themeMatch = response.match(/MONTHLY THEME:?\s*(.*?)(?=\n\s*(?:FOCUS AREAS|HELPFUL|BE MINDFUL|REFLECTION)|$)/is);
   const guidance = themeMatch
