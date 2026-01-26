@@ -134,7 +134,7 @@ export async function GET(req: Request) {
             paymentStatus: "paid",
             subscription: isSubscriptionTest,
             reportType: isSubscriptionTest ? undefined : extractedReportType,
-            paymentToken: undefined, // Test sessions don't need payment tokens (generate-report handles test users)
+            paymentToken: sessionId,
             customerEmail: undefined,
             amountTotal: 1, // Test amount in cents
             currency: "aud",

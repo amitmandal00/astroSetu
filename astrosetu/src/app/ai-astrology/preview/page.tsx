@@ -105,6 +105,8 @@ function PreviewContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
+  const [paymentCheckComplete, setPaymentCheckComplete] = useState(false);
+  const [generationTimedOut, setGenerationTimedOut] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellShown, setUpsellShown] = useState(false);
@@ -337,6 +339,25 @@ function PreviewContent() {
     setLoadingStage(null);
     usingControllerRef.current = false;
   }, [reportType, isReportDisabled, error]);
+
+  useEffect(() => {
+    const autoGenerate = searchParams.get("auto_generate") === "true";
+    if (!autoGenerate) return;
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+    const urlSessionId = searchParams.get("session_id");
+    if (!inputToken && !urlSessionId) return;
+
+    setGenerationTimedOut(false);
+
+    const timeoutId = setTimeout(() => {
+      setGenerationTimedOut(true);
+      setLoading(false);
+      setError("Report generation is taking too long. Please retry.");
+    }, 90000);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchParams]);
 
   // Get value propositions for the report type (shown during loading)
   const getReportBenefits = (type: ReportType | null): string[] => {
@@ -1973,12 +1994,32 @@ function PreviewContent() {
         // and prevents the "no input" redirect logic from triggering
         setInput(inputData);
         setReportType(reportTypeToUse);
+
+        const isBundleForUse = !!(savedBundleType && savedBundleReports);
+        const isPaidReportForUse: boolean = isBundleForUse || reportTypeToUse !== "life-summary";
+        const shouldSkipPaymentVerification = !!urlSessionId && urlSessionId.startsWith("prodtest_");
+
+        if (!isPaidReportForUse) {
+          setPaymentCheckComplete(true);
+        } else if (!urlSessionId) {
+          setPaymentCheckComplete(true);
+        } else if (shouldSkipPaymentVerification) {
+          try {
+            sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+            sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
+          } catch {
+            // ignore storage errors
+          }
+          setPaymentVerified(true);
+          setPaymentCheckComplete(true);
+        }
           
         // CRITICAL FIX: If payment verified flag is missing but session_id exists, try to re-verify
         // IMPORTANT: Wait for verification before allowing report generation
-        if (!paymentVerified && urlSessionId) {
+        if (isPaidReportForUse && !paymentVerified && urlSessionId && !shouldSkipPaymentVerification) {
           // Attempt to regenerate payment token from session_id - MUST WAIT for this
           // CRITICAL: Set loading state IMMEDIATELY to prevent redirect logic from triggering
+          setPaymentCheckComplete(false);
           setLoading(true); // Show loading while verifying
           setLoadingStage("verifying"); // Show payment verification stage
           const startTime = Date.now();
@@ -2110,6 +2151,8 @@ function PreviewContent() {
               setLoading(false);
               setLoadingStage(null);
               isGeneratingRef.current = false; // Clear lock on error
+            } finally {
+              setPaymentCheckComplete(true);
             }
           })();
           
@@ -2117,6 +2160,7 @@ function PreviewContent() {
           return;
         } else {
           setPaymentVerified(paymentVerified);
+          setPaymentCheckComplete(true);
         }
         
         // Parse bundle information
@@ -2377,7 +2421,8 @@ function PreviewContent() {
   // Bundle reports are always paid, so check for bundle OR paid report type
   const isBundleReport = bundleType && bundleReports.length > 0;
   const isPaidReport = reportType !== "life-summary" || isBundleReport;
-  const needsPayment = isPaidReport && !paymentVerified;
+  const needsPayment = isPaidReport && paymentCheckComplete && !paymentVerified;
+  const urlSessionIdForPayment = searchParams.get("session_id");
 
   const handlePurchase = async () => {
     // CRITICAL FIX (ChatGPT): Single-flight guard - prevent double-clicks from causing duplicate API calls
@@ -3799,6 +3844,26 @@ function PreviewContent() {
               )}
               
               <p className="text-slate-600 mb-6">{error}</p>
+
+              {generationTimedOut && (
+                <div className="mt-4 flex gap-3 justify-center">
+                  <button
+                    className="px-4 py-2 rounded-lg bg-black text-white"
+                    onClick={() => window.location.reload()}
+                  >
+                    Retry
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-lg border"
+                    onClick={() => {
+                      setGenerationTimedOut(false);
+                      setError(null);
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
               
               {canRecover && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
@@ -3921,6 +3986,17 @@ function PreviewContent() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPaidReport && urlSessionIdForPayment && !paymentCheckComplete) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-lg w-full text-center">
+          <div className="text-xl font-semibold">Verifying your purchase…</div>
+          <div className="text-sm text-gray-600 mt-2">Please wait a few seconds.</div>
         </div>
       </div>
     );
