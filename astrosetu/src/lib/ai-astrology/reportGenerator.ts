@@ -1896,7 +1896,7 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
         const maxEmergencyAttempts = 5;
         while (currentWordCount < minWordsRequired && emergencyAttempts < maxEmergencyAttempts) {
           emergencyAttempts++;
-          const paddingText = generatePaddingParagraph(reportType, paddingAttempts + emergencyAttempts);
+          const paddingText = generatePaddingParagraph(reportType, emergencyAttempts);
           if (sections.length > 0) {
             const last = sections[sections.length - 1];
             last.content = `${last.content || ""} ${paddingText}`.trim();
