@@ -1180,10 +1180,11 @@ function PreviewContent() {
               ? "This report is taking longer than expected. It may time out - try generating it individually for better results."
               : errorMessage;
             
-            return { 
-              reportType, 
-              content: null, 
-              success: false, 
+            return {
+              reportType,
+              requestedReportType: reportType,
+              content: null,
+              success: false,
               error: friendlyError
             };
           }
