@@ -1048,7 +1048,6 @@ const BUFFERED_REPORT_TYPES = new Set<ReportType>([
   "career-money",
   "major-life-phase",
   "year-analysis",
-  "marriage-timing",
   "decision-support",
 ]);
 
@@ -1574,15 +1573,21 @@ export function ensureMinimumSections(report: ReportContent, reportType: ReportT
       // FIX 3: Deterministic padding function - add sections until minimum is met
       if (currentWordCount < minWordsRequired) {
         const wordsNeeded = minWordsRequired - currentWordCount;
-        const paddingSections = Math.ceil(wordsNeeded / 150); // ~150 words per padding section
-        
-        for (let i = 0; i < paddingSections && i < 10; i++) {
-          sections.push({
-            title: `Additional Guidance & Practical Next Steps - Section ${i + 1}`,
-            content: "This section provides additional astrological insights and practical guidance for marriage timing and relationship decisions. The interplay between your natal chart patterns, current Dasha period, and planetary transits creates unique opportunities for partnership formation. Understanding these patterns helps you navigate relationship decisions and time your marriage for maximum alignment with favorable astrological influences. Regular reflection on these insights helps you stay aligned with evolving relationship opportunities and timing throughout your journey. Strategic planning based on astrological timing can significantly enhance your ability to make the most of favorable periods while navigating challenging times with greater ease and effectiveness.",
-          });
+        const paddingPasses = Math.ceil(wordsNeeded / 150); // ~150 words per padding pass
+
+        for (let i = 0; i < paddingPasses && i < 10; i++) {
+          const paddingText = generatePaddingParagraph(reportType, i + 1);
+          if (sections.length > 0) {
+            const last = sections[sections.length - 1];
+            last.content = `${last.content || ""} ${paddingText}`.trim();
+          } else {
+            sections.push({
+              title: "Additional Guidance",
+              content: paddingText,
+            });
+          }
         }
-        
+
         // Recalculate after padding
         currentWordCount = sections.reduce((sum, s) => {
           const contentWords = s.content?.split(/\s+/).length || 0;
