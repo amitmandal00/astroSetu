@@ -357,6 +357,16 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
         }
 
         if (data.ok && data.data) {
+          const responseReportType = data.data.reportType as ReportType | undefined;
+          if (responseReportType && responseReportType !== reportType) {
+            setState((prev) =>
+              transitionState(prev, 'failed', {
+                error: `Report type mismatch (expected ${reportType}, received ${responseReportType})`,
+                startTime: null,
+              })
+            );
+            return;
+          }
           if (data.data.status === 'completed') {
             // Report completed immediately
             setState((prev) =>
@@ -402,6 +412,16 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
             );
           }
         } else if (data.ok && data.content) {
+          const responseReportType = data.reportType as ReportType | undefined;
+          if (responseReportType && responseReportType !== reportType) {
+            setState((prev) =>
+              transitionState(prev, 'failed', {
+                error: `Report type mismatch (expected ${reportType}, received ${responseReportType})`,
+                startTime: null,
+              })
+            );
+            return;
+          }
           // Backward-compat: top-level content response -> completed
           setState((prev) =>
             transitionState(prev, 'completed', {
