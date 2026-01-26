@@ -359,6 +359,7 @@ function PreviewContent() {
     const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
     const urlSessionId = searchParams.get("session_id");
     if (!inputToken && !urlSessionId) return;
+    if (!loading || reportContent || error) return;
 
     setGenerationTimedOut(false);
 
