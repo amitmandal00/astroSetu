@@ -9,7 +9,8 @@ import type { ReportType } from "@/lib/ai-astrology/types";
 import Link from "next/link";
 
 // P1: Bundle Feature Flag (MVP Compliance)
-const BUNDLES_ENABLED = process.env.NEXT_PUBLIC_BUNDLES_ENABLED === "true";
+// Default to enabled unless explicitly disabled.
+const BUNDLES_ENABLED = process.env.NEXT_PUBLIC_BUNDLES_ENABLED !== "false";
 
 type BundleType = "any-2" | "all-3" | "life-decision-pack";
 
