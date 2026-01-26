@@ -3196,7 +3196,11 @@ function PreviewContent() {
     const autoGenerate = searchParams.get("auto_generate") === "true";
     const hasBundleInfo = bundleType && bundleReports.length > 0;
     // Only show loader when actually processing (not just when reportType is in URL)
-    const shouldWaitForProcess = loading || isGeneratingRef.current || urlSessionId || urlReportId || autoGenerate || (hasBundleInfo && bundleGenerating);
+    const shouldWaitForProcess =
+      loading ||
+      isGeneratingRef.current ||
+      (hasBundleInfo && bundleGenerating) ||
+      (!reportContent && (urlSessionId || urlReportId || autoGenerate));
     // Only wait for state if we have bundle info AND generation is active
     const isWaitingForState = hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
     
@@ -4282,7 +4286,11 @@ function PreviewContent() {
   
   // Determine if we should wait (loading, generating, or have URL params indicating process, or have bundle info AND generation active)
   // Only show loader when actually processing (not just when reportType is in URL)
-  const shouldWaitForProcess = loading || isGeneratingRef.current || urlSessionId || urlReportId || autoGenerate || (hasBundleInfo && bundleGenerating);
+  const shouldWaitForProcess =
+    loading ||
+    isGeneratingRef.current ||
+    (hasBundleInfo && bundleGenerating) ||
+    (!reportContent && (urlSessionId || urlReportId || autoGenerate));
   
   // Determine if we're waiting for state to be set (have bundle info AND generation is active)
   const isWaitingForState = hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
