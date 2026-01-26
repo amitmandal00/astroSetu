@@ -4380,7 +4380,7 @@ function PreviewContent() {
     // ALWAYS show the unified generation screen (no screen switching)
     // This provides a single, continuous generation experience as per ChatGPT feedback
     // CRITICAL FIX (2026-01-18 - ChatGPT): Never return null - always show unified loader to prevent blank screen
-    if (loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState || bundleGenerating || loadingStage !== null) {
+    if (!reportContent && (loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState || bundleGenerating || loadingStage !== null)) {
       // CRITICAL FIX (2026-01-18 - ChatGPT): Add invariant logging to catch loadingStage/isProcessingUI mismatch
       if (loadingStage !== null && !isProcessingUI) {
         console.warn("[INVARIANT_VIOLATION] loadingStage set but isProcessingUI false", { 
