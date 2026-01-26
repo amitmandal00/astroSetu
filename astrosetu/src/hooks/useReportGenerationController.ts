@@ -401,6 +401,16 @@ export function useReportGenerationController(): UseReportGenerationControllerRe
               })
             );
           }
+        } else if (data.ok && data.content) {
+          // Backward-compat: top-level content response -> completed
+          setState((prev) =>
+            transitionState(prev, 'completed', {
+              reportId: data.reportId,
+              error: null,
+              startTime: null,
+            })
+          );
+          setReportContent(data.content);
         }
       } catch (error: any) {
         // Ignore abort errors
