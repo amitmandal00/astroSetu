@@ -1189,11 +1189,13 @@ function PreviewContent() {
           }
 
           const data = await response.json();
+          const content = data?.data?.content || data?.content || null;
+          const resolvedReportType = (data?.data?.reportType || data?.reportType || reportType) as ReportType;
           
-          if (data.ok && data.data?.content) {
+          if (data.ok && content) {
             console.log(`[BUNDLE] Successfully generated: ${reportName}`);
             updateProgress(reportType, true);
-            return { reportType, content: data.data.content, success: true };
+            return { reportType: resolvedReportType, requestedReportType: reportType, content, success: true };
           } else {
             console.error(`[BUNDLE] Failed to generate ${reportName}:`, data.error || "Unknown error");
             const errorMessage = data.error || "Failed to generate report";
@@ -1204,10 +1206,11 @@ function PreviewContent() {
               ? "This report is taking longer than expected. It may time out - try generating it individually for better results."
               : errorMessage;
             
-            return { 
-              reportType, 
-              content: null, 
-              success: false, 
+            return {
+              reportType,
+              requestedReportType: reportType,
+              content: null,
+              success: false,
               error: friendlyError
             };
           }
@@ -1226,10 +1229,11 @@ function PreviewContent() {
             ? "Request timed out. This report is taking longer than expected. Please try generating it individually."
             : errorMessage;
           
-          return { 
-            reportType, 
-            content: null, 
-            success: false, 
+          return {
+            reportType,
+            requestedReportType: reportType,
+            content: null,
+            success: false,
             error: friendlyError
           };
         }
@@ -1237,7 +1241,7 @@ function PreviewContent() {
 
       // CRITICAL FIX: Concurrency-limited queue (max 2 concurrent requests)
       // This prevents rate limiting, Vercel function contention, and reduces validation failures
-      const reportResults: Array<{ reportType: ReportType; content: ReportContent | null; success: boolean; error?: string }> = [];
+      const reportResults: Array<{ reportType: ReportType; requestedReportType: ReportType; content: ReportContent | null; success: boolean; error?: string }> = [];
       const executing: Promise<void>[] = [];
       
       for (const reportType of reports) {
@@ -1268,7 +1272,10 @@ function PreviewContent() {
         const bundleContentsMap = new Map<ReportType, ReportContent>();
         successes.forEach(result => {
           if (result.content) {
-            bundleContentsMap.set(result.reportType, result.content);
+            bundleContentsMap.set(result.requestedReportType, result.content);
+            if (result.reportType !== result.requestedReportType) {
+              bundleContentsMap.set(result.reportType, result.content);
+            }
           }
         });
 
