@@ -116,6 +116,12 @@ function PreviewContent() {
   const [emailCopySuccess, setEmailCopySuccess] = useState(false);
   const [loadingStage, setLoadingStage] = useState<"verifying" | "generating" | null>(null); // Track loading stage for better UX
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null); // Track when loading started for elapsed time
+
+  useEffect(() => {
+    if (!reportContent) return;
+    setError(null);
+    setGenerationTimedOut(false);
+  }, [reportContent]);
   
   // Test session detection (for mock content stripping)
   const sessionIdFromUrl = searchParams.get("session_id") || undefined;
