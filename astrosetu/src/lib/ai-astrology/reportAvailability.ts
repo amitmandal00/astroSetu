@@ -11,7 +11,6 @@ export const ALL_REPORT_TYPES: ReportType[] = [
 ];
 
 export const DISABLED_REPORT_TYPES = new Set<ReportType>([
-  "major-life-phase",
   "marriage-timing",
   "career-money",
 ]);
