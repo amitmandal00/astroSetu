@@ -41,6 +41,15 @@ When a step would trigger a permission popup, “Allow popups safely”, “Resu
 - If a step is long-running, run it in the background when possible and continue with other work.
 - **Testing rule**: Whenever you add/modify functionality or fix a bug, **pair the change with relevant automated coverage** (unit/integration/regression/E2E) that exercises the new behavior or regression you addressed.
 
+### Low-token development rules (MVP)
+- Do not scan the entire repository.
+- Do not refactor or rename.
+- Modify only the files explicitly listed by the user.
+- Max 30 lines changed unless approved.
+- If more context is needed, ask for the exact file path and function name (no global search).
+- Output format for patch requests: (1) files changed list (2) patch/diff (3) how to test (4) stop.
+- One bug per patch: one behavior, one file (or max two), one acceptance test.
+
 ### Autopilot Non-Negotiables (ChatGPT Feedback - Minimize Interruptions)
 - **No broad edits**: Max 1–3 files per change set (prefer 1 file at a time).
 - **No refactors while fixing bugs**: Fix the bug with minimal surface area.
