@@ -1455,8 +1455,14 @@ function PreviewContent() {
           inputTokenLoadedRef.current = true;
           
           setInput(inputData);
-          if (tokenResponse.data.reportType) {
-            setReportType(tokenResponse.data.reportType as ReportType);
+          const reportTypeFromUrl = searchParams.get("reportType") as ReportType | null;
+          const tokenReportType = tokenResponse.data.reportType as ReportType | undefined;
+          const shouldPreferUrlReportType = !!reportTypeFromUrl && reportTypeFromUrl !== "life-summary";
+          const effectiveReportType = shouldPreferUrlReportType
+            ? reportTypeFromUrl
+            : tokenReportType || reportTypeFromUrl || reportType;
+          if (effectiveReportType) {
+            setReportType(effectiveReportType);
           }
           if (tokenResponse.data.bundleType) {
             setBundleType(tokenResponse.data.bundleType);
@@ -1465,8 +1471,6 @@ function PreviewContent() {
             setBundleReports(tokenResponse.data.bundleReports as ReportType[]);
           }
 
-          const reportTypeFromUrl = searchParams.get("reportType") as ReportType | null;
-          const effectiveReportType = (tokenResponse.data.reportType as ReportType | undefined) || reportTypeFromUrl || reportType;
           const isPaidReportFromToken = !!tokenResponse.data.bundleType || (!!effectiveReportType && effectiveReportType !== "life-summary");
           const urlSessionId = searchParams.get("session_id");
           if (urlSessionId && urlSessionId.startsWith("prodtest_")) {
@@ -1511,8 +1515,8 @@ function PreviewContent() {
           // Cache in sessionStorage for future use (synchronous - happens immediately)
           try {
             sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
-            if (tokenResponse.data.reportType) {
-              sessionStorage.setItem("aiAstrologyReportType", tokenResponse.data.reportType);
+            if (effectiveReportType) {
+              sessionStorage.setItem("aiAstrologyReportType", effectiveReportType);
             }
             if (tokenResponse.data.bundleType) {
               sessionStorage.setItem("aiAstrologyBundle", tokenResponse.data.bundleType);
