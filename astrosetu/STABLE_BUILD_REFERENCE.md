@@ -1,9 +1,9 @@
 # Stable Build Reference - Production Test User Verified
 
-**Build Tag**: `v1.0.0-stable-20260120-prodtest`  
-**Commit**: `28c41c3`  
-**Full SHA**: `28c41c3e1eecfce9befb0e95ea44242e1b1760fd`  
-**Date**: 2026-01-20 21:30  
+**Build Tag**: `v1.0.0-stable-20260128-prodtest`  
+**Commit**: `29c2527`  
+**Full SHA**: `29c2527d95f48d26d1d812a01f3c47fd2b58900b`  
+**Date**: 2026-01-28 20:57  
 **Status**: ✅ **MOST STABLE - TESTED WITH PROD TEST USERS & REAL REPORTS**
 
 ---
@@ -12,17 +12,17 @@
 
 ### Git Tag
 ```bash
-v1.0.0-stable-20260120-prodtest
+v1.0.0-stable-20260128-prodtest
 ```
 
 ### Commit Hash
 ```
-28c41c3
+29c2527
 ```
 
 ### Full SHA
 ```
-28c41c3e1eecfce9befb0e95ea44242e1b1760fd
+29c2527d95f48d26d1d812a01f3c47fd2b58900b
 ```
 
 ### Branch
@@ -137,11 +137,11 @@ main
 
 ## Key Commits in This Build
 
-1. `28c41c3` - Fix: Payment verification for prodtest_ sessions in generate-report
-2. `3ef185b` - Fix: Subscription endpoints and OpenAI timeout for prodtest_ sessions
-3. `4688755` - Fix: TypeScript error - Cannot assign to read-only RefObject.current
-4. `192e808` - Fix: Critical production issues - fail-fast, placeholder text, timer persistence
-5. `bb4b56a` - Fix: Timeout, bundle reports, and timer resetting issues
+1. `29c2527` - Stable build: Stripe-keyed idempotency + basic fallback for paid flows
+2. `28c41c3` - Fix: Payment verification for prodtest_ sessions in generate-report
+3. `3ef185b` - Fix: Subscription endpoints and OpenAI timeout for prodtest_ sessions
+4. `4688755` - Fix: TypeScript error - Cannot assign to read-only RefObject.current
+5. `192e808` - Fix: Critical production issues - fail-fast, placeholder text, timer persistence
 
 ---
 
@@ -151,9 +151,9 @@ main
 ```bash
 cd astrosetu
 git fetch origin
-git checkout v1.0.0-stable-20260120-prodtest
+git checkout v1.0.0-stable-20260128-prodtest
 # OR
-git checkout 28c41c3
+git checkout 29c2527
 npm install
 npm run build
 ```
@@ -162,12 +162,12 @@ npm run build
 1. Go to Vercel Dashboard
 2. Navigate to your project
 3. Go to "Deployments" tab
-4. Find deployment with commit `28c41c3`
+4. Find deployment with commit `29c2527`
 5. Click "..." menu → "Promote to Production"
 
 ### Option 3: Create New Branch from Tag
 ```bash
-git checkout -b stable-fallback-prodtest v1.0.0-stable-20260120-prodtest
+git checkout -b stable-fallback-prodtest v1.0.0-stable-20260128-prodtest
 git push origin stable-fallback-prodtest
 ```
 
@@ -175,7 +175,7 @@ git push origin stable-fallback-prodtest
 ```bash
 git revert HEAD~N  # Where N is number of commits after 28c41c3
 # OR
-git reset --hard 28c41c3  # WARNING: Destructive, use with caution
+git reset --hard 29c2527  # WARNING: Destructive, use with caution
 ```
 
 ---
@@ -272,17 +272,17 @@ To verify you're on the stable build:
 
 ```bash
 git describe --tags --exact-match HEAD
-# Should output: v1.0.0-stable-20260120-prodtest
+# Should output: v1.0.0-stable-20260128-prodtest
 
 # OR
 
 git log --oneline -1
-# Should show: 28c41c3 Fix: Payment verification for prodtest_ sessions in generate-report
+# Should show: 29c2527 Add durable Stripe idempotency and basic fallback
 
 # OR
 
 git rev-parse HEAD
-# Should show: 28c41c3e1eecfce9befb0e95ea44242e1b1760fd
+# Should show: 29c2527d95f48d26d1d812a01f3c47fd2b58900b
 ```
 
 ---
@@ -316,14 +316,14 @@ If you need to rollback or have questions about this build:
 
 ## Previous Stable Build
 
-**Previous**: `v1.0.0-stable-20260119` (commit `1c37281`)
-- Tested with mock reports
-- This build (`v1.0.0-stable-20260120-prodtest`) supersedes it with real report testing
+**Previous**: `v1.0.0-stable-20260120-prodtest` (commit `28c41c3`)
+- Tested with real report generation
+- This build (`v1.0.0-stable-20260128-prodtest`) supersedes it with Stripe-keyed idempotency + basic fallback
 
 ---
 
 **Build Status**: ✅ **MOST STABLE - PRODUCTION READY**  
-**Last Verified**: 2026-01-20 21:30  
+**Last Verified**: 2026-01-28 20:57  
 **Tested By**: Production test users with REAL report generation  
 **Test Environment**: Production (mindveda.net)  
 **Test Users**: Whitelisted production test users
