@@ -602,8 +602,10 @@ function PreviewContent() {
         const reportId = response.data.reportId;
         
         // Poll every 3 seconds for report completion
-        const pollInterval = 3000; // 3 seconds
-        const maxPollAttempts = Math.floor(clientTimeout / pollInterval); // Don't poll longer than timeout
+        const pollIntervals = [2000, 3000, 5000, 8000];
+        const getCurrentPollInterval = () =>
+          pollIntervals[Math.min(pollAttempts, pollIntervals.length - 1)];
+        const maxPollAttempts = Math.floor(clientTimeout / 2000); // Don't poll longer than timeout
         let pollAttempts = 0;
         let pollingAborted = false; // CRITICAL FIX: Track if polling should stop
         
@@ -677,7 +679,7 @@ function PreviewContent() {
             
             if (!statusResponse.ok) {
               // If status check fails, wait and retry
-              await new Promise(resolve => setTimeout(resolve, pollInterval));
+              await new Promise(resolve => setTimeout(resolve, getCurrentPollInterval()));
               // CRITICAL FIX: Check stop conditions before recursive call
               if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
                 pollingAborted = true;
@@ -782,7 +784,7 @@ function PreviewContent() {
                 // Still processing - wait and poll again
                 // CRITICAL FIX (ChatGPT Feedback): Always keep polling on "processing" status
                 // Only stop if abort signal, unmount, or attempt key changed
-                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                  await new Promise(resolve => setTimeout(resolve, getCurrentPollInterval()));
                 // Check stop conditions before recursive call
                 if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
                   pollingAborted = true;
@@ -817,7 +819,7 @@ function PreviewContent() {
             console.warn(`[CLIENT] Polling error (attempt ${pollAttempts}):`, pollError);
             // Wait and retry unless we've exceeded max attempts
             if (pollAttempts < maxPollAttempts) {
-              await new Promise(resolve => setTimeout(resolve, pollInterval));
+              await new Promise(resolve => setTimeout(resolve, getCurrentPollInterval()));
               // CRITICAL FIX: Check stop conditions before recursive call
               if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
                 pollingAborted = true;

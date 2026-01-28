@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { isAPIConfigured } from "@/lib/astrologyAPI";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getAllKeyAlerts, getKeyExpirationMonitor } from "@/lib/keyExpirationMonitor";
 
@@ -32,10 +31,6 @@ export async function GET(req: Request) {
   try {
     // Check system components
     const checks = {
-      prokerala: {
-        configured: isAPIConfigured(),
-        status: isAPIConfigured() ? "ok" : "not_configured",
-      },
       supabase: {
         configured: isSupabaseConfigured(),
         status: isSupabaseConfigured() ? "ok" : "not_configured",
@@ -56,7 +51,7 @@ export async function GET(req: Request) {
     const hasKeyIssues = keySummary.expired > 0 || keySummary.expiringSoon > 0;
 
     // Determine overall status
-    const criticalServicesOk = checks.prokerala.configured && checks.supabase.configured;
+    const criticalServicesOk = checks.supabase.configured;
     let overallStatus = criticalServicesOk ? "healthy" : "degraded";
     
     // Override to warning/critical if keys are expiring

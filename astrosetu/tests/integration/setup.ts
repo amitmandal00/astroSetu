@@ -43,11 +43,6 @@ vi.mock('openai', () => ({
   OpenAI: vi.fn(),
 }));
 
-vi.mock('@/lib/prokeralaEnhanced', () => ({
-  getKundli: vi.fn(),
-  getMatch: vi.fn(),
-}));
-
 // Mock Stripe
 vi.mock('stripe', () => ({
   default: vi.fn(() => ({

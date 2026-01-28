@@ -1,0 +1,27 @@
+# robots.txt for AstroSetu / MindVeda.net
+# https://www.mindveda.net/robots.txt
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /analytics
+Disallow: /*.json$
+Disallow: /sw.js
+
+# Allow important public pages
+Allow: /ai-astrology
+Allow: /ai-astrology/input
+Allow: /ai-astrology/faq
+Allow: /privacy
+Allow: /terms
+Allow: /contact
+Allow: /cookies
+
+# Sitemap location
+Sitemap: https://www.mindveda.net/sitemap.xml
+
+# Crawl-delay (optional - be nice to servers)
+Crawl-delay: 1
+

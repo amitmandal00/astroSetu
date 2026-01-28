@@ -6,16 +6,12 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { getNakshatraDetails } from "@/lib/prokeralaEnhanced";
-import type { BirthDetails } from "@/types/astrology";
 import type { KundliResult } from "@/types/astrology";
 
 type NakshatraDetailsProps = {
   kundliData: KundliResult;
-  birthDetails: BirthDetails;
 };
 
 type NakshatraInfo = {
@@ -166,68 +162,13 @@ const NAKSHATRA_INFO: Record<string, { deity: string; symbol: string; characteri
   },
 };
 
-export function NakshatraDetails({ kundliData, birthDetails }: NakshatraDetailsProps) {
-  const [nakshatraInfo, setNakshatraInfo] = useState<NakshatraInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchNakshatra() {
-      if (!birthDetails.latitude || !birthDetails.longitude || !kundliData.nakshatra) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const enhanced = await getNakshatraDetails(birthDetails);
-        if (enhanced && enhanced.name) {
-          setNakshatraInfo(enhanced);
-        } else {
-          // Fallback to basic info
-          const basicInfo = NAKSHATRA_INFO[kundliData.nakshatra];
-          if (basicInfo) {
-            setNakshatraInfo({
-              name: kundliData.nakshatra,
-              ...basicInfo,
-            });
-          }
-        }
-      } catch (error) {
-        console.log("[NakshatraDetails] Could not fetch enhanced nakshatra:", error);
-        // Use fallback
-        const basicInfo = NAKSHATRA_INFO[kundliData.nakshatra];
-        if (basicInfo) {
-          setNakshatraInfo({
-            name: kundliData.nakshatra,
-            ...basicInfo,
-          });
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchNakshatra();
-  }, [birthDetails, kundliData.nakshatra]);
+export function NakshatraDetails({ kundliData }: NakshatraDetailsProps) {
 
   if (!kundliData.nakshatra) {
     return null;
   }
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader eyebrow="Nakshatra" title="Birth Nakshatra Details" icon="⭐" />
-        <CardContent>
-          <div className="text-center py-8 text-slate-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-saffron-600 mx-auto mb-4"></div>
-            <div className="text-sm">Loading nakshatra details...</div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const info = nakshatraInfo || {
+  const info: NakshatraInfo = {
     name: kundliData.nakshatra,
     ...(NAKSHATRA_INFO[kundliData.nakshatra] || {
       deity: "Unknown",

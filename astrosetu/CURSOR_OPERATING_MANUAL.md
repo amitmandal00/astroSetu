@@ -20,6 +20,17 @@
 
 ---
 
+### Cursor Mode Control (Ask → Plan → Debug → Agent)
+**Contract**: Cursor must follow the enforced order **Ask → Plan → Debug → Agent (once, approved)**.
+- Default to Ask; Agent is forbidden without explicit approval.
+- Plan required before Agent for multi-file, async, report generation, pricing, Stripe, Supabase, or API flows.
+- Debug required on failures/regressions; no refactors during Debug.
+- Agent is single-run, narrow scope, single objective, no creative refactors or pricing changes.
+- If uncertain or high risk → STOP and ASK.
+**Source of truth**: `.cursor/rules.md`.
+
+---
+
 ## Technical Non-Negotiable Product Contracts
 
 ### 1. Loader visible ⇒ timer must tick

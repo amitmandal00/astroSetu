@@ -83,6 +83,7 @@ export const getDisclaimerText = (): string => {
 **Disclaimer:** ${STATIC_DISCLAIMERS.educational} • ${STATIC_DISCLAIMERS.automated} • ${STATIC_DISCLAIMERS.noSupport}
 This report is generated using AI and traditional astrological calculations. 
 It provides guidance based on planetary positions but should not replace professional advice.
+Astrological calculations follow standard sidereal frameworks (e.g., Lahiri).
 `;
 };
 

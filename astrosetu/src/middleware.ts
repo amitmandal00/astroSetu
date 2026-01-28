@@ -81,7 +81,7 @@ export function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://api.prokerala.com https://api.razorpay.com https://*.supabase.co",
+    "connect-src 'self' https://api.razorpay.com https://*.supabase.co",
     "frame-src 'self' https://checkout.razorpay.com",
     "object-src 'none'",
     "base-uri 'self'",

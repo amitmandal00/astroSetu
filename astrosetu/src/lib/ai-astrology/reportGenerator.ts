@@ -1044,6 +1044,17 @@ export const BASE_WORD_COUNT_TARGETS: Record<ReportType, number> = {
   "decision-support": 900,
 };
 
+const WORD_COUNT_TARGET_OVERRIDES: Partial<Record<ReportType, number>> = {
+  "year-analysis": 1.25,
+  "full-life": 1.25,
+};
+
+function getEffectiveWordTarget(reportType: ReportType): number {
+  const base = BASE_WORD_COUNT_TARGETS[reportType] || 800;
+  const multiplier = WORD_COUNT_TARGET_OVERRIDES[reportType] || 1;
+  return Math.ceil(base * multiplier);
+}
+
 const BUFFERED_REPORT_TYPES = new Set<ReportType>([
   "career-money",
   "major-life-phase",
@@ -1159,7 +1170,7 @@ function buildPaddingSection(reportType: ReportType, index: number): ReportSecti
 function padSectionsToWordCount(sections: ReportSection[], reportType: ReportType): PaddingInfo {
   const sectionsBefore = sections.length;
   const wordsBefore = sections.reduce((sum, section) => sum + countWordsInSection(section), 0);
-  const minWords = BASE_WORD_COUNT_TARGETS[reportType] || 800;
+  const minWords = getEffectiveWordTarget(reportType);
   const targetWords = Math.ceil(minWords * WORD_COUNT_BUFFER_FACTOR);
   const info: PaddingInfo = {
     targetWords,

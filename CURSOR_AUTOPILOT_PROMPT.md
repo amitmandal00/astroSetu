@@ -12,7 +12,15 @@
 6. **MVP System Rules**: Frontend never generates reports, Worker is only execution path, Payment captured only after success, Failures are terminal, No automatic retries
 7. **Model policy**: Default to **Agent 2 (GPT-5.1 Codex Mini)** for autopilot/code work; always ask before switching to another model or agent.
 
-Work in **Autopilot (safe, non-blocking)** mode:
+## Mode Control (Ask → Plan → Debug → Agent)
+- Default to **Ask** for questions/clarifications/reviews/decisions.
+- **Plan** required before Agent for multi-file, async, report generation, pricing, Stripe, Supabase, or API flows.
+- **Debug** required before Agent on failures/regressions.
+- **Agent** only with explicit approval, narrow scope, single objective, **single-run only**.
+- No creative refactors or pricing changes unless explicitly requested.
+- If uncertain → STOP and ASK.
+
+Work in Autopilot **only after explicit Agent approval**; otherwise stay in Ask/Plan/Debug.
 - Keep moving end-to-end; do not wait idle for popups/approvals.
 - **🚨 COST-AWARE**: ALWAYS use scoped requests (< 500K tokens), use @filename mentions, break large tasks into smaller requests
 - **Work in batches of one file at a time** (minimizes "Confirm edit" prompts AND reduces token usage).

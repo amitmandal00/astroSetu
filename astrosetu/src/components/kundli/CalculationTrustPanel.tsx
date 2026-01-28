@@ -9,7 +9,6 @@ type Props = {
   latitude?: number;
   longitude?: number;
   timezone: string;
-  isAPIConfigured?: boolean | null;
 };
 
 /**
@@ -23,7 +22,6 @@ export function CalculationTrustPanel({
   latitude,
   longitude,
   timezone,
-  isAPIConfigured,
 }: Props) {
   const isLahiri = ayanamsa === 1;
 
@@ -39,8 +37,8 @@ export function CalculationTrustPanel({
           <Badge tone={isLahiri ? "green" : "amber"}>
             Ayanamsa: {isLahiri ? "Lahiri (matches AstroSage)" : `Custom (${ayanamsa})`}
           </Badge>
-          <Badge tone={isAPIConfigured ? "green" : "amber"}>
-            Ephemeris: {isAPIConfigured ? "Live Prokerala API" : "Local fallback engine"}
+          <Badge tone="green">
+            Ephemeris: Local engine
           </Badge>
           <Badge tone="indigo">Rahu / Ketu: Mean node model</Badge>
           <Badge tone="indigo">Timezone: {timezone}</Badge>
@@ -64,7 +62,7 @@ export function CalculationTrustPanel({
           <p className="font-semibold mb-1 text-emerald-800">Aligned with industry practice</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Same Lahiri ayanamsa configuration used by popular apps like AstroSage.</li>
-            <li>Ephemeris data comes from a professional API provider (Prokerala) when configured.</li>
+            <li>Ephemeris data is generated locally for consistent, low-latency results.</li>
             <li>Timezone and coordinates are applied so ascendant and planetary degrees stay consistent.</li>
           </ul>
         </div>

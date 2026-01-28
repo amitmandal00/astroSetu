@@ -129,6 +129,8 @@ describe('MVP Compliance - Generate Report Route', () => {
     time: '12:00:00',
     place: 'Mumbai, Maharashtra, India',
     gender: 'Male',
+    latitude: 19.0760,
+    longitude: 72.8777,
     reportType: 'career-money' as const,
     paymentToken: 'test_token',
     sessionId: 'test_session',

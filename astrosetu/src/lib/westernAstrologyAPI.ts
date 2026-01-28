@@ -4,46 +4,16 @@
  */
 
 import type { BirthDetails, WesternNatalChart, SynastryChart, TransitChart, WesternAspect } from "@/types/astrology";
-import { isAPIConfigured } from "./astrologyAPI";
-import { prokeralaRequest } from "./astrologyAPI";
 
 /**
  * Get Western Natal Chart
  * Uses tropical zodiac (Western astrology system)
  */
 export async function getWesternNatalChart(input: BirthDetails): Promise<WesternNatalChart> {
-  if (!isAPIConfigured() || !input.latitude || !input.longitude) {
-    console.warn("[AstroSetu] Western Natal Chart: API not configured - using mock data");
-    return generateMockWesternNatalChart(input);
+  if (!input.latitude || !input.longitude) {
+    console.warn("[AstroSetu] Western Natal Chart: Missing coordinates - using mock data");
   }
-
-  try {
-    const [year, month, day] = input.dob.split("-").map(Number);
-    const [hours, minutes, seconds = 0] = input.tob.split(":").map(Number);
-
-    // Prokerala Western astrology endpoint (if available)
-    // Note: Prokerala primarily does Vedic astrology, but may have Western endpoints
-    // Using /kundli endpoint with house system = "placidus" and ayanamsa = 0 (tropical)
-    const response = await prokeralaRequest("/kundli", {
-      ayanamsa: 0, // 0 = Tropical (Western), 1 = Lahiri (Vedic)
-      coordinates: `${input.latitude},${input.longitude}`,
-      datetime: {
-        year,
-        month,
-        day,
-        hour: hours,
-        minute: minutes,
-        second: seconds || 0,
-      },
-      timezone: input.timezone || "Asia/Kolkata",
-      house_system: "placidus", // Western house system
-    }, 2, "GET" as const);
-
-    return transformWesternNatalChart(response, input);
-  } catch (error: any) {
-    console.warn("[AstroSetu] API error, using mock:", error?.message || error);
-    return generateMockWesternNatalChart(input);
-  }
+  return generateMockWesternNatalChart(input);
 }
 
 /**
@@ -136,46 +106,6 @@ export async function getTransitChart(
     summary: generateTransitSummary(transits, majorTransits),
     majorTransits,
     dailyForecast: generateDailyForecast(natalChart, transits),
-  };
-}
-
-/**
- * Transform Prokerala response to Western Natal Chart
- */
-function transformWesternNatalChart(response: any, input: BirthDetails): WesternNatalChart {
-  const data = response.data || response;
-  const planets: WesternNatalChart["planets"] = [];
-  
-  // Extract planets from response (assuming similar structure to Vedic)
-  const planetNames = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Rahu", "Ketu", "Uranus", "Neptune", "Pluto"];
-  
-  // Extract house cusps
-  const houses = Array.from({ length: 12 }, (_, i) => ({
-    number: i + 1,
-    sign: getSignFromLongitude((i * 30) % 360), // Simplified
-    cuspDegree: (i * 30) % 360,
-  }));
-
-  // Calculate aspects
-  const aspects: WesternNatalChart["aspects"] = [];
-
-  // Calculate dominant elements and modalities
-  const dominantElements = calculateDominantElements(planets);
-  const dominantModalities = calculateDominantModalities(planets);
-
-  return {
-    birthDetails: input,
-    ascendant: houses[0]?.sign || "Aries",
-    midheaven: houses[9]?.sign || "Capricorn",
-    planets,
-    houses,
-    aspects,
-    summary: generateWesternNatalSummary(planets, houses),
-    dominantElements,
-    dominantModalities,
-    sunSign: planets.find(p => p.name === "Sun")?.sign || "Aries",
-    moonSign: planets.find(p => p.name === "Moon")?.sign || "Aries",
-    risingSign: houses[0]?.sign || "Aries",
   };
 }
 

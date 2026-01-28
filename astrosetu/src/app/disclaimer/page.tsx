@@ -34,6 +34,9 @@ export default function DisclaimerPage() {
                 <p className="text-amber-900 mb-4">
                   All reports are generated automatically using AI-based interpretive systems for educational and informational purposes only.
                 </p>
+                <p className="text-amber-900 mb-4">
+                  Astrological calculations follow standard sidereal frameworks (e.g., Lahiri).
+                </p>
                 <p className="text-amber-900 font-semibold mb-4">
                   AstroSetu AI does not provide medical, legal, financial, psychological, or professional advice. No live consultations, personalised support, or human astrologers are offered.
                 </p>

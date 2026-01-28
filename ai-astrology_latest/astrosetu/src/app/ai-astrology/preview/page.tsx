@@ -1,0 +1,5956 @@
+/**
+ * AI Astrology Preview Page
+ * Displays free Life Summary or preview of paid reports
+ */
+
+"use client";
+
+import { useState, useEffect, useCallback, useRef, Suspense, useMemo } from "react"; // useState already imported
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { apiPost, apiGet } from "@/lib/http";
+import type { AIAstrologyInput, ReportType } from "@/lib/ai-astrology/types";
+import type { ReportContent } from "@/lib/ai-astrology/types";
+import { REPORT_PRICES, BUNDLE_PRICES } from "@/lib/ai-astrology/payments";
+import { formatPrice, formatPriceWithoutGst } from "@/lib/ai-astrology/priceFormatter";
+import { downloadPDF } from "@/lib/ai-astrology/pdfGenerator";
+import { ALL_REPORT_TYPES, isReportTypeEnabled } from "@/lib/ai-astrology/reportAvailability";
+import { PostPurchaseUpsell } from "@/components/ai-astrology/PostPurchaseUpsell";
+import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
+import { useReportGenerationController } from "@/hooks/useReportGenerationController";
+import { getFreeLifeSummaryGateAfterSection } from "@/lib/ai-astrology/freeReportGating";
+import { logError } from "@/lib/telemetry";
+import { stripMockContent } from "@/lib/ai-astrology/mockContentGuard";
+
+// P1: Bundle Feature Flag (MVP Compliance)
+const BUNDLES_ENABLED = process.env.NEXT_PUBLIC_BUNDLES_ENABLED === "true";
+
+function PreviewContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // CRITICAL FIX (ChatGPT 23:57): Build ID for deployment verification (fetch from /build.json)
+  const [buildId, setBuildId] = useState<string>("...");
+  
+  // CRITICAL FIX (ChatGPT 23:57): Fetch build ID from /build.json on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/build.json", {
+          cache: "no-store",
+          headers: { "cache-control": "no-cache" },
+        });
+
+        if (!res.ok) {
+          throw new Error(`build.json ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setBuildId(data?.buildId || "unknown");
+          console.info("[BUILD]", data?.buildId || "unknown");
+        }
+      } catch (error) {
+        console.warn("[Preview] Failed to fetch build.json:", error);
+        if (!cancelled) {
+          setBuildId("unknown");
+          console.info("[BUILD]", "unknown");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // CRITICAL FIX (ChatGPT 22:45): Log token in URL on mount to verify navigation preserved it
+  useEffect(() => {
+    // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+    console.info("[TOKEN_IN_URL]", inputToken || "none");
+  }, [searchParams]);
+  
+  const [input, setInput] = useState<AIAstrologyInput | null>(null);
+  // CRITICAL FIX (Step 1): Track token loading state to prevent redirect while fetching
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [reportType, setReportType] = useState<ReportType>(() => {
+    const fromUrl = searchParams.get("reportType") as ReportType | null;
+    const sessionId = searchParams.get("session_id");
+    const valid: ReportType[] = [
+      "life-summary",
+      "marriage-timing",
+      "career-money",
+      "full-life",
+      "year-analysis",
+      "major-life-phase",
+      "decision-support",
+    ];
+
+    const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const fromSessionId = sessionId
+      ? valid.find((type) => new RegExp(`(?:^|[_-])${escapeRegExp(type)}(?:[_-]|$)`).test(sessionId)) ?? null
+      : null;
+
+    return fromUrl && valid.includes(fromUrl) ? fromUrl : fromSessionId ?? "life-summary";
+  });
+  const [reportContent, setReportContent] = useState<ReportContent | null>(null);
+  const [qualityWarning, setQualityWarning] = useState<"shorter_than_expected" | "below_optimal_length" | "content_repair_applied" | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [paymentVerified, setPaymentVerified] = useState(false);
+  const [paymentCheckComplete, setPaymentCheckComplete] = useState(false);
+  const [generationTimedOut, setGenerationTimedOut] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [showUpsell, setShowUpsell] = useState(false);
+  const [upsellShown, setUpsellShown] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0); // Track scroll progress (0-100)
+  const [contentLoadTime, setContentLoadTime] = useState<number | null>(null); // When report content was loaded
+  const [refundAcknowledged, setRefundAcknowledged] = useState(false);
+  const [emailCopySuccess, setEmailCopySuccess] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<"verifying" | "generating" | null>(null); // Track loading stage for better UX
+  const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null); // Track when loading started for elapsed time
+
+  useEffect(() => {
+    if (!reportContent) return;
+    setError(null);
+    setGenerationTimedOut(false);
+  }, [reportContent]);
+  
+  // Test session detection (for mock content stripping)
+  const sessionIdFromUrl = searchParams.get("session_id") || undefined;
+  const isTestSession = !!sessionIdFromUrl && sessionIdFromUrl.startsWith("test_session_");
+
+  useEffect(() => {
+    if (!sessionIdFromUrl || !sessionIdFromUrl.startsWith("prodtest_")) return;
+    try {
+      sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+      sessionStorage.setItem("aiAstrologyPaymentSessionId", sessionIdFromUrl);
+    } catch {
+      // ignore storage errors
+    }
+    setPaymentVerified(true);
+    setPaymentCheckComplete(true);
+  }, [sessionIdFromUrl]);
+  
+  // CRITICAL FIX: Use generation controller hook for report generation
+  // This provides single-flight guard, cancellation, and state machine
+  // CRITICAL FIX (ChatGPT): Controller now owns ALL report types (free, year-analysis, paid)
+  // All report types use generationController.start() for single-flight guarantee, cancellation, and state machine
+  // Note: Bundles still use generateBundleReports() (handles multiple reports sequentially) - TODO: Migrate in future
+  const generationController = useReportGenerationController();
+  
+  // CRITICAL FIX A (ChatGPT): Track if we're using controller to gate sync effect
+  // Controller sync must NOT interfere with legacy flows (bundle, year-analysis via session_id resume)
+  const usingControllerRef = useRef(false);
+  
+  // CRITICAL FIX C (ChatGPT): Use ref for isProcessingUI in async code to prevent stale closure
+  // Async polling functions capture isProcessingUI in closure, causing premature stops
+  // MUST be defined early so it can be used in generateReport function (defined later)
+  const isProcessingUIRef = useRef(false);
+  const [progressSteps, setProgressSteps] = useState<{
+    birthChart: boolean;
+    planetaryAnalysis: boolean;
+    generatingInsights: boolean;
+  }>({
+    birthChart: false,
+    planetaryAnalysis: false,
+    generatingInsights: false,
+  }); // Track progress steps for better UX
+  
+  // Dynamic progress step for life-summary pre-loading screen
+  const [lifeSummaryProgressStep, setLifeSummaryProgressStep] = useState<number>(0);
+  
+  // Bundle state
+  const [bundleType, setBundleType] = useState<string | null>(null);
+  const [bundleReports, setBundleReports] = useState<ReportType[]>([]);
+  const [bundleContents, setBundleContents] = useState<Map<ReportType, ReportContent>>(new Map());
+  const [bundleGenerating, setBundleGenerating] = useState(false);
+  const [bundleProgress, setBundleProgress] = useState<{ current: number; total: number; currentReport: string } | null>(null);
+  
+  // Request lock to prevent concurrent report generation
+  const isGeneratingRef = useRef(false);
+  const generationAttemptRef = useRef(0);
+  const hasRedirectedRef = useRef(false); // Track redirect to prevent loops
+  const loadingStartTimeRef = useRef<number | null>(null); // Track actual start time in ref to avoid state update race conditions
+  const attemptIdRef = useRef(0); // Track attempt ID for single-flight guarantee (ChatGPT recommendation)
+  const abortControllerRef = useRef<AbortController | null>(null); // Track abort controller for cancellation (ChatGPT recommendation)
+  
+  // CRITICAL FIX (ChatGPT Feedback): attemptKey for polling - prevents premature stops
+  // Format: `${session_id}:${reportType}` - unique per generation attempt
+  const activeAttemptKeyRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true); // Track component mount state
+  const isSubmittingRef = useRef(false); // CRITICAL FIX (ChatGPT): Single-flight guard for purchase/subscribe handlers
+  const redirectInitiatedRef = useRef(false); // CRITICAL FIX (ChatGPT): Track if redirect has been initiated to prevent watchdog false-fires
+  const redirectWatchdogTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track watchdog timeout for cleanup
+  const inputTokenLoadedRef = useRef(false); // CRITICAL FIX (2026-01-18): Track if input was successfully loaded from token to prevent race condition
+  const tokenFetchRetryRef = useRef(0);
+  const tokenRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (tokenRetryTimeoutRef.current) {
+        clearTimeout(tokenRetryTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // CRITICAL FIX (ChatGPT): isProcessingUI - single source of truth for when generation UI should be visible
+  // NON-NEGOTIABLE: session_id is an identifier, NOT a state. UI must be driven by explicit attempt status.
+  // Processing state must come from controller status OR loading/isGeneratingRef (for legacy flows), NEVER from URL params.
+  // ChatGPT Feedback: "If generation never actually starts (or starts then aborts/fails silently),
+  // the UI still stays in 'Generating...' mode forever because session_id exists in URL."
+  const isProcessingUI: boolean = useMemo(() => {
+    // CRITICAL: Controller status is the ONLY source of truth when using controller
+    // ChatGPT Feedback: "or loading/isGeneratingRef (for legacy flows)" is a red flag - still allows two paths
+    // NON-NEGOTIABLE: Preview page must have exactly ONE owner. Controller is the owner.
+    const controllerProcessing = usingControllerRef.current && 
+      ["verifying", "generating", "polling"].includes(generationController.status);
+    
+    // CRITICAL FIX (ChatGPT): Remove legacy fallback - controller is the only owner
+    // Legacy flows (bundle) still use bundleGenerating, but this should be migrated to controller
+    // TODO: Migrate bundle generation to controller to remove this legacy path
+    // ChatGPT Feedback: "bundleProcessing temporary legacy path is your last landmine"
+    // SOLUTION: Gate bundleProcessing so it can ONLY affect bundle report types
+    const isBundleReport = bundleType && bundleReports.length > 0;
+    const bundleProcessing = isBundleReport && bundleGenerating;
+    
+    // CRITICAL ASSERTION (ChatGPT Feedback): bundleProcessing cannot influence non-bundle report types
+    // If reportType is not a bundle, bundleProcessing must be false
+    // ChatGPT Feedback: "Make the invariant log actionable in production"
+    // SOLUTION: Use Sentry if available, otherwise prefix with stable tag for grep-able logs
+    if (bundleProcessing && reportType && !isBundleReport) {
+      const sessionId = searchParams.get("session_id");
+      const violationData = { 
+        reportType, 
+        bundleType, 
+        bundleReportsLength: bundleReports.length,
+        sessionId: sessionId || undefined
+      };
+      
+      // ChatGPT Feedback: Ensure it's not lost in console noise
+      // Use stable tag prefix for grep-able logs (even if Sentry fails)
+      console.error('[INVARIANT_VIOLATION] bundleProcessing is true but reportType is not a bundle:', violationData);
+      
+      // Send to Sentry/analytics if available (ChatGPT Feedback: captureMessage with warning level)
+      try {
+        logError("bundle_processing_invariant_violation", new Error("bundleProcessing true for non-bundle report"), violationData);
+      } catch (e) {
+        // If Sentry/telemetry fails, at least we have the tagged console.error above
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[telemetry] Failed to log invariant violation to Sentry:", e);
+        }
+      }
+      
+      // In production, this should never happen - if it does, we've found a bug
+      // For now, we'll still return bundleProcessing to avoid breaking the UI, but log the error
+    }
+    
+    // CRITICAL INVARIANT: If processing === false, UI must never show "Generating...", even if URL contains session_id.
+    // session_id in URL is just an identifier, not a state signal.
+    // NOTE: Removed `legacyProcessing = loading || isGeneratingRef.current` - controller owns all flows now
+    // CRITICAL FIX (2026-01-18 - ChatGPT): Include all loading state flags to prevent blank screen
+    // isProcessingUI must be TRUE whenever any loading condition is true (loadingStage, loading, etc.)
+    // This ensures unified loader is always shown during transitional states
+    return !!(controllerProcessing || bundleProcessing || loadingStage !== null || loading);
+  }, [generationController.status, bundleGenerating, bundleType, bundleReports.length, reportType, searchParams, loadingStage, loading]);
+
+  // CRITICAL: Keep ref in sync with computed UI visibility.
+  // This ref is used inside async polling loops + controller sync to avoid stale closures.
+  useEffect(() => {
+    isProcessingUIRef.current = isProcessingUI;
+  }, [isProcessingUI]);
+
+  // CRITICAL FIX (ChatGPT Feedback): Timer initialization should use attemptKey, not isProcessingUI
+  // isProcessingUI can flip during state initialization, causing timer to reset
+  // Timer should be initialized when generation starts (when attemptKey is set), not based on UI computation
+  // For first-load with auto_generate, timer will be set when generateReport is called (line 285-288)
+  // This check is kept as fallback for legacy flows, but primary initialization is in generateReport
+  // CRITICAL: Use activeAttemptKeyRef OR loading state to initialize timer, NOT isProcessingUI computation
+  if (typeof window !== "undefined" && (activeAttemptKeyRef.current || loading) && loadingStartTimeRef.current === null) {
+    // Only initialize timer if there's an active attemptKey (generation has started) OR loading state
+    // This prevents timer from being set/reset during state initialization before generation starts
+    loadingStartTimeRef.current = Date.now();
+    // Don't set state here (causes re-render) - state will be set in generateReport
+  }
+
+  // CRITICAL FIX: Use hook to compute elapsed time (single source of truth)
+  // Never store elapsedTime as state - always compute it from startTime
+  // CRITICAL FIX: Pass ref as fallback to fix race condition where state update hasn't flushed yet
+  // CRITICAL FIX (ChatGPT Feedback): Pass storage key for sessionStorage persistence
+  const timerStorageKey = sessionIdFromUrl || reportContent?.reportId || null;
+  const elapsedTime = useElapsedSeconds(loadingStartTime, isProcessingUI, loadingStartTimeRef, timerStorageKey);
+  const reportTypeRef = useRef<ReportType | null>(null); // Track report type in ref to avoid interval recreation
+  const bundleGeneratingRef = useRef(false); // Track bundle state in ref to avoid interval recreation
+
+  // Keep state in sync with the ref (state updates are async; the ref is the immediate source of truth).
+  useEffect(() => {
+    if (!isProcessingUI) return;
+    if (loadingStartTime === null && loadingStartTimeRef.current !== null) {
+      setLoadingStartTime(loadingStartTimeRef.current);
+    }
+  }, [isProcessingUI, loadingStartTime]);
+
+  // Valid report types for validation
+  const validReportTypes: ReportType[] = ALL_REPORT_TYPES;
+  const isReportDisabled = reportType ? !isReportTypeEnabled(reportType) : false;
+  
+  // CRITICAL FIX (ChatGPT Directive): attemptKey for atomic generation
+  // Format: `${session_id}:${reportType}:${auto_generate}` - unique per generation attempt
+  const attemptKey = useMemo(() => {
+    const sessionId = searchParams.get("session_id") || "";
+    // CRITICAL FIX (2026-01-18): Get input_token (handle duplicates by using last one)
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+    const reportTypeFromUrl = searchParams.get("reportType") || "";
+    const reportTypeValue = reportTypeFromUrl || reportType || "";
+    const autoGenerate = searchParams.get("auto_generate") === "true";
+    // Include input_token in attemptKey for input_token-based flows
+    return `${sessionId}:${inputToken || ""}:${reportTypeValue}:${autoGenerate}`;
+  }, [searchParams, reportType]);
+  
+  // Helper for safe sessionStorage access (returns null in SSR)
+  const safeGetSessionStorage = useCallback((key: string): string | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      return sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const getReportName = (type: ReportType | null) => {
+    switch (type) {
+      case "marriage-timing":
+        return "Marriage Timing Report";
+      case "career-money":
+        return "Career & Money Report";
+      case "full-life":
+        return "Full Life Report";
+      case "year-analysis":
+        return "Year Analysis Report";
+      case "major-life-phase":
+        return "3-5 Year Strategic Life Phase Report";
+      case "decision-support":
+        return "Decision Support Report";
+      default:
+        return "Life Summary";
+    }
+  };
+
+  useEffect(() => {
+    if (!reportType || !isReportDisabled) return;
+    if (error) return;
+    setError(`${getReportName(reportType)} is temporarily unavailable. Please choose another report.`);
+    setLoading(false);
+    setLoadingStage(null);
+    usingControllerRef.current = false;
+  }, [reportType, isReportDisabled, error]);
+
+  useEffect(() => {
+    const autoGenerate = searchParams.get("auto_generate") === "true";
+    if (!autoGenerate) return;
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+    const urlSessionId = searchParams.get("session_id");
+    if (!inputToken && !urlSessionId) return;
+    if (!loading || reportContent || error) return;
+
+    setGenerationTimedOut(false);
+
+    const timeoutId = setTimeout(() => {
+      setGenerationTimedOut(true);
+      setLoading(false);
+      setError("Report generation is taking too long. Please retry.");
+    }, 90000);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchParams]);
+
+  // Get value propositions for the report type (shown during loading)
+  const getReportBenefits = (type: ReportType | null): string[] => {
+    switch (type) {
+      case "marriage-timing":
+        return [
+          "✓ Optimal marriage timing windows (month-by-month)",
+          "✓ Planetary influence analysis for relationships",
+          "✓ Personalized, non-generic insights"
+        ];
+      case "career-money":
+        return [
+          "✓ Career direction and growth opportunities",
+          "✓ Financial stability and money growth insights",
+          "✓ Personalized, non-generic guidance"
+        ];
+      case "full-life":
+        return [
+          "✓ Comprehensive life overview (career, relationships, health)",
+          "✓ Long-term strategic insights (next 5-10 years)",
+          "✓ Personalized, non-generic analysis"
+        ];
+      case "year-analysis":
+        return [
+          "✓ 12-month strategic overview",
+          "✓ Career, money & relationship focus",
+          "✓ Personalized, non-generic insights"
+        ];
+      case "major-life-phase":
+        return [
+          "✓ 3-5 year strategic life phase overview",
+          "✓ Major transitions and opportunities",
+          "✓ Personalized, non-generic insights"
+        ];
+      case "decision-support":
+        return [
+          "✓ Personalized decision guidance",
+          "✓ Timing and opportunity analysis",
+          "✓ Non-generic, contextual insights"
+        ];
+      default:
+        return [
+          "✓ Personalized life summary",
+          "✓ Key insights from your birth chart",
+          "✓ Free comprehensive overview"
+        ];
+    }
+  };
+
+  // Guard to prevent multiple auto-generation triggers
+  const hasAutoGeneratedRef = useRef(false);
+  const autoRecoveryTriggeredRef = useRef(false);
+  
+  // Track if we've started generation for this attemptKey (prevents double start)
+  const hasStartedForAttemptKeyRef = useRef<string | null>(null);
+  
+  const generateReport = useCallback(async (inputData: AIAstrologyInput, type: ReportType, currentSessionId?: string, currentPaymentIntentId?: string) => {
+    // CRITICAL FIX 1 (ChatGPT): Reset usingControllerRef when switching to legacy flows
+    // This prevents controller-sync from interfering with legacy flows (Year-Analysis, paid, session resume)
+    // Landing page loads, runs controller-based flow (life-summary), sets usingControllerRef.current = true
+    // Then user tries Year-Analysis without full page reload (same preview/page.tsx instance; refs persist)
+    // Year-Analysis uses legacy generateReport() flow, but controller-sync useEffect is still active
+    // Controller is idle (no controller attempt for year-analysis), so sync effect clears loadingStartTime → timer snaps back to 0
+    usingControllerRef.current = false; // Legacy flow owns state - controller sync must not interfere
+    
+    // CRITICAL FIX: Abort previous attempt (ChatGPT recommendation)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // CRITICAL FIX: New attempt with unique ID
+    attemptIdRef.current += 1;
+    const currentAttemptId = attemptIdRef.current;
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    // CRITICAL FIX (ChatGPT Feedback): Set attemptKey for this generation attempt
+    // This prevents polling from stopping prematurely when UI state flips
+    // Get sessionId from available sources (order: param, URL, will read from storage below)
+    const sessionIdForKey = currentSessionId || searchParams.get("session_id") || `attempt-${currentAttemptId}`;
+    const attemptKey = `${sessionIdForKey}:${type}`;
+    activeAttemptKeyRef.current = attemptKey;
+
+    // Prevent concurrent requests - if already generating, ignore this call
+    if (isGeneratingRef.current) {
+      console.warn("[Report Generation] Request ignored - already generating a report");
+      return;
+    }
+    
+    // Set lock immediately
+    isGeneratingRef.current = true;
+    generationAttemptRef.current += 1;
+    const currentAttempt = generationAttemptRef.current;
+    
+    setLoading(true);
+    setLoadingStage("generating"); // Ensure stage is set when generating
+    // CRITICAL FIX: Use ref to track start time and only set state if ref is not set
+    // This prevents race conditions where functional update form reads stale state
+    if (loadingStartTimeRef.current === null) {
+      const startTime = Date.now();
+      loadingStartTimeRef.current = startTime;
+      setLoadingStartTime(startTime);
+      // CRITICAL FIX: Calculate elapsed time immediately (synchronously) to prevent 0s flash
+      // This ensures the timer shows the correct value from the first render
+      // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+      // Timer will automatically show 0 when startTime is set
+    } else {
+      // CRITICAL FIX: If ref is already set (e.g., transitioning from verification to generation),
+      // calculate elapsed time immediately to prevent showing 0s
+      const currentElapsed = Math.floor((Date.now() - loadingStartTimeRef.current) / 1000);
+      // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+      // Timer will automatically update when startTime changes
+    }
+    // CRITICAL FIX: Don't reset elapsedTime if loadingStartTimeRef is already set
+    // This prevents resetting the timer when transitioning from payment verification to report generation
+    // The timer useEffect will continue from the same start time
+    setError(null);
+    // CRITICAL: Reset progress steps when starting generation (for ALL report types including free)
+    setProgressSteps({
+      birthChart: false,
+      planetaryAnalysis: false,
+      generatingInsights: false,
+    });
+
+    try {
+      // Get payment token and payment intent ID for paid reports (handle sessionStorage errors)
+      let paymentToken: string | undefined;
+      let sessionId: string | undefined;
+      let paymentIntentId: string | undefined;
+      
+      try {
+        paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
+        sessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId") || undefined;
+        paymentIntentId = sessionStorage.getItem("aiAstrologyPaymentIntentId") || undefined;
+      } catch (storageError) {
+        console.error("Failed to read payment data from sessionStorage:", storageError);
+        // Try to get session_id from URL params as fallback
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get("session_id") || undefined;
+      }
+      
+      // CRITICAL FIX: Use provided parameters as fallback if sessionStorage is empty
+      if (currentSessionId) {
+        sessionId = currentSessionId;
+      } else if (!sessionId) {
+        // Also check URL params for session_id (fallback if sessionStorage lost)
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get("session_id") || undefined;
+      }
+      
+      if (currentPaymentIntentId) {
+        paymentIntentId = currentPaymentIntentId;
+      }
+      
+      const isPaid = type !== "life-summary";
+      
+      // Note: Payment verification is handled server-side
+      // In demo mode (development), payment token is not required
+      // The API will return appropriate error if payment is required in production
+      // CRITICAL FIX: API can now accept session_id as fallback if token is missing
+
+      // Build API URL with session_id if available and token is missing
+      // CRITICAL: Always include session_id if available, even if we have token (as backup)
+      let apiUrl = "/api/ai-astrology/generate-report";
+      if (sessionId && isPaid) {
+        apiUrl = `/api/ai-astrology/generate-report?session_id=${encodeURIComponent(sessionId)}`;
+      }
+
+      // DEBUG: Log payment verification details (help diagnose issues)
+      if (isPaid) {
+        console.log("[Report Generation] Payment verification:", {
+          hasToken: !!paymentToken,
+          hasSessionId: !!sessionId,
+          sessionId: sessionId?.substring(0, 20) + "...",
+          reportType: type,
+          apiUrl: apiUrl.substring(0, 80) + "..."
+        });
+      }
+
+      // Calculate timeout based on report type (match server-side timeout + buffer)
+      // Server timeout: 65s (free), 60s (regular paid), or 90s (complex)
+      // Client should be slightly longer to avoid premature timeout
+      const isComplexReport = type === "full-life" || type === "major-life-phase";
+      const isFreeReport = type === "life-summary";
+      // Free reports: 70s (server: 65s) - external astrology data fetch can add latency
+      // Regular paid: 65s (server: 60s)
+      // Complex: 100s (server: 90s + 10s buffer) - Increased to accommodate longer generation time
+      const clientTimeout = isComplexReport ? 100000 : (isFreeReport ? 70000 : 65000);
+      
+      const response = await apiPost<{
+        ok: boolean;
+        data?: {
+          status?: "completed" | "processing" | "pending" | "failed";
+          reportId?: string;
+          reportType: ReportType;
+          input: AIAstrologyInput;
+          content: ReportContent;
+          generatedAt: string;
+          redirectUrl?: string;
+          fullRedirectUrl?: string;
+          message?: string;
+        };
+        error?: string;
+      }>(apiUrl, {
+        input: inputData,
+        reportType: type,
+        paymentToken: isPaid ? paymentToken : undefined, // Only include for paid reports
+        paymentIntentId: isPaid ? paymentIntentId : undefined, // CRITICAL: For manual capture after report generation
+        sessionId: isPaid ? (sessionId || undefined) : undefined, // For token regeneration fallback
+      }, { timeoutMs: clientTimeout });
+
+      // CRITICAL FIX: Check attempt ID before processing response
+      if (currentAttemptId !== attemptIdRef.current) {
+        console.log("[CLIENT] Stale attempt ignored:", currentAttemptId);
+        return;
+      }
+
+      // Handle "processing" status - start polling instead of retrying
+      if (response.ok && response.data?.status === "processing" && response.data?.reportId) {
+        console.log(`[CLIENT] Report is processing, starting polling for reportId: ${response.data.reportId}`);
+        const reportId = response.data.reportId;
+        
+        // Poll every 3 seconds for report completion
+        const pollInterval = 3000; // 3 seconds
+        const maxPollAttempts = Math.floor(clientTimeout / pollInterval); // Don't poll longer than timeout
+        let pollAttempts = 0;
+        let pollingAborted = false; // CRITICAL FIX: Track if polling should stop
+        
+        const pollForReport = async (): Promise<void> => {
+          // CRITICAL FIX (ChatGPT Feedback): Polling stop conditions - ONLY these 3 conditions:
+          // 1. Attempt ID changed (new generation started)
+          if (currentAttemptId !== attemptIdRef.current) {
+            console.log("[CLIENT] Polling stopped - stale attempt:", currentAttemptId);
+            pollingAborted = true;
+            return;
+          }
+
+          // 2. Abort signal triggered (user navigated away or component unmounted)
+          if (abortController.signal.aborted) {
+            console.log("[CLIENT] Polling stopped - aborted");
+            pollingAborted = true;
+            return;
+          }
+
+          // 3. Component unmounted
+          if (!isMountedRef.current) {
+            console.log("[CLIENT] Polling stopped - component unmounted");
+            pollingAborted = true;
+            return;
+          }
+
+          // 4. Attempt key changed (different session/report type started)
+          if (activeAttemptKeyRef.current !== attemptKey) {
+            console.log("[CLIENT] Polling stopped - attempt key changed:", activeAttemptKeyRef.current, "vs", attemptKey);
+            pollingAborted = true;
+            return;
+          }
+          
+          // CRITICAL FIX (ChatGPT Feedback): Hard watchdog - if elapsed > max for reportType, exit to retry state
+          // Calculate elapsed time to check against max timeout
+          const elapsedMs = loadingStartTimeRef.current ? Date.now() - loadingStartTimeRef.current : 0;
+          const maxTimeoutMs = clientTimeout;
+          if (pollAttempts >= maxPollAttempts || elapsedMs > maxTimeoutMs) {
+            console.warn(`[CLIENT] Polling timeout after ${pollAttempts} attempts or ${Math.floor(elapsedMs / 1000)}s elapsed`);
+            pollingAborted = true;
+            setLoading(false);
+            setLoadingStage(null);
+            // CRITICAL FIX (ChatGPT Feedback): Clear timer on timeout - show retry button
+            loadingStartTimeRef.current = null;
+            setLoadingStartTime(null);
+            isGeneratingRef.current = false;
+            hasAutoGeneratedRef.current = false;
+            activeAttemptKeyRef.current = null; // Clear attempt key on timeout
+            setError("Report generation is taking longer than expected. Please try again.");
+            return; // Exit polling gracefully, don't throw (allows UI to show retry button)
+          }
+          
+          pollAttempts++;
+          console.log(`[CLIENT] Polling attempt ${pollAttempts}/${maxPollAttempts} for reportId: ${reportId}`);
+          
+          try {
+            const statusResponse = await fetch(`/api/ai-astrology/generate-report?reportId=${encodeURIComponent(reportId)}`, {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              signal: abortController.signal, // CRITICAL FIX: Pass abort signal
+            });
+            
+            // CRITICAL FIX: Check stop conditions after fetch
+            if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+              console.log("[CLIENT] Polling stopped after fetch - condition changed");
+              pollingAborted = true;
+              return;
+            }
+            
+            if (!statusResponse.ok) {
+              // If status check fails, wait and retry
+              await new Promise(resolve => setTimeout(resolve, pollInterval));
+              // CRITICAL FIX: Check stop conditions before recursive call
+              if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+                pollingAborted = true;
+                return;
+              }
+              if (!pollingAborted) {
+                return pollForReport();
+              }
+              return;
+            }
+            
+            const statusData = await statusResponse.json();
+            
+            // CRITICAL FIX: Check stop conditions after JSON parse
+            if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+              console.log("[CLIENT] Polling stopped after JSON parse - condition changed");
+              pollingAborted = true;
+              return;
+            }
+            
+            if (statusData.ok && statusData.data) {
+              if (statusData.data.status === "completed") {
+                // Report is ready - handle completion
+                console.log(`[CLIENT] Polling success - report completed for reportId: ${reportId}`);
+                
+                // CRITICAL FIX: Stop polling immediately
+                pollingAborted = true;
+                
+                // CRITICAL FIX: Update state FIRST before navigation
+                // This ensures timer stops and UI updates even if navigation fails
+                setLoading(false);
+                setLoadingStage(null);
+                // CRITICAL FIX (ChatGPT Feedback): Only clear timer when status is completed or failed
+                // Timer must remain monotonic during active attempt
+                loadingStartTimeRef.current = null;
+                setLoadingStartTime(null);
+                isGeneratingRef.current = false;
+                hasAutoGeneratedRef.current = false;
+                activeAttemptKeyRef.current = null; // Clear attempt key on completion
+                
+                // Store content if available
+                if (statusData.data.content && statusData.data.reportId) {
+                  try {
+                    // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+                    // For real users, trust server-side cleaning to avoid removing valid sections
+                    const sessionIdFromUrl = searchParams.get("session_id");
+                    const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
+                    const cleanedContent = stripMockContent(statusData.data.content, isTestSession);
+                    
+                    const reportData = JSON.stringify({
+                      content: cleanedContent, // Store cleaned content, not raw
+                      reportType: statusData.data.reportType,
+                      input: statusData.data.input,
+                      generatedAt: statusData.data.generatedAt,
+                      reportId: statusData.data.reportId,
+                    });
+                    sessionStorage.setItem(`aiAstrologyReport_${statusData.data.reportId}`, reportData);
+                    localStorage.setItem(`aiAstrologyReport_${statusData.data.reportId}`, reportData);
+                    console.log("[CLIENT] Stored cleaned report content from polling");
+                    
+                    // CRITICAL FIX: Update React state with cleaned report content
+                    // This ensures the report is displayed even if navigation doesn't happen
+                    setReportContent(cleanedContent);
+                    // Capture quality warning if present
+                    const statusDataWithWarning = statusData.data as typeof statusData.data & { qualityWarning?: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied" };
+                    if (statusDataWithWarning.qualityWarning) {
+                      setQualityWarning(statusDataWithWarning.qualityWarning);
+                    } else {
+                      setQualityWarning(null);
+                    }
+                    if (statusData.data.input) {
+                      setInput(statusData.data.input);
+                    }
+                    if (statusData.data.reportType) {
+                      setReportType(statusData.data.reportType);
+                    }
+                    setContentLoadTime(Date.now());
+                  } catch (storageError) {
+                    console.warn("[CLIENT] Failed to store report from polling:", storageError);
+                  }
+                }
+                
+                // Navigate to report (if redirectUrl provided)
+                if (statusData.data.redirectUrl) {
+                  console.log("[CLIENT] Navigating to report from polling:", statusData.data.redirectUrl);
+                  // Use setTimeout to ensure state updates are applied before navigation
+                  setTimeout(() => {
+                    router.replace(statusData.data.redirectUrl!);
+                  }, 100);
+                  return;
+                } else {
+                  // No redirectUrl - report should be displayed on current page
+                  console.log("[CLIENT] Report completed but no redirectUrl - displaying on current page");
+                  return;
+                }
+              } else if (statusData.data.status === "processing") {
+                // Still processing - wait and poll again
+                // CRITICAL FIX (ChatGPT Feedback): Always keep polling on "processing" status
+                // Only stop if abort signal, unmount, or attempt key changed
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                // Check stop conditions before recursive call
+                if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+                  pollingAborted = true;
+                  return;
+                }
+                if (!pollingAborted) {
+                  return pollForReport();
+                }
+                return;
+              } else if (statusData.data.status === "failed") {
+                // Report failed - stop polling
+                pollingAborted = true;
+                setLoading(false);
+                setLoadingStage(null);
+                // CRITICAL FIX (ChatGPT Feedback): Clear timer only when status is failed (completed above)
+                loadingStartTimeRef.current = null;
+                setLoadingStartTime(null);
+                isGeneratingRef.current = false;
+                hasAutoGeneratedRef.current = false;
+                activeAttemptKeyRef.current = null; // Clear attempt key on failure
+                throw new Error(statusData.data.error || "Report generation failed");
+              }
+            }
+          } catch (pollError: any) {
+            // CRITICAL FIX: Check stop conditions in error handler
+            if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+              console.log("[CLIENT] Polling stopped in error handler - condition changed");
+              pollingAborted = true;
+              return;
+            }
+            
+            console.warn(`[CLIENT] Polling error (attempt ${pollAttempts}):`, pollError);
+            // Wait and retry unless we've exceeded max attempts
+            if (pollAttempts < maxPollAttempts) {
+              await new Promise(resolve => setTimeout(resolve, pollInterval));
+              // CRITICAL FIX: Check stop conditions before recursive call
+              if (currentAttemptId !== attemptIdRef.current || abortController.signal.aborted || !isMountedRef.current || activeAttemptKeyRef.current !== attemptKey) {
+                pollingAborted = true;
+                return;
+              }
+              if (!pollingAborted) {
+                return pollForReport();
+              }
+              return;
+            }
+            
+            // Max attempts reached - stop polling (hard watchdog timeout)
+            pollingAborted = true;
+            setLoading(false);
+            setLoadingStage(null);
+            // CRITICAL FIX (ChatGPT Feedback): Clear timer on timeout (max attempts reached)
+            loadingStartTimeRef.current = null;
+            setLoadingStartTime(null);
+            isGeneratingRef.current = false;
+            hasAutoGeneratedRef.current = false;
+            activeAttemptKeyRef.current = null; // Clear attempt key on timeout
+            throw pollError;
+          }
+        };
+        
+        // Start polling (don't await - let it run in background)
+        pollForReport().catch((pollError: any) => {
+          console.error("[CLIENT] Polling failed:", pollError);
+          setError(pollError.message || "Failed to check report status. Please try again.");
+          setLoading(false);
+          setLoadingStage(null);
+          isGeneratingRef.current = false;
+          hasAutoGeneratedRef.current = false;
+        });
+        
+        // Return early - polling will handle completion
+        return;
+      }
+
+      if (!response.ok) {
+        // CLIENT-SIDE ERROR LOGGING
+        const clientErrorContext = {
+          timestamp: new Date().toISOString(),
+          reportType: type,
+          error: response.error || "Unknown error",
+          hasToken: !!paymentToken,
+          hasSessionId: !!sessionId,
+          apiUrl: apiUrl.substring(0, 80) + "...",
+        };
+        console.error("[CLIENT REPORT GENERATION ERROR]", JSON.stringify(clientErrorContext, null, 2));
+        
+        // CRITICAL: Stop immediately on 403/429/500 errors - don't retry
+        // This prevents retry loops that drain API credits
+        const errorMessage = response.error || "Failed to generate report. Please try again.";
+        const isFatalError = errorMessage.includes("403") || 
+                            errorMessage.includes("429") || 
+                            errorMessage.includes("500") ||
+                            errorMessage.includes("Access restricted") ||
+                            errorMessage.includes("rate limit") ||
+                            errorMessage.includes("SERVICE_DISABLED");
+        
+        if (isFatalError) {
+          // Set error and stop - don't retry
+          setError(errorMessage);
+          setLoading(false);
+          setLoadingStage(null);
+          isGeneratingRef.current = false; // Clear lock
+          hasAutoGeneratedRef.current = false; // Reset to allow manual retry
+          return; // Exit immediately - no retry
+        }
+        
+        // For other errors, throw to show error message
+        throw new Error(errorMessage);
+      }
+
+      // CRITICAL: If report is completed and we have redirectUrl, navigate immediately
+      // This prevents the UI from staying stuck on "Generating..." screen
+      // Stop any polling/retry loops - we have the content, just navigate
+      if (response.data?.status === "completed" && response.data?.redirectUrl) {
+        // Store the content in sessionStorage before navigating (so it's available on the new page)
+        if (response.data?.content && response.data?.reportId) {
+          try {
+            const reportId = response.data.reportId;
+            const reportData = JSON.stringify({
+              content: response.data.content,
+              reportType: response.data.reportType,
+              input: response.data.input,
+              generatedAt: response.data.generatedAt,
+              reportId, // Store canonical reportId for consistency
+            });
+            
+            // Save to both sessionStorage (current session) and localStorage (persists across refreshes)
+            sessionStorage.setItem(`aiAstrologyReport_${reportId}`, reportData);
+            localStorage.setItem(`aiAstrologyReport_${reportId}`, reportData);
+            console.log("[CLIENT] Stored report content in sessionStorage and localStorage for reportId:", reportId);
+          } catch (storageError) {
+            console.warn("[CLIENT] Failed to store report in storage:", storageError);
+          }
+        }
+        setLoading(false);
+        setLoadingStage(null);
+        loadingStartTimeRef.current = null;
+        setLoadingStartTime(null);
+        isGeneratingRef.current = false;
+        hasAutoGeneratedRef.current = false;
+        activeAttemptKeyRef.current = null;
+        
+        // Navigate immediately using redirectUrl from API response
+        // This is the single source of truth - don't construct URLs manually
+        console.log("[CLIENT] Report generation completed, navigating to:", response.data.redirectUrl);
+        router.replace(response.data.redirectUrl);
+        
+        // Note: Smart upsell timing is handled by useEffect that monitors scroll and time
+        
+        // CRITICAL: Return immediately - stop any further processing/polling
+        return;
+      }
+
+      // If no redirect (older API versions), use existing behavior
+      // CRITICAL: Ensure we have content before setting it
+      if (response.data?.content) {
+        // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+        // For real users, trust server-side cleaning to avoid removing valid sections
+        const sessionIdFromUrl = searchParams.get("session_id");
+        const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
+        const cleanedContent = stripMockContent(response.data.content, isTestSession);
+        setReportContent(cleanedContent);
+        // Capture quality warning if present
+        const dataWithWarning = response.data as typeof response.data & { qualityWarning?: "shorter_than_expected" | "below_optimal_length" | "content_repair_applied" };
+        if (dataWithWarning.qualityWarning) {
+          setQualityWarning(dataWithWarning.qualityWarning);
+        } else {
+          setQualityWarning(null);
+        }
+        isGeneratingRef.current = false;
+        hasAutoGeneratedRef.current = false;
+        activeAttemptKeyRef.current = null;
+        loadingStartTimeRef.current = null;
+        setLoadingStartTime(null);
+        setLoading(false);
+        setLoadingStage(null);
+        setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
+      } else {
+        // No content received - this shouldn't happen if status is "completed"
+        console.warn("[CLIENT] API returned ok but no content:", response.data);
+        setError("Report generation completed but no content was returned. Please try again.");
+        setLoading(false);
+        setLoadingStage(null);
+      }
+    } catch (e: any) {
+      // CLIENT-SIDE EXCEPTION LOGGING
+      const exceptionContext = {
+        timestamp: new Date().toISOString(),
+        reportType: type,
+        errorType: e.constructor?.name || "Unknown",
+        errorMessage: e.message || "Unknown error",
+        errorStack: e.stack || "No stack trace",
+        stopRetry: (e as any).stopRetry || false,
+        elapsedTime: Date.now() - (loadingStartTime || Date.now()),
+      };
+      console.error("[CLIENT REPORT GENERATION EXCEPTION]", JSON.stringify(exceptionContext, null, 2));
+      
+      // CRITICAL: Check for timeout errors specifically
+      const isTimeoutError = e.message?.includes("timed out") || 
+                            e.message?.includes("AbortError") ||
+                            e.name === "AbortError" ||
+                            e.message?.includes("taking longer than expected");
+      
+      // CRITICAL: Stop immediately on fatal errors (403/429/500) - don't retry
+      // This prevents retry loops that drain API credits
+      if ((e as any).stopRetry || e.message?.includes("403") || e.message?.includes("429") || e.message?.includes("500") || e.message?.includes("Access restricted") || e.message?.includes("SERVICE_DISABLED")) {
+        setError(e.message || "Request failed. Please check your permissions or try again later.");
+        setLoading(false);
+        setLoadingStage(null);
+        loadingStartTimeRef.current = null;
+        setLoadingStartTime(null); // Clear loading start time
+        // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+        // Setting loadingStartTime to null will reset the timer
+        isGeneratingRef.current = false; // Clear lock immediately
+        hasAutoGeneratedRef.current = false; // Reset to allow manual retry
+        return; // Exit - no retry
+      }
+      
+      // Handle timeout errors with better messaging
+      if (isTimeoutError) {
+        // Calculate timeout from report type (same logic as in try block)
+        const isComplexReportType = type === "full-life" || type === "major-life-phase";
+        const calculatedTimeout = isComplexReportType ? 80000 : 65000;
+        const timeoutMessage = `Report generation timed out after ${calculatedTimeout / 1000} seconds. This can happen with complex reports. Your payment has been automatically cancelled. Please try again or contact support if the issue persists.`;
+        setError(timeoutMessage);
+      } 
+      // Improved error message for rate limits
+      else if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit") || e.message.includes("high demand"))) {
+        setError("Our AI service is experiencing high demand right now. Please wait 2-3 minutes and try again. Your request will be processed as soon as capacity is available. If you've paid, your payment has been automatically cancelled and you will NOT be charged.");
+      } else {
+        setError(e.message || "Failed to generate report. Please try again.");
+      }
+      
+      // CRITICAL: Always clear loading state on error
+      setLoading(false);
+      setLoadingStage(null);
+      loadingStartTimeRef.current = null;
+        setLoadingStartTime(null);
+      // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+      isGeneratingRef.current = false;
+      // CRITICAL: Reset auto-generated ref on error to allow retry
+      hasAutoGeneratedRef.current = false;
+    } finally {
+      // Only clear lock if this is still the current attempt (prevent race conditions)
+      if (currentAttempt === generationAttemptRef.current) {
+        isGeneratingRef.current = false;
+      }
+      // Loading state is already cleared in catch block, but ensure it's cleared here too as fallback
+      setLoading(false);
+      setLoadingStage(null);
+    }
+    // Note: loadingStartTime is intentionally not in dependencies - we read it in error handler but set it inside the function
+    // Including it would cause unnecessary re-renders. The state value is always current when accessed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upsellShown, router]);
+
+  const generateBundleReports = useCallback(async (inputData: AIAstrologyInput, reports: ReportType[], currentSessionId?: string, currentPaymentIntentId?: string) => {
+    // P1: Bundle Feature Flag Check (MVP Compliance - PATH A)
+    if (!BUNDLES_ENABLED) {
+      console.warn("[Bundle Generation] Bundles are disabled - redirecting to single reports");
+      setError("Bundles are temporarily paused for stability. Please purchase single reports instead.");
+      setLoading(false);
+      setBundleGenerating(false);
+      bundleGeneratingRef.current = false;
+      isGeneratingRef.current = false;
+      return;
+    }
+
+    // Prevent concurrent requests
+    if (isGeneratingRef.current || bundleGenerating) {
+      console.warn("[Bundle Generation] Request ignored - already generating reports");
+      return;
+    }
+    
+    // Set lock
+    isGeneratingRef.current = true;
+    generationAttemptRef.current += 1;
+    const currentAttempt = generationAttemptRef.current;
+    
+    bundleGeneratingRef.current = true; // Update ref immediately
+    setBundleGenerating(true);
+    setLoading(true);
+    setLoadingStage("generating"); // Set stage for bundle generation
+    // CRITICAL FIX: Only set loadingStartTime if it's not already set (prevents timer reset)
+    // When generateBundleReports is called from setTimeout flow, loadingStartTime may already be set
+    setLoadingStartTime(prev => {
+      if (prev !== null && prev !== undefined) {
+        // Ensure ref is set even when returning existing value
+        loadingStartTimeRef.current = prev;
+        // CRITICAL FIX: Calculate elapsed time immediately if ref is already set
+        // This prevents showing 0s when transitioning to bundle generation
+        const currentElapsed = Math.floor((Date.now() - prev) / 1000);
+        // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+      // Timer will automatically update when startTime changes
+        return prev; // Keep existing start time
+      }
+      const newStartTime = Date.now();
+      loadingStartTimeRef.current = newStartTime; // Set ref when setting new start time
+      // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+      // Timer will automatically show 0 when startTime is set
+      return newStartTime; // Set new start time only if not already set
+    });
+    // CRITICAL FIX: Don't reset elapsedTime here - let the useEffect calculate it
+    // This prevents the timer from showing 0s when bundle generation starts
+    setError(null);
+    setBundleProgress({ current: 0, total: reports.length, currentReport: getReportName(reports[0]) });
+
+    try {
+      // Get payment token, session ID, and payment intent ID for paid reports (handle sessionStorage errors)
+      let paymentToken: string | undefined;
+      let sessionId: string | undefined;
+      let paymentIntentId: string | undefined;
+      
+      try {
+        paymentToken = sessionStorage.getItem("aiAstrologyPaymentToken") || undefined;
+        sessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId") || undefined;
+        paymentIntentId = sessionStorage.getItem("aiAstrologyPaymentIntentId") || undefined;
+      } catch (storageError) {
+        console.error("Failed to read payment data from sessionStorage:", storageError);
+        // Try to get session_id from URL params as fallback
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get("session_id") || undefined;
+      }
+      
+      // CRITICAL FIX: Use provided parameters as fallback if sessionStorage is empty
+      if (currentSessionId) {
+        sessionId = currentSessionId;
+      } else if (!sessionId) {
+        // Also check URL params for session_id (fallback if sessionStorage lost)
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get("session_id") || undefined;
+      }
+      
+      if (currentPaymentIntentId) {
+        paymentIntentId = currentPaymentIntentId;
+      }
+
+      // CRITICAL FIX (ChatGPT Feedback): Generate reports with concurrency limit (2 concurrent max)
+      // This reduces rate limiting, Vercel function contention, and validation failures
+      // Concurrency=2 balances stability and speed (vs full parallel which causes overload)
+      const CONCURRENCY_LIMIT = 2;
+      
+      const completedReports = new Set<ReportType>();
+      const updateProgress = (reportType: ReportType, success: boolean) => {
+        completedReports.add(reportType);
+        setBundleProgress({ 
+          current: completedReports.size, 
+          total: reports.length, 
+          currentReport: getReportName(reportType) 
+        });
+        console.log(`[BUNDLE PROGRESS] ${completedReports.size}/${reports.length} reports completed (${success ? 'success' : 'failed'}): ${getReportName(reportType)}`);
+      };
+
+      // Individual timeout for each report (match server timeout + buffer)
+      // Server timeout: 60s (regular), 65s (free), or 120s (complex/career-money), use the longer one for bundles to be safe
+      // Client timeout should be slightly longer to account for network overhead
+      const INDIVIDUAL_REPORT_TIMEOUT = 130000; // 130s - slightly longer than server max (120s for complex reports)
+
+      // Helper function to generate a single report
+      const generateSingleReport = async (reportType: ReportType) => {
+        const reportName = getReportName(reportType);
+        console.log(`[BUNDLE] Starting generation: ${reportName}`);
+        
+        // Create abort controller for timeout
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+          abortController.abort();
+        }, INDIVIDUAL_REPORT_TIMEOUT);
+
+        try {
+          // Build API URL with session_id as query param (for test session detection)
+          let apiUrl = "/api/ai-astrology/generate-report";
+          if (sessionId) {
+            apiUrl += `?session_id=${encodeURIComponent(sessionId)}`;
+          }
+
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              input: inputData,
+              reportType: reportType,
+              paymentToken: paymentToken,
+              sessionId: sessionId, // For token regeneration fallback
+              paymentIntentId: paymentIntentId, // For manual capture after report generation
+            }),
+            signal: abortController.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+            console.error(`[BUNDLE] Failed to generate ${reportName}:`, errorData.error || response.statusText);
+            const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+            
+            updateProgress(reportType, false);
+            
+            // Make timeout errors more user-friendly
+            const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out") || errorMessage.includes("aborted")
+              ? "This report is taking longer than expected. It may time out - try generating it individually for better results."
+              : errorMessage;
+            
+            return {
+              reportType,
+              requestedReportType: reportType,
+              content: null,
+              success: false,
+              error: friendlyError
+            };
+          }
+
+          const data = await response.json();
+          const content = data?.data?.content || data?.content || null;
+          const resolvedReportType = (data?.data?.reportType || data?.reportType || reportType) as ReportType;
+          
+          if (data.ok && content) {
+            console.log(`[BUNDLE] Successfully generated: ${reportName}`);
+            updateProgress(reportType, true);
+            return { reportType: resolvedReportType, requestedReportType: reportType, content, success: true };
+          } else {
+            console.error(`[BUNDLE] Failed to generate ${reportName}:`, data.error || "Unknown error");
+            const errorMessage = data.error || "Failed to generate report";
+            updateProgress(reportType, false);
+            
+            // Make timeout errors more user-friendly
+            const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out")
+              ? "This report is taking longer than expected. It may time out - try generating it individually for better results."
+              : errorMessage;
+            
+            return {
+              reportType,
+              requestedReportType: reportType,
+              content: null,
+              success: false,
+              error: friendlyError
+            };
+          }
+        } catch (e: any) {
+          clearTimeout(timeoutId);
+          console.error(`[BUNDLE] Error generating ${reportName}:`, e);
+          
+          const errorMessage = e.name === 'AbortError' 
+            ? "Request timed out. This report is taking longer than expected. Please try generating it individually."
+            : e.message || "Failed to generate report";
+          
+          updateProgress(reportType, false);
+          
+          // Make timeout errors more user-friendly
+          const friendlyError = errorMessage.includes("timeout") || errorMessage.includes("timed out") || errorMessage.includes("aborted")
+            ? "Request timed out. This report is taking longer than expected. Please try generating it individually."
+            : errorMessage;
+          
+          return {
+            reportType,
+            requestedReportType: reportType,
+            content: null,
+            success: false,
+            error: friendlyError
+          };
+        }
+      };
+
+      // CRITICAL FIX: Concurrency-limited queue (max 2 concurrent requests)
+      // This prevents rate limiting, Vercel function contention, and reduces validation failures
+      const reportResults: Array<{ reportType: ReportType; requestedReportType: ReportType; content: ReportContent | null; success: boolean; error?: string }> = [];
+      const executing: Promise<void>[] = [];
+      
+      for (const reportType of reports) {
+        const promise = generateSingleReport(reportType).then(result => {
+          reportResults.push(result);
+          executing.splice(executing.indexOf(promise), 1);
+        });
+        
+        executing.push(promise);
+        
+        // Wait for a slot if we're at the concurrency limit
+        if (executing.length >= CONCURRENCY_LIMIT) {
+          await Promise.race(executing);
+        }
+      }
+      
+      // Wait for all remaining reports to complete
+      await Promise.all(executing);
+      
+      // Separate successful and failed reports
+      const successes = reportResults.filter(r => r.success);
+      const failures = reportResults.filter(r => !r.success);
+      
+      console.log(`[BUNDLE] Completed with concurrency limit (${CONCURRENCY_LIMIT}): ${successes.length} succeeded, ${failures.length} failed`);
+      
+      // If we have at least one successful report, show partial success
+      if (successes.length > 0) {
+        const bundleContentsMap = new Map<ReportType, ReportContent>();
+        successes.forEach(result => {
+          if (result.content) {
+            bundleContentsMap.set(result.requestedReportType, result.content);
+            if (result.reportType !== result.requestedReportType) {
+              bundleContentsMap.set(result.reportType, result.content);
+            }
+          }
+        });
+
+        // Set bundle contents with successful reports
+        setBundleContents(bundleContentsMap);
+        // Set the first successful report as the primary report for display
+        // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+        // CRITICAL FIX: Use the first report in the bundle order, not the first success
+        // This ensures we show reports in the expected order even if some fail
+        const primaryReportType = reports.find(rt => bundleContentsMap.has(rt)) || successes[0].reportType;
+        const bundleContent = bundleContentsMap.get(primaryReportType) || bundleContentsMap.values().next().value || null;
+        const sessionIdFromUrl = searchParams.get("session_id");
+        const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
+        const cleanedBundleContent = bundleContent ? stripMockContent(bundleContent, isTestSession) : null;
+        setReportContent(cleanedBundleContent);
+        setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
+        reportTypeRef.current = primaryReportType; // Update ref immediately
+        setReportType(primaryReportType);
+        setBundleProgress(null);
+        
+        // CRITICAL FIX: Log bundle completion with success/failure details for debugging
+        console.log(`[BUNDLE COMPLETE] ${successes.length}/${reports.length} reports succeeded. Successful: ${successes.map(s => getReportName(s.reportType)).join(", ")}, Failed: ${failures.map(f => getReportName(f.reportType)).join(", ")}`);
+
+        // If there were failures, show a warning but don't block the user
+        if (failures.length > 0) {
+          const failedNames = failures.map(f => getReportName(f.reportType)).join(", ");
+          const successCount = successes.length;
+          const totalCount = reports.length;
+          
+          // Show partial success message
+          const partialSuccessMessage = `Successfully generated ${successCount} of ${totalCount} reports. ${failedNames} ${failures.length === 1 ? 'failed' : 'failed'} to generate. ${failures.some(f => f.error?.includes('timeout')) ? 'The failed reports timed out - you can try generating them individually later.' : 'You can try generating the failed reports individually.'}`;
+          
+          // Set as a non-blocking warning (user can still view successful reports)
+          console.warn("[BUNDLE PARTIAL SUCCESS]", partialSuccessMessage);
+          
+          // Show error but allow user to continue with successful reports
+          setError(partialSuccessMessage);
+          
+          // Auto-clear error after 10 seconds so user can view reports
+          setTimeout(() => {
+            setError(null);
+          }, 10000);
+        }
+      } else {
+        // All reports failed
+        const failedReport = failures[0];
+        const errorDetails = failures.length > 1 
+          ? `All ${failures.length} reports failed to generate. ${failures[0].error || "Please try again."}`
+          : `Failed to generate ${getReportName(failedReport.reportType)}. ${failedReport.error || "Please try again."}`;
+        
+        setError(errorDetails);
+        setBundleProgress(null);
+      }
+    } catch (e: any) {
+      console.error("Bundle generation error:", e);
+      // Improved error message for rate limits
+      if (e.message && (e.message.includes("rate limit") || e.message.includes("Rate limit") || e.message.includes("high demand"))) {
+        setError("Our AI service is experiencing high demand right now. Please wait 2-3 minutes and try again. Your request will be processed as soon as capacity is available. If you've paid, your payment has been automatically cancelled and you will NOT be charged.");
+      } else {
+        setError(e.message || "Failed to generate bundle reports. Please try again.");
+      }
+      setBundleProgress(null);
+    } finally {
+      // Only clear lock if this is still the current attempt
+      if (currentAttempt === generationAttemptRef.current) {
+        isGeneratingRef.current = false;
+      }
+      bundleGeneratingRef.current = false; // Update ref immediately
+      setBundleGenerating(false);
+      setLoading(false);
+      setLoadingStage(null);
+    }
+  }, [bundleGenerating]);
+
+  // CRITICAL FIX (ChatGPT Directive): Atomic generation start function
+  // Single-flight guard + immediate controller start (no setTimeout allowed)
+  const startGenerationAtomically = useCallback(({ 
+    attemptKey: key, 
+    inputData, 
+    reportTypeToUse, 
+    isPaidReport, 
+    urlSessionId,
+    paymentIntentId 
+  }: {
+    attemptKey: string;
+    inputData: AIAstrologyInput;
+    reportTypeToUse: ReportType;
+    isPaidReport: boolean;
+    urlSessionId?: string;
+    paymentIntentId?: string;
+  }) => {
+    // Single-flight guard
+    if (hasStartedForAttemptKeyRef.current === key) {
+      return;
+    }
+    hasStartedForAttemptKeyRef.current = key; // Store string attemptKey
+
+    // Set processing state immediately - controller must transition away from idle
+    usingControllerRef.current = true;
+    
+    // Start controller immediately (no delay)
+    const sessionIdForGeneration = isPaidReport ? (urlSessionId || undefined) : undefined;
+    const paymentIntentIdForGeneration = isPaidReport ? paymentIntentId : undefined;
+    
+    // Real mode for test sessions is controlled by ALLOW_REAL_FOR_TEST_SESSIONS env var
+    // URL parameter still supported as override
+    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+    
+    generationController.start(inputData, reportTypeToUse, {
+      sessionId: sessionIdForGeneration,
+      paymentIntentId: paymentIntentIdForGeneration,
+      useReal: useReal || undefined
+    }).catch((error) => {
+      console.error("[Preview] Error in generationController (atomic):", error);
+      hasStartedForAttemptKeyRef.current = null; // Allow retry
+      setError(error.message || "Failed to start report generation. Please try again.");
+      setLoading(false);
+      // Controller will handle failed state
+    });
+  }, [generationController]);
+
+  // CRITICAL FIX (2026-01-18): Load input_token FIRST, before any redirect checks
+  // This useEffect runs whenever input_token is in URL, regardless of auto_generate
+  // Token loading must happen BEFORE redirect logic to prevent redirect loops
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one (most recent)
+    // URLSearchParams.get() returns first value when duplicates exist, so we need to get all and use last
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+    
+    if (inputTokenParams.length > 1) {
+      console.warn("[Preview] Multiple input_token params detected in URL, using last (most recent):", inputTokenParams);
+    }
+    
+    if (!inputToken) return; // No token in URL, skip
+    
+    // CRITICAL: Only load token if we don't already have input (prevent unnecessary fetches)
+    if (input) return; // Already have input, skip
+    
+    // CRITICAL: Set tokenLoading=true to prevent redirect while fetching
+    setTokenLoading(true);
+    const tokenSuffix = inputToken.slice(-6);
+    console.info("[TOKEN_GET] start", `...${tokenSuffix}`);
+    
+    // CRITICAL FIX (2026-01-18): Reset ref when starting new token fetch
+    inputTokenLoadedRef.current = false;
+    
+    const fetchToken = async () => {
+      try {
+        const tokenResponse = await apiGet<{
+          ok: boolean;
+          data?: {
+            input: AIAstrologyInput;
+            reportType?: string;
+            bundleType?: string;
+            bundleReports?: string[];
+          };
+          error?: string;
+        }>(`/api/ai-astrology/input-session?token=${encodeURIComponent(inputToken)}`);
+        
+        // CRITICAL FIX (2026-01-18): Add detailed logging to debug token fetch issues
+        console.info("[TOKEN_GET] Response:", {
+          ok: tokenResponse.ok,
+          hasData: !!tokenResponse.data,
+          hasInput: !!(tokenResponse.data?.input),
+          error: tokenResponse.error || null,
+          tokenSuffix: `...${tokenSuffix}`,
+        });
+        
+        if (tokenResponse.ok) {
+          console.info("[TOKEN_GET] ok status=200");
+        } else {
+          console.info("[TOKEN_GET] fail status=400", tokenResponse.error || "invalid_token");
+        }
+
+        if (tokenResponse.ok && tokenResponse.data && tokenResponse.data.input) {
+          // Load input from token
+          const inputData = tokenResponse.data.input;
+          
+          // CRITICAL FIX (2026-01-18): Set ref BEFORE React state to prevent race condition
+          // The ref is checked synchronously in the redirect logic, while React state is asynchronous
+          inputTokenLoadedRef.current = true;
+          
+          setInput(inputData);
+          const reportTypeFromUrl = searchParams.get("reportType") as ReportType | null;
+          const tokenReportType = tokenResponse.data.reportType as ReportType | undefined;
+          const shouldPreferUrlReportType = !!reportTypeFromUrl && reportTypeFromUrl !== "life-summary";
+          const effectiveReportType = shouldPreferUrlReportType
+            ? reportTypeFromUrl
+            : tokenReportType || reportTypeFromUrl || reportType;
+          if (effectiveReportType) {
+            setReportType(effectiveReportType);
+          }
+          if (tokenResponse.data.bundleType) {
+            setBundleType(tokenResponse.data.bundleType);
+          }
+          if (tokenResponse.data.bundleReports) {
+            setBundleReports(tokenResponse.data.bundleReports as ReportType[]);
+          }
+
+          const isPaidReportFromToken = !!tokenResponse.data.bundleType || (!!effectiveReportType && effectiveReportType !== "life-summary");
+          const urlSessionId = searchParams.get("session_id");
+          if (urlSessionId && urlSessionId.startsWith("prodtest_")) {
+            try {
+              sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+              sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
+            } catch {
+              // ignore storage errors
+            }
+            setPaymentVerified(true);
+            setPaymentCheckComplete(true);
+          }
+          if (isPaidReportFromToken && !urlSessionId) {
+            setPaymentCheckComplete(true);
+            setPaymentVerified(false);
+          }
+
+          const shouldAutoGeneratePaid =
+            searchParams.get("auto_generate") === "true" &&
+            !!effectiveReportType &&
+            effectiveReportType !== "life-summary" &&
+            !hasAutoGeneratedRef.current;
+          const bundleReportsList = tokenResponse.data.bundleReports as ReportType[] | undefined;
+          if (shouldAutoGeneratePaid) {
+            hasAutoGeneratedRef.current = true;
+            if (tokenResponse.data.bundleType && bundleReportsList && bundleReportsList.length > 0) {
+              generateBundleReports(inputData, bundleReportsList, urlSessionId || undefined);
+              return;
+            }
+            setLoading(true);
+            setLoadingStage("generating");
+            const startTime = Date.now();
+            loadingStartTimeRef.current = startTime;
+            setLoadingStartTime(startTime);
+            usingControllerRef.current = true;
+            generationController.start(inputData, effectiveReportType as ReportType, {
+              sessionId: urlSessionId || undefined,
+            }).catch((error) => {
+              console.error("[Preview] Error in generationController for paid report:", error);
+              hasAutoGeneratedRef.current = false;
+              setLoading(false);
+              setLoadingStage(null);
+              setError(error.message || "Failed to generate report. Please try again.");
+            });
+          }
+          
+          // Cache in sessionStorage for future use (synchronous - happens immediately)
+          try {
+            sessionStorage.setItem("aiAstrologyInput", JSON.stringify(inputData));
+            if (effectiveReportType) {
+              sessionStorage.setItem("aiAstrologyReportType", effectiveReportType);
+            }
+            if (tokenResponse.data.bundleType) {
+              sessionStorage.setItem("aiAstrologyBundle", tokenResponse.data.bundleType);
+            }
+            if (tokenResponse.data.bundleReports) {
+              sessionStorage.setItem("aiAstrologyBundleReports", JSON.stringify(tokenResponse.data.bundleReports));
+            }
+          } catch (storageError) {
+            console.warn("[Preview] Failed to cache input_token data in sessionStorage:", storageError);
+          }
+          
+          console.log("[Preview] Loaded input from input_token:", inputToken);
+          // CRITICAL FIX (2026-01-18): Set tokenLoading=false immediately now that ref is set
+          // The redirect check uses inputTokenLoadedRef.current to know input was loaded, not just input state
+          setTokenLoading(false);
+        } else {
+          // Token invalid/expired
+          console.warn("[Preview] Invalid or expired input_token:", tokenResponse.error);
+          inputTokenLoadedRef.current = false; // Reset ref - token was not loaded
+          setError("Your session has expired. Please start again.");
+          setLoading(false);
+          setTokenLoading(false);
+          hasRedirectedRef.current = true; // Prevent auto-redirect - user can click "Start again" button
+        }
+      } catch (tokenError: any) {
+        const errorMessage = tokenError?.message || "Failed to load your birth details. Please try again.";
+        if (errorMessage.toLowerCase().includes("too many requests")) {
+          if (tokenFetchRetryRef.current < 2) {
+            tokenFetchRetryRef.current += 1;
+            const retryDelayMs = 800 + tokenFetchRetryRef.current * 800;
+            console.warn("[Preview] Rate limited fetching input_token. Retrying...", {
+              attempt: tokenFetchRetryRef.current,
+              retryDelayMs,
+            });
+            if (tokenRetryTimeoutRef.current) {
+              clearTimeout(tokenRetryTimeoutRef.current);
+            }
+            tokenRetryTimeoutRef.current = setTimeout(() => {
+              if (isMountedRef.current) {
+                fetchToken();
+              }
+            }, retryDelayMs);
+            return;
+          }
+        }
+        // CRITICAL FIX (2026-01-18): When apiGet throws (404/410/network error), handle it explicitly
+        // Don't redirect immediately - show error state so user can retry
+        console.error("[Preview] Failed to fetch input_token:", tokenError);
+        inputTokenLoadedRef.current = false; // Reset ref - token fetch failed
+        setError(errorMessage);
+        setLoading(false);
+        setTokenLoading(false);
+        hasRedirectedRef.current = true; // Prevent auto-redirect - user can click "Start again" button
+        // Don't redirect - let error state show "Start again" button
+      }
+    };
+
+    fetchToken();
+  }, [searchParams, input]); // Run when input_token changes or when input is cleared
+
+  // CRITICAL FIX (2026-01-18): Separate redirect check that runs AFTER token loading
+  // This runs regardless of auto_generate, so it works for input_token flows
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (isReportDisabled && reportType) {
+      if (!error) {
+        setError(`${getReportName(reportType)} is temporarily unavailable. Please choose another report.`);
+      }
+      return;
+    }
+    
+    // CRITICAL: If input_token is in URL, ALWAYS wait for token loading to complete
+    // Don't redirect while token is being fetched or while there's a chance it's still loading
+    // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+    if (inputToken) {
+      // CRITICAL: Token is in URL - if tokenLoading is true, wait for it to complete
+      if (tokenLoading) {
+        console.log("[Preview] Token in URL, waiting for token loading to complete...");
+        return; // Wait for token loading
+      }
+      // CRITICAL FIX (2026-01-18): Check ref first (synchronous) before React state (asynchronous)
+      // inputTokenLoadedRef is set synchronously when token is loaded, preventing race conditions
+      if (inputTokenLoadedRef.current) {
+        // Input was successfully loaded from token - don't redirect
+        console.log("[Preview] Input loaded from token (ref check) - not redirecting");
+        return;
+      }
+      // CRITICAL: Token loading completed but no input - token might be invalid
+      // Don't redirect immediately - let error state show "Start again" button
+      // If token fetch failed, error state is already set, so don't redirect
+      if (!input) {
+        console.log("[Preview] Token in URL but loading completed with no input - token may be invalid or expired");
+        // CRITICAL FIX: Don't redirect if error is set (error state will show "Start again" button)
+        if (error) {
+          console.log("[Preview] Error state is set, not redirecting - error UI will show");
+          return;
+        }
+        // If there's no error and ref is not set, check sessionStorage as fallback
+        const savedInput = sessionStorage.getItem("aiAstrologyInput");
+        if (savedInput) {
+          try {
+            const inputData = JSON.parse(savedInput);
+            inputTokenLoadedRef.current = true; // Mark as loaded to prevent future redirects
+            setInput(inputData);
+            console.log("[Preview] Loaded input from sessionStorage (token in URL but setInput race condition)");
+            return; // Don't redirect if we loaded from sessionStorage
+          } catch (e) {
+            console.warn("[Preview] Failed to parse saved input from sessionStorage:", e);
+          }
+        }
+        // If we reach here, token is in URL but no input and no sessionStorage and no error
+        // This shouldn't happen, but don't redirect - let the token fetch error handling deal with it
+        console.warn("[Preview] Token in URL but no input, no sessionStorage, and no error - waiting for token fetch to complete or error");
+        return;
+      }
+    }
+    
+    // CRITICAL: Wait for token loading to complete before checking redirect
+    if (tokenLoading) return;
+    
+    // CRITICAL: Don't redirect if we already have input (from token or sessionStorage)
+    if (input) return;
+    
+    // CRITICAL: Don't redirect if we've already redirected
+    if (hasRedirectedRef.current) return;
+    
+    // CRITICAL: Don't redirect if we're already on input page
+    const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+    if (currentPath.includes("/input")) {
+      console.log("[Preview] Already on input page, not redirecting to prevent loop");
+      return;
+    }
+    
+    // CRITICAL: Check sessionStorage as fallback
+    const savedInput = sessionStorage.getItem("aiAstrologyInput");
+    if (savedInput) {
+      // Input exists in sessionStorage, load it
+      try {
+        const inputData = JSON.parse(savedInput);
+        setInput(inputData);
+        return; // Don't redirect if we can load from sessionStorage
+      } catch (e) {
+        console.warn("[Preview] Failed to parse saved input:", e);
+        // Fall through to redirect
+      }
+    }
+
+    // Fallback: check localStorage by session_id (survives redirects)
+    const sessionIdForLookup = searchParams.get("session_id");
+    if (sessionIdForLookup) {
+      try {
+        const cached = localStorage.getItem(`aiAstrologyInputBySession:${sessionIdForLookup}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.input) {
+            setInput(parsed.input);
+            if (parsed.reportType) {
+              setReportType(parsed.reportType as ReportType);
+            }
+            console.log("[Preview] Loaded input from localStorage via session_id");
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("[Preview] Failed to load input from localStorage by session_id:", e);
+      }
+    }
+    
+    // No input found - redirect to input page
+    console.info("[REDIRECT_TO_INPUT] reason=missing_input_no_token_after_token_load");
+    
+    // Build returnTo = exact preview URL (pathname + search) for safe return
+    const returnTo = typeof window !== "undefined" 
+      ? `${window.location.pathname}${window.location.search}`
+      : "";
+    
+    // Preserve reportType from URL params (fallback to session_id if needed)
+    const redirectSessionId = searchParams.get("session_id");
+    const reportTypeFromSessionId = redirectSessionId
+      ? validReportTypes.find((type) =>
+          new RegExp(`(?:^|[_-])${type.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[_-]|$)`).test(redirectSessionId)
+        ) ?? null
+      : null;
+    const urlReportType = searchParams.get("reportType") || reportTypeFromSessionId;
+    const redirectUrl = returnTo && urlReportType
+      ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}&returnTo=${encodeURIComponent(returnTo)}`
+      : urlReportType 
+      ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+      : returnTo
+      ? `/ai-astrology/input?returnTo=${encodeURIComponent(returnTo)}`
+      : "/ai-astrology/input";
+    
+    console.log("[Preview] No input found (no input_token, no sessionStorage), redirecting to:", redirectUrl);
+    hasRedirectedRef.current = true; // Prevent multiple redirects
+    redirectInitiatedRef.current = true;
+    
+    // CRITICAL FIX (2026-01-18): Use hard navigation (window.location.assign) instead of router.push
+    const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+    console.info("[PREVIEW_REDIRECT]", fullUrl);
+    window.location.assign(fullUrl);
+  }, [tokenLoading, input, searchParams, error, reportType, isReportDisabled]); // Run when token loading completes, input changes, or error is set
+
+  // CRITICAL FIX (2026-01-18): Auto-generate free reports when input is loaded via input_token
+  // The main auto-generation logic (line 1606+) is gated by auto_generate=true, which input_token flows don't have
+  // This useEffect triggers generation for free reports (life-summary) when input is loaded via input_token
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    // Only trigger for free reports (life-summary)
+    const isFreeReport = reportType === "life-summary";
+    if (!isFreeReport) return;
+    
+    // Only trigger if we have input but no report content yet
+    if (!input || reportContent) return;
+    
+    // Don't trigger if already generating or already generated
+    if (loading || hasAutoGeneratedRef.current || isGeneratingRef.current) return;
+    
+    // Don't trigger if reportId is in URL (user is loading existing report)
+    const hasReportIdInUrl = searchParams.get("reportId") !== null;
+    if (hasReportIdInUrl) return;
+    
+    // Don't trigger if auto_generate=true is in URL (handled by main auto-generation logic)
+    const autoGenerate = searchParams.get("auto_generate") === "true";
+    if (autoGenerate && hasAutoGeneratedRef.current) return;
+    
+    // Check if input_token is in URL (indicates input_token flow, not auto_generate flow)
+    const inputTokenParams = searchParams.getAll("input_token");
+    const hasInputToken = inputTokenParams.length > 0;
+    if (!hasInputToken) return;
+    
+    // All conditions met - trigger auto-generation for free report
+    console.log("[Preview] Auto-generating free report from input_token:", { reportType, hasInput: !!input });
+    hasAutoGeneratedRef.current = true;
+    setLoading(true);
+    setLoadingStage("generating");
+    const startTime = Date.now();
+    loadingStartTimeRef.current = startTime;
+    setLoadingStartTime(startTime);
+    usingControllerRef.current = true;
+    generationController.start(input, "life-summary").catch((error) => {
+      console.error("[Preview] Error in generationController for input_token free report:", error);
+      hasAutoGeneratedRef.current = false;
+      setLoading(false);
+      setLoadingStage(null);
+      setError(error.message || "Failed to generate report. Please try again.");
+    });
+  }, [input, reportType, reportContent, loading, searchParams]); // Trigger when input is loaded or reportType changes
+
+  useEffect(() => {
+    // Check if sessionStorage is available
+    if (typeof window === "undefined") return;
+
+    // CRITICAL FIX: If input_token is present, let token flow own the state.
+    // This prevents the sessionStorage fallback from redirecting back to /input
+    // while token-based loading is in progress.
+    const tokenParams = searchParams.getAll("input_token");
+    if (tokenParams.length > 0) {
+      return;
+    }
+    
+    // CRITICAL FIX: Prevent redirect loops by checking if we're already redirecting
+    // BUT: Don't skip if loading - we need to check sessionStorage even during initial loading
+    // Only skip if we've already redirected or are currently generating
+    if (hasRedirectedRef.current || isGeneratingRef.current) {
+      return;
+    }
+    
+    try {
+      // CRITICAL: Check for reportId in URL - if present, try to load from sessionStorage or localStorage
+      // This check happens BEFORE the delay to ensure immediate loading when report exists
+      const reportId = searchParams.get("reportId");
+      if (reportId && !reportContent) {
+        try {
+          // Try sessionStorage first (same session)
+          let storedReport = sessionStorage.getItem(`aiAstrologyReport_${reportId}`);
+          
+          // If not in sessionStorage, try localStorage (persists across refreshes)
+          if (!storedReport) {
+            storedReport = localStorage.getItem(`aiAstrologyReport_${reportId}`);
+            if (storedReport) {
+              console.log("[CLIENT] Loaded report from localStorage for reportId:", reportId);
+            }
+          } else {
+            console.log("[CLIENT] Loaded report from sessionStorage for reportId:", reportId);
+          }
+          
+          if (storedReport) {
+            const parsed = JSON.parse(storedReport);
+            // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+            const sessionIdFromUrl = searchParams.get("session_id");
+            const reportIdFromUrl = searchParams.get("reportId");
+            const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || reportIdFromUrl?.startsWith("test_session_") || false;
+            const cleanedContent = stripMockContent(parsed.content, isTestSession);
+            setReportContent(cleanedContent);
+            setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
+            const newReportType = parsed.reportType || (searchParams.get("reportType") as ReportType) || "life-summary";
+            reportTypeRef.current = newReportType; // Update ref immediately
+            setReportType(newReportType);
+            setInput(parsed.input);
+            setLoading(false);
+            // Don't continue with auto-generation if we already have content
+            return;
+          } else {
+            // ReportId in URL but not found in storage
+            // CRITICAL: Check for bundles FIRST before checking if it's a free report
+            // Bundles are always paid reports, even if reportType in URL is "life-summary"
+            let isBundle = false;
+            try {
+              const savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
+              const savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
+              isBundle = !!(savedBundleType && savedBundleReports);
+            } catch (e) {
+              // Ignore errors checking for bundles
+            }
+            
+            // For free life-summary reports (NOT bundles), we can regenerate (reportId might be stale or from a different session)
+            // For paid reports (including bundles), we should show an error to prevent accidental re-generation
+            const reportTypeFromUrl = searchParams.get("reportType") as ReportType;
+            const isFreeReport = !isBundle && reportTypeFromUrl === "life-summary";
+            
+            if (isFreeReport) {
+              // For free reports, try to load input data from sessionStorage and trigger generation immediately
+              // This allows auto-generation to proceed even with stale reportIds
+              console.warn("[CLIENT] ReportId found in URL but not in storage for free report - clearing and regenerating:", reportId);
+              
+              // Try to load input data from sessionStorage immediately (may not exist if session expired)
+              try {
+                const savedInput = sessionStorage.getItem("aiAstrologyInput");
+                if (savedInput) {
+                  const inputData = JSON.parse(savedInput);
+                  setInput(inputData);
+                  setReportType("life-summary");
+                  // CRITICAL: Trigger auto-generation immediately for stale free reports
+                  // Don't rely on setTimeout path - trigger generation directly after setting state
+                  // Use requestAnimationFrame to ensure state is set before calling generateReport
+                  requestAnimationFrame(() => {
+                    if (!isGeneratingRef.current && !hasAutoGeneratedRef.current) {
+                      hasAutoGeneratedRef.current = true;
+                      setLoading(true);
+                      setLoadingStage("generating");
+                      const startTime = Date.now();
+                      loadingStartTimeRef.current = startTime;
+                      setLoadingStartTime(startTime);
+                      // CRITICAL FIX: Set elapsedTime to 0 immediately for new timer
+                      // This prevents the timer from showing stale value before useEffect runs
+                      // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+                      // CRITICAL FIX: Use generation controller for free reports
+                      usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                      generationController.start(inputData, "life-summary").catch((error) => {
+                        console.error("[CLIENT] Error in generationController for stale free report:", error);
+                        hasAutoGeneratedRef.current = false;
+                        setLoading(false);
+                        setError(error.message || "Failed to generate report. Please try again.");
+                      });
+                    }
+                  });
+                  // Return early - we've handled generation, don't continue to setTimeout path
+                  return;
+                } else {
+                  // No input data in sessionStorage - redirect to input page
+                  console.log("[CLIENT] No input data found for stale free report, redirecting to input page");
+                  if (!hasRedirectedRef.current) {
+                    hasRedirectedRef.current = true;
+                    router.push("/ai-astrology/input?reportType=life-summary");
+                    return;
+                  }
+                }
+              } catch (error) {
+                console.error("[CLIENT] Failed to load input data for stale free report:", error);
+                // Redirect to input page on error
+                if (!hasRedirectedRef.current) {
+                  hasRedirectedRef.current = true;
+                  router.push("/ai-astrology/input?reportType=life-summary");
+                  return;
+                }
+              }
+              // If we reach here, something went wrong - return to prevent setTimeout from running
+              return;
+            } else {
+              // For paid reports (including bundles), show error (don't regenerate to prevent duplicate charges)
+              const reportTypeLabel = isBundle ? "bundle" : "paid report";
+              console.warn(`[CLIENT] ReportId found in URL but not in storage for ${reportTypeLabel}:`, reportId);
+              setError("Report not found. Please generate a new report.");
+              setLoading(false);
+              return; // Exit early - don't try to regenerate with different ID
+            }
+          }
+        } catch (error) {
+          console.warn("[CLIENT] Failed to load report from storage:", error);
+          setError("Failed to load report. Please try again.");
+          setLoading(false);
+          return; // Exit early on error
+        }
+      }
+      
+      // CRITICAL FIX (ChatGPT Directive): Gate by auto_generate OR input_token + free report
+      // Allow auto-generation if:
+      // 1. auto_generate=true is explicitly set, OR
+      // 2. input_token exists AND reportType is life-summary (free report)
+      // This defensive fallback prevents blank screen even if auto_generate param is missing
+      const autoGenerate = searchParams.get("auto_generate") === "true";
+      const inputTokenParams = searchParams.getAll("input_token");
+      const hasInputToken = inputTokenParams.length > 0;
+      const reportTypeFromParams = searchParams.get("reportType") as ReportType | null;
+      const isFreeReportFromParams = reportTypeFromParams === "life-summary";
+      
+      // Allow auto-generation if auto_generate=true OR (input_token exists AND it's a free report)
+      const shouldAllowAutoGeneration = autoGenerate || (hasInputToken && isFreeReportFromParams);
+      
+      // CRITICAL FIX (2026-01-18): Add structured logging for production verification (ChatGPT request)
+      const reportTypeFromUrl = searchParams.get("reportType") || reportType || "";
+      console.log("[AUTO_GENERATE_DECISION]", { 
+        reportType: reportTypeFromUrl,
+        hasToken: hasInputToken,
+        autoGenerateParam: autoGenerate,
+        shouldAllowAutoGeneration,
+        reason: autoGenerate ? "auto_generate=true in URL" : (hasInputToken && isFreeReportFromParams ? "input_token + free report fallback" : "not allowed")
+      });
+      
+      if (!shouldAllowAutoGeneration) {
+        return; // Exit early - auto-generation not allowed for this request
+      }
+      
+      // CRITICAL FIX: Get session_id from URL params first (fallback if sessionStorage is lost)
+      const urlSessionId = searchParams.get("session_id");
+      
+      // CRITICAL FIX (ChatGPT): Single structured log for prod verification
+      console.log(`[AUTOSTART] attemptKey=${attemptKey} reportType=${reportTypeFromUrl} sessionId=${urlSessionId || "none"} autoGenerate=${autoGenerate}`);
+      
+      // CRITICAL FIX (ChatGPT Directive): NO setTimeout allowed - run immediately
+      // Atomic generation: sessionStorage check and generation start must be synchronous
+      // Removed 500ms delay to eliminate "timer resets after 1 second" bug
+      (async () => {
+        // CRITICAL: Double-check we haven't redirected or started loading in the meantime
+        // CRITICAL FIX: Also check bundleGenerating and loadingStage to prevent redirects during generation
+        if (hasRedirectedRef.current || loading || isGeneratingRef.current || bundleGenerating || loadingStage !== null) {
+          return;
+        }
+        
+        try {
+          // CRITICAL FIX (2026-01-18): Token loading is now handled in separate useEffect above
+          // This code path only runs for auto_generate=true flows
+          // For input_token flows, the separate useEffect handles token loading
+          
+          // Get input from sessionStorage (fallback for auto_generate flows)
+          // CRITICAL: Also check if input is already in state (from token loading useEffect)
+          let savedInput: string | null = input ? JSON.stringify(input) : sessionStorage.getItem("aiAstrologyInput");
+          let savedReportType: ReportType | null = reportType || (sessionStorage.getItem("aiAstrologyReportType") as ReportType | null);
+          let savedBundleType: string | null = bundleType || sessionStorage.getItem("aiAstrologyBundle");
+          let savedBundleReports: string | null = bundleReports.length > 0 ? JSON.stringify(bundleReports) : sessionStorage.getItem("aiAstrologyBundleReports");
+
+        let paymentVerified = sessionStorage.getItem("aiAstrologyPaymentVerified") === "true";
+        if (!paymentVerified && urlSessionId && urlSessionId.startsWith("prodtest_")) {
+          paymentVerified = true;
+          try {
+            sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+            sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
+          } catch {
+            // ignore storage errors
+          }
+          setPaymentVerified(true);
+          setPaymentCheckComplete(true);
+        }
+
+        // CRITICAL FIX (2026-01-18): Redirect check is now in separate useEffect above
+        // This code path only handles auto_generate=true flows
+        // For input_token flows, the separate useEffect handles token loading and redirect
+        
+        // If input is missing (common on cold load/new tab after Stripe), try to recover from localStorage.
+        // Input page persists form data to localStorage, so this is a safe best-effort recovery.
+        let effectiveSavedInput = savedInput;
+        if (!effectiveSavedInput) {
+          try {
+            const fallbackForm = localStorage.getItem("aiAstrologyFormData");
+            if (fallbackForm) {
+              const form = JSON.parse(fallbackForm);
+              if (form?.name && form?.dob && form?.tob && form?.place && form?.latitude != null && form?.longitude != null) {
+                const tob = typeof form.tob === "string" && form.tob.length === 5 ? `${form.tob}:00` : form.tob;
+                const recovered = {
+                  name: String(form.name).trim(),
+                  dob: String(form.dob),
+                  tob,
+                  place: String(form.place).trim(),
+                  gender: form.gender || undefined,
+                  latitude: Number(form.latitude),
+                  longitude: Number(form.longitude),
+                  timezone: "Asia/Kolkata",
+                };
+                effectiveSavedInput = JSON.stringify(recovered);
+                try {
+                  sessionStorage.setItem("aiAstrologyInput", effectiveSavedInput);
+                } catch {
+                  // ignore
+                }
+              }
+            }
+          } catch {
+            // ignore recovery errors
+          }
+        }
+
+        // CRITICAL FIX (ChatGPT): If input is still missing, ALWAYS redirect to input (don't gate on urlSessionId/reportType)
+        // This prevents "Redirecting..." dead states
+        if (!effectiveSavedInput) {
+          if (typeof window !== "undefined" && !hasRedirectedRef.current) {
+            const resumeSessionId = searchParams.get("session_id");
+            const rtFromSessionId = resumeSessionId
+              ? validReportTypes.find((type) =>
+                  new RegExp(`(?:^|[_-])${type.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[_-]|$)`).test(resumeSessionId)
+                ) ?? null
+              : null;
+            const rt = searchParams.get("reportType") || rtFromSessionId;
+            const returnTo = `${window.location.pathname}${window.location.search}`;
+            hasRedirectedRef.current = true;
+            router.push(
+              `/ai-astrology/input?reportType=${encodeURIComponent(rt || "life-summary")}&flow=resume&returnTo=${encodeURIComponent(returnTo)}`
+            );
+            return;
+          }
+          return;
+        }
+        
+        // Continue with the rest of the logic only if we have savedInput
+        const inputData = JSON.parse(effectiveSavedInput);
+        // CRITICAL: Prefer reportType from URL params (most reliable), then sessionStorage, then default
+        // URL params are most reliable because they persist even if sessionStorage is cleared
+        const urlSessionIdForUse = searchParams.get("session_id");
+        const reportTypeFromSessionIdForUse = urlSessionIdForUse
+          ? validReportTypes.find((type) =>
+              new RegExp(`(?:^|[_-])${type.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[_-]|$)`).test(urlSessionIdForUse)
+            ) ?? null
+          : null;
+        const urlReportTypeForUse = (searchParams.get("reportType") as ReportType | null) || reportTypeFromSessionIdForUse;
+        let reportTypeToUse: ReportType;
+        
+        if (urlReportTypeForUse && validReportTypes.includes(urlReportTypeForUse)) {
+          // URL param is most reliable - use it and update sessionStorage
+          reportTypeToUse = urlReportTypeForUse;
+          try {
+            sessionStorage.setItem("aiAstrologyReportType", reportTypeToUse);
+          } catch (e) {
+            console.warn("Failed to save reportType to sessionStorage:", e);
+          }
+        } else if (savedReportType && validReportTypes.includes(savedReportType)) {
+          // Fallback to sessionStorage
+          reportTypeToUse = savedReportType;
+        } else {
+          // Default to life-summary only if no other option
+          reportTypeToUse = "life-summary";
+        }
+        
+        console.log("[Preview] Using reportType:", reportTypeToUse, {
+          fromUrl: urlReportTypeForUse,
+          fromStorage: savedReportType,
+          final: reportTypeToUse
+        });
+        
+        // CRITICAL: Set input and reportType state IMMEDIATELY before any other checks
+        // This ensures the component has the data it needs to render correctly
+        // and prevents the "no input" redirect logic from triggering
+        setInput(inputData);
+        setReportType(reportTypeToUse);
+
+        const isBundleForUse = !!(savedBundleType && savedBundleReports);
+        const isPaidReportForUse: boolean = isBundleForUse || reportTypeToUse !== "life-summary";
+        const shouldSkipPaymentVerification = !!urlSessionId && urlSessionId.startsWith("prodtest_");
+
+        if (!isPaidReportForUse) {
+          setPaymentCheckComplete(true);
+        } else if (!urlSessionId) {
+          setPaymentCheckComplete(true);
+        } else if (shouldSkipPaymentVerification) {
+          try {
+            sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+            sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
+          } catch {
+            // ignore storage errors
+          }
+          setPaymentVerified(true);
+          setPaymentCheckComplete(true);
+        }
+          
+        // CRITICAL FIX: If payment verified flag is missing but session_id exists, try to re-verify
+        // IMPORTANT: Wait for verification before allowing report generation
+        if (isPaidReportForUse && !paymentVerified && urlSessionId && !shouldSkipPaymentVerification) {
+          // Attempt to regenerate payment token from session_id - MUST WAIT for this
+          // CRITICAL: Set loading state IMMEDIATELY to prevent redirect logic from triggering
+          setPaymentCheckComplete(false);
+          setLoading(true); // Show loading while verifying
+          setLoadingStage("verifying"); // Show payment verification stage
+          const startTime = Date.now();
+          loadingStartTimeRef.current = startTime;
+          setLoadingStartTime(startTime); // Track when loading started
+          // CRITICAL FIX: Set elapsedTime to 0 immediately for new verification timer
+          // This prevents the timer from showing stale value before useEffect runs
+          // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+          // NOTE: Don't set isGeneratingRef.current here - generateReport will set it when called
+          // Setting it here causes generateReport to return early because it checks this flag
+          
+          (async () => {
+            try {
+              console.log("[Preview] Attempting to regenerate payment token from session_id:", urlSessionId.substring(0, 20) + "...");
+              
+              const verifyResponse = await apiGet<{
+                ok: boolean;
+                data?: {
+                  paid: boolean;
+                  paymentToken?: string;
+                  reportType?: string;
+                  paymentIntentId?: string;
+                };
+                error?: string;
+              }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId)}`);
+              
+              console.log("[Preview] Payment verification response:", {
+                ok: verifyResponse.ok,
+                paid: verifyResponse.data?.paid,
+                hasToken: !!verifyResponse.data?.paymentToken,
+                error: verifyResponse.error
+              });
+              
+              if (verifyResponse.ok && verifyResponse.data?.paid) {
+                // Store regenerated token and payment intent ID
+                try {
+                  if (verifyResponse.data.paymentToken) {
+                    sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
+                  }
+                  if (verifyResponse.data.paymentIntentId) {
+                    sessionStorage.setItem("aiAstrologyPaymentIntentId", verifyResponse.data.paymentIntentId);
+                  }
+                  sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+                  sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId);
+                  // IMPORTANT: Only adopt reportType from verification if it matches the URL-selected reportType.
+                  // On cold loads/hydration, trusting a mismatched verify response can flip reportType mid-run,
+                  // trigger the reportType reset effect, and snap elapsed back to 0.
+                  const verifiedReportType = verifyResponse.data.reportType as ReportType | undefined;
+                  const urlReportType = searchParams.get("reportType") as ReportType | null;
+                  const finalReportTypeFromUrl =
+                    urlReportType && validReportTypes.includes(urlReportType) ? urlReportType : reportTypeToUse;
+
+                  if (
+                    verifiedReportType &&
+                    validReportTypes.includes(verifiedReportType) &&
+                    (!finalReportTypeFromUrl || verifiedReportType === finalReportTypeFromUrl)
+                  ) {
+                    sessionStorage.setItem("aiAstrologyReportType", verifiedReportType);
+                    setReportType(verifiedReportType);
+                    // Update reportTypeToUse for this generation
+                    const finalReportType = verifiedReportType;
+                    setPaymentVerified(true);
+                    console.log("[Preview] Payment token and intent ID regenerated successfully, reportType:", finalReportType);
+                    
+                    // Now trigger report generation with verified payment
+                    // CRITICAL: Set auto-generated guard to prevent duplicate calls from auto_generate path
+                    hasAutoGeneratedRef.current = true;
+                    setLoadingStage("generating"); // Switch to report generation stage
+                    // CRITICAL FIX: Use generation controller for paid reports
+                    isGeneratingRef.current = false;
+                    usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                    // Real mode for test sessions is controlled by ALLOW_REAL_FOR_TEST_SESSIONS env var
+                    // URL parameter still supported as override
+                    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+                    
+                    generationController.start(inputData, finalReportType, {
+                      sessionId: urlSessionId,
+                      paymentIntentId: verifyResponse.data.paymentIntentId,
+                      useReal: useReal || undefined
+                    }).catch((error) => {
+                      console.error("[Preview] Error in generationController:", error);
+                      setLoading(false);
+                      setLoadingStage(null);
+                      isGeneratingRef.current = false;
+                    });
+                  } else {
+                    // Fallback to reportTypeToUse if verification didn't return reportType
+                    setPaymentVerified(true);
+                    console.log("[Preview] Payment token and intent ID regenerated successfully, using existing reportType:", reportTypeToUse);
+                    
+                    // Now trigger report generation with verified payment
+                    hasAutoGeneratedRef.current = true;
+                    setLoadingStage("generating");
+                    // CRITICAL FIX: Use generation controller for paid reports
+                    isGeneratingRef.current = false;
+                    usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                    // Real mode for test sessions is controlled by ALLOW_REAL_FOR_TEST_SESSIONS env var
+                    // URL parameter still supported as override
+                    const useReal = searchParams.get("use_real") === "true" || searchParams.get("force_real") === "true";
+                    
+                    generationController.start(inputData, reportTypeToUse, {
+                      sessionId: urlSessionId,
+                      paymentIntentId: verifyResponse.data.paymentIntentId,
+                      useReal: useReal || undefined
+                    }).catch((error) => {
+                      console.error("[Preview] Error in generationController:", error);
+                      setLoading(false);
+                      setLoadingStage(null);
+                      isGeneratingRef.current = false;
+                    });
+                  }
+                  return;
+                } catch (e) {
+                  console.error("Failed to store regenerated payment token:", e);
+                  setLoading(false);
+                  setLoadingStage(null);
+                  isGeneratingRef.current = false; // Clear lock on error
+                }
+              } else {
+                console.error("[Preview] Payment verification failed:", verifyResponse.error);
+                setError(`Payment verification failed: ${verifyResponse.error || "Please complete payment again."}`);
+                setLoading(false);
+                setLoadingStage(null);
+                isGeneratingRef.current = false; // Clear lock on error
+              }
+            } catch (e: any) {
+              console.error("Failed to regenerate payment token from session_id:", e);
+              setError(`Failed to verify payment: ${e.message || "Please try again or contact support."}`);
+              setLoading(false);
+              setLoadingStage(null);
+              isGeneratingRef.current = false; // Clear lock on error
+            } finally {
+              setPaymentCheckComplete(true);
+            }
+          })();
+          
+          // Don't proceed with report generation yet - wait for verification
+          return;
+        } else {
+          setPaymentVerified(paymentVerified);
+          setPaymentCheckComplete(true);
+        }
+        
+        // Parse bundle information
+        if (savedBundleType && savedBundleReports) {
+          try {
+            const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
+            setBundleType(savedBundleType);
+            setBundleReports(bundleReportsList);
+          } catch (e) {
+            console.error("Failed to parse bundle reports:", e);
+          }
+        }
+
+        // Check if payment is required
+        // CRITICAL: Bundles are always paid reports, even if reportTypeToUse is "life-summary" or null
+        const isBundle = !!(savedBundleType && savedBundleReports);
+        const isPaidReport: boolean = isBundle || reportTypeToUse !== "life-summary";
+          
+        // CRITICAL FIX: If paid report and no payment verified, but we have session_id, try verification first
+        if (isPaidReport && !paymentVerified && !urlSessionId) {
+          // No payment and no session_id - show payment prompt
+          // CRITICAL: Set loading to false AFTER input state is set (which happens above)
+          // This allows payment prompt UI to render (checks !loading)
+          // Since input is now set, redirect logic won't trigger (checks !input)
+          setLoading(false);
+          return;
+        }
+        
+        // If we have session_id but payment not verified yet, the verification will trigger report generation
+        if (isPaidReport && !paymentVerified && urlSessionId) {
+          // Verification is in progress (handled above), don't proceed yet
+          return;
+        }
+
+        // CRITICAL: Auto-generate report for:
+        // 1. Paid reports: if payment verified (with or without auto_generate flag, to support existing flows)
+        // 2. Free reports: immediately when reaching preview page (no payment needed)
+        // This ensures ALL reports follow the same flow and auto-generate consistently
+        // IMPORTANT: Don't require auto_generate=true for paid reports - if payment is verified and we have input, generate
+        // This fixes issues where year-analysis and other paid reports worked before but broke after changes
+        const hasReportIdInUrl = searchParams.get("reportId") !== null;
+        const shouldAutoGenerate = 
+          // Paid reports: generate if payment verified (supports both auto_generate flow and direct navigation)
+          (isPaidReport && paymentVerified && !reportContent) ||
+          // Free reports: auto-generate immediately if we have input and no content yet
+          (!isPaidReport && !reportContent);
+        
+        // For bundles, reportTypeToUse might be null/undefined, but we still want to generate
+        const hasReportTypeOrBundle = reportTypeToUse || isBundle;
+        // IMPORTANT: If reportId is present, user is explicitly loading an existing report. Do NOT auto-generate.
+        if (!hasReportIdInUrl && shouldAutoGenerate && inputData && hasReportTypeOrBundle && !loading && !hasAutoGeneratedRef.current) {
+          hasAutoGeneratedRef.current = true; // Set guard immediately
+          console.log("[Preview] Auto-generating report:", { 
+            reportType: reportTypeToUse, 
+            hasInput: !!inputData,
+            isPaidReport,
+            autoGenerate,
+            paymentVerified,
+            isFreeReport: !isPaidReport
+          });
+          
+          // Get paymentIntentId from sessionStorage if available (for paid reports only)
+          let paymentIntentIdFromStorage: string | undefined;
+          try {
+            paymentIntentIdFromStorage = sessionStorage.getItem("aiAstrologyPaymentIntentId") || undefined;
+          } catch (e) {
+            console.error("Failed to read paymentIntentId from sessionStorage:", e);
+          }
+          
+          // Show loading immediately and set stage to generating (for ALL report types)
+          setLoading(true);
+          setLoadingStage("generating");
+          // CRITICAL: Only set loadingStartTime if ref is not already set (prevents timer reset)
+          // generateReport will also check this, but we set it here for consistency
+          if (loadingStartTimeRef.current === null) {
+          const startTime = Date.now();
+          loadingStartTimeRef.current = startTime;
+          setLoadingStartTime(startTime);
+          // CRITICAL FIX: Set elapsedTime to 0 immediately for new timer
+          // This prevents the timer from showing stale value before useEffect runs
+          // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+          }
+          // CRITICAL FIX: If ref is already set (continuing from verification), calculate elapsed time immediately
+          // This prevents showing 0s when transitioning from verification to generation
+          else if (loadingStartTimeRef.current) {
+            const currentElapsed = Math.floor((Date.now() - loadingStartTimeRef.current) / 1000);
+            // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+      // Timer will automatically update when startTime changes
+          }
+          // Reset progress steps for all reports
+          setProgressSteps({
+            birthChart: false,
+            planetaryAnalysis: false,
+            generatingInsights: false,
+          });
+          
+          // CRITICAL FIX: For free life-summary reports, trigger generation directly without setTimeout
+          // setTimeout even with 0ms can cause issues where state changes before execution
+          // For free reports, we can generate immediately since there's no payment verification needed
+          const isFreeLifeSummary = !isPaidReport && reportTypeToUse === "life-summary";
+          
+          if (isFreeLifeSummary) {
+            // For free reports: Call directly without setTimeout to avoid any delays or race conditions
+            console.log("[Preview] Calling generateReport immediately for free life-summary", {
+              hasInput: !!inputData,
+              reportType: reportTypeToUse,
+              isGenerating: isGeneratingRef.current
+            });
+            
+            // CRITICAL: Double-check conditions before generating (prevent race conditions)
+            if (!inputData || !reportTypeToUse) {
+              console.error("[Preview] Input data or report type missing");
+              hasAutoGeneratedRef.current = false; // Reset guard on error
+              setLoading(false);
+              return;
+            }
+            
+            // Use requestAnimationFrame to ensure state is set, but execute immediately
+            // This ensures React state updates are flushed before we call generateReport
+            requestAnimationFrame(() => {
+              try {
+                // Final check before calling
+                if (!inputData || !reportTypeToUse) {
+                  console.error("[Preview] Input data or report type missing in requestAnimationFrame");
+                  hasAutoGeneratedRef.current = false;
+                  setLoading(false);
+                  return;
+                }
+                
+                // CHATGPT APPROACH: Use generation controller for free reports (has AbortController + single-flight guard)
+                console.log("[Preview] Using generationController for free life-summary");
+                usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                generationController.start(inputData, reportTypeToUse).catch((error) => {
+                  console.error("[Preview] Error in generationController for free life-summary:", error);
+                  hasAutoGeneratedRef.current = false; // Reset guard on error
+                  // Controller will set error state, but ensure loading is stopped
+                  setLoading(false);
+                });
+              } catch (error: any) {
+                console.error("[Preview] Error in requestAnimationFrame for free life-summary:", error);
+                hasAutoGeneratedRef.current = false; // Reset guard on error
+                setLoading(false);
+                setError(error.message || "Failed to start report generation. Please try again.");
+              }
+            });
+          } else {
+            // CRITICAL FIX (ChatGPT): Use generation controller for ALL report types (year-analysis, bundle, paid)
+            // This ensures single-flight guard, cancellation, and state machine for all reports
+            // CRITICAL FIX (ChatGPT Directive): NO setTimeout allowed - start immediately
+            // Removed 300ms delay to eliminate "timer resets after 1 second" bug
+            // Atomic generation: start controller immediately when prerequisites are met
+            (() => {
+              // Double-check conditions before generating (prevent race conditions)
+              // CRITICAL: For bundles, reportTypeToUse might be null/undefined, so check bundles FIRST
+              if (isBundle && savedBundleReports) {
+                try {
+                  if (!inputData) {
+                    console.error("[Preview] Input data missing for bundle generation");
+                    hasAutoGeneratedRef.current = false; // Reset guard on error
+                    setLoading(false);
+                    return;
+                  }
+                  const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
+                  console.log("[Preview] Generating bundle reports via controller:", bundleReportsList);
+                  // CRITICAL: For bundles, still use generateBundleReports (it handles multiple reports)
+                  // TODO: Migrate bundle generation to controller in future iteration
+                  generateBundleReports(inputData, bundleReportsList, urlSessionId || undefined, paymentIntentIdFromStorage);
+                } catch (e) {
+                  console.error("Failed to parse bundle reports:", e);
+                  hasAutoGeneratedRef.current = false; // Reset guard on error
+                  // Fallback: if bundle parsing fails and we have a reportTypeToUse, use controller
+                  if (reportTypeToUse) {
+                    console.log("[Preview] Using generationController for fallback single report");
+                    startGenerationAtomically({
+                      attemptKey,
+                      inputData,
+                      reportTypeToUse,
+                      isPaidReport,
+                      urlSessionId: urlSessionId || undefined,
+                      paymentIntentId: paymentIntentIdFromStorage
+                    });
+                  } else {
+                    setError("Failed to parse bundle information. Please try again.");
+                    setLoading(false);
+                  }
+                }
+              } else if (!inputData || !reportTypeToUse) {
+                console.error("[Preview] Input data or report type missing");
+                hasAutoGeneratedRef.current = false; // Reset guard on error
+                setLoading(false);
+                return;
+              } else {
+                // CRITICAL FIX (ChatGPT Directive): Use atomic generation start
+                console.log("[Preview] Using atomic generation for paid report:", reportTypeToUse);
+                startGenerationAtomically({
+                  attemptKey,
+                  inputData,
+                  reportTypeToUse,
+                  isPaidReport,
+                  urlSessionId: urlSessionId || undefined,
+                  paymentIntentId: paymentIntentIdFromStorage
+                });
+              }
+            })(); // Execute immediately (no setTimeout)
+          }
+          return; // Exit early to avoid duplicate generation
+        }
+        } catch (e) {
+          // Handle errors within setTimeout
+          console.error("[Preview] Error in delayed sessionStorage check:", e);
+          // Don't redirect on error here - let outer catch handle it
+          // Only redirect if we haven't already redirected and it's a critical error
+          if (!hasRedirectedRef.current && e instanceof Error && e.message.includes("sessionStorage")) {
+            // Only redirect for sessionStorage errors, not other errors
+            const currentPath = window.location.pathname;
+            if (!currentPath.includes("/input")) {
+              hasRedirectedRef.current = true;
+              const urlReportType = searchParams.get("reportType");
+              const redirectUrl = urlReportType 
+                ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+                : "/ai-astrology/input";
+              router.push(redirectUrl);
+            }
+          }
+        }
+      })(); // Execute immediately (no setTimeout)
+    } catch (e) {
+      // Handle JSON parse errors or sessionStorage errors (e.g., private browsing mode)
+      console.error("Error accessing sessionStorage or parsing saved input:", e);
+      
+      // CRITICAL: Only redirect if we haven't already redirected and we're not already on input page
+      if (!hasRedirectedRef.current) {
+        const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+        if (!currentPath.includes("/input")) {
+          hasRedirectedRef.current = true;
+          // CRITICAL: Preserve reportType when redirecting to prevent loops
+          const urlReportType = searchParams.get("reportType");
+          const redirectUrl = urlReportType 
+            ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+            : "/ai-astrology/input";
+          router.push(redirectUrl);
+        }
+      }
+    }
+    // CRITICAL FIX (ChatGPT Directive): Add attemptKey to dependencies for atomic generation
+    // This ensures generation starts atomically when attemptKey changes and auto_generate=true
+    // CRITICAL: Intentionally limited dependencies to prevent redirect loops and unnecessary re-renders:
+    // - 'loading' removed: Would cause re-runs on every loading state change, triggering redirect loops
+    // - 'reportContent' removed: We check reportContent inside, but don't want re-run when it changes (would interrupt generation)
+    // - 'searchParams' removed: We read searchParams inside but intentionally removed .toString() to avoid re-runs on every URL change
+    // - 'validReportTypes' removed: Constant array, doesn't need to be in dependencies
+    // - 'generateReport' and 'generateBundleReports' removed: These are stable useCallback functions and don't need to be dependencies
+    //    Including them causes the useEffect to re-run unnecessarily, resetting the timer (setElapsedTime(0))
+    // Only re-run when router changes (which indicates navigation)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
+
+  // Bundle reports are always paid, so check for bundle OR paid report type
+  const isBundleReport = bundleType && bundleReports.length > 0;
+  const isPaidReport = reportType !== "life-summary" || isBundleReport;
+  const needsPayment = isPaidReport && paymentCheckComplete && !paymentVerified;
+  const urlSessionIdForPayment = searchParams.get("session_id");
+
+  const handlePurchase = async () => {
+    // CRITICAL FIX (ChatGPT): Single-flight guard - prevent double-clicks from causing duplicate API calls
+    if (isSubmittingRef.current) {
+      console.warn("[Purchase] Already submitting, ignoring duplicate click");
+      return;
+    }
+    
+    // CRITICAL FIX (Step 2): Check tokenLoading before purchase - prevent purchase while token is loading
+    // CRITICAL FIX (2026-01-18): Handle duplicate input_token params by using the LAST one
+    const inputTokenParams = searchParams.getAll("input_token");
+    const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+    console.info("[PURCHASE_CLICK]", { hasInput: !!input, hasToken: !!inputToken, tokenLoading });
+    if (tokenLoading || !input) {
+      if (tokenLoading) {
+        // Disable button while token is loading - show "Loading your details..." instead
+        console.warn("[Purchase] Token is loading, please wait");
+        return;
+      }
+      // CRITICAL FIX (ChatGPT): Don't silently return - redirect to input if input missing
+      // This fixes "Purchase does nothing" issue
+      if (!input) {
+        const reportTypeParam = searchParams.get("reportType");
+        const returnTo = typeof window !== "undefined" 
+          ? `${window.location.pathname}${window.location.search}`
+          : "";
+        const redirectUrl = reportTypeParam && returnTo
+          ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}&returnTo=${encodeURIComponent(returnTo)}`
+          : reportTypeParam
+          ? `/ai-astrology/input?reportType=${encodeURIComponent(reportTypeParam)}`
+          : "/ai-astrology/input";
+        console.log("[Purchase] No input found, redirecting to input:", redirectUrl);
+        redirectInitiatedRef.current = true; // CRITICAL FIX (ChatGPT): Mark redirect as initiated to cancel watchdog
+        // CRITICAL FIX (ChatGPT): Cancel redirect watchdog if redirect is initiated from purchase handler
+        if (redirectWatchdogTimeoutRef.current) {
+          clearTimeout(redirectWatchdogTimeoutRef.current);
+          redirectWatchdogTimeoutRef.current = null;
+        }
+        router.push(redirectUrl);
+        return;
+      }
+    }
+    
+    // Check if this is a bundle purchase
+    const isBundle = bundleType && bundleReports.length > 0;
+    if (isBundle && !reportType) {
+      // For bundles, we need at least one reportType (will be handled by bundleReports)
+      console.warn("[Purchase] Bundle purchase but no reportType set");
+    }
+    if (!isBundle && !reportType) {
+      setError("Report type is required");
+      return;
+    }
+
+    // CRITICAL FIX (ChatGPT): Generate checkout attempt ID for server-side tracing
+    // This allows correlating Vercel logs with user-reported issues
+    // Use Web Crypto API (client-side) instead of Node crypto module
+    const checkoutAttemptId = typeof window !== "undefined" && window.crypto?.randomUUID
+      ? window.crypto.randomUUID().slice(0, 8) // Short ID for display: ABC12345
+      : `client_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; // Fallback for older browsers
+
+    // CRITICAL FIX (ChatGPT): Add timeout to prevent infinite hanging
+    const TIMEOUT_MS = 15000; // 15 seconds
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isResolved = false;
+    let navigationOccurred = false; // Track if navigation happened
+
+    // CRITICAL FIX (ChatGPT): Client-side watchdog for fail-fast UI
+    // If still "Processing..." after timeout, show "Try again" with debug info
+    const watchdogTimeoutId = setTimeout(() => {
+      if (!navigationOccurred && !isResolved) {
+        console.error(`[Purchase] Watchdog timeout - no navigation after ${TIMEOUT_MS}ms`, {
+          checkoutAttemptId,
+          reportType,
+        });
+        setError(`Checkout is taking longer than expected. Ref: ${checkoutAttemptId}. Include this reference if you retry later.`);
+        setLoading(false);
+        isResolved = true;
+      }
+    }, TIMEOUT_MS);
+
+    try {
+      isSubmittingRef.current = true; // Set single-flight guard immediately
+      setLoading(true);
+      setError(null); // Clear any previous errors
+
+      const inputTokenParams = searchParams.getAll("input_token");
+      const inputToken = inputTokenParams.length > 0 ? inputTokenParams[inputTokenParams.length - 1] : null;
+      
+      // CRITICAL: For bundles, send bundleReports to create separate line items for each report
+      // CRITICAL FIX (ChatGPT): Include checkout attempt ID for server-side tracing
+      const checkoutPayload: any = {
+        input,
+        checkoutAttemptId, // Include for server-side correlation
+      };
+
+      if (inputToken && typeof window !== "undefined") {
+        const successUrl = new URL("/ai-astrology/payment/success", window.location.origin);
+        successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
+        successUrl.searchParams.set("input_token", inputToken);
+        checkoutPayload.successUrl = successUrl.toString();
+      }
+      
+      if (isBundle) {
+        // Bundle: Send bundle information for separate charges
+        checkoutPayload.bundleReports = bundleReports;
+        checkoutPayload.bundleType = bundleType;
+        // Still include reportType for metadata (use first report in bundle)
+        checkoutPayload.reportType = bundleReports[0] || reportType;
+        console.log(`[Purchase] Creating bundle checkout for ${bundleReports.length} reports:`, bundleReports);
+      } else {
+        // Single report
+        checkoutPayload.reportType = reportType;
+        console.log(`[Purchase] Creating single report checkout for:`, reportType);
+      }
+      
+      // Set timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error("Checkout request timed out. Please try again."));
+          }
+        }, TIMEOUT_MS);
+      });
+
+      // Race between API call and timeout
+      const response = await Promise.race([
+        apiPost<{
+          ok: boolean;
+          data?: { url: string; sessionId: string };
+          error?: string;
+          testMode?: boolean; // CRITICAL FIX (2026-01-18): Indicates test user mock session
+        }>("/api/ai-astrology/create-checkout", checkoutPayload),
+        timeoutPromise,
+      ]);
+
+      // Clear timeout if API call succeeded
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      isResolved = true;
+
+      if (!response.ok) {
+        throw new Error(response.error || "Failed to create checkout");
+      }
+
+      // CRITICAL FIX (2026-01-18): Handle test user mock sessions - bypass Stripe checkout
+      // Test users get mock session URLs like /ai-astrology/payment/success?session_id=test_session_...
+      // For paid reports, redirect to success URL which will verify payment and generate report
+      if (response.data?.url) {
+        const checkoutUrl = response.data.url;
+        const sessionId = response.data.sessionId;
+
+        if (sessionId && input) {
+          try {
+            localStorage.setItem(
+              `aiAstrologyInputBySession:${sessionId}`,
+              JSON.stringify({ input, reportType })
+            );
+          } catch (storageError) {
+            console.warn("[Purchase] Failed to cache input for session_id:", storageError);
+          }
+        }
+        
+        // Check if this is a mock/test session:
+        // 1. Response has testMode flag
+        // 2. SessionId starts with test_session_ (but not test_session_subscription_ - that's for subscriptions)
+        // 3. URL is relative (not Stripe checkout) and contains test_session_
+        const isMockSession = response.testMode === true || 
+                              (sessionId && sessionId.startsWith("test_session_") && !sessionId.startsWith("test_session_subscription_")) ||
+                              (checkoutUrl.startsWith("/") && checkoutUrl.includes("test_session_") && !checkoutUrl.includes("subscription"));
+        
+        // For test users, redirect to success URL directly (bypasses Stripe checkout)
+        // The success page will verify the mock session and generate the report
+        if (isMockSession) {
+          console.log("[Purchase] Test user detected - redirecting to success URL directly:", checkoutUrl);
+          navigationOccurred = true;
+          clearTimeout(watchdogTimeoutId);
+          window.location.href = checkoutUrl;
+          // Don't set loading to false here - we're redirecting
+          return;
+        }
+        
+        // For real Stripe checkout, validate URL to prevent open redirects
+        // Validate URL is from Stripe, localhost, relative path, or same origin (for test users)
+        try {
+          const url = new URL(checkoutUrl, window.location.origin);
+          const isStripe = url.hostname === "checkout.stripe.com";
+          const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+          const isSameOrigin = url.origin === window.location.origin;
+          const isRelative = checkoutUrl.startsWith("/");
+          
+          if (isStripe || isLocalhost || isSameOrigin || isRelative) {
+            navigationOccurred = true;
+            clearTimeout(watchdogTimeoutId);
+            window.location.href = checkoutUrl;
+            // Don't set loading to false here - we're redirecting
+            return;
+          } else {
+            throw new Error("Invalid checkout URL");
+          }
+        } catch (urlError) {
+          // If URL parsing fails, check if it's a relative path
+          if (checkoutUrl.startsWith("/")) {
+            navigationOccurred = true;
+            clearTimeout(watchdogTimeoutId);
+            window.location.href = checkoutUrl;
+            // Don't set loading to false here - we're redirecting
+            return;
+          } else {
+            throw new Error("Invalid checkout URL");
+          }
+        }
+      } else {
+        // No URL returned - this is an error state
+        throw new Error("Checkout URL not provided by server");
+      }
+    } catch (e: any) {
+      // CRITICAL FIX (ChatGPT): Always stop loading and show error with attempt ID
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      clearTimeout(watchdogTimeoutId);
+      isResolved = true;
+      
+      const errorMessage = e.message || "Failed to initiate payment";
+      // CRITICAL FIX (ChatGPT): Include checkout attempt ID in error UI for server correlation
+      // UX Improvement: Include instruction to use reference when retrying
+      const errorWithRef = `${errorMessage}. Ref: ${checkoutAttemptId}. Include this reference if you retry later.`;
+      setError(errorWithRef);
+      setLoading(false);
+      
+      // CRITICAL: Log with attempt ID for server-side correlation
+      console.error(`[Purchase] Checkout failed (attempt: ${checkoutAttemptId}):`, errorMessage, {
+        checkoutAttemptId,
+        reportType,
+        errorMessage,
+      });
+    } finally {
+      // CRITICAL FIX (ChatGPT): Clear single-flight guard on completion/error
+      isSubmittingRef.current = false;
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!reportContent || !input) return;
+
+    setDownloadingPDF(true);
+    setError(null); // Clear any previous errors
+    
+    // Add timeout to prevent infinite hanging (60 seconds for single, 120 seconds for bundle)
+    const isBundle = bundleType && bundleReports.length > 0 && bundleContents.size > 0;
+    const timeoutDuration = isBundle ? 120000 : 60000; // 120s for bundles, 60s for single
+    
+    const timeoutId = setTimeout(() => {
+      if (downloadingPDF) {
+        console.error("[PDF] Generation timeout after", timeoutDuration / 1000, "seconds");
+        setError("PDF generation is taking longer than expected. Please try again. If the issue persists, the report may be too large.");
+        setDownloadingPDF(false);
+      }
+    }, timeoutDuration);
+    
+    try {
+      // Check if this is a bundle download
+      if (isBundle) {
+        // Download bundle PDF with all reports
+        const bundleContentsMap = new Map<string, ReportContent>();
+        bundleReports.forEach(reportType => {
+          const content = bundleContents.get(reportType);
+          if (content) {
+            bundleContentsMap.set(reportType, content);
+          }
+        });
+        
+        // Ensure we have all bundle contents before downloading
+        if (bundleContentsMap.size === bundleReports.length) {
+          console.log("[PDF] Starting bundle PDF generation...");
+          const success = await downloadPDF(
+            reportContent, // Still needed for function signature but bundle data is used
+            input,
+            reportType || "life-summary",
+            undefined, // filename
+            bundleContentsMap,
+            bundleReports,
+            bundleType
+          );
+          clearTimeout(timeoutId);
+          if (!success) {
+            setError("Failed to generate bundle PDF. Please try again. If the issue persists, try downloading individual reports.");
+          }
+        } else {
+          clearTimeout(timeoutId);
+          setError("Not all bundle reports are available. Please wait for all reports to generate.");
+        }
+      } else {
+        // Download single report PDF
+        console.log("[PDF] Starting single report PDF generation...");
+        const success = await downloadPDF(reportContent, input, reportType || "life-summary");
+        clearTimeout(timeoutId);
+        if (!success) {
+          setError("Failed to generate PDF. Please try again. If the issue persists, try refreshing the page.");
+        }
+      }
+    } catch (e: any) {
+      clearTimeout(timeoutId);
+      console.error("[PDF] PDF download error:", e);
+      setError(`Failed to download PDF: ${e.message || "Unknown error"}. Please try again or refresh the page.`);
+    } finally {
+      clearTimeout(timeoutId);
+      setDownloadingPDF(false);
+    }
+  };
+
+  // CRITICAL FIX: Timer is now handled by useElapsedSeconds hook
+  // This eliminates timer freezing, jumping backwards, and continuing after completion
+  // The hook computes elapsed time from startTime (single source of truth)
+  // We only need to update progress steps and handle timeout detection
+  
+  // CRITICAL FIX: Sync generation controller state with component state
+  // This allows the hook to manage generation while component handles UI
+  // CHATGPT APPROACH: Use controller as single source of truth for generation state
+  // CRITICAL FIX A (ChatGPT): Gate controller sync - only sync when using controller
+  // Controller sync must NOT interfere with legacy flows (bundle, year-analysis via session_id resume)
+  // Root cause: Controller sync was clearing loadingStartTime when controller is idle, even if legacy flow is still running
+  useEffect(() => {
+    // CRITICAL: Only sync if we're actually using the controller
+    // Legacy flows (bundle, year-analysis via session_id) own their own state
+    if (!usingControllerRef.current) {
+      return; // Legacy flow owns state - don't interfere
+    }
+    
+    // CHATGPT FIX: Enable controller sync - use it as primary source of truth
+    // Sync loading state from generation controller
+    if (generationController.status === 'idle' && loading) {
+      // Controller is idle but component thinks it's loading - sync
+      if (!generationController.reportContent) {
+        setLoading(false);
+        setLoadingStage(null);
+      }
+    } else if (generationController.status !== 'idle' && !loading) {
+      // Controller is active but component thinks it's not loading - sync
+      setLoading(true);
+      if (generationController.status === 'verifying') {
+        setLoadingStage('verifying');
+      } else if (generationController.status === 'generating' || generationController.status === 'polling') {
+        setLoadingStage('generating');
+      }
+    }
+      
+      // Sync start time from generation controller
+      if (generationController.startTime && !loadingStartTime) {
+        setLoadingStartTime(generationController.startTime);
+        loadingStartTimeRef.current = generationController.startTime;
+      } else if (!generationController.startTime && loadingStartTime) {
+        // Controller reset but component still has start time - sync
+        // CRITICAL FIX (ChatGPT Feedback): Never clear timer based on isProcessingUIRef
+        // isProcessingUIRef can flip during state initialization, causing timer to reset
+        // NON-NEGOTIABLE INVARIANT: Once controller enters generating/polling, timer cannot reset unless:
+        // 1. attempt is explicitly cancelled/failed/completed, OR
+        // 2. attemptId/sessionId changes (new attempt started)
+        // ChatGPT: "Timer cleared when controller idle AND no active attempt" can still cause timer resets
+        // if controller briefly enters idle due to transient state or attempt detection is wrong on first load
+        // SOLUTION: Only clear if status is explicitly 'completed' or 'failed', AND no active attempt key
+        // Do NOT clear just because status is 'idle' - idle can be transient during state initialization
+        const isExplicitlyDone = generationController.status === 'completed' || generationController.status === 'failed' || generationController.status === 'timeout';
+        const hasNoActiveAttempt = !activeAttemptKeyRef.current;
+        const hasNoContent = !generationController.reportContent;
+        const hasNoError = !generationController.error;
+        
+        // Only clear timer if explicitly done AND no active attempt AND no content/error (fully finished)
+        if (isExplicitlyDone && hasNoActiveAttempt && hasNoContent && hasNoError && usingControllerRef.current) {
+          setLoadingStartTime(null);
+          loadingStartTimeRef.current = null;
+        }
+        // CRITICAL: If controller is 'idle' but not explicitly done, DO NOT clear timer
+        // This prevents timer resets during first-load state initialization or transient idle states
+      }
+      
+      // CHATGPT FIX: Sync report content from generation controller (single source of truth)
+      if (generationController.reportContent && !reportContent) {
+        // CRITICAL FIX (2026-01-18 - ChatGPT Task 1): Non-empty content guard
+        // Check if report has valid sections before setting reportContent
+        // Prevents blank screen when API returns empty or invalid report
+        const content = generationController.reportContent;
+        const sections = content?.sections || [];
+        const validSections = sections.filter((s) => s && s.title);
+        
+        if (validSections.length === 0) {
+          // Report generated empty - treat as error
+          console.warn("[PREVIEW] Report generated empty - no valid sections", {
+            reportType: reportType,
+            sectionsCount: sections.length,
+            hasContent: !!content,
+            hasTitle: !!content?.title,
+            attemptId: generationController.activeAttemptId,
+          });
+          
+          const emptyReportError = "Report generated empty. Please retry.";
+          setError(emptyReportError);
+          setLoading(false);
+          setLoadingStage(null);
+          loadingStartTimeRef.current = null;
+          setLoadingStartTime(null);
+          activeAttemptKeyRef.current = null;
+          
+          // Don't set reportContent - keep it null so error UI shows
+          return; // Exit early, don't set empty report content
+        }
+        
+        // Report has valid sections - proceed normally
+        // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+        const sessionIdFromUrl = searchParams.get("session_id");
+        const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || false;
+        const cleanedContent = generationController.reportContent ? stripMockContent(generationController.reportContent, isTestSession) : null;
+        setReportContent(cleanedContent);
+        setContentLoadTime(Date.now());
+        // CRITICAL FIX (ChatGPT Feedback): When report content arrives, stop loading and timer
+        // Don't check isProcessingUIRef - clear timer immediately when content arrives
+        setLoading(false);
+        setLoadingStage(null);
+        loadingStartTimeRef.current = null;
+        setLoadingStartTime(null);
+        activeAttemptKeyRef.current = null; // Clear attempt key on completion
+      }
+      
+      // CHATGPT FIX: Sync error from generation controller
+      // CRITICAL FIX (2026-01-18 - ChatGPT Task 1): Enhanced error logging with requestId/attemptId
+      if (generationController.error && !error) {
+        const errorMessage = generationController.error;
+        const attemptIdSuffix = generationController.activeAttemptId 
+          ? generationController.activeAttemptId.split('-').slice(-2).join('-')
+          : 'none';
+        
+        // Log error with context for production debugging
+        console.warn("[PREVIEW] Generation error synced from controller", {
+          error: errorMessage.substring(0, 100),
+          reportType,
+          attemptId: attemptIdSuffix,
+          status: generationController.status,
+        });
+        
+        setError(errorMessage);
+        // CRITICAL FIX (ChatGPT Feedback): On error, stop loading and timer
+        // Don't check isProcessingUIRef - clear timer immediately on error
+        if (generationController.status === 'failed' || generationController.status === 'timeout') {
+          setLoading(false);
+          setLoadingStage(null);
+          loadingStartTimeRef.current = null;
+          setLoadingStartTime(null);
+          activeAttemptKeyRef.current = null; // Clear attempt key on error
+        }
+      }
+      
+      // CHATGPT FIX: When controller completes, ensure all state is synced
+      if (generationController.status === 'completed') {
+        setLoading(false);
+        setLoadingStage(null);
+        if (!isProcessingUIRef.current) {
+          loadingStartTimeRef.current = null;
+          setLoadingStartTime(null);
+        }
+        isGeneratingRef.current = false;
+        hasAutoGeneratedRef.current = false;
+      }
+  }, [generationController.status, generationController.startTime, generationController.reportContent, generationController.error, generationController.activeReportType, generationController.activeAttemptId, loading, loadingStartTime, reportContent, error, reportType, usingControllerRef.current]);
+  
+  // CRITICAL FIX 3 (ChatGPT): On reportType change, hard reset UI owner + timers
+  // This specifically fixes "first time only" transitions when switching from controller flow to legacy flow
+  // Landing page loads, runs controller-based flow (life-summary), sets usingControllerRef.current = true
+  // Then user tries Year-Analysis without full page reload (same preview/page.tsx instance; refs persist)
+  // Year-Analysis uses legacy generateReport() flow, but controller-sync useEffect is still active
+  // This useEffect ensures clean state when reportType changes
+  useEffect(() => {
+    // SAFETY GATE (ChatGPT feedback): do NOT clear timer/loading state if a generation attempt is active/starting.
+    // First-load-only bug pattern: year-analysis start sets timer => this effect immediately clears it => elapsed snaps to 0 and polling/UI can get stuck.
+    // IMPORTANT: Use `window.location.search` instead of `useSearchParams()` here.
+    // On first mount, `useSearchParams()` can lag hydration and briefly report missing params,
+    // which would incorrectly trigger this reset while the loader is already visible.
+    const qs = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : searchParams;
+    const urlSessionId = qs.get("session_id");
+    const urlReportId = qs.get("reportId");
+    const autoGenerate = qs.get("auto_generate") === "true";
+    const isBusy =
+      !!loading ||
+      !!loadingStage ||
+      !!bundleGenerating ||
+      !!bundleGeneratingRef.current ||
+      !!isGeneratingRef.current ||
+      // If the generation UI is visible, we are not idle and must not reset state.
+      // This is the strongest invariant: timer + polling must remain monotonic while UI indicates processing.
+      !!isProcessingUIRef.current ||
+      // CRITICAL: start time exists => generation has started (even if loading flag hasn't flipped yet)
+      !!loadingStartTimeRef.current ||
+      // Controller is active => do not reset anything (prevents first-load race on controller → legacy transitions)
+      generationController.status !== "idle";
+    const isStarting = !!urlSessionId || !!urlReportId || autoGenerate;
+    if (isBusy || isStarting) {
+      console.log("[Preview] Skipping reportType hard reset (busy)", {
+        reportType,
+        loading,
+        loadingStage,
+        bundleGenerating,
+        isGenerating: isGeneratingRef.current,
+        hasStartTime: !!loadingStartTimeRef.current,
+        controllerStatus: generationController.status,
+        urlSessionId: !!urlSessionId,
+        urlReportId: !!urlReportId,
+        autoGenerate,
+      });
+      return;
+    }
+
+    // Abort any legacy polling
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Reset loadingStartTimeRef/current
+    loadingStartTimeRef.current = null;
+    setLoadingStartTime(null);
+    
+    // Reset usingControllerRef.current = false (legacy flows will set it if needed)
+    usingControllerRef.current = false;
+    
+    // Clear any stage flags that are report-type specific
+    setLoadingStage(null);
+    setLoading(false);
+    isGeneratingRef.current = false;
+    
+    // Reset attempt ID (new report type = new attempt)
+    attemptIdRef.current += 1;
+  }, [reportType]); // Only run when reportType changes
+  
+  // Sync refs with state (for timeout calculation)
+  useEffect(() => {
+    reportTypeRef.current = reportType;
+    bundleGeneratingRef.current = bundleGenerating;
+  }, [reportType, bundleGenerating]);
+  
+  // Stop timer when report completes
+  useEffect(() => {
+    if (reportContent && !loading && loadingStartTimeRef.current) {
+      loadingStartTimeRef.current = null;
+      setLoadingStartTime(null);
+    }
+  }, [reportContent, loading]);
+  
+  // Update progress steps based on elapsed time
+  useEffect(() => {
+    if (loading && elapsedTime > 0) {
+      if (elapsedTime >= 5) {
+        setProgressSteps(prev => ({ ...prev, birthChart: true }));
+      }
+      if (elapsedTime >= 15) {
+        setProgressSteps(prev => ({ ...prev, planetaryAnalysis: true }));
+      }
+      if (elapsedTime >= 25) {
+        setProgressSteps(prev => ({ ...prev, generatingInsights: true }));
+      }
+    } else if (!loading) {
+      // Reset progress steps when not loading
+      setProgressSteps({
+        birthChart: false,
+        planetaryAnalysis: false,
+        generatingInsights: false,
+      });
+    }
+  }, [loading, elapsedTime]);
+  
+  // Auto-detect timeout and show error if stuck
+  useEffect(() => {
+    if (!loading || !loadingStartTime) {
+      return;
+    }
+    
+    // Calculate timeout threshold
+    const timeoutThreshold = loadingStage === "verifying" 
+      ? 30 
+      : bundleGenerating 
+      ? 150 // Bundle reports: 150s
+      : (reportType === "full-life" || reportType === "major-life-phase") 
+      ? 130 
+      : 100;
+    
+    // Check timeout
+    if (elapsedTime >= timeoutThreshold) {
+      console.error(`[CLIENT TIMEOUT] Report generation stuck for ${elapsedTime}s, showing timeout error`);
+      setError(`Report generation is taking longer than expected (${elapsedTime}s). This may indicate a timeout. Your payment has been automatically cancelled and you will NOT be charged. Please try again or contact support if the issue persists.`);
+      setLoading(false);
+      setLoadingStage(null);
+      loadingStartTimeRef.current = null;
+      setLoadingStartTime(null);
+      isGeneratingRef.current = false;
+      hasAutoGeneratedRef.current = false;
+    }
+  }, [loading, loadingStage, reportType, bundleGenerating, elapsedTime, loadingStartTime]);
+
+  // Smart Upsell Trigger: Show upsell based on scroll engagement and reading time
+  useEffect(() => {
+    // Only track for paid reports (not life-summary or daily-guidance)
+    const isPaidReport = reportType !== "life-summary" && reportType !== "daily-guidance";
+    if (!isPaidReport || !reportContent || loading || error || upsellShown || !contentLoadTime) {
+      return;
+    }
+
+    let currentScrollProgress = 0;
+
+    // Calculate scroll progress
+    const handleScroll = () => {
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const scrollPercent = (scrollTop / (documentHeight - windowHeight)) * 100;
+      currentScrollProgress = Math.min(100, Math.max(0, scrollPercent));
+      setScrollProgress(currentScrollProgress);
+    };
+
+    // Check if conditions are met to show upsell
+    const checkUpsellConditions = () => {
+      if (upsellShown || showUpsell) {
+        return; // Already shown, don't check again
+      }
+
+      const timeSinceLoad = (Date.now() - contentLoadTime) / 1000; // seconds
+      const minReadingTime = 90; // Minimum 90 seconds of reading time
+      const minScrollProgress = 40; // User must have scrolled at least 40% of content
+
+      if (timeSinceLoad >= minReadingTime && currentScrollProgress >= minScrollProgress) {
+        console.log("[UPSELL] Showing upsell - conditions met:", {
+          timeSinceLoad: Math.round(timeSinceLoad),
+          scrollProgress: Math.round(currentScrollProgress)
+        });
+        setShowUpsell(true);
+        setUpsellShown(true);
+      }
+    };
+
+    // Add scroll listener
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // Initial check
+
+    // Check conditions periodically (every 5 seconds)
+    const checkInterval = setInterval(checkUpsellConditions, 5000);
+    
+    // Also check immediately if conditions might already be met
+    checkUpsellConditions();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearInterval(checkInterval);
+    };
+  }, [reportContent, reportType, loading, error, upsellShown, showUpsell, contentLoadTime]);
+
+  // CRITICAL FIX (ChatGPT Feedback): REMOVED premature auto-recovery effect
+  // This was causing a race condition on first load where auto-recovery and main auto-generate
+  // would both try to start generation, causing timer resets and stuck states.
+  // 
+  // Recovery is now ONLY available via manual "Retry" button - never automatic on first load.
+  // 
+  // Previous behavior (REMOVED):
+  // - Auto-recovery would trigger when !reportContent && !loading && !hasAutoGeneratedRef
+  // - This could fire during first-load state settling (session_id parsed, input hydrated)
+  // - Would race with main auto-generate flow, causing double-start and timer resets
+  //
+  // New behavior:
+  // - Only main auto-generate flow starts generation automatically
+  // - Recovery is manual only (user clicks "Retry" button after explicit error/timeout)
+  // - This ensures SINGLE orchestration owner for generation start
+  //
+  // Note: autoRecoveryTriggeredRef is kept for backward compatibility but auto-recovery is disabled
+  // Reset trigger flag if we get content (successful generation) - simple state update, no useEffect needed
+  if (reportContent && autoRecoveryTriggeredRef.current) {
+    autoRecoveryTriggeredRef.current = false;
+  }
+
+  // Update life-summary progress step dynamically (for pre-loading screen only)
+  // Also add fallback to ensure auto-generation triggers if stuck
+  useEffect(() => {
+    // CRITICAL FIX (ChatGPT): Remove urlHasReportType from processing conditions
+    // reportType in URL does NOT mean we are processing - it's just metadata
+    const urlSessionId = searchParams.get("session_id");
+    const urlReportId = searchParams.get("reportId");
+    const autoGenerate = searchParams.get("auto_generate") === "true";
+    const hasBundleInfo = bundleType && bundleReports.length > 0;
+    // Only show loader when actually processing (not just when reportType is in URL)
+    const shouldWaitForProcess =
+      loading ||
+      isGeneratingRef.current ||
+      (hasBundleInfo && bundleGenerating) ||
+      (!reportContent && (urlSessionId || urlReportId || autoGenerate));
+    // Only wait for state if we have bundle info AND generation is active
+    const isWaitingForState = hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
+    
+    let progressInterval: NodeJS.Timeout | null = null;
+    
+    // Only update progress steps for life-summary when on pre-loading screen (not main loading screen)
+    if (reportType === "life-summary" && (shouldWaitForProcess || isWaitingForState) && !loading && !reportContent) {
+      progressInterval = setInterval(() => {
+        setLifeSummaryProgressStep(prev => (prev + 1) % 3); // Cycle through 0, 1, 2
+      }, 4000); // Update every 4 seconds
+    } else {
+      // Reset progress step when not on pre-loading screen
+      setLifeSummaryProgressStep(0);
+    }
+    
+    // Cleanup function
+    return () => {
+      if (progressInterval) clearInterval(progressInterval);
+    };
+  }, [reportType, input, loading, reportContent, searchParams, bundleReports.length, bundleType]);
+
+  // Helper functions for loading screen (accessible in both loading and content blocks)
+  const urlSessionIdForLoading = searchParams.get("session_id");
+  const urlReportIdForLoading = searchParams.get("reportId");
+  const currentReportIdForLoading = reportContent?.reportId || urlReportIdForLoading;
+  const hasSessionIdForLoading = !!urlSessionIdForLoading;
+  
+  // Get report link for copying
+  const reportLinkForLoading = typeof window !== "undefined" && currentReportIdForLoading 
+    ? `${window.location.origin}/ai-astrology/preview?reportId=${currentReportIdForLoading}`
+    : typeof window !== "undefined" && urlSessionIdForLoading
+    ? `${window.location.origin}/ai-astrology/preview?session_id=${urlSessionIdForLoading}`
+    : typeof window !== "undefined" ? window.location.href : "";
+  
+  // CRITICAL FIX (ChatGPT): Unified retry entry point for bundle generation
+  // This ensures retry always follows the same sequence: abort + increment attemptId + reset guards + set startTime + start generation
+  const retryBundleGeneration = useCallback(async (
+    inputData: AIAstrologyInput,
+    bundleReportsList: ReportType[],
+    sessionId?: string,
+    paymentIntentId?: string
+  ) => {
+    // Step 1: Abort previous attempt
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Step 2: Increment attempt ID
+    attemptIdRef.current += 1;
+
+    // Step 3: Reset ALL generation guards
+    isGeneratingRef.current = false;
+    bundleGeneratingRef.current = false;
+    hasAutoGeneratedRef.current = false;
+    setBundleGenerating(false);
+    // CRITICAL FIX: Don't reset hasRedirectedRef here - it can cause redirect loops
+    // Only reset if absolutely necessary (e.g., user explicitly navigates away and back)
+    // hasRedirectedRef.current = false; // REMOVED - causes redirect loops during retry
+
+    // Step 4: Set start time (ref + state) once
+    const startTime = Date.now();
+    loadingStartTimeRef.current = startTime;
+    setLoadingStartTime(startTime);
+
+    // Step 5: Set state
+    setInput(inputData);
+    setBundleType(bundleReportsList.length > 0 ? 'any-2' : null); // Infer bundle type
+    setBundleReports(bundleReportsList);
+    setLoading(true);
+    setError(null);
+    setLoadingStage("generating");
+
+    // Step 6: Call unified "start bundle generation" function
+    // CRITICAL FIX A: Don't set usingControllerRef for legacy bundle flow
+    usingControllerRef.current = false; // Legacy flow owns state - controller sync must not interfere
+    await generateBundleReports(inputData, bundleReportsList, sessionId, paymentIntentId);
+  }, [generateBundleReports]);
+
+  // Helper to retry loading by reportId or sessionId
+  // CRITICAL FIX (ChatGPT): Retry must be a full restart: abort + attemptId++ + reset ALL guards + reset startTime + start via one controller function
+  const handleRetryLoading = useCallback(async () => {
+    // Step 1: Abort previous attempt
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Step 2: Increment attempt ID
+    attemptIdRef.current += 1;
+    
+    // Step 3: Reset ALL generation guards
+    isGeneratingRef.current = false;
+    bundleGeneratingRef.current = false;
+    hasAutoGeneratedRef.current = false;
+    setBundleGenerating(false);
+    
+    // Step 4: Reset start time
+    loadingStartTimeRef.current = null;
+    setLoadingStartTime(null);
+    
+    // Get reportId and sessionId from URL params directly (in case they're not in state)
+    const urlParams = new URLSearchParams(window.location.search);
+    const reportIdFromUrl = urlParams.get("reportId");
+    const sessionIdFromUrl = urlParams.get("session_id");
+    const reportTypeFromUrl = urlParams.get("reportType") as ReportType | null;
+    
+    // If no reportId or sessionId in URL, nothing to retry
+    if (!reportIdFromUrl && !sessionIdFromUrl) {
+      console.warn("[Retry] No reportId or sessionId in URL - cannot retry");
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // CRITICAL FIX: Check for bundle info in sessionStorage first (even if state variables are empty)
+      // This handles the case where bundle is stuck/failed and bundleReports.length is 0
+      const savedBundleType = sessionStorage.getItem("aiAstrologyBundle");
+      const savedBundleReports = sessionStorage.getItem("aiAstrologyBundleReports");
+      const savedInput = sessionStorage.getItem("aiAstrologyInput");
+      const savedPaymentSessionId = sessionStorage.getItem("aiAstrologyPaymentSessionId");
+      const savedPaymentIntentId = sessionStorage.getItem("aiAstrologyPaymentIntentId");
+      
+      const isBundle = !!(savedBundleType && savedBundleReports);
+      
+      // Handle bundle retry - use unified entry point
+      if (isBundle && savedInput) {
+        try {
+          const inputData = JSON.parse(savedInput);
+          const bundleReportsList = JSON.parse(savedBundleReports) as ReportType[];
+          
+          console.log("[Retry] Retrying bundle generation with reports:", bundleReportsList);
+          
+          // Use unified retry entry point
+          const sessionIdToUse = sessionIdFromUrl || savedPaymentSessionId || undefined;
+          const paymentIntentIdToUse = savedPaymentIntentId || undefined;
+          
+          await retryBundleGeneration(inputData, bundleReportsList, sessionIdToUse, paymentIntentIdToUse);
+          return;
+        } catch (e) {
+          console.error("[Retry] Failed to parse bundle data:", e);
+          // Fall through to try other methods
+        }
+      }
+      
+      // Try to load from sessionStorage first, then localStorage (for reportId)
+      if (reportIdFromUrl) {
+        let storedReport = sessionStorage.getItem(`aiAstrologyReport_${reportIdFromUrl}`);
+        if (!storedReport) {
+          storedReport = localStorage.getItem(`aiAstrologyReport_${reportIdFromUrl}`);
+        }
+        if (storedReport) {
+          const parsed = JSON.parse(storedReport);
+          // CRITICAL FIX (ChatGPT Feedback): Only strip mock content for test sessions
+          const sessionIdFromUrl = searchParams.get("session_id");
+          const isTestSession = sessionIdFromUrl?.startsWith("test_session_") || reportIdFromUrl?.startsWith("test_session_") || false;
+          const cleanedContent = stripMockContent(parsed.content, isTestSession);
+          setReportContent(cleanedContent);
+          setContentLoadTime(Date.now()); // Track when content was loaded for smart upsell timing
+          setInput(parsed.input);
+          setReportType(parsed.reportType);
+          setLoading(false);
+          return;
+        } else {
+          // Report not found in storage - for free reports, try to regenerate
+          console.warn(`[Retry] Report ${reportIdFromUrl} not found in storage`);
+          
+          // Try to get input data from sessionStorage to regenerate
+          // CRITICAL FIX (ChatGPT): Retry must be a full restart - use controller entry point
+          if (savedInput && reportTypeFromUrl) {
+            try {
+              const inputData = JSON.parse(savedInput);
+              
+              // CRITICAL FIX: Full restart - reset start time (already done above, but ensure it's set)
+              const startTime = Date.now();
+              loadingStartTimeRef.current = startTime;
+              setLoadingStartTime(startTime);
+              
+              // Regenerate the report
+              setInput(inputData);
+              setReportType(reportTypeFromUrl);
+              setLoading(true);
+              setLoadingStage("generating");
+              
+              // For paid reports, use sessionId and paymentIntentId if available
+              const sessionIdToUse = sessionIdFromUrl || savedPaymentSessionId || undefined;
+              const paymentIntentIdToUse = savedPaymentIntentId || undefined;
+              
+              // CRITICAL FIX: Start via controller entry point (if using controller) or generateReport
+              // Use generationController.start() if available, otherwise use generateReport
+              if (generationController && generationController.status === 'idle') {
+                usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                await generationController.start(inputData, reportTypeFromUrl, {
+                  sessionId: sessionIdToUse,
+                  paymentIntentId: paymentIntentIdToUse
+                });
+              } else {
+                // CRITICAL FIX: Use generation controller for paid reports
+                usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                generationController.start(inputData, reportTypeFromUrl, {
+                  sessionId: sessionIdToUse,
+                  paymentIntentId: paymentIntentIdToUse
+                }).catch((error) => {
+                  console.error("[Retry] Error in generationController:", error);
+                  setError(error.message || "Failed to regenerate report. Please try again.");
+                  setLoading(false);
+                });
+              }
+              return;
+            } catch (e) {
+              console.error("[Retry] Failed to parse input data:", e);
+            }
+          }
+          
+          // If regeneration not possible, show error
+          throw new Error("Report not found in cache. Please start a new report.");
+        }
+      }
+      
+      // For bundles with sessionId (fallback if bundle check above didn't work)
+      if (sessionIdFromUrl && (bundleType || savedBundleType) && (bundleReports.length > 0 || (savedBundleReports && JSON.parse(savedBundleReports).length > 0))) {
+        window.location.href = `/ai-astrology/preview?session_id=${sessionIdFromUrl}&auto_generate=true`;
+        return;
+      }
+      
+      // If not in sessionStorage and no sessionId, show error
+      throw new Error("Report not found in cache. Please start a new report.");
+    } catch (e: any) {
+      setError(e.message || "Failed to load report. Please try regenerating.");
+      setLoading(false);
+    }
+  }, [bundleType, bundleReports.length, generateReport, generateBundleReports]);
+  
+  // Helper to copy report link
+  const handleCopyReportLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(reportLinkForLoading);
+      setEmailCopySuccess(true);
+      setTimeout(() => setEmailCopySuccess(false), 2000);
+    } catch (e) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = reportLinkForLoading;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setEmailCopySuccess(true);
+      setTimeout(() => setEmailCopySuccess(false), 2000);
+    }
+  }, [reportLinkForLoading]);
+
+  // Unified generation screen - handles all states (initialization, verification, generation)
+  // This provides a single, continuous experience without screen switching (per ChatGPT feedback)
+  // CRITICAL FIX (ChatGPT): Use isProcessingUI as single source of truth - it's driven by controller status, NOT URL params
+  // session_id in URL is just an identifier, not a state signal. UI must never show "Generating..." if controller is idle/failed.
+  // Note: These URL params are only used for display purposes (showing session_id in UI), NOT for determining processing state
+  const urlSessionIdForLoadingCheck = searchParams.get("session_id");
+  const urlReportIdForLoadingCheck = searchParams.get("reportId");
+  const hasBundleInfoForLoading = bundleType && bundleReports.length > 0;
+  
+  // CRITICAL INVARIANT: Use isProcessingUI (controller-driven) instead of recomputing from URL params
+  // This ensures UI never shows "Generating..." when controller is idle/failed, even if session_id exists in URL
+  if (isProcessingUI) {
+    const isBundleLoading = bundleType && bundleReports.length > 0;
+    const isVerifying = loadingStage === "verifying";
+    const isPaidReport = reportType !== "life-summary" && !hasBundleInfoForLoading;
+    // CRITICAL FIX: isInitializing should only be true when we have bundle info AND generation is active but waiting for state
+    const isInitializing = hasBundleInfoForLoading && !input && !hasRedirectedRef.current && !loading && !isGeneratingRef.current && bundleGenerating;
+    const urlSessionId = urlSessionIdForLoading;
+    const urlReportId = urlReportIdForLoading;
+    const currentReportId = currentReportIdForLoading;
+    const hasSessionId = hasSessionIdForLoading;
+    
+    // Calculate time remaining or elapsed (optimized estimates for faster generation)
+    // Free reports: ~60 seconds, Regular paid: ~60 seconds, Complex: ~75-90 seconds
+    const estimatedTime = loadingStage === "verifying" 
+      ? 10 
+      : (reportType === "full-life" || reportType === "major-life-phase") 
+      ? 90  // Complex reports: up to 90 seconds (comprehensive analysis takes longer)
+      : reportType === "life-summary"
+      ? 65  // Free reports: ~65 seconds
+      : 60; // Regular paid reports: ~60 seconds
+    const timeRemaining = Math.max(0, estimatedTime - elapsedTime);
+    const isTakingLonger = elapsedTime > estimatedTime;
+    
+    return (
+      <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+        {/* Legal Banner - Reduced Contrast During Loading */}
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 max-w-2xl w-full mx-4 px-4">
+          <div className="bg-orange-50/60 border border-orange-200/60 rounded-lg p-3 flex flex-wrap items-center justify-center gap-4 text-xs text-orange-700/70">
+            <span>Educational guidance only</span>
+            <span className="hidden sm:inline">•</span>
+            <span>Fully automated</span>
+            <span className="hidden sm:inline">•</span>
+            <span>No live support</span>
+          </div>
+        </div>
+        <Card className="max-w-2xl w-full mx-4 mt-16">
+          <CardContent className="p-12 text-center">
+            <div className="animate-spin text-6xl mb-6">🌙</div>
+            <h2 className="text-2xl font-bold mb-2 text-slate-900">
+              {isVerifying 
+                ? "Verifying Your Payment..." 
+                : isBundleLoading 
+                ? "Generating Your Bundle Reports..." 
+                : isInitializing
+                ? `Preparing Your ${getReportName(reportType || "life-summary")}...`
+                : `Generating Your ${getReportName(reportType || "life-summary")}...`}
+            </h2>
+            <p className="text-sm text-slate-500 mb-4">
+              {isVerifying
+                ? "One quick moment while we confirm everything is ready"
+                : isBundleLoading
+                ? "Creating comprehensive insights across multiple life areas"
+                : isInitializing
+                ? "Initializing your report generation. This usually takes just a moment..."
+                : "Our AI is analyzing your birth chart and generating personalized insights"}
+            </p>
+            
+            {/* Elapsed time indicator - Only show when actually generating (not initializing) */}
+            {!isInitializing && (
+              <div className="mb-4">
+                <p className="text-sm text-slate-500">
+                  {isTakingLonger ? (
+                    <span className="text-amber-600 font-semibold">
+                      ⏱️ Taking longer than expected (<span data-testid="elapsed-seconds">{elapsedTime}</span>s elapsed) - Still processing...
+                    </span>
+                  ) : (
+                    <span className="text-slate-600">
+                      ⏱️ Elapsed: <span data-testid="elapsed-seconds">{elapsedTime}</span>s {timeRemaining > 0 && `• Est. remaining: ${timeRemaining}s`}
+                    </span>
+                  )}
+                </p>
+                {/* Note for complex reports */}
+                {(reportType === "full-life" || reportType === "major-life-phase") && !isTakingLonger && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    💡 Complex reports take longer to generate comprehensive insights (typically 60-90 seconds)
+                  </p>
+                )}
+              </div>
+            )}
+            
+            {/* Payment reassurance for paid reports only - Free reports don't show this, and not during initialization */}
+            {isPaidReport && !isVerifying && !isInitializing && (
+              <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 text-left">
+                <div className="flex items-start gap-2">
+                  <span className="text-lg">💳</span>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-green-800 mb-1">
+                      Payment Verified & Protected
+                    </p>
+                    <p className="text-xs text-green-700">
+                      Your payment is confirmed. If report generation fails, you will <strong>automatically receive a refund</strong> - no action needed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {isVerifying ? (
+              <div className="space-y-4">
+                <p className="text-slate-600 mb-4">
+                  We&apos;re confirming your payment was successful. This usually takes just a few seconds and happens automatically.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="text-xl">💳</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-blue-800 mb-1">
+                        Payment Verification in Progress
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        Please wait while we verify your payment. This usually takes just 2-5 seconds. Your report will start generating automatically once verification is complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : isBundleLoading && bundleProgress ? (
+              // Enhanced bundle loading screen - matching marriage report UX
+              <div className="space-y-4">
+                {/* Progress Stepper - Same style as single reports */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 rounded-full bg-purple-600 animate-pulse"></div>
+                      <div className="w-12 h-0.5 bg-purple-300"></div>
+                      <div className={`w-3 h-3 rounded-full ${bundleProgress.current > 0 ? 'bg-purple-600' : 'bg-purple-300'}`}></div>
+                      <div className={`w-12 h-0.5 ${bundleProgress.current > 0 ? 'bg-purple-300' : 'bg-slate-300'}`}></div>
+                      <div className={`w-3 h-3 rounded-full ${bundleProgress.current >= bundleProgress.total ? 'bg-purple-600' : 'bg-slate-300'}`}></div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm text-center text-slate-600 mb-4">
+                    This usually completes within 1-2 minutes for {bundleProgress.total} comprehensive reports.
+                    {elapsedTime >= 120 && (
+                      <span className="block mt-2 text-amber-700 font-medium">
+                        If this screen stays for more than 2 minutes, please refresh this page. Your reports will not be lost.
+                      </span>
+                    )}
+                    {!elapsedTime || elapsedTime < 120 ? (
+                      <span className="block mt-2">If it takes longer, your reports are still being prepared safely.</span>
+                    ) : null}
+                  </p>
+                  
+                  {/* Bundle Progress Status Indicators */}
+                  <div className="space-y-2 mb-6 text-left bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <div className={`flex items-center gap-2 text-sm ${bundleProgress.current > 0 ? 'text-green-700' : 'text-slate-400'}`}>
+                      {bundleProgress.current > 0 ? '✓' : '⏳'} 
+                      <span className={bundleProgress.current > 0 ? 'font-medium' : ''}>
+                        Analyzing your birth chart data
+                      </span>
+                    </div>
+                    <div className={`flex items-center gap-2 text-sm ${bundleProgress.current >= bundleProgress.total ? 'text-green-700' : bundleProgress.current > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                      {bundleProgress.current >= bundleProgress.total ? '✓' : bundleProgress.current > 0 ? '⏳' : '○'} 
+                      <span className={bundleProgress.current > 0 ? 'font-medium' : ''}>
+                        Generating personalized insights ({bundleProgress.current} of {bundleProgress.total} reports completed)
+                      </span>
+                    </div>
+                    <div className={`flex items-center gap-2 text-sm ${bundleProgress.current >= bundleProgress.total ? 'text-green-700' : 'text-slate-400'}`}>
+                      {bundleProgress.current >= bundleProgress.total ? '✓' : '⏳'} 
+                      <span className={bundleProgress.current >= bundleProgress.total ? 'font-medium' : ''}>
+                        Preparing your complete bundle package
+                      </span>
+                    </div>
+                    
+                    {/* Current Report Status */}
+                    {bundleProgress.currentReport && bundleProgress.current > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-300">
+                        <p className="text-xs text-purple-600 font-medium">
+                          ✓ Latest completed: {bundleProgress.currentReport}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Progress Bar */}
+                    <div className="mt-4">
+                      <div className="bg-slate-100 rounded-full h-2.5 mb-2">
+                        <div 
+                          className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+                          style={{ width: `${Math.min((bundleProgress.current / bundleProgress.total) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-center text-purple-600 font-medium">
+                        {bundleProgress.current} of {bundleProgress.total} reports completed ({Math.round((bundleProgress.current / bundleProgress.total) * 100)}%)
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Enhanced Value Reinforcement During Wait - Bundle Benefits */}
+                  <div className="mb-6 text-left bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 rounded-lg p-5 border-2 border-purple-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">✨</span>
+                      <p className="text-sm font-bold text-purple-900">Your Bundle Package</p>
+                    </div>
+                    <ul className="space-y-2 text-sm text-slate-700">
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-600 mt-0.5">✓</span>
+                        <span><strong>{bundleProgress.total} comprehensive AI-generated reports</strong> covering multiple life areas</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-600 mt-0.5">✓</span>
+                        <span>Personalized insights tailored to your unique birth chart</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-600 mt-0.5">✓</span>
+                        <span>Complete downloadable PDF bundle package</span>
+                      </li>
+                      {bundleType && (
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-600 mt-0.5">✓</span>
+                          <span>Special bundle pricing - save money with this package</span>
+                        </li>
+                      )}
+                    </ul>
+                    <div className="mt-4 pt-4 border-t border-purple-200">
+                      <p className="text-xs text-slate-600 italic">
+                        💡 Each report is being individually crafted based on your astrological data
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Use the improved loading screen for all single reports (unified UX)
+              <div className="space-y-4">
+                {/* Progress Stepper - Same as new loading screen */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 rounded-full bg-purple-600 animate-pulse"></div>
+                      <div className="w-12 h-0.5 bg-purple-300"></div>
+                      <div className="w-3 h-3 rounded-full bg-purple-300"></div>
+                      <div className="w-12 h-0.5 bg-slate-300"></div>
+                      <div className="w-3 h-3 rounded-full bg-slate-300"></div>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-4 text-center">
+                    <p className="text-sm text-slate-600 mb-2">
+                      {elapsedTime < 30 
+                        ? "✨ Our AI is crafting your personalized insights..."
+                        : elapsedTime < 60
+                        ? "📊 Analyzing planetary positions and calculating insights..."
+                        : elapsedTime < 90
+                        ? "🎯 Fine-tuning predictions and recommendations..."
+                        : "⏳ Finalizing your comprehensive report..."}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Typically completes in {
+                        reportType === "life-summary" 
+                          ? "60-70 seconds" 
+                          : reportType === "full-life" || reportType === "major-life-phase"
+                          ? "75-90 seconds"
+                          : "60-75 seconds"
+                      } • Elapsed: {elapsedTime}s
+                    </p>
+                    {elapsedTime >= 90 && (
+                      <p className="text-xs text-amber-700 font-medium mt-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                        💡 Taking longer than usual? Your report is still being prepared. If this continues beyond 2 minutes, you can refresh - your progress will be saved.
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Enhanced Progress Status Indicators */}
+                  <div className="space-y-3 mb-6 text-left bg-gradient-to-br from-slate-50 to-purple-50 rounded-lg p-5 border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700 mb-3 uppercase tracking-wide">Generation Progress</p>
+                    <div className={`flex items-center gap-3 text-sm transition-all duration-300 ${progressSteps.birthChart ? 'text-green-700' : 'text-slate-500'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${progressSteps.birthChart ? 'bg-green-100 border-2 border-green-500' : 'bg-slate-100 border-2 border-slate-300'}`}>
+                        {progressSteps.birthChart ? '✓' : elapsedTime >= 5 ? '⏳' : '○'}
+                      </div>
+                      <div className="flex-1">
+                        <span className={progressSteps.birthChart ? 'font-semibold' : ''}>Birth Chart Calculation</span>
+                        {progressSteps.birthChart && <span className="text-xs text-green-600 ml-2">✓ Complete</span>}
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-3 text-sm transition-all duration-300 ${progressSteps.planetaryAnalysis ? 'text-green-700' : 'text-slate-500'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${progressSteps.planetaryAnalysis ? 'bg-green-100 border-2 border-green-500' : progressSteps.birthChart ? 'bg-blue-100 border-2 border-blue-400 animate-pulse' : 'bg-slate-100 border-2 border-slate-300'}`}>
+                        {progressSteps.planetaryAnalysis ? '✓' : progressSteps.birthChart && elapsedTime >= 15 ? '⏳' : '○'}
+                      </div>
+                      <div className="flex-1">
+                        <span className={progressSteps.planetaryAnalysis ? 'font-semibold' : ''}>Planetary Position Analysis</span>
+                        {progressSteps.planetaryAnalysis && <span className="text-xs text-green-600 ml-2">✓ Complete</span>}
+                        {progressSteps.birthChart && !progressSteps.planetaryAnalysis && <span className="text-xs text-blue-600 ml-2">In progress...</span>}
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-3 text-sm transition-all duration-300 ${progressSteps.generatingInsights ? 'text-green-700' : 'text-slate-500'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${progressSteps.generatingInsights ? 'bg-green-100 border-2 border-green-500' : progressSteps.planetaryAnalysis ? 'bg-purple-100 border-2 border-purple-400 animate-pulse' : 'bg-slate-100 border-2 border-slate-300'}`}>
+                        {progressSteps.generatingInsights ? '✓' : progressSteps.planetaryAnalysis && elapsedTime >= 25 ? '⏳' : '○'}
+                      </div>
+                      <div className="flex-1">
+                        <span className={progressSteps.generatingInsights ? 'font-semibold' : ''}>AI-Powered Insight Generation</span>
+                        {progressSteps.generatingInsights && <span className="text-xs text-green-600 ml-2">✓ Complete</span>}
+                        {progressSteps.planetaryAnalysis && !progressSteps.generatingInsights && <span className="text-xs text-purple-600 ml-2">Crafting your insights...</span>}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Enhanced Value Reinforcement During Wait */}
+                  <div className="mb-6 text-left bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 rounded-lg p-5 border-2 border-purple-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">✨</span>
+                      <p className="text-sm font-bold text-purple-900">What You&apos;re Getting</p>
+                    </div>
+                    <ul className="space-y-2 text-sm text-slate-700">
+                      {getReportBenefits(reportType).map((benefit, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-purple-600 mt-0.5">✓</span>
+                          <span>{benefit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-4 pt-4 border-t border-purple-200">
+                      <p className="text-xs text-slate-600 italic">
+                        💡 Your report is being tailored specifically to your birth details and planetary positions
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Action Buttons Footer - Same for bundles and single reports */}
+            <div className="mt-6 pt-6 border-t border-slate-200 space-y-3">
+              {/* Copy Report Link Button (if session ID available for bundles or reportId for single reports) */}
+              {(currentReportId || urlSessionId) && (
+                <div>
+                  <Button
+                    onClick={handleCopyReportLink}
+                    className="w-full cosmic-button-secondary"
+                    disabled={loading}
+                  >
+                    {emailCopySuccess ? "✓ Link Copied!" : "📋 Copy Report Link"}
+                  </Button>
+                </div>
+              )}
+              
+              {/* Primary Action: Retry Loading (Safe - No Regeneration) - Works for both bundles and single reports */}
+              {(currentReportId || (isBundleLoading && urlSessionId)) ? (
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleRetryLoading}
+                    disabled={loading}
+                    className="w-full cosmic-button-secondary"
+                  >
+                    🔄 Retry Loading {isBundleLoading ? "Bundle" : "Report"}
+                  </Button>
+                  
+                  {/* Secondary Action: Start New (Small Link) - Preserve report type if available */}
+                  <div className="text-center">
+                    <Link 
+                      href={reportType && reportType !== "life-summary" 
+                        ? `/ai-astrology/input?reportType=${reportType}` 
+                        : "/ai-astrology/input"} 
+                      className="text-sm text-slate-600 hover:text-slate-800 underline"
+                    >
+                      Start a new {isBundleLoading ? "bundle" : reportType && reportType !== "life-summary" ? getReportName(reportType).toLowerCase() : "report"} instead
+                    </Link>
+                  </div>
+                </div>
+                ) : (
+                <div className="space-y-3">
+                  <Link 
+                    href={reportType && reportType !== "life-summary" 
+                      ? `/ai-astrology/input?reportType=${reportType}` 
+                      : "/ai-astrology/input"} 
+                    className="block"
+                  >
+                    <Button 
+                      className="w-full cosmic-button-secondary"
+                      onClick={(e) => {
+                        if (loading) {
+                          e.preventDefault();
+                          if (window.confirm("Report generation is in progress. Are you sure you want to cancel? Your payment will be automatically refunded if generation hasn't completed.")) {
+                            setLoading(false);
+                            setLoadingStage(null);
+                            loadingStartTimeRef.current = null;
+        setLoadingStartTime(null);
+                            // CRITICAL FIX: Don't set elapsedTime - it's computed by useElapsedSeconds hook
+                            isGeneratingRef.current = false;
+                            const url = reportType && reportType !== "life-summary" 
+                              ? `/ai-astrology/input?reportType=${reportType}` 
+                              : "/ai-astrology/input";
+                            window.location.href = url;
+                          }
+                        }
+                      }}
+                    >
+                      Start Over {loading ? "(Cancel Generation)" : ""}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+              
+              {/* Report ID / Session ID Footer */}
+              {(currentReportId || (isBundleLoading && urlSessionId)) && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <p className="text-xs text-center text-slate-500">
+                    <strong className="text-slate-700">
+                      {isBundleLoading ? "Bundle Session ID:" : "Report ID:"}
+                    </strong>{" "}
+                    <span className="font-mono">{currentReportId || urlSessionId}</span>
+                  </p>
+                </div>
+              )}
+              
+              {/* Warning about not closing tab (only if using session storage) */}
+              {hasSessionId && !currentReportId && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">⚠️</span>
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-amber-800 mb-1">
+                        Do not close this tab
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        Your {isBundleLoading ? "bundle is" : "report is"} being loaded from your session. If you close this tab, you may need to regenerate.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    // Check if error is payment-related and we might be able to recover
+    const isPaymentError = error.toLowerCase().includes("payment") || 
+                          error.toLowerCase().includes("permission") ||
+                          error.toLowerCase().includes("verification");
+    const urlSessionId = searchParams.get("session_id");
+    const canRecover = isPaymentError && urlSessionId;
+    
+    return (
+      <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-8">
+      <div className="container mx-auto px-4 max-w-2xl">
+        <Card className="cosmic-card border-red-500/30">
+            <CardContent className="p-8 text-center">
+              <div className="text-5xl mb-4">⚠️</div>
+              <h2 className="text-2xl font-bold mb-4 text-red-700">Error Generating Report</h2>
+              
+              {/* Check if this is a paid report failure - show refund information */}
+              {error && (error.toLowerCase().includes("payment") || error.toLowerCase().includes("generation") || error.toLowerCase().includes("timeout") || error.toLowerCase().includes("unable")) && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">✅</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-green-800 mb-2">
+                        Automatic Refund Protection
+                      </p>
+                      <p className="text-sm text-green-700 mb-2">
+                        Your payment has been automatically cancelled and you will <strong>NOT be charged</strong> for this failed report generation.
+                      </p>
+                      <div className="mt-3 space-y-1 text-xs text-green-600">
+                        <p>• <strong>Authorization Released:</strong> Any payment authorization has been automatically released</p>
+                        <p>• <strong>No Charge:</strong> You will not see any charge on your card</p>
+                        <p>• <strong>Timeline:</strong> If any amount was authorized, it will be released within 1-3 business days</p>
+                        <p>• <strong>No Action Required:</strong> The refund process is automatic - you don&apos;t need to do anything</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <p className="text-slate-600 mb-6">{error}</p>
+
+              {generationTimedOut && (
+                <div className="mt-4 flex gap-3 justify-center">
+                  <button
+                    className="px-4 py-2 rounded-lg bg-black text-white"
+                    onClick={() => window.location.reload()}
+                  >
+                    Retry
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-lg border"
+                    onClick={() => {
+                      setGenerationTimedOut(false);
+                      setError(null);
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+              
+              {canRecover && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+                  <p className="text-sm text-blue-800 font-semibold mb-2">💡 Recovery Option Available:</p>
+                  <p className="text-sm text-blue-700 mb-3">
+                    We detected a payment verification issue. If you&apos;ve already completed payment, 
+                    you can recover your access by clicking the button below.
+                  </p>
+                  <Button 
+                    onClick={async () => {
+                      setLoading(true);
+                      setError(null);
+                      try {
+                        // Attempt to verify payment and regenerate token
+                        const verifyResponse = await apiGet<{
+                          ok: boolean;
+                          data?: {
+                            paid: boolean;
+                            paymentToken?: string;
+                            reportType?: string;
+                          };
+                        }>(`/api/ai-astrology/verify-payment?session_id=${encodeURIComponent(urlSessionId!)}`);
+                        
+                        if (verifyResponse.ok && verifyResponse.data?.paid && input) {
+                          try {
+                            if (verifyResponse.data.paymentToken) {
+                              sessionStorage.setItem("aiAstrologyPaymentToken", verifyResponse.data.paymentToken);
+                            }
+                            sessionStorage.setItem("aiAstrologyPaymentVerified", "true");
+                            sessionStorage.setItem("aiAstrologyPaymentSessionId", urlSessionId!);
+                            if (verifyResponse.data.reportType) {
+                              sessionStorage.setItem("aiAstrologyReportType", verifyResponse.data.reportType);
+                            }
+                            
+                            // CRITICAL FIX: Use generation controller for paid reports
+                            const reportTypeToGenerate = verifyResponse.data.reportType || reportType || "life-summary";
+                            usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                            await generationController.start(input, reportTypeToGenerate as ReportType, {
+                              sessionId: urlSessionId
+                            });
+                          } catch (e) {
+                            console.error("Failed to store token:", e);
+                            setError("Failed to recover payment verification. Please contact support with your payment receipt.");
+                          }
+                        } else {
+                          setError("Payment verification failed. Please contact support with your payment receipt if you've already paid.");
+                        }
+                      } catch (e: any) {
+                        console.error("Recovery failed:", e);
+                        setError(`Recovery failed: ${e.message || "Please contact support with your payment receipt."}`);
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-3"
+                  >
+                    🔄 Recover My Report Access
+                  </Button>
+                </div>
+              )}
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button onClick={() => {
+                  setError(null);
+                  if (input && reportType) {
+                    // CRITICAL FIX: Use generation controller for all report types
+                    const isPaid = reportType !== "life-summary";
+                    usingControllerRef.current = true; // CRITICAL FIX A: Mark that we're using controller
+                    generationController.start(input, reportType, isPaid ? {
+                      sessionId: searchParams.get("session_id") || undefined
+                    } : undefined).catch((error) => {
+                      console.error("[Error Recovery] Error in generationController:", error);
+                      setError(error.message || "Failed to retry. Please try again.");
+                    });
+                  } else {
+                    window.location.reload();
+                  }
+                }}>
+                  Try Again
+                </Button>
+                {canRecover && (
+                  <Link href={`/ai-astrology/payment/success?session_id=${encodeURIComponent(urlSessionId!)}`}>
+                    <Button className="bg-purple-600 hover:bg-purple-700">
+                      Return to Payment Success
+                    </Button>
+                  </Link>
+                )}
+                <Link 
+                  href={reportType && reportType !== "life-summary" 
+                    ? `/ai-astrology/input?reportType=${reportType}` 
+                    : "/ai-astrology/input"}
+                >
+                  <Button className="cosmic-button-secondary">Start Over</Button>
+                </Link>
+              </div>
+              
+              {/* Always show refund information for any error */}
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+                  <p className="text-sm font-semibold text-blue-800 mb-2">💰 Payment Protection Guarantee</p>
+                  <p className="text-xs text-blue-700 mb-2">
+                    <strong>Your payment is protected:</strong> If report generation fails for any reason, your payment will be automatically cancelled or refunded.
+                  </p>
+                  <div className="text-xs text-blue-600 space-y-1 mt-2">
+                    <p>• Payment authorization will be automatically released</p>
+                    <p>• No charge will be made for failed report generation</p>
+                    <p>• If already charged, full refund will be processed within 1-3 business days</p>
+                    <p>• Refund will go back to your original payment method</p>
+                  </div>
+                </div>
+                
+                {isPaymentError && (
+                  <div className="mt-4">
+                    <p className="text-xs text-slate-500 mb-2">Need Help?</p>
+                    <p className="text-xs text-slate-600">
+                      If you&apos;ve completed payment but still see this error, please contact support with your payment receipt. Your payment will be automatically refunded.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPaidReport && urlSessionIdForPayment && !paymentCheckComplete) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-lg w-full text-center">
+          <div className="text-xl font-semibold">Verifying your purchase…</div>
+          <div className="text-sm text-gray-600 mt-2">Please wait a few seconds.</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show payment prompt for paid reports
+  if (needsPayment && !loading) {
+    // CRITICAL FIX: Check if this is a bundle FIRST before validating reportType
+    // For bundles, reportType might be defaulted to "life-summary" but we should use bundleType/bundleReports
+    const isBundle = bundleType && bundleReports.length > 0;
+    
+    // Declare price variable outside the conditional block for use later
+    let price: typeof REPORT_PRICES[keyof typeof REPORT_PRICES] | undefined;
+    
+    if (!isBundle) {
+      // Only validate reportType for non-bundle reports
+      if (!reportType) {
+        // Should not happen, but handle gracefully
+        return (
+          <div className="cosmic-bg py-8">
+            <div className="container mx-auto px-4 max-w-2xl">
+              <Card className="cosmic-card">
+                <CardContent className="p-8 text-center">
+                  <div className="text-5xl mb-4">⚠️</div>
+                  <h2 className="text-2xl font-bold mb-4 text-red-700">Invalid Report Type</h2>
+                  <p className="text-slate-600 mb-6">Please select a valid report type.</p>
+                  <Link href="/ai-astrology/input">
+                    <Button className="cosmic-button-secondary">Choose Report Type</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        );
+      }
+      
+      price = REPORT_PRICES[reportType as keyof typeof REPORT_PRICES];
+      if (!price) {
+        // Invalid report type - should not happen but handle gracefully
+        return (
+          <div className="cosmic-bg py-8">
+            <div className="container mx-auto px-4 max-w-2xl">
+              <Card className="cosmic-card">
+                <CardContent className="p-8 text-center">
+                  <div className="text-5xl mb-4">⚠️</div>
+                  <h2 className="text-2xl font-bold mb-4 text-red-700">Invalid Report Type</h2>
+                  <p className="text-slate-600 mb-6">The selected report type is not available.</p>
+                  <Link href="/ai-astrology/input">
+                    <Button className="cosmic-button-secondary">Choose Report Type</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        );
+      }
+    }
+    
+    const bundlePrice = isBundle 
+      ? (bundleType === "life-decision-pack" 
+          ? BUNDLE_PRICES["life-decision-pack"] 
+          : bundleType === "all-3" 
+          ? BUNDLE_PRICES["all-3"] 
+          : BUNDLE_PRICES["any-2"]) 
+      : null;
+
+    return (
+      <div className="cosmic-bg py-8">
+        <div className="container mx-auto px-4 max-w-2xl">
+          <Card className="cosmic-card">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl mb-4">🔒</div>
+              <h2 className="text-2xl font-bold mb-4 text-slate-800">
+                {isBundle 
+                  ? `Unlock Your ${bundleType === "life-decision-pack" 
+                      ? "Complete Life Decision Pack" 
+                      : bundleType === "all-3" 
+                      ? "All 3 Reports" 
+                      : "Any 2 Reports"} Bundle`
+                  : `Unlock Your ${getReportName(reportType)}`}
+              </h2>
+              <p className="text-slate-600 mb-6">
+                {isBundle
+                  ? `Get ${bundleReports.length} comprehensive reports for just AU$${((bundlePrice?.amount || 0) / 100).toFixed(2)} (includes GST).`
+                  : `Get detailed, AI-powered insights for just AU$${(price?.amount || 0) / 100} (includes GST).`}
+              </p>
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-xl mb-6 border border-amber-200">
+                <div className="text-3xl font-bold text-amber-700 mb-2">
+                  AU${isBundle ? ((bundlePrice?.amount || 0) / 100).toFixed(2) : ((price?.amount || 0) / 100).toFixed(2)}
+                  <span className="text-lg font-normal text-amber-600 ml-2">(incl. GST)</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-2 text-center">
+                  Price shown in AUD. Final amount shown in your local currency at checkout.
+                </p>
+                <p className="text-sm text-slate-600 mb-3">
+                  {isBundle ? bundlePrice?.description : price?.description}
+                </p>
+                
+                {/* Bundle Reports List */}
+                {isBundle && bundleReports.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-amber-200">
+                    <p className="text-sm font-semibold text-amber-800 mb-3">Your Bundle Includes:</p>
+                    <div className="space-y-2 text-left">
+                      {bundleReports.map((reportTypeInBundle, idx) => (
+                        <div key={reportTypeInBundle} className="flex items-start gap-2 p-2 bg-white/50 rounded">
+                          <span className="text-amber-700 font-bold mt-0.5">{idx + 1}.</span>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-800">{getReportName(reportTypeInBundle)}</p>
+                            <p className="text-xs text-slate-600">{REPORT_PRICES[reportTypeInBundle as keyof typeof REPORT_PRICES]?.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* What You'll Get */}
+                <div className={`mt-4 pt-4 border-t border-amber-200 ${isBundle ? '' : ''}`}>
+                  <p className="text-sm font-semibold text-amber-800 mb-2">What you&apos;ll get:</p>
+                  <ul className="text-sm text-slate-700 space-y-1">
+                    <li>• {isBundle ? `${bundleReports.length} detailed AI-generated reports` : 'Detailed AI-generated analysis'}</li>
+                    <li>• Personalized insights based on your birth chart</li>
+                    <li>• {isBundle ? `${bundleReports.length} downloadable PDF reports` : 'Downloadable PDF report'}</li>
+                    <li>• Instant access after payment</li>
+                    {isBundle && bundlePrice && (
+                      <li>• Save AU${(bundlePrice.savings / 100).toFixed(2)} compared to buying individually</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+              {/* Refund Policy Acknowledgment */}
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={refundAcknowledged}
+                    onChange={(e) => setRefundAcknowledged(e.target.checked)}
+                    className="mt-1 w-5 h-5 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+                    required
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-slate-800">
+                      I understand this is a digital product with no change-of-mind refunds
+                    </span>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Digital reports are non-refundable for change of mind. This does not limit your rights under Australian Consumer Law.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="mb-4 text-center">
+                <Link href="/ai-astrology/faq" className="text-sm text-purple-600 hover:text-purple-700 underline">
+                  Read FAQs before buying
+                </Link>
+              </div>
+              <Button
+                onClick={handlePurchase}
+                disabled={loading || tokenLoading || !refundAcknowledged}
+                className="w-full cosmic-button py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading 
+                  ? "Processing..." 
+                  : isBundle 
+                    ? `Purchase ${bundleType === "life-decision-pack" 
+                        ? "Complete Life Decision Pack" 
+                        : bundleType === "all-3" 
+                        ? "All 3 Reports" 
+                        : "Any 2 Reports"} Bundle →`
+                    : `Purchase ${getReportName(reportType)} →`}
+              </Button>
+              <Link href="/ai-astrology/input?reportType=life-summary">
+                <Button className="cosmic-button-secondary w-full mt-4">
+                  Get Free Life Summary Instead
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // CRITICAL FIX: Unified check for when we need to wait vs redirect
+  // Never redirect if:
+  // 1. Currently loading or generating
+  // 2. Have reportType in URL (coming from input page) - wait for useEffect
+  // 3. Have session_id or reportId (indicates ongoing process)
+  // 4. Already redirected
+  // CRITICAL FIX (ChatGPT): Remove urlHasReportType from processing conditions
+  // reportType in URL does NOT mean we are processing - it's just metadata
+  const urlSessionId = searchParams.get("session_id");
+  const urlReportId = searchParams.get("reportId");
+  const autoGenerate = searchParams.get("auto_generate") === "true";
+  
+  // Check for bundle info in state (for bundles, we should wait even if no URL params)
+  const hasBundleInfo = bundleType && bundleReports.length > 0;
+  
+  // Determine if we should wait (loading, generating, or have URL params indicating process, or have bundle info AND generation active)
+  // Only show loader when actually processing (not just when reportType is in URL)
+  const shouldWaitForProcess =
+    loading ||
+    isGeneratingRef.current ||
+    (hasBundleInfo && bundleGenerating) ||
+    (!reportContent && (urlSessionId || urlReportId || autoGenerate));
+  
+  // Determine if we're waiting for state to be set (have bundle info AND generation is active)
+  const isWaitingForState = hasBundleInfo && !input && !hasRedirectedRef.current && !loading && bundleGenerating;
+  
+  // CRITICAL FIX (ChatGPT): Remove hasReportTypeInUrl gating completely
+  // reportType in URL must NOT suppress redirect - it's just metadata
+  // Only show "Redirecting..." UI when redirect was actually initiated (redirectInitiatedRef.current === true)
+  
+  // CRITICAL FIX (2026-01-18): Use ref as fallback when checking if we have input
+  // This prevents race condition where inputTokenLoadedRef is true but input state hasn't updated yet
+  // The ref is set synchronously, while React state updates are asynchronous
+  const hasInput = input || inputTokenLoadedRef.current;
+  
+  // CRITICAL FIX (2026-01-18): Only show "Loading your details..." when actually loading INPUT
+  // Distinguish between: (1) loading input token, vs (2) input loaded but waiting for report generation
+  // If input is already loaded (either via state or ref), don't show "Loading your details..." - show report generation UI instead
+  const isInputLoading = tokenLoading || (inputTokenLoadedRef.current && !input);
+  
+  if (!reportContent || !hasInput) {
+    // CRITICAL FIX (Step 1): Show "Loading your details..." ONLY while input token is loading
+    // Once input is loaded (either via state OR ref), proceed to show report generation UI
+    if (isInputLoading) {
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Loading your details...</h2>
+              <p className="text-slate-600">Please wait while we load your information.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // CRITICAL FIX (2026-01-18): Show error state if error is set (e.g., expired token)
+    // CRITICAL FIX (2026-01-18 - ChatGPT Task 1): Enhanced error UI with requestId/attemptId for debugging
+    // This prevents showing "Enter Your Birth Details" when token is invalid or generation fails
+    if (error) {
+      // Extract attemptId from generation controller for debugging
+      const attemptIdSuffix = generationController.activeAttemptId 
+        ? generationController.activeAttemptId.split('-').slice(-2).join('-')
+        : null;
+      
+      // Log error with context for production debugging (ChatGPT Task 1)
+      console.warn("[PREVIEW] Error state displayed", {
+        error: error.substring(0, 100),
+        reportType,
+        attemptId: attemptIdSuffix,
+        hasInput: !!input,
+        status: generationController.status,
+      });
+      
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="text-6xl mb-6">⚠️</div>
+              <h2 className="text-2xl font-bold mb-4 text-red-600">Error</h2>
+              <p className="text-slate-600 mb-6">{error}</p>
+              {attemptIdSuffix && (
+                <p className="text-xs text-slate-400 mb-4">
+                  Reference: {attemptIdSuffix}
+                </p>
+              )}
+              <Button
+                onClick={() => {
+                  const urlReportType = searchParams.get("reportType");
+                  const redirectUrl = urlReportType
+                    ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+                    : "/ai-astrology/input";
+                  const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+                  console.info("[ERROR_START_AGAIN]", fullUrl);
+                  window.location.assign(fullUrl);
+                }}
+                className="cosmic-button"
+              >
+                Start New Report →
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // CRITICAL: If we're in loading state OR generating, OR waiting for state initialization,
+    // ALWAYS show the unified generation screen (no screen switching)
+    // This provides a single, continuous generation experience as per ChatGPT feedback
+    // CRITICAL FIX (2026-01-18 - ChatGPT): Never return null - always show unified loader to prevent blank screen
+    if (!reportContent && (loading || isGeneratingRef.current || shouldWaitForProcess || isWaitingForState || bundleGenerating || loadingStage !== null)) {
+      // CRITICAL FIX (2026-01-18 - ChatGPT): Add invariant logging to catch loadingStage/isProcessingUI mismatch
+      if (loadingStage !== null && !isProcessingUI) {
+        console.warn("[INVARIANT_VIOLATION] loadingStage set but isProcessingUI false", { 
+          loadingStage, 
+          isProcessingUI,
+          loading,
+          controllerStatus: generationController.status,
+          bundleGenerating,
+          reportType 
+        });
+      }
+      // CRITICAL FIX (2026-01-18 - ChatGPT): Always show unified loader instead of returning null
+      // The unified loading screen (line 3092) will handle all loading states
+      // This prevents blank screen when loadingStage is set but isProcessingUI hasn't updated yet
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Preparing your report...</h2>
+              <p className="text-slate-600">Please wait while we prepare your personalized insights.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // CRITICAL FIX (2026-01-18): If hasInput is true but reportContent is not ready yet,
+    // show a loading state while waiting for report generation to start
+    // This prevents blank screen when input is loaded but generation hasn't started yet
+    // The unified loading screen (line 2980) will take over once isProcessingUI becomes true
+    if (hasInput && !reportContent && !isProcessingUI && (!isPaidReport || paymentVerified)) {
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Preparing your report...</h2>
+              <p className="text-slate-600">Please wait while we prepare your personalized insights.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // CRITICAL FIX (ChatGPT): Only show "Redirecting..." UI when redirect was actually initiated
+    // If redirectInitiatedRef is true, we've called router.push/replace, so show redirecting UI
+    // Otherwise, if no input/token, the useEffect above will trigger redirect (don't show UI prematurely)
+    if (redirectInitiatedRef.current) {
+      // Show loading state while redirecting (prevents flash of content)
+      return (
+        <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+          <Card className="max-w-2xl w-full mx-4">
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin text-6xl mb-6">🌙</div>
+              <h2 className="text-2xl font-bold mb-4">Redirecting...</h2>
+              <p className="text-slate-600">Please wait while we redirect you to the input page.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // CRITICAL FIX (ChatGPT): If not redirecting and no input/token, show "Enter your details" card
+    // OR let useEffect trigger redirect (don't show "Redirecting..." prematurely)
+    // The useEffect above (lines 1426-1498) will handle redirect when needed
+    // This prevents "Redirecting..." dead-state when reportType is in URL but redirect hasn't been initiated
+    
+    // CRITICAL FIX (2026-01-18): Only show "Enter Your Birth Details" if we truly have no input
+    // If hasInput is true (via state or ref), we should have already returned above
+    // This prevents showing "Enter Your Birth Details" when input is loaded but reportContent is not ready yet
+    if (!hasInput) {
+      // If we reach here, we have no input and redirect hasn't been initiated yet
+      // Show a simple "Enter your details" card instead of "Redirecting..." dead-state
+      return (
+      <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex items-center justify-center min-h-[60vh]">
+        <Card className="max-w-2xl w-full mx-4">
+          <CardContent className="p-12 text-center">
+            <div className="text-6xl mb-6">🔮</div>
+            <h2 className="text-2xl font-bold mb-4">Enter Your Birth Details</h2>
+            <p className="text-slate-600 mb-6">Please provide your birth details to generate your report.</p>
+            <Button
+              onClick={() => {
+                const urlReportType = searchParams.get("reportType");
+                const returnTo = typeof window !== "undefined" 
+                  ? `${window.location.pathname}${window.location.search}`
+                  : "";
+                const redirectUrl = returnTo && urlReportType
+                  ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}&returnTo=${encodeURIComponent(returnTo)}`
+                  : urlReportType
+                  ? `/ai-astrology/input?reportType=${encodeURIComponent(urlReportType)}`
+                  : "/ai-astrology/input";
+                redirectInitiatedRef.current = true;
+                // CRITICAL FIX (2026-01-18): Use hard navigation to prevent stuck "Redirecting..." screen
+                const fullUrl = typeof window !== "undefined" ? new URL(redirectUrl, window.location.origin).toString() : redirectUrl;
+                console.info("[ENTER_DETAILS_REDIRECT]", fullUrl);
+                window.location.assign(fullUrl);
+              }}
+              className="cosmic-button"
+            >
+              Enter Details →
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+      );
+    }
+    
+    // Fallback: should not reach here if logic is correct, but if we do, show report generation UI
+    return null; // Unified loading screen will handle this (lines 1858+)
+  }
+
+  // Extract report content rendering into a reusable function
+  const renderSingleReportContent = (content: ReportContent | null, type: ReportType) => {
+    if (!content) return null;
+
+    // Filter invalid/empty sections FIRST, then apply gating.
+    // Otherwise the UI can claim “X% shown” while the visible slice is mostly empty (missing titles),
+    // which feels like “25% but tiny content” and hurts engagement.
+    const sections = (content.sections || []).filter((s) => s && s.title);
+    const isPaid = type !== "life-summary";
+    const shouldGateContent = !isPaid && sections.length > 0;
+    // Life-summary is the primary engagement surface: show a meaningful amount of content.
+    // Previously this gated too aggressively and felt “empty” despite showing a percent label.
+    const gateAfterSection = shouldGateContent
+      ? type === "life-summary"
+        ? getFreeLifeSummaryGateAfterSection(sections.length)
+        : Math.min(sections.length, Math.max(3, Math.floor(sections.length * 0.6)))
+      : sections.length;
+    const visibleSections = shouldGateContent ? sections.slice(0, gateAfterSection) : sections;
+    const gatedSections = shouldGateContent ? sections.slice(gateAfterSection) : [];
+
+    return (
+      <>
+                {/* Quality Warning Banner */}
+                {qualityWarning && (
+                  <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg shadow-sm">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3 flex-1">
+                        <h3 className="text-sm font-medium text-yellow-800">
+                          Report Quality Notice
+                        </h3>
+                        <div className="mt-2 text-sm text-yellow-700">
+                          <p>
+                            This report is shorter than expected. You can regenerate it for a longer, more detailed version.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Executive Summary (for Full Life Report) */}
+                {type === "full-life" && content?.executiveSummary && (
+                  <div id="executive-summary" className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm scroll-mt-20">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">📋</div>
+                      <h2 className="text-2xl font-bold text-purple-900">Your Key Life Insights (Summary)</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content?.executiveSummary}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Enhanced Summary for Marriage Timing Report */}
+                {type === "marriage-timing" && (
+                  <>
+                    {content?.summary && (
+                      <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 rounded-xl border-2 border-pink-300 shadow-sm scroll-mt-20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">💑</div>
+                          <h2 className="text-2xl font-bold text-pink-900">Marriage Timing Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                        </div>
+                        {/* Extract and display timing strength if mentioned in summary */}
+                        {content?.summary && content.summary.toLowerCase().includes("timing strength") && (
+                          <div className="mt-4 pt-4 border-t border-pink-200">
+                            <p className="text-sm font-semibold text-pink-800">
+                              {content?.summary && (content.summary.match(/timing strength:.*?(\d+\/10|strong|moderate)/i)?.[0] || 
+                               content.summary.match(/confidence level:.*?\d+\/10/i)?.[0] || "")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Time Windows for Marriage Timing */}
+                    {content?.timeWindows && content.timeWindows.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 rounded-xl border-2 border-rose-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-rose-900 mb-4 flex items-center gap-2">
+                          <span>🕒</span> Ideal Marriage Timing Windows
+                        </h3>
+                        <div className="space-y-4">
+                          {content.timeWindows.map((window, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-rose-200">
+                              <h4 className="font-bold text-rose-800 mb-2">{window.title}</h4>
+                              {(window.startDate || window.endDate) && (
+                                <p className="text-sm text-rose-700 mb-2">
+                                  {window.startDate && window.endDate 
+                                    ? `${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                    : window.startDate 
+                                      ? `From ${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                      : window.endDate
+                                        ? `Until ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                        : ''}
+                                </p>
+                              )}
+                              {window.description && (
+                                <p className="text-slate-700 mb-2">{window.description}</p>
+                              )}
+                              {window.actions && window.actions.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Recommended Actions:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {window.actions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {window.avoidActions && window.avoidActions.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-sm font-semibold text-amber-600 mb-1">Actions to Avoid:</p>
+                                  <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
+                                    {window.avoidActions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Recommendations for Marriage Timing */}
+                    {content?.recommendations && content.recommendations.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-pink-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
+                          <span>💡</span> Recommendations
+                        </h3>
+                        <div className="space-y-4">
+                          {content.recommendations.map((rec, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-purple-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-purple-800">{rec.category}</h4>
+                                {rec.priority && (
+                                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                    rec.priority === "High" ? "bg-red-100 text-red-800" :
+                                    rec.priority === "Medium" ? "bg-yellow-100 text-yellow-800" :
+                                    "bg-blue-100 text-blue-800"
+                                  }`}>
+                                    {rec.priority} Priority
+                                  </span>
+                                )}
+                              </div>
+                              {rec.items && rec.items.length > 0 && (
+                                <ul className="list-disc list-inside text-slate-700 space-y-1">
+                                  {rec.items.map((item, i) => (
+                                    <li key={i}>{item}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Enhanced Summary for Career & Money Report */}
+                {type === "career-money" && (
+                  <>
+                    {content?.summary && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 rounded-xl border-2 border-blue-300 shadow-sm">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">💼</div>
+                          <h2 className="text-2xl font-bold text-blue-900">Career & Money Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                        </div>
+                        {/* Extract and display confidence indicators if mentioned in summary */}
+                        {(content?.summary && (content.summary.toLowerCase().includes("career direction clarity") || 
+                          content.summary.toLowerCase().includes("money growth stability"))) && (
+                          <div className="mt-4 pt-4 border-t border-blue-200">
+                            <div className="flex flex-wrap gap-4 text-sm">
+                              {content?.summary && content.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0] && (
+                                <p className="font-semibold text-blue-800">
+                                  {content.summary.match(/career direction clarity:.*?(strong|moderate|weak)/i)?.[0]}
+                                </p>
+                              )}
+                              {content?.summary && content.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0] && (
+                                <p className="font-semibold text-blue-800">
+                                  {content.summary.match(/money growth stability:.*?(steady|stable|moderate|strong)/i)?.[0]}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-xs text-blue-700 mt-2">Directional confidence indicators, not income predictions</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Time Windows for Career & Money */}
+                    {content?.timeWindows && content.timeWindows.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 rounded-xl border-2 border-green-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
+                          <span>📅</span> Favorable Time Periods
+                        </h3>
+                        <div className="space-y-4">
+                          {content.timeWindows.map((window, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-green-200">
+                              <h4 className="font-bold text-green-800 mb-2">{window.title}</h4>
+                              {(window.startDate || window.endDate) && (
+                                <p className="text-sm text-green-700 mb-2">
+                                  {window.startDate && window.endDate 
+                                    ? `${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                    : window.startDate 
+                                      ? `From ${new Date(window.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                      : window.endDate
+                                        ? `Until ${new Date(window.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                        : ''}
+                                </p>
+                              )}
+                              {window.description && (
+                                <p className="text-slate-700 mb-2">{window.description}</p>
+                              )}
+                              {window.actions && window.actions.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Recommended Actions:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {window.actions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {window.avoidActions && window.avoidActions.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-sm font-semibold text-amber-600 mb-1">Actions to Avoid:</p>
+                                  <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
+                                    {window.avoidActions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Recommendations for Career & Money */}
+                    {content?.recommendations && content.recommendations.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                          <span>💡</span> Recommendations
+                        </h3>
+                        <div className="space-y-4">
+                          {content.recommendations.map((rec, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-indigo-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-indigo-800">{rec.category}</h4>
+                                {rec.priority && (
+                                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                    rec.priority === "High" ? "bg-red-100 text-red-800" :
+                                    rec.priority === "Medium" ? "bg-yellow-100 text-yellow-800" :
+                                    "bg-blue-100 text-blue-800"
+                                  }`}>
+                                    {rec.priority} Priority
+                                  </span>
+                                )}
+                              </div>
+                              {rec.items && rec.items.length > 0 && (
+                                <ul className="list-disc list-inside text-slate-700 space-y-1">
+                                  {rec.items.map((item, i) => (
+                                    <li key={i}>{item}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Enhanced Summary for Year Analysis Report */}
+                {type === "year-analysis" && (
+                  <>
+                    {(content?.summary || content?.yearTheme) && (
+                      <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm scroll-mt-20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">📅</div>
+                          <h2 className="text-2xl font-bold text-indigo-900">Year Analysis Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          {content?.yearTheme && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium mb-3 text-lg">{content.yearTheme}</p>
+                          )}
+                          {content?.summary && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                          )}
+                        </div>
+                        {content?.confidenceLevel && (
+                          <div className="mt-4 pt-4 border-t border-indigo-200">
+                            <p className="text-sm font-semibold text-indigo-800">
+                              Confidence Level: {content.confidenceLevel}/10
+                            </p>
+                            <p className="text-xs text-indigo-700 mt-1">Based on planetary analysis and chart patterns</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Year Scorecard */}
+                    {content?.yearScorecard && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
+                          <span>⭐</span> Year Scorecard
+                        </h3>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="bg-white p-4 rounded-lg border border-purple-200 text-center">
+                            <div className="text-2xl mb-2">💼</div>
+                            <p className="text-sm font-semibold text-slate-600 mb-1">Career</p>
+                            <div className="flex justify-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <span key={i} className={i < (content.yearScorecard?.career || 0) ? "text-yellow-400" : "text-slate-300"}>⭐</span>
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{content.yearScorecard.career}/5</p>
+                          </div>
+                          <div className="bg-white p-4 rounded-lg border border-purple-200 text-center">
+                            <div className="text-2xl mb-2">💑</div>
+                            <p className="text-sm font-semibold text-slate-600 mb-1">Relationships</p>
+                            <div className="flex justify-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <span key={i} className={i < (content.yearScorecard?.relationships || 0) ? "text-yellow-400" : "text-slate-300"}>⭐</span>
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{content.yearScorecard.relationships}/5</p>
+                          </div>
+                          <div className="bg-white p-4 rounded-lg border border-purple-200 text-center">
+                            <div className="text-2xl mb-2">💰</div>
+                            <p className="text-sm font-semibold text-slate-600 mb-1">Money</p>
+                            <div className="flex justify-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <span key={i} className={i < (content.yearScorecard?.money || 0) ? "text-yellow-400" : "text-slate-300"}>⭐</span>
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{content.yearScorecard.money}/5</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Quarterly Breakdown */}
+                    {content?.quarterlyBreakdown && content.quarterlyBreakdown.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-cyan-50 via-blue-50 to-cyan-50 rounded-xl border-2 border-cyan-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-cyan-900 mb-4 flex items-center gap-2">
+                          <span>📆</span> Quarterly Breakdown
+                        </h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {content.quarterlyBreakdown.map((quarter, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-cyan-200">
+                              <h4 className="font-bold text-cyan-800 mb-2">{quarter.quarter}</h4>
+                              <p className="text-sm text-slate-700 mb-2 font-medium">{quarter.focusTheme}</p>
+                              <div className="space-y-1 text-xs text-slate-600">
+                                <p><span className="font-semibold">Career & Money:</span> {quarter.careerMoneyTone}</p>
+                                <p><span className="font-semibold">Relationships:</span> {quarter.relationshipFocus}</p>
+                                <p><span className="font-semibold">Energy:</span> <span className="capitalize">{quarter.energyLevel}</span></p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Best Periods */}
+                    {content?.bestPeriods && content.bestPeriods.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 rounded-xl border-2 border-green-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
+                          <span>✨</span> Best Periods
+                        </h3>
+                        <div className="space-y-4">
+                          {content.bestPeriods.map((period, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-green-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-green-800">{period.focus}</h4>
+                                <span className="text-sm text-green-700">{period.months.join(", ")}</span>
+                              </div>
+                              <p className="text-slate-700">{period.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Caution Periods */}
+                    {content?.cautionPeriods && content.cautionPeriods.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 rounded-xl border-2 border-amber-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2">
+                          <span>⚠️</span> Caution Periods
+                        </h3>
+                        <div className="space-y-4">
+                          {content.cautionPeriods.map((period, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-amber-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-amber-800">{period.focus}</h4>
+                                <span className="text-sm text-amber-700">{period.months.join(", ")}</span>
+                              </div>
+                              <p className="text-slate-700">{period.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Enhanced Summary for Major Life Phase Report */}
+                {type === "major-life-phase" && (
+                  <>
+                    {(content?.summary || content?.phaseTheme) && (
+                      <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-violet-50 rounded-xl border-2 border-violet-300 shadow-sm scroll-mt-20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">🗺️</div>
+                          <h2 className="text-2xl font-bold text-violet-900">3-5 Year Strategic Life Phase Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          {content?.phaseTheme && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium mb-3">{content.phaseTheme}</p>
+                          )}
+                          {content?.phaseYears && (
+                            <p className="text-violet-700 font-semibold mb-3">Phase Period: {content.phaseYears}</p>
+                          )}
+                          {content?.summary && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Phase Breakdown */}
+                    {content?.phaseBreakdown && content.phaseBreakdown.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
+                          <span>📅</span> Phase Breakdown
+                        </h3>
+                        <div className="space-y-4">
+                          {content.phaseBreakdown.map((phase, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-purple-200">
+                              <h4 className="font-bold text-purple-800 mb-2">{phase.year}</h4>
+                              <p className="text-slate-700 mb-2">{phase.theme}</p>
+                              {phase.focusAreas && phase.focusAreas.length > 0 && (
+                                <div className="mb-2">
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Focus Areas:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {phase.focusAreas.map((area, i) => (
+                                      <li key={i}>{area}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {phase.majorInfluences && (
+                                <p className="text-sm text-slate-600 italic">{phase.majorInfluences}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Major Transitions */}
+                    {content?.majorTransitions && content.majorTransitions.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-xl border-2 border-indigo-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                          <span>🔄</span> Major Transitions
+                        </h3>
+                        <div className="space-y-4">
+                          {content.majorTransitions.map((transition, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-indigo-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-indigo-800 capitalize">{transition.type}</h4>
+                                <span className="text-sm text-indigo-600">{transition.timeframe}</span>
+                              </div>
+                              <p className="text-slate-700 mb-2">{transition.description}</p>
+                              {transition.preparation && transition.preparation.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Preparation:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {transition.preparation.map((item, i) => (
+                                      <li key={i}>{item}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Long-term Opportunities */}
+                    {content?.longTermOpportunities && content.longTermOpportunities.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 rounded-xl border-2 border-teal-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-teal-900 mb-4 flex items-center gap-2">
+                          <span>🌟</span> Long-term Opportunities
+                        </h3>
+                        <div className="space-y-4">
+                          {content.longTermOpportunities.map((opp, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-teal-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-teal-800">{opp.category}</h4>
+                                <span className="text-sm text-teal-600">{opp.timeframe}</span>
+                              </div>
+                              <p className="text-slate-700 mb-2">{opp.description}</p>
+                              {opp.actionItems && opp.actionItems.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Action Items:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {opp.actionItems.map((item, i) => (
+                                      <li key={i}>{item}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Enhanced Summary for Decision Support Report */}
+                {type === "decision-support" && (
+                  <>
+                    {(content?.summary || content?.decisionContext) && (
+                      <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 rounded-xl border-2 border-emerald-300 shadow-sm scroll-mt-20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-3xl">🎯</div>
+                          <h2 className="text-2xl font-bold text-emerald-900">Decision Support Summary</h2>
+                        </div>
+                        <div className="prose prose-slate max-w-none">
+                          {content?.decisionContext && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium mb-3">{content.decisionContext}</p>
+                          )}
+                          {content?.summary && (
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Decision Options */}
+                    {content?.decisionOptions && content.decisionOptions.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 rounded-xl border-2 border-green-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
+                          <span>⚖️</span> Decision Options Analysis
+                        </h3>
+                        <div className="space-y-4">
+                          {content.decisionOptions.map((option, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg border border-green-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-green-800">{option.option}</h4>
+                                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                  option.astrologicalAlignment === "high" ? "bg-green-100 text-green-800" :
+                                  option.astrologicalAlignment === "medium" ? "bg-yellow-100 text-yellow-800" :
+                                  "bg-red-100 text-red-800"
+                                }`}>
+                                  {option.astrologicalAlignment === "high" ? "✓ High Alignment" :
+                                   option.astrologicalAlignment === "medium" ? "○ Medium Alignment" :
+                                   "✗ Low Alignment"}
+                                </span>
+                              </div>
+                              {option.timeframe && (
+                                <p className="text-sm text-green-700 mb-2">⏱️ {option.timeframe}</p>
+                              )}
+                              {option.considerations && option.considerations.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-600 mb-1">Key Considerations:</p>
+                                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                    {option.considerations.map((consideration, i) => (
+                                      <li key={i}>{consideration}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Recommended Timing */}
+                    {content?.recommendedTiming && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 rounded-xl border-2 border-blue-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
+                          <span>⏰</span> Recommended Timing
+                        </h3>
+                        <p className="text-slate-800 leading-relaxed">{content.recommendedTiming}</p>
+                      </div>
+                    )}
+                    
+                    {/* Factors to Consider */}
+                    {content?.factorsToConsider && content.factorsToConsider.length > 0 && (
+                      <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 rounded-xl border-2 border-amber-300 shadow-sm">
+                        <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2">
+                          <span>📋</span> Important Factors to Consider
+                        </h3>
+                        <ul className="list-disc list-inside text-slate-700 space-y-2">
+                          {content.factorsToConsider.map((factor, idx) => (
+                            <li key={idx} className="text-slate-800">{factor}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Enhanced Summary for Life Summary Report (Free) */}
+                {type === "life-summary" && content?.summary && (
+                  <div id="summary" className="mb-8 p-6 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 rounded-xl border-2 border-amber-300 shadow-sm scroll-mt-20">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-3xl">📊</div>
+                      <h2 className="text-2xl font-bold text-amber-900">Life Summary</h2>
+                    </div>
+                    <div className="prose prose-slate max-w-none">
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{content.summary}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sections */}
+                <div className="space-y-8">
+                  {visibleSections.map((section, idx) => {
+                    // Check if section has key insight (title contains "- Key Insight")
+                    const hasKeyInsight = section.title.toLowerCase().includes("- key insight") || section.title.toLowerCase().includes("key insight");
+                    const sectionTitle = section.title.replace(/- Key Insight/gi, "").trim();
+                    
+                    // Enhanced section detection for ALL report types (standardized like marriage report)
+                    const isMarriageTimingReport = type === "marriage-timing";
+                    const isCareerMoneyReport = type === "career-money";
+                    const isYearAnalysisReport = type === "year-analysis";
+                    const isMajorLifePhaseReport = type === "major-life-phase";
+                    const isDecisionSupportReport = type === "decision-support";
+                    const isLifeSummaryReport = type === "life-summary";
+                    
+                    // Summary sections (already displayed above, skip in section list)
+                    const isMarriageSummarySection = isMarriageTimingReport && section.title.toLowerCase().includes("marriage timing summary");
+                    const isCareerMoneySummarySection = isCareerMoneyReport && section.title.toLowerCase().includes("career & money summary");
+                    
+                    // Decision Guidance (applies to multiple report types)
+                    const isDecisionGuidanceSection = (
+                      isMarriageTimingReport || 
+                      isCareerMoneyReport || 
+                      isYearAnalysisReport ||
+                      isMajorLifePhaseReport ||
+                      isDecisionSupportReport
+                    ) && (
+                      section.title.toLowerCase().includes("what you should focus") || 
+                      section.title.toLowerCase().includes("decision guidance") || 
+                      section.title.toLowerCase().includes("focus on now") ||
+                      section.title.toLowerCase().includes("key actions") ||
+                      section.title.toLowerCase().includes("recommendations")
+                    );
+                    
+                    // Marriage-specific sections
+                    const isIdealWindowsSection = isMarriageTimingReport && section.title.toLowerCase().includes("ideal marriage window");
+                    const isDelayFactorsSection = isMarriageTimingReport && (section.title.toLowerCase().includes("delay") || section.title.toLowerCase().includes("potential delay"));
+                    
+                    // Career & Money sections
+                    const isCareerMomentumSection = isCareerMoneyReport && section.title.toLowerCase().includes("career momentum");
+                    const isMoneyGrowthSection = isCareerMoneyReport && (section.title.toLowerCase().includes("money growth") || section.title.toLowerCase().includes("financial growth"));
+                    const isCareerDirectionSection = isCareerMoneyReport && (section.title.toLowerCase().includes("career direction") || section.title.toLowerCase().includes("best career"));
+                    
+                    // Year Analysis sections
+                    const isYearOverviewSection = isYearAnalysisReport && (section.title.toLowerCase().includes("year overview") || section.title.toLowerCase().includes("12 month"));
+                    const isMonthlyHighlightsSection = isYearAnalysisReport && (section.title.toLowerCase().includes("monthly") || section.title.toLowerCase().includes("key months"));
+                    
+                    // Major Life Phase sections
+                    const isPhaseOverviewSection = isMajorLifePhaseReport && (section.title.toLowerCase().includes("phase overview") || section.title.toLowerCase().includes("strategic phase"));
+                    const isLongTermTrendsSection = isMajorLifePhaseReport && (section.title.toLowerCase().includes("long term") || section.title.toLowerCase().includes("trends"));
+                    
+                    // Decision Support sections
+                    const isDecisionAnalysisSection = isDecisionSupportReport && (section.title.toLowerCase().includes("decision analysis") || section.title.toLowerCase().includes("astrological perspective"));
+                    const isRecommendationsSection = isDecisionSupportReport && (section.title.toLowerCase().includes("recommendations") || section.title.toLowerCase().includes("guidance"));
+                    
+                    // Major sections (enhanced visual treatment)
+                    const isMajorSection = idx === 0 || 
+                      section.title.toLowerCase().includes("personality") || 
+                      section.title.toLowerCase().includes("marriage") || 
+                      section.title.toLowerCase().includes("career") || 
+                      section.title.toLowerCase().includes("money") ||
+                      section.title.toLowerCase().includes("life") ||
+                      section.title.toLowerCase().includes("overview") ||
+                      isDecisionGuidanceSection ||
+                      isIdealWindowsSection ||
+                      isCareerMomentumSection ||
+                      isMoneyGrowthSection ||
+                      isCareerDirectionSection ||
+                      isYearOverviewSection ||
+                      isMonthlyHighlightsSection ||
+                      isPhaseOverviewSection ||
+                      isLongTermTrendsSection ||
+                      isDecisionAnalysisSection ||
+                      isRecommendationsSection;
+                    
+                    // Skip summary sections if we already displayed them above (for all report types)
+                    if (isMarriageSummarySection || isCareerMoneySummarySection || 
+                        (isYearAnalysisReport && section.title.toLowerCase().includes("year analysis summary")) ||
+                        (isMajorLifePhaseReport && section.title.toLowerCase().includes("strategic life phase summary")) ||
+                        (isDecisionSupportReport && section.title.toLowerCase().includes("decision support summary")) ||
+                        (isLifeSummaryReport && section.title.toLowerCase().includes("life summary"))) {
+                      return null;
+                    }
+                    
+                    return (
+                <div key={idx} className={isMajorSection ? "relative" : ""}>
+                  {/* Visual Section Divider for Major Sections */}
+                  {isMajorSection && idx > 0 && (
+                    <div className="mb-8 pt-8 border-t-2 border-slate-300">
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white px-4">
+                        <div className="w-12 h-1 bg-gradient-to-r from-purple-400 via-indigo-400 to-purple-400 rounded-full"></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className={`${
+                    isDecisionGuidanceSection ? "bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-xl border-2 border-emerald-300 shadow-sm" :
+                    isIdealWindowsSection ? "bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-xl border-2 border-pink-300 shadow-sm" :
+                    isDelayFactorsSection ? "bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-xl border-2 border-amber-300 shadow-sm" :
+                    isCareerMomentumSection ? "bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-300 shadow-sm" :
+                    isMoneyGrowthSection ? "bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-300 shadow-sm" :
+                    isCareerDirectionSection ? "bg-gradient-to-br from-purple-50 to-violet-50 p-6 rounded-xl border-2 border-purple-300 shadow-sm" :
+                    isYearOverviewSection ? "bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border-2 border-indigo-300 shadow-sm" :
+                    isMonthlyHighlightsSection ? "bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-300 shadow-sm" :
+                    isPhaseOverviewSection ? "bg-gradient-to-br from-violet-50 to-purple-50 p-6 rounded-xl border-2 border-violet-300 shadow-sm" :
+                    isLongTermTrendsSection ? "bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-xl border-2 border-purple-300 shadow-sm" :
+                    isDecisionAnalysisSection ? "bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-xl border-2 border-emerald-300 shadow-sm" :
+                    isRecommendationsSection ? "bg-gradient-to-br from-teal-50 to-green-50 p-6 rounded-xl border-2 border-teal-300 shadow-sm" :
+                    isMajorSection ? "bg-gradient-to-br from-slate-50 to-blue-50/30 p-6 rounded-xl border border-slate-200" : ""
+                  } scroll-mt-20`} id={`section-${idx}`}>
+                      <div className="flex items-start gap-3 mb-4">
+                        {(isMajorSection || isDecisionGuidanceSection || isIdealWindowsSection || isDelayFactorsSection || 
+                          isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection ||
+                          isYearOverviewSection || isMonthlyHighlightsSection || isPhaseOverviewSection || 
+                          isLongTermTrendsSection || isDecisionAnalysisSection || isRecommendationsSection) && (
+                          <div className="text-xl sm:text-2xl mt-1">
+                          {isDecisionGuidanceSection ? "✅" :
+                           isCareerMomentumSection ? "📈" :
+                           isMoneyGrowthSection ? "💰" :
+                           isCareerDirectionSection ? "🎯" :
+                           isIdealWindowsSection ? "🕒" :
+                           isDelayFactorsSection ? "⚠️" :
+                           isYearOverviewSection ? "📅" :
+                           isMonthlyHighlightsSection ? "📆" :
+                           isPhaseOverviewSection ? "🗺️" :
+                           isLongTermTrendsSection ? "📊" :
+                           isDecisionAnalysisSection ? "🎯" :
+                           isRecommendationsSection ? "💡" :
+                           section.title.toLowerCase().includes("personality") ? "👤" :
+                           section.title.toLowerCase().includes("marriage") ? "💑" :
+                           section.title.toLowerCase().includes("career") ? "💼" :
+                           section.title.toLowerCase().includes("money") ? "💰" : 
+                           section.title.toLowerCase().includes("life") ? "🌟" : "📊"}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-800">{sectionTitle}</h2>
+                        {hasKeyInsight && section.content && (
+                          <div className="mt-3 mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+                            <p className="text-sm font-semibold text-amber-900 leading-relaxed">{section.content.split('\n')[0]}</p>
+                          </div>
+                        )}
+                        {/* Timing Strength Indicator for Marriage Timing sections */}
+                        {isMarriageTimingReport && (isIdealWindowsSection || section.title.toLowerCase().includes("timing")) && section.content && (
+                          (() => {
+                            const timingStrengthMatch = section.content.match(/timing strength:.*?(strong|moderate|weak)/i);
+                            const confidenceMatch = section.content.match(/confidence level:.*?(\d+\/10)/i);
+                            if (timingStrengthMatch || confidenceMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                                  <p className="text-sm font-semibold text-blue-900">
+                                    {timingStrengthMatch?.[0] || ""} {confidenceMatch?.[0] || ""}
+                                  </p>
+                                  <p className="text-xs text-blue-700 mt-1">Guidance strength indicator, not certainty</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        {/* Confidence Indicators for Career & Money sections */}
+                        {isCareerMoneyReport && (isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection) && section.content && (
+                          (() => {
+                            const careerClarityMatch = section.content.match(/career direction clarity:.*?(strong|moderate|weak)/i);
+                            const moneyStabilityMatch = section.content.match(/money growth stability:.*?(steady|stable|moderate|strong)/i);
+                            if (careerClarityMatch || moneyStabilityMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-indigo-50 border-l-4 border-indigo-400 rounded-r-lg">
+                                  <div className="space-y-1">
+                                    {careerClarityMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-indigo-900">{careerClarityMatch[0]}</p>
+                                    )}
+                                    {moneyStabilityMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-indigo-900">{moneyStabilityMatch[0]}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-indigo-700 mt-1">Directional confidence indicators, not income predictions</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        
+                        {/* Confidence/Strength Indicators for Year Analysis sections */}
+                        {(isYearAnalysisReport && (isYearOverviewSection || isMonthlyHighlightsSection) && section.content) && (
+                          (() => {
+                            const yearStrengthMatch = section.content.match(/year strength:.*?(strong|moderate|weak|favorable)/i);
+                            const phaseMatch = section.content.match(/current phase:.*?(favorable|challenging|transformative)/i);
+                            if (yearStrengthMatch || phaseMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-indigo-50 border-l-4 border-indigo-400 rounded-r-lg">
+                                  <div className="space-y-1">
+                                    {yearStrengthMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-indigo-900">{yearStrengthMatch[0]}</p>
+                                    )}
+                                    {phaseMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-indigo-900">{phaseMatch[0]}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-indigo-700 mt-1">Astrological phase indicators, not absolute predictions</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        
+                        {/* Confidence Indicators for Major Life Phase sections */}
+                        {(isMajorLifePhaseReport && (isPhaseOverviewSection || isLongTermTrendsSection) && section.content) && (
+                          (() => {
+                            const phaseStrengthMatch = section.content.match(/phase strength:.*?(strong|moderate|weak)/i);
+                            const strategicClarityMatch = section.content.match(/strategic clarity:.*?(high|moderate|developing)/i);
+                            if (phaseStrengthMatch || strategicClarityMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-violet-50 border-l-4 border-violet-400 rounded-r-lg">
+                                  <div className="space-y-1">
+                                    {phaseStrengthMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-violet-900">{phaseStrengthMatch[0]}</p>
+                                    )}
+                                    {strategicClarityMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-violet-900">{strategicClarityMatch[0]}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-violet-700 mt-1">Strategic phase indicators for long-term planning</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        
+                        {/* Confidence Indicators for Decision Support sections */}
+                        {(isDecisionSupportReport && (isDecisionAnalysisSection || isRecommendationsSection) && section.content) && (
+                          (() => {
+                            const decisionClarityMatch = section.content.match(/decision clarity:.*?(strong|moderate|developing)/i);
+                            const alignmentMatch = section.content.match(/astrological alignment:.*?(favorable|neutral|consider)/i);
+                            if (decisionClarityMatch || alignmentMatch) {
+                              return (
+                                <div className="mt-3 mb-4 p-3 bg-emerald-50 border-l-4 border-emerald-400 rounded-r-lg">
+                                  <div className="space-y-1">
+                                    {decisionClarityMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-emerald-900">{decisionClarityMatch[0]}</p>
+                                    )}
+                                    {alignmentMatch?.[0] && (
+                                      <p className="text-sm font-semibold text-emerald-900">{alignmentMatch[0]}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-emerald-700 mt-1">Guidance indicators to support your decision-making</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                      </div>
+                    </div>
+                  
+                  {section.content && (
+                    <div className="prose prose-slate max-w-none mb-4">
+                      <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {hasKeyInsight ? section.content.split('\n').slice(1).join('\n') : section.content}
+                      </p>
+                    </div>
+                  )}
+
+                  {section.bullets && section.bullets.length > 0 && (
+                    <ul className={`space-y-2 mb-4 ${isDecisionGuidanceSection ? "list-none" : ""}`}>
+                      {section.bullets && section.bullets.length > 0 && section.bullets.map((bullet, bulletIdx) => {
+                        // Limit bullet display to 15 words for better readability
+                        const bulletWords = bullet.split(' ');
+                        const displayBullet = bulletWords.length > 15 ? bulletWords.slice(0, 15).join(' ') + '...' : bullet;
+                        return (
+                          <li key={bulletIdx} className={`flex items-start gap-3 ${
+                            isDecisionGuidanceSection ? "p-2 bg-white/50 rounded-lg" : 
+                            isCareerMomentumSection ? "p-2 bg-white/30 rounded" :
+                            isMoneyGrowthSection ? "p-2 bg-white/30 rounded" :
+                            isCareerDirectionSection ? "p-2 bg-white/30 rounded" :
+                            isYearOverviewSection || isMonthlyHighlightsSection ? "p-2 bg-white/30 rounded" :
+                            isPhaseOverviewSection || isLongTermTrendsSection ? "p-2 bg-white/30 rounded" :
+                            isDecisionAnalysisSection || isRecommendationsSection ? "p-2 bg-white/50 rounded-lg" :
+                            isIdealWindowsSection ? "p-2 bg-white/50 rounded-lg" : ""
+                          }`}>
+                            <span className={`mt-1 ${
+                              isDecisionGuidanceSection || isDecisionAnalysisSection || isRecommendationsSection ? "text-emerald-600" : 
+                              isCareerMomentumSection ? "text-blue-600" :
+                              isMoneyGrowthSection ? "text-green-600" :
+                              isCareerDirectionSection ? "text-purple-600" :
+                              isYearOverviewSection || isMonthlyHighlightsSection ? "text-indigo-600" :
+                              isPhaseOverviewSection || isLongTermTrendsSection ? "text-violet-600" :
+                              isIdealWindowsSection ? "text-pink-600" : 
+                              "text-amber-700"
+                            }`}>
+                              {isDecisionGuidanceSection || isDecisionAnalysisSection || isRecommendationsSection ? "✓" : 
+                               isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection ? "→" :
+                               isYearOverviewSection || isMonthlyHighlightsSection || isPhaseOverviewSection || isLongTermTrendsSection ? "→" :
+                               isIdealWindowsSection ? "🕒" :
+                               "•"}
+                            </span>
+                            <span className={`${
+                              isDecisionGuidanceSection || isDecisionAnalysisSection || isRecommendationsSection ? "font-medium" : 
+                              isCareerMomentumSection || isMoneyGrowthSection || isCareerDirectionSection ? "font-medium" :
+                              isYearOverviewSection || isMonthlyHighlightsSection || isPhaseOverviewSection || isLongTermTrendsSection ? "font-medium" :
+                              isIdealWindowsSection ? "font-medium" : ""
+                            } text-slate-700`}>{displayBullet}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {section.subsections && section.subsections.length > 0 && (
+                    <div className="ml-6 mt-4 space-y-4">
+                      {section.subsections && section.subsections.length > 0 && section.subsections.map((subsection, subIdx) => (
+                        <div key={subIdx} className="border-l-2 border-slate-200 pl-4">
+                          <h3 className="text-lg font-semibold mb-2 text-slate-800">{subsection.title}</h3>
+                          {subsection.content && (
+                            <p className="text-slate-700">{subsection.content}</p>
+                          )}
+                          {subsection.bullets && (
+                            <ul className="space-y-1 mt-2">
+                              {subsection.bullets && subsection.bullets.length > 0 && subsection.bullets.map((bullet, bulletIdx) => (
+                                <li key={bulletIdx} className="flex items-start gap-2">
+                                  <span className="text-purple-600">•</span>
+                                  <span className="text-slate-700">{bullet}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* "What this means for you" section - Check if content ends with this pattern */}
+                  {section.content && section.content.toLowerCase().includes("what this means") && (
+                    <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                      <h4 className="font-semibold text-blue-900 mb-2">What This Means For You</h4>
+                      <p className="text-blue-800 text-sm leading-relaxed">
+                        {section.content.split(/what this means/i).pop()?.trim()}
+                      </p>
+                    </div>
+                  )}
+                  </div>
+                </div>
+                    );
+                  })}
+
+                {/* Blurred Gated Content for Life Summary */}
+                {shouldGateContent && gatedSections.length > 0 && (
+                  <div className="relative mt-12">
+                    {/* Blurred sections in background */}
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      {gatedSections.map((section, idx) => {
+                        const hasKeyInsight = section.title.toLowerCase().includes("- key insight") || section.title.toLowerCase().includes("key insight");
+                        const sectionTitle = section.title.replace(/- Key Insight/gi, "").trim();
+                        
+                        return (
+                          <div key={`gated-${idx}`} className="mb-8">
+                            <div className="bg-white rounded-xl p-6 border border-slate-200">
+                              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                                {hasKeyInsight && <span className="text-amber-600 mr-2">✨</span>}
+                                {sectionTitle}
+                              </h3>
+                              {section.content && (
+                                <div className="prose prose-slate max-w-none">
+                                  <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                    {section.content.substring(0, 300)}...
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Gradient overlay with unlock message */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/80 to-white rounded-xl">
+                      <div className="flex items-center justify-center min-h-[400px] p-8">
+                        <div className="text-center max-w-2xl">
+                          <div className="text-5xl mb-4">🔒</div>
+                          <h3 className="text-2xl font-bold text-amber-900 mb-3">
+                            Unlock the Full Life Summary Report
+                          </h3>
+                          <p className="text-slate-700 mb-6 leading-relaxed">
+                            You&apos;ve seen the overview ({Math.round((visibleSections.length / sections.length) * 100)}% of your report). 
+                            Purchase to unlock the remaining {gatedSections.length} section{gatedSections.length > 1 ? 's' : ''} with <strong>specific timing windows, detailed guidance, and actionable steps</strong>.
+                          </p>
+                          <div className="flex flex-wrap justify-center gap-3">
+                            <Link href="/ai-astrology/input?reportType=marriage-timing">
+                              <Button className="cosmic-button px-6 py-3">
+                                See Marriage Timing →
+                              </Button>
+                            </Link>
+                            <Link href="/ai-astrology/input?reportType=career-money">
+                              <Button className="cosmic-button px-6 py-3">
+                                See Career & Money →
+                              </Button>
+                            </Link>
+                            <Link href="/ai-astrology/input?reportType=full-life">
+                              <Button className="cosmic-button px-6 py-3">
+                                Get Full Life Report →
+                              </Button>
+                            </Link>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-4">
+                            All reports: {formatPriceWithoutGst(REPORT_PRICES["marriage-timing"].amount)} each • Instant access • Downloadable PDF
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+            </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="cosmic-bg py-8">
+      <div className="container mx-auto px-4 max-w-7xl">
+        {/* Header with Breadcrumb */}
+        <div className="mb-6">
+          <Link href="/ai-astrology" className="text-sm text-amber-700 hover:text-amber-800 mb-3 inline-flex items-center gap-2">
+            <span>←</span>
+            <span>Back to AI Astrology</span>
+          </Link>
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+            <span>{reportContent?.title || "AI Astrology Report"}</span>
+            <span>•</span>
+            <span>Fully automated</span>
+            <span>•</span>
+            <span>No live support</span>
+          </div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              {/* Bundle Heading */}
+              {bundleType && bundleReports.length > 0 && (
+                <div className="mb-6 p-6 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 rounded-xl border-4 border-purple-800 shadow-xl">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="text-4xl">📦</div>
+                    <div>
+                      <h1 className="text-3xl lg:text-4xl font-bold text-white mb-1">
+                        {bundleType === "life-decision-pack" 
+                          ? "Complete Life Decision Pack" 
+                          : bundleType === "all-3" 
+                          ? "All 3 Reports Bundle" 
+                          : "Any 2 Reports Bundle"}
+                      </h1>
+                      <p className="text-purple-100 text-lg">
+                        {bundleReports.map((rt, idx) => {
+                          const name = getReportName(rt);
+                          return idx === bundleReports.length - 1 ? name : `${name} + `;
+                        }).join("")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-purple-400">
+                    <p className="text-white text-sm">
+                      <strong>Bundle Contents:</strong> This bundle includes {bundleReports.length} comprehensive reports, each providing detailed insights into different aspects of your life.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800">
+                  {bundleType && bundleReports.length > 0 
+                    ? `${getReportName(bundleReports[0])} (Part 1 of ${bundleReports.length})`
+                    : (reportContent?.title || "AI Astrology Report")}
+                </h1>
+              </div>
+              <p className="text-sm sm:text-base text-slate-600 mb-1">
+                Prepared exclusively for <strong>{input?.name || "User"}</strong>
+              </p>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500">
+                {reportContent ? (
+                  <>
+                    <span>Generated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</span>
+                    {reportContent.reportId && (
+                      <>
+                        <span>•</span>
+                        <span>Report ID: {reportContent.reportId}</span>
+                      </>
+                    )}
+                    <span>•</span>
+                    <span>Not publicly available</span>
+                  </>
+                ) : loading ? (
+                  <span>Generating report...</span>
+                ) : null}
+              </div>
+            </div>
+
+            {/* PDF Download & Email Buttons */}
+            {(isPaidReport || (isBundleReport && bundleContents.size > 0)) && (
+              <div id="download-pdf" className="flex flex-col sm:flex-row gap-3 scroll-mt-20">
+                <Button
+                  onClick={handleDownloadPDF}
+                  disabled={downloadingPDF}
+                  className="cosmic-button px-4 sm:px-6 py-3 text-sm sm:text-base min-h-[44px]"
+                >
+                  {downloadingPDF ? (
+                    <span className="flex items-center gap-2">
+                      <span className="animate-spin">📄</span>
+                      <span>Generating PDF... This may take {isBundleReport ? '60-120' : '30-60'} seconds</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span>📥</span>
+                      <span>{isBundleReport ? 'Download Bundle PDF (All Reports)' : 'Download Personal PDF (Keep Forever)'}</span>
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      // Validate reportContent before sharing
+                      if (!reportContent || !reportContent.title) {
+                        setError("Cannot share: Report content is missing");
+                        return;
+                      }
+                      // Get the current page URL to share
+                      const currentUrl = window.location.href;
+                      const shareData = {
+                        title: reportContent.title,
+                        text: `Check out my ${reportContent.title} from AstroSetu AI Astrology`,
+                        url: currentUrl,
+                      };
+
+                      // Try native share API first (works on mobile and modern browsers)
+                      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                        setEmailCopySuccess(true);
+                        setTimeout(() => setEmailCopySuccess(false), 3000);
+                      } else {
+                        // Fallback: Copy URL to clipboard
+                        await navigator.clipboard.writeText(currentUrl);
+                        setEmailCopySuccess(true);
+                        setTimeout(() => setEmailCopySuccess(false), 3000);
+                      }
+                    } catch (error) {
+                      // If share was cancelled, don't show error
+                      if ((error as Error).name !== 'AbortError') {
+                        console.error('Failed to share:', error);
+                        // Fallback: Copy URL to clipboard
+                        try {
+                          await navigator.clipboard.writeText(window.location.href);
+                          setEmailCopySuccess(true);
+                          setTimeout(() => setEmailCopySuccess(false), 3000);
+                        } catch (clipboardError) {
+                          console.error('Failed to copy to clipboard:', clipboardError);
+                        }
+                      }
+                    }
+                  }}
+                  className="cosmic-button-secondary px-4 sm:px-6 py-3 text-sm sm:text-base min-h-[44px]"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>✉️</span>
+                    <span>{emailCopySuccess ? "Copied!" : "Email Me a Copy"}</span>
+                  </span>
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2-Column Layout: Left (Upgrade Card) + Right (Report Content) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          {/* Left Column: Sticky Upgrade Card (30-35%) - Shows at bottom on mobile */}
+          {!isPaidReport && (
+            <div className="lg:col-span-1 order-2 lg:order-1">
+              <div className="lg:sticky lg:top-24">
+                <Card className="cosmic-card border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50">
+                  <CardHeader title="Unlock Full Insights" />
+                  <CardContent className="p-6">
+                    <p className="text-slate-700 mb-6 text-sm leading-relaxed">
+                      Get detailed, personalized reports with actionable guidance for your life path.
+                    </p>
+
+                    {/* Individual Reports */}
+                    <div className="space-y-3 mb-6">
+                      <Link href="/ai-astrology/input?reportType=marriage-timing" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-amber-400 hover:border-amber-500 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-2">See My Marriage Timing (Instant)</div>
+                          <div className="text-sm text-amber-700 font-semibold mb-3">{formatPrice(REPORT_PRICES["marriage-timing"].amount)}</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-amber-100">
+                            <li>• Best marriage windows (date ranges)</li>
+                            <li>• Reasons for delay (plain English)</li>
+                            <li>• Practical guidance</li>
+                          </ul>
+                        </div>
+                      </Link>
+                      <Link href="/ai-astrology/input?reportType=career-money" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-2">Unlock My Career & Money Path</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">{formatPrice(REPORT_PRICES["career-money"].amount)}</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
+                            <li>• Career direction</li>
+                            <li>• Job-change windows</li>
+                            <li>• Money growth phases</li>
+                          </ul>
+                        </div>
+                      </Link>
+                      <Link href="/ai-astrology/input?reportType=year-analysis" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-2">Year Analysis Report</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">{formatPrice(REPORT_PRICES["career-money"].amount)}</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
+                            <li>• Quarterly breakdown</li>
+                            <li>• Year strategy & focus areas</li>
+                            <li>• Low-return periods</li>
+                          </ul>
+                        </div>
+                      </Link>
+                      <Link href="/ai-astrology/input?reportType=major-life-phase" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-2">3-5 Year Strategic Life Phase Report</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">{formatPrice(REPORT_PRICES["career-money"].amount)}</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
+                            <li>• Long-term life phases</li>
+                            <li>• Major transitions & opportunities</li>
+                            <li>• Strategic planning guidance</li>
+                          </ul>
+                        </div>
+                      </Link>
+                      <Link href="/ai-astrology/input?reportType=decision-support" className="block">
+                        <div className="p-4 bg-white rounded-lg border-2 border-slate-300 hover:border-amber-400 hover:shadow-md transition-all">
+                          <div className="font-bold text-slate-800 mb-2">Decision Support Report</div>
+                          <div className="text-sm text-slate-600 font-semibold mb-3">{formatPrice(REPORT_PRICES["career-money"].amount)}</div>
+                          <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-slate-100">
+                            <li>• Decision options analysis</li>
+                            <li>• Timing recommendations</li>
+                            <li>• Decision anchor guidance</li>
+                          </ul>
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Best Value - Full Life Report */}
+                    <Link href="/ai-astrology/input?reportType=full-life" className="block mb-6">
+                      <div className="p-5 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg border-4 border-purple-500 hover:border-purple-600 hover:shadow-xl transition-all relative scale-105">
+                        <div className="absolute -top-2 -right-2 bg-purple-700 text-white text-xs font-extrabold px-3 py-1.5 rounded-full shadow-lg border-2 border-purple-800 uppercase tracking-wide">
+                          BEST VALUE
+                        </div>
+                        <div className="font-bold text-slate-800 mb-2 text-xl">Get My Full Life Report</div>
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-xl font-bold text-purple-700">{formatPriceWithoutGst(REPORT_PRICES["full-life"].amount)}</span>
+                        </div>
+                        <div className="text-xs text-slate-600 mb-3 italic">Most users choose this</div>
+                        <ul className="text-xs text-slate-700 space-y-1 mt-3 pt-3 border-t border-purple-200">
+                          <li>• Marriage + Career</li>
+                          <li>• 5-year life phases</li>
+                          <li>• Most comprehensive</li>
+                        </ul>
+                      </div>
+                    </Link>
+
+                    {/* Trust Strip */}
+                    <div className="pt-6 border-t border-amber-300">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                        <div className="space-y-2 text-xs text-slate-700">
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-600 font-bold">✓</span>
+                            <span>Instant access after payment</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-600 font-bold">✓</span>
+                            <span>Downloadable PDF</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-600 font-bold">✓</span>
+                            <span>Fully automated – no humans involved</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-600 font-bold">✓</span>
+                            <span>One-time purchase</span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 text-center mt-4">
+                        Educational guidance only • Instant access • No subscription required
+                      </p>
+                    </div>
+
+                    {/* Pricing Anchor */}
+                    <div className="mt-6 pt-6 border-t border-amber-300">
+                      <p className="text-xs text-slate-600 text-center">
+                        Individual reports: <strong>{formatPriceWithoutGst(REPORT_PRICES["marriage-timing"].amount)}</strong> each<br />
+                        Full Life Report: <strong>{formatPriceWithoutGst(REPORT_PRICES["full-life"].amount)}</strong>
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* Right Column: Report Content (65-70%) - Shows first on mobile */}
+          <div className={isPaidReport ? "lg:col-span-3" : "lg:col-span-2 order-1 lg:order-2"}>
+            {/* Short Disclaimer Summary (Only for paid reports, at top) */}
+            {isPaidReport && (
+              <Card className="cosmic-card mb-6 border-blue-200 bg-blue-50/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-slate-600 text-center">
+                    <strong>Educational guidance only</strong> • Fully automated • No guarantees
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Bundle Reports Display */}
+            {bundleType && bundleReports.length > 0 && bundleContents.size > 0 ? (
+              <div className="space-y-12">
+                {bundleReports.map((reportTypeInBundle, bundleIdx) => {
+                  const bundleReportContent = bundleContents.get(reportTypeInBundle);
+                  if (!bundleReportContent) return null;
+
+                  const bundleSections = bundleReportContent.sections || [];
+                  const bundleVisibleSections = bundleSections.filter(s => s && s.title);
+
+                  return (
+                    <div key={reportTypeInBundle} className="relative">
+                      {/* Report Separator with Heading */}
+                      {bundleIdx > 0 && (
+                        <div className="mb-12 pt-12 border-t-4 border-purple-500">
+                          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-white px-6 py-2 rounded-full border-4 border-purple-500 shadow-lg">
+                            <div className="flex items-center gap-2">
+                              <span className="text-2xl">📄</span>
+                              <span className="text-lg font-bold text-purple-700">
+                                Report {bundleIdx + 1} of {bundleReports.length}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Individual Report Card */}
+                      <Card className="cosmic-card mb-6 border-2 border-purple-300 shadow-lg">
+                        <CardContent className="p-8">
+                          {/* Report Header */}
+                          <div className="mb-8 pb-6 border-b-2 border-purple-200">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="text-3xl sm:text-4xl">
+                          {reportTypeInBundle === "marriage-timing" ? "💑" :
+                           reportTypeInBundle === "career-money" ? "💼" :
+                           reportTypeInBundle === "full-life" ? "🌟" :
+                           reportTypeInBundle === "year-analysis" ? "📅" :
+                           reportTypeInBundle === "major-life-phase" ? "🗺️" :
+                           reportTypeInBundle === "decision-support" ? "🎯" : "📊"}
+                        </div>
+                        <div>
+                          <h2 className="text-2xl sm:text-3xl font-bold text-purple-900 mb-1">
+                            {getReportName(reportTypeInBundle)}
+                          </h2>
+                          <p className="text-purple-600 text-xs sm:text-sm">
+                            Part {bundleIdx + 1} of {bundleReports.length} in your bundle
+                          </p>
+                        </div>
+                      </div>
+                          </div>
+
+                          {/* Render this report's content - reuse existing rendering logic */}
+                          {renderSingleReportContent(bundleReportContent, reportTypeInBundle)}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Single Report Display */
+              <Card className="cosmic-card mb-6">
+                <CardContent className="p-8">
+                  {renderSingleReportContent(reportContent, reportType)}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Post-Purchase Upsell Modal - Shown intelligently based on scroll engagement and reading time */}
+      {showUpsell && reportType !== "life-summary" && reportType !== "daily-guidance" && !loading && !error && (
+        <PostPurchaseUpsell
+          currentReport={reportType as "marriage-timing" | "career-money" | "full-life" | "year-analysis" | "major-life-phase" | "decision-support"}
+          onClose={() => setShowUpsell(false)}
+        />
+      )}
+    </div>
+    );
+  }
+
+export default function PreviewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">🌙</div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <PreviewContent />
+    </Suspense>
+  );
+}
+

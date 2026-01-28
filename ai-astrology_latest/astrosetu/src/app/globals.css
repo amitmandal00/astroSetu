@@ -1,0 +1,414 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ULTRA-AGGRESSIVE: Prevent flash of Shell content on AI routes - hide immediately */
+/* These rules are applied at the CSS level before any JavaScript runs */
+/* Multiple selectors ensure maximum coverage */
+
+/* Base hiding - applies to Shell and ALL its children, descendants, and siblings */
+html[data-ai-route="true"] [data-shell-content],
+html[data-ai-route="true"] [data-shell-content] *,
+html[data-ai-route="true"] [data-shell-content] *::before,
+html[data-ai-route="true"] [data-shell-content] *::after {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  pointer-events: none !important;
+  z-index: -9999 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: transparent !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+  text-indent: -9999px !important;
+}
+
+/* Additional specificity for Shell header/footer/nav/main - catch everything */
+html[data-ai-route="true"] [data-shell-content] header,
+html[data-ai-route="true"] [data-shell-content] footer,
+html[data-ai-route="true"] [data-shell-content] nav,
+html[data-ai-route="true"] [data-shell-content] main,
+html[data-ai-route="true"] [data-shell-content] div,
+html[data-ai-route="true"] [data-shell-content] section,
+html[data-ai-route="true"] [data-shell-content] article {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  width: 0 !important;
+  opacity: 0 !important;
+}
+
+/* Hide Shell wrapper div on AI routes - highest specificity for body children */
+html[data-ai-route="true"] body > [data-shell-content],
+html[data-ai-route="true"] body > div[data-shell-content],
+html[data-ai-route="true"] body > div:first-child[data-shell-content] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  width: 0 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+/* Prevent Shell from showing during route transitions/loading */
+html[data-ai-route="true"] [data-shell-content][class*="loading"],
+html[data-ai-route="true"] [data-shell-content][class*="Loading"],
+html[data-ai-route="true"] [data-shell-content][class*="transition"],
+html[data-ai-route="true"] [data-shell-content][class*="animate"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide Shell during Suspense fallbacks and hydration */
+html[data-ai-route="true"] [data-shell-content] ~ *,
+html[data-ai-route="true"] body[data-nextjs-scroll-focus-boundary] [data-shell-content] {
+  /* If Shell exists, hide siblings too during transitions */
+}
+
+/* Ensure Shell never appears even if CSS loads late */
+html[data-ai-route="true"] [data-shell-content] {
+  content: "" !important;
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+}
+
+:root {
+  --indigo: 43 46 74;
+  --saffron: 244 196 48;
+  --gold: 245 158 11;
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 30, 41, 59;
+  --cosmic-purple: 139, 92, 246;
+  --cosmic-blue: 59, 130, 246;
+  --cosmic-dark: 15, 23, 42;
+  --cosmic-darker: 8, 13, 23;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+}
+
+body {
+  /* Soft background - Orange as accent, not base */
+  background-color: #FFF9F3; /* Soft warm white */
+  color: #1F2937; /* Dark neutral text */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  line-height: 1.6; /* Improved readability */
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+.bg-orbit {
+  /* Indian spiritual background with enhanced contrast */
+  background: 
+    radial-gradient(circle at 10% 20%, rgba(255, 153, 51, 0.12), transparent 50%), /* Saffron - increased opacity */
+    radial-gradient(circle at 90% 30%, rgba(19, 136, 8, 0.10), transparent 50%), /* Green - increased opacity */
+    radial-gradient(circle at 50% 80%, rgba(255, 215, 0, 0.08), transparent 50%), /* Gold - increased opacity */
+    radial-gradient(circle at 30% 60%, rgba(220, 20, 60, 0.06), transparent 50%), /* Red - increased opacity */
+    #FFFFFF; /* Pure white base for better contrast */
+  min-height: 100vh;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.bg-orbit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 153, 51, 0.02) 2px, rgba(255, 153, 51, 0.02) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(19, 136, 8, 0.02) 2px, rgba(19, 136, 8, 0.02) 4px);
+  pointer-events: none;
+}
+
+.bg-cosmic {
+  background:
+    radial-gradient(ellipse at top, rgba(244,196,48,0.2), transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(99,102,241,0.2), transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(245,158,11,0.15), transparent 50%);
+}
+
+.chakra-ring:before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  border-radius: 9999px;
+  border: 2px solid rgba(244,196,48,0.2);
+  box-shadow: 
+    0 0 0 8px rgba(99,102,241,0.1),
+    0 0 0 16px rgba(244,196,48,0.05);
+  animation: pulse-ring 3s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.gradient-text {
+  @apply bg-gradient-to-r from-indigo-600 via-saffron-500 to-indigo-600 bg-clip-text text-transparent;
+  background-size: 200% auto;
+  animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Cross-browser compatibility */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific styles */
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Ensure proper rendering on all browsers */
+* {
+  box-sizing: border-box;
+}
+
+/* Smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid rgb(99, 102, 241);
+  outline-offset: 2px;
+}
+
+/* Section Spacing */
+.section-spacing {
+  padding: 2rem 1rem;
+}
+
+@media (min-width: 768px) {
+  .section-spacing {
+    padding: 3rem 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .section-spacing {
+    padding: 4rem 3rem;
+  }
+}
+
+/* Card Enhanced Padding */
+.card-enhanced {
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .card-enhanced {
+    padding: 2rem;
+  }
+}
+
+/* Text Relaxed */
+.text-relaxed {
+  line-height: 1.75;
+}
+
+/* Primary Accent Colors */
+.bg-primary-accent {
+  background-color: rgba(139, 92, 246, 0.1);
+}
+
+.text-primary-accent {
+  color: #c4b5fd;
+}
+
+.bg-gold-highlight {
+  background-color: rgba(234, 179, 8, 0.1);
+}
+
+/* ============================================
+   AI ASTROLOGY PLATFORM - LIGHT COSMIC THEME
+   ============================================ */
+
+/* Light Cosmic Background with Celestial Overlay */
+.cosmic-bg {
+  background: linear-gradient(135deg, #fefefe 0%, #f8f9fa 50%, #ffffff 100%);
+  background-image: 
+    radial-gradient(ellipse at top left, rgba(212, 175, 126, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at top right, rgba(168, 150, 189, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at bottom, rgba(212, 175, 126, 0.05) 0%, transparent 70%);
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+}
+
+.cosmic-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3CradialGradient id='star'%3E%3Cstop offset='0%25' stop-color='%23d4af7e' stop-opacity='0.3'/%3E%3Cstop offset='100%25' stop-color='%23d4af7e' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='20' cy='30' r='1' fill='url(%23star)'/%3E%3Ccircle cx='80' cy='50' r='0.8' fill='url(%23star)'/%3E%3Ccircle cx='50' cy='80' r='1.2' fill='url(%23star)'/%3E%3Ccircle cx='15' cy='70' r='0.6' fill='url(%23star)'/%3E%3Ccircle cx='90' cy='20' r='0.9' fill='url(%23star)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  background-repeat: repeat;
+  opacity: 0.3;
+  pointer-events: none;
+  animation: subtleFloat 30s ease-in-out infinite;
+}
+
+@keyframes subtleFloat {
+  0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+  50% { transform: translate(10px, -10px); opacity: 0.4; }
+}
+
+/* Light Cosmic Card Styling */
+.cosmic-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(212, 175, 126, 0.2);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.cosmic-card:hover {
+  border-color: rgba(212, 175, 126, 0.3);
+  box-shadow: 
+    0 8px 30px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+/* Celestial Gradient Text */
+.cosmic-gradient-text {
+  background: linear-gradient(135deg, #8b6f47 0%, #a0826d 50%, #8b6f47 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Light Brown/Tan Button (Primary) */
+.cosmic-button {
+  background: linear-gradient(135deg, #d4af7e 0%, #c9a06d 100%);
+  border: none;
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(212, 175, 126, 0.3);
+}
+
+.cosmic-button:hover {
+  background: linear-gradient(135deg, #c9a06d 0%, #be9560 100%);
+  box-shadow: 0 6px 20px rgba(212, 175, 126, 0.4);
+  transform: translateY(-2px);
+}
+
+.cosmic-button-secondary {
+  background: white;
+  border: 2px solid rgba(212, 175, 126, 0.3);
+  color: #8b6f47;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.cosmic-button-secondary:hover {
+  background: rgba(212, 175, 126, 0.05);
+  border-color: rgba(212, 175, 126, 0.5);
+  color: #6b5639;
+}
+
+/* Light Cosmic Input Styling */
+.cosmic-input {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(212, 175, 126, 0.25);
+  color: #1f2937;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.cosmic-input:focus {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(212, 175, 126, 0.5);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(212, 175, 126, 0.1);
+}
+
+.cosmic-input::placeholder {
+  color: rgba(107, 114, 128, 0.5);
+}
+
+/* PWA Install Prompt Animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { isAPIConfigured } from "@/lib/astrologyAPI";
 
 /**
  * GET /api/health
@@ -14,7 +13,7 @@ export async function GET(req: Request) {
       status: "healthy",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      prokeralaConfigured: isAPIConfigured(),
+      astrologyEngine: "local",
       version: "1.0.0",
     };
 

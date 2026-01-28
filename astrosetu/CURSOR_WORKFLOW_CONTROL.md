@@ -19,6 +19,17 @@
 
 ---
 
+### 0.5. Cursor Mode Control (Ask → Plan → Debug → Agent)
+- Default to **Ask** for all questions, clarifications, reviews, and decisions.
+- **Plan** is mandatory before Agent when multiple files, async logic, report generation, pricing, Stripe, Supabase, or API flows are involved.
+- **Debug** is mandatory before Agent on failures/regressions (identify failure point + minimal fix surface).
+- **Agent** only with explicit approval, narrow scope, single objective, **single-run**.
+- **No creative refactors** or pricing changes unless explicitly requested.
+- If uncertain or high risk → **STOP and ASK**.
+- Source of truth: `.cursor/rules.md`.
+
+---
+
 ### 1. No Fix Without Failing Test First
 **MANDATORY**: Every fix must start with a failing Playwright E2E test in `tests/e2e/critical-invariants.spec.ts`.
 

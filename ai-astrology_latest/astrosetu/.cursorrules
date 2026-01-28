@@ -1,0 +1,70 @@
+# AstroSetu — Cursor Guardrails (NON-NEGOTIABLE)
+#
+# These rules exist to prevent regressions in the AI Astrology report generation flow.
+# If a request conflicts with these rules, STOP and ask for clarification rather than "best-effort" changes.
+
+## 🚨 COST OPTIMIZATION RULES (CRITICAL - 2026-01-25)
+**These rules prevent expensive On-Demand charges and must be followed for ALL requests.**
+
+### Cost Alert Thresholds
+- **⚠️ WARNING**: Request > 500K tokens → Alert user, suggest scoping
+- **🔴 CRITICAL**: Request > 1M tokens → Require explicit approval
+- **💥 BLOCK**: Request > 2M tokens → **BLOCK IMMEDIATELY**, require breakdown
+
+### Mandatory Scoping Rules
+1. **ALWAYS use scoped requests**: Focus on specific files/directories, not entire codebase
+2. **ALWAYS use @filename mentions**: Limit context to specific files when possible
+3. **ALWAYS break large tasks**: Split into smaller, focused requests (< 500K tokens each)
+4. **NEVER analyze entire codebase**: Use targeted analysis instead
+5. **NEVER process > 2M tokens**: Block and require user to break down
+
+### Before Processing Large Requests
+1. **Estimate token count**: Count open files, estimate context size
+2. **Calculate approximate cost**: ~$1.30-1.50 per 1M tokens
+3. **If > 500K tokens**: Show warning and suggest scoping
+4. **If > 1M tokens**: Require explicit user approval ("APPROVE LARGE REQUEST")
+5. **If > 2M tokens**: Block immediately, log to CURSOR_ACTIONS_REQUIRED.md
+
+### Cost Monitoring
+- **Daily**: Check On-Demand charges, alert if > $10/day
+- **Weekly**: Review On-Demand usage vs $50/month limit
+- **Monthly**: Calculate projection, adjust workflow if needed
+
+### Examples of Cost-Optimized Requests
+✅ **GOOD**: "Analyze `/src/app/api/ai-astrology/generate-report/route.ts` for timeout issues"
+✅ **GOOD**: "Review these 3 files: `preview/page.tsx`, `subscription/page.tsx`, `input/page.tsx`"
+✅ **GOOD**: "Check `src/lib/generationController.ts` for polling logic"
+❌ **BAD**: "Analyze the entire codebase"
+❌ **BAD**: "Review all files in the project"
+❌ **BAD**: "Refactor everything"
+
+**See `COST_SPIKE_ANALYSIS.md` and `COST_ALERT_SYSTEM.md` for detailed guidelines.**
+
+## Scope control
+- Prefer the smallest possible diff. Do not refactor unrelated code while fixing a defect.
+- Any refactor must be separated from bug fixes (separate PR/commit).
+- **Cost-aware**: Smaller scopes = lower token usage = lower costs
+
+## Report generation invariants (MUST HOLD)
+- **Monotonic timer invariant**: while the generation UI is visible, elapsed time must never reset to 0 and must never go backwards.
+- **Idle-only reset rule**: no `useEffect` may clear `loading`, `loadingStage`, `loadingStartTime`, `loadingStartTimeRef`, or generation locks while an attempt is active or starting.
+- **UI owner rule**: only one “owner” controls generation state at a time (controller vs legacy). Switching owners must be explicit and tested.
+- **URL param contract**: paid-flow continuity relies on `session_id` (snake_case). Do not introduce `sessionId` (camelCase) into the URL contract.
+
+## When changing report generation, you MUST:
+- Update or add a reproducer test.
+  - UI/timer bugs → Playwright test in `tests/e2e/` that fails before and passes after.
+  - Logic bugs → Vitest unit/integration test in `tests/unit` or `tests/integration`.
+- Verify against the contract in `tests/contracts/report-flow.contract.md`.
+
+## When changing subscription/billing, you MUST:
+- Add or update an E2E test proving Subscribe redirects to Stripe (see `tests/e2e/billing-subscribe-flow.spec.ts`).
+- Verify session_id server-side (never on client-only state).
+- Keep the DB/API as source of truth (no sessionStorage-based subscription flags).
+
+## Operational commands (choose the smallest set relevant to your change)
+- Unit tests (targeted): `npx vitest run <paths...>`
+- E2E tests (targeted): `npx playwright test <spec...>`
+- Critical CI gate (heavier): `npm run ci:critical`
+
+

@@ -14,6 +14,17 @@ This is the workflow Cursor must follow when changing anything related to AI Ast
 
 ---
 
+### Cursor Mode Control (Ask → Plan → Debug → Agent)
+- Default to **Ask**. Agent is forbidden unless explicitly instructed.
+- **Plan** required before Agent for multi-file, async, report generation, pricing, Stripe, Supabase, or API flows.
+- **Debug** required on failures/regressions (identify failure point + minimal fix surface).
+- **Agent** requires explicit approval, narrow scope, single objective, **single-run only**.
+- **No creative refactors** or pricing changes unless explicitly requested.
+- If uncertain → **STOP and ASK**.
+- Canonical rules live in `.cursor/rules.md`.
+
+---
+
 ### Technical NON-NEGOTIABLES
 
 - **Minimal diff rule**: fix only the defect; no unrelated refactors.

@@ -349,6 +349,8 @@ Error: EPERM: operation not permitted, scandir '/Users/.../src/app/api/notificat
 ## Notes
 - Keep changes small: **≤ 3 files per batch** (prefer 1 file at a time to minimize "Confirm edit" prompts AND reduce token usage).
 - **🚨 COST OPTIMIZATION (2026-01-25)**: ALWAYS use scoped requests, NEVER analyze entire codebase, ALERT if > 500K tokens, BLOCK if > 2M tokens
+- **Cursor Mode Control**: Enforced Ask → Plan → Debug → Agent (single-run, approval required). Ruleset stored in `.cursor/rules.md`.
+- **STABLE BASELINE (LOCKED)**: Current report generation flow is the baseline. Any Agent touching it requires explicit justification and a rollback plan.
 - **Checkpoint script**: After every change, run `bash scripts/cursor-checkpoint.sh` to verify:
   - Type check passes
   - Build passes

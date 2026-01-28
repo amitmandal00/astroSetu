@@ -26,17 +26,6 @@ vi.mock('openai', () => ({
   })),
 }));
 
-// Mock Prokerala
-vi.mock('@/lib/prokeralaEnhanced', () => ({
-  getKundli: vi.fn().mockResolvedValue({
-    success: true,
-    data: {
-      lagna: { sign: 1, degree: 10 },
-      planets: [],
-    },
-  }),
-}));
-
 describe('AI Astrology API Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();

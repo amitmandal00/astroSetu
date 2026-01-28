@@ -193,7 +193,7 @@ export default function PrivacyPage() {
                   <li>AI systems that generate interpretations</li>
                 </ul>
                 <p className="mt-3">
-                  This processing is automated and informational only. We may use third-party APIs (such as Prokerala) for calculations, which are bound by their own privacy policies.
+                  This processing is automated and informational only. Calculations may use internal engines or trusted third-party services, which are bound by their own privacy policies.
                 </p>
               </section>
 
@@ -252,7 +252,7 @@ export default function PrivacyPage() {
                   <li>Hosting (may be located outside Australia)</li>
                   <li>Analytics (Google Analytics, etc.)</li>
                   <li>Payment processing (Razorpay, Stripe, etc.)</li>
-                  <li>Astrology calculations (Prokerala API, etc.)</li>
+                  <li>Astrology calculations (internal engines or trusted services)</li>
                 </ul>
                 <p className="mt-3">
                   <strong>Cross-Border Disclosure (APP 8):</strong> Your data may be stored or processed outside Australia. We take reasonable steps to ensure overseas recipients comply with privacy obligations similar to the APPs, including through contractual arrangements.

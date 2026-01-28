@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { rateLimiter, getRateLimitConfig } from './rateLimit';
+import { redactPII } from './piiRedaction';
 
 /**
  * Get client IP address from request
@@ -59,9 +60,6 @@ export function checkRateLimit(request: Request, pathname: string): NextResponse
  * Handle API errors consistently
  */
 export function handleApiError(error: unknown): NextResponse {
-  // Import PII redaction (dynamic to avoid circular deps)
-  const { redactPII } = require('./piiRedaction');
-  
   // Zod validation errors
   if (error instanceof ZodError) {
     const messages = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');

@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { isAPIConfigured } from "@/lib/astrologyAPI";
 import { checkRateLimit, handleApiError } from "@/lib/apiHelpers";
 
 /**
  * GET /api/astrology/config
- * Returns whether Prokerala API is configured
+ * Returns whether the local astrology engine is available
  */
 export async function GET(req: Request) {
   try {
@@ -15,7 +14,8 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: true,
       data: {
-        configured: isAPIConfigured(),
+        configured: true,
+        engine: "local",
       },
     });
   } catch (error) {

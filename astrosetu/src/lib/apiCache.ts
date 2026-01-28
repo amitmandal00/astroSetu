@@ -1,6 +1,6 @@
 /**
  * API Response Cache Layer
- * Reduces redundant Prokerala API calls by caching responses
+ * Reduces redundant API calls by caching responses
  * Inspired by AstroSage/AstroTalk optimization patterns
  */
 

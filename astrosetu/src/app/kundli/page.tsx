@@ -73,7 +73,6 @@ function KundliPageContent() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [data, setData] = useState<(KundliResult & { dosha?: DoshaAnalysis; chart?: KundliChart }) | null>(null);
-  const [isAPIConfigured, setIsAPIConfigured] = useState<boolean | null>(null);
   const [savedBirthDetails, setSavedBirthDetails] = useState<BirthDetails | null>(null);
 
   // Initialize form fields from URL + session on client to avoid SSR/CSR mismatch
@@ -106,20 +105,6 @@ function KundliPageContent() {
     setSavedBirthDetails(bd || null);
   }, [searchParams]);
 
-  // Check if Prokerala API is configured
-  useEffect(() => {
-    async function checkAPIConfig() {
-      try {
-        const res = await fetch('/api/astrology/config');
-        const json = await res.json();
-        setIsAPIConfigured(json.data?.configured ?? false);
-      } catch {
-        setIsAPIConfigured(false);
-      }
-    }
-    checkAPIConfig();
-  }, []);
-  
   // Load latest Kundli if available and no data yet, based on saved birth details
   useEffect(() => {
     if (!data && savedBirthDetails) {
@@ -671,7 +656,7 @@ function KundliPageContent() {
                     onSelect={(selectedPlace) => {
                       console.log("Selected place:", selectedPlace);
                       setPlace(selectedPlace.displayName || `${selectedPlace.name}${selectedPlace.state ? `, ${selectedPlace.state}` : ""}${selectedPlace.country ? `, ${selectedPlace.country}` : ""}`);
-                      // Store coordinates for Prokerala API
+                      // Store coordinates for local astrology engine
                       if (selectedPlace.latitude && selectedPlace.longitude) {
                         setPlaceData({
                           latitude: selectedPlace.latitude,
@@ -935,7 +920,6 @@ function KundliPageContent() {
             latitude={placeData?.latitude}
             longitude={placeData?.longitude}
             timezone={timezone}
-            isAPIConfigured={isAPIConfigured}
           />
         </CardContent>
       </Card>
@@ -1177,24 +1161,9 @@ function KundliPageContent() {
               <HouseAnalysis planets={data.planets} chart={data.chart} />
               
               {/* Enhanced Dasha Analysis with detailed periods */}
-              {placeData && (
-                <EnhancedDashaAnalysis 
-                  kundliData={data} 
-                  birthDetails={{
-                    name: name || "",
-                    gender: gender,
-                    dob: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-                    tob: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds || 0).padStart(2, "0")}`,
-                    place: place,
-                    latitude: placeData.latitude,
-                    longitude: placeData.longitude,
-                    timezone: timezone,
-                    ayanamsa: ayanamsa,
-                  }}
-                />
-              )}
+              {placeData && <EnhancedDashaAnalysis kundliData={data} />}
 
-              {/* Enhanced Yoga Analysis (Prokerala API) */}
+              {/* Enhanced Yoga Analysis */}
               {placeData && (
                 <EnhancedYogaAnalysis
                   birthDetails={{
@@ -1212,22 +1181,7 @@ function KundliPageContent() {
               )}
               
               {/* Nakshatra Details */}
-              {placeData && (
-                <NakshatraDetails
-                  kundliData={data}
-                  birthDetails={{
-                    name: name || "",
-                    gender: gender,
-                    dob: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-                    tob: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds || 0).padStart(2, "0")}`,
-                    place: place,
-                    latitude: placeData.latitude,
-                    longitude: placeData.longitude,
-                    timezone: timezone,
-                    ayanamsa: ayanamsa,
-                  }}
-                />
-              )}
+              {placeData && <NakshatraDetails kundliData={data} />}
             </>
           )}
 

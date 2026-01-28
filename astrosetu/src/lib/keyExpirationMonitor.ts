@@ -5,7 +5,7 @@
  */
 
 export interface KeyInfo {
-  name: string; // e.g., "Prokerala API", "Razorpay Key", "Supabase Key"
+  name: string; // e.g., "Razorpay Key", "Supabase Key"
   type: "api_key" | "client_secret" | "oauth_token" | "other";
   expirationDate?: Date; // Optional expiration date
   alertDays: number[]; // Days before expiration to alert (e.g., [30, 7, 1])
@@ -25,18 +25,6 @@ export interface KeyCheckResult {
 
 // Default keys to monitor
 const DEFAULT_KEYS: KeyInfo[] = [
-  {
-    name: "Prokerala Client ID",
-    type: "client_secret",
-    alertDays: [30, 7, 1],
-    isConfigured: false,
-  },
-  {
-    name: "Prokerala Client Secret",
-    type: "client_secret",
-    alertDays: [30, 7, 1],
-    isConfigured: false,
-  },
   {
     name: "Supabase URL",
     type: "api_key",
@@ -92,12 +80,6 @@ class KeyExpirationMonitor {
    * Update configuration status for all keys
    */
   private updateConfigurationStatus(): void {
-    // Check Prokerala keys
-    const prokeralaClientId = process.env.PROKERALA_CLIENT_ID;
-    const prokeralaClientSecret = process.env.PROKERALA_CLIENT_SECRET;
-    this.updateKeyStatus("Prokerala Client ID", !!prokeralaClientId);
-    this.updateKeyStatus("Prokerala Client Secret", !!prokeralaClientSecret);
-
     // Check Supabase keys
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
