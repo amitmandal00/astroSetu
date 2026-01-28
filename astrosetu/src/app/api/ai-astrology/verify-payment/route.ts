@@ -130,6 +130,7 @@ export async function GET(req: Request) {
           ok: true,
           data: {
             sessionId,
+            checkoutSessionId: sessionId,
             paid: true,
             paymentStatus: "paid",
             subscription: isSubscriptionTest,
@@ -306,6 +307,7 @@ export async function GET(req: Request) {
         ok: true,
         data: {
           sessionId: session.id,
+          checkoutSessionId: session.id,
           paid: isPaid,
           paymentStatus: session.payment_status,
           paymentIntentStatus: paymentIntentStatus, // Include payment intent status for manual capture

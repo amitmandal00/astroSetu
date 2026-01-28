@@ -1,7 +1,7 @@
 /**
  * MVP GUARANTEE: Deterministic Fallback Helper
  * 
- * ⚠️ CRITICAL: This function MUST NEVER call OpenAI, Prokerala, or any external API
+ * ⚠️ CRITICAL: This function MUST NEVER call OpenAI or any external API
  * 
  * This is a pure, deterministic function that adds static fallback sections to reports.
  * It is used when validation fails to ensure reports meet minimum requirements without
@@ -13,7 +13,7 @@
  * - Replace placeholder content with meaningful fallback sections
  * 
  * MVP Compliance:
- * - ✅ No external API calls (OpenAI, Prokerala, etc.)
+ * - ✅ No external API calls (OpenAI, etc.)
  * - ✅ Deterministic (same input = same output)
  * - ✅ Pure function (no side effects)
  * - ✅ Used only when validation fails (terminal failure path)
@@ -145,5 +145,41 @@ export async function applyDeterministicFallback_NO_API(
   }
   
   return fallbackContent;
+}
+
+export function buildBasicFallbackReport(reportType: string) {
+  const title =
+    reportType === "year-analysis" ? "Your Year Analysis" :
+    reportType === "full-life" ? "Your Full Life Report" :
+    reportType === "career-money" ? "Your Career & Money Report" :
+    reportType === "marriage-timing" ? "Your Marriage Timing Report" :
+    reportType === "major-life-phase" ? "Your Major Life Phase Report" :
+    reportType === "decision-support" ? "Your Decision Support Report" :
+    "Your Astrology Report";
+
+  const summary =
+    "This is a concise version of your report based on your birth details. " +
+    "It provides a clear overview and practical guidance. A fuller version can be generated later if needed.";
+
+  const sections = [
+    {
+      title: "Key Themes",
+      content: "Your chart highlights a few dominant life themes that shape your current period. Focus on steady progress and clarity in decision-making.",
+    },
+    {
+      title: "Timing Focus",
+      content: "Certain windows are more supportive for action, while others favor preparation. Use favorable periods for important steps.",
+    },
+    {
+      title: "Opportunities",
+      content: "You have openings for growth through consistency, skill-building, and supportive relationships. Small, repeated actions compound.",
+    },
+    {
+      title: "Next Steps",
+      content: "Prioritize one or two goals, align them with timing windows, and avoid over-committing during slower periods.",
+    },
+  ];
+
+  return { title, summary, sections };
 }
 

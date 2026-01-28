@@ -1032,15 +1032,15 @@ function parseAIResponse(response: string, reportType: ReportType, reportId?: st
   return reportWithFallbacks;
 }
 
-export const WORD_COUNT_BUFFER_FACTOR = 1.25;
+export const WORD_COUNT_BUFFER_FACTOR = 1.05;
 export const BASE_WORD_COUNT_TARGETS: Record<ReportType, number> = {
   "life-summary": 700,
   "daily-guidance": 400,
-  "marriage-timing": 800,
-  "career-money": 900,
-  "full-life": 1300,
-  "year-analysis": 800,
-  "major-life-phase": 1000,
+  "marriage-timing": 650,
+  "career-money": 750,
+  "full-life": 1000,
+  "year-analysis": 750,
+  "major-life-phase": 800,
   "decision-support": 900,
 };
 

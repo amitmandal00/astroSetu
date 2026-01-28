@@ -24,17 +24,6 @@ vi.mock('openai', () => ({
   })),
 }));
 
-// Mock Prokerala
-vi.mock('@/lib/prokeralaEnhanced', () => ({
-  getKundli: vi.fn().mockResolvedValue({
-    success: true,
-    data: {
-      lagna: { sign: 1, degree: 10 },
-      planets: [],
-    },
-  }),
-}));
-
 // Mock payment capture
 const mockCapturePayment = vi.fn();
 vi.mock('@/lib/stripe', () => ({
@@ -52,12 +41,67 @@ vi.mock('@/lib/ai-astrology/reportCache', () => ({
   getCachedReport: vi.fn().mockResolvedValue(null),
 }));
 
-// Mock stored report functions
-vi.mock('@/lib/ai-astrology/storedReports', () => ({
-  markStoredReportCompleted: vi.fn(),
-  markStoredReportFailed: vi.fn(),
-  getStoredReport: vi.fn().mockResolvedValue(null),
-}));
+// Mock reportStore (durable idempotency)
+vi.mock('@/lib/ai-astrology/reportStore', () => {
+  const store = new Map<string, any>();
+  const now = () => new Date().toISOString();
+
+  return {
+    __resetStore: () => store.clear(),
+    getStoredReportByIdempotencyKey: async (idempotencyKey: string) => store.get(idempotencyKey) || null,
+    getStoredReportByReportId: async (reportId: string) => {
+      for (const row of store.values()) {
+        if (row.report_id === reportId) return row;
+      }
+      return null;
+    },
+    markStoredReportProcessing: async (params: any) => {
+      const existing = store.get(params.idempotencyKey);
+      if (existing) {
+        return { ok: false, existing };
+      }
+      const row = {
+        idempotency_key: params.idempotencyKey,
+        report_id: params.reportId,
+        status: "processing",
+        report_type: params.reportType,
+        input: params.input,
+        content: null,
+        created_at: now(),
+        updated_at: now(),
+        error_message: null,
+        payment_intent_id: params.paymentIntentId || null,
+        refunded: false,
+        refund_id: null,
+        refunded_at: null,
+        error_code: null,
+      };
+      store.set(params.idempotencyKey, row);
+      return { ok: true, row };
+    },
+    markStoredReportCompleted: async (params: any) => {
+      const existing = store.get(params.idempotencyKey);
+      if (existing) {
+        existing.status = "completed";
+        existing.content = params.content;
+        existing.updated_at = now();
+        store.set(params.idempotencyKey, existing);
+      }
+    },
+    markStoredReportFailed: async (params: any) => {
+      const existing = store.get(params.idempotencyKey);
+      if (existing) {
+        existing.status = "failed";
+        existing.error_message = params.errorMessage || null;
+        existing.error_code = params.errorCode || null;
+        existing.updated_at = now();
+        store.set(params.idempotencyKey, existing);
+      }
+    },
+    updateStoredReportHeartbeat: async () => {},
+    markStoredReportRefunded: async () => {},
+  };
+});
 
 describe('MVP Compliance - Generate Report Route', () => {
   beforeEach(() => {
@@ -66,6 +110,7 @@ describe('MVP Compliance - Generate Report Route', () => {
     process.env.OPENAI_API_KEY = 'test-key';
     process.env.STRIPE_SECRET_KEY = 'sk_test';
     process.env.NEXT_PUBLIC_APP_URL = 'https://test.example.com';
+    import('@/lib/ai-astrology/reportStore').then((mod: any) => mod.__resetStore?.());
   });
 
   const createRequest = (body: any) => {
@@ -225,6 +270,53 @@ describe('MVP Compliance - Generate Report Route', () => {
   });
 
   describe('MVP Rule #8: Same Input = Same Outcome (Idempotency)', () => {
+    it('should return same report for same Stripe session without calling AI twice', async () => {
+      process.env.AI_ASTROLOGY_DEMO_MODE = 'true';
+
+      mockOpenAICreate.mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              report: 'This is a comprehensive career and money report with detailed analysis of your professional path and financial opportunities.',
+              sections: [
+                'Career Overview',
+                'Financial Opportunities',
+                'Strategic Timing',
+                'Recommendations',
+              ],
+            }),
+          },
+        }],
+      });
+
+      const body = {
+        input: {
+          name: 'Test User',
+          dob: '1990-01-01',
+          tob: '12:00',
+          place: 'Mumbai, Maharashtra, India',
+          gender: 'Male',
+        },
+        reportType: 'career-money',
+        paymentToken: 'test_token',
+        paymentIntentId: 'pi_test_dup',
+        sessionId: 'cs_test_dup',
+      };
+
+      const request1 = createRequest(body);
+      const response1 = await POST(request1);
+      const data1 = await response1.json();
+
+      const request2 = createRequest(body);
+      const response2 = await POST(request2);
+      const data2 = await response2.json();
+
+      expect(data1.ok).toBe(true);
+      expect(data2.ok).toBe(true);
+      expect(mockOpenAICreate).toHaveBeenCalledTimes(1);
+      expect(data1.data.reportId).toBe(data2.data.reportId);
+    });
+
     it('should return cached report on duplicate request', async () => {
       const { getCachedReport } = await import('@/lib/ai-astrology/reportCache');
       
