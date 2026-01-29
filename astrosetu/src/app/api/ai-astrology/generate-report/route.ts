@@ -52,33 +52,18 @@ import {
   deterministicSkeleton,
   mergeReportContentWithSkeleton,
 } from "@/lib/ai-astrology/deterministicSkeleton";
+import { isProcessingStale } from "@/lib/ai-astrology/reportProcessing";
 
-function getMaxProcessingMs(reportType: ReportType): number {
-  // Upper bound watchdog. Without heartbeats in serverless, "processing" can become permanent if a function times out.
-  // Keep this conservative but not infinite. UI already tells users they can refresh after ~2 minutes.
-  switch (reportType) {
-    case "life-summary":
-      return 2 * 60 * 1000; // 2 min
-    case "year-analysis":
-      return 4 * 60 * 1000; // 4 min
-    case "full-life":
-    case "major-life-phase":
-      return 6 * 60 * 1000; // 6 min
-    default:
-      return 4 * 60 * 1000;
-  }
+function logJobStart(params: { requestId: string; reportType: ReportType; isPaidReport: boolean; paymentIntentId?: string | null }) {
+  console.log("[JOB_START]", JSON.stringify(params));
 }
 
-function parseIsoToMs(iso: string | null | undefined): number | null {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  return Number.isFinite(t) ? t : null;
+function logJobComplete(params: { requestId: string; reportId: string; reportType: ReportType; outcome: string; isBasicVersion?: boolean }) {
+  console.log("[JOB_COMPLETE]", JSON.stringify(params));
 }
 
-function isProcessingStale(params: { updatedAtIso?: string | null; reportType?: ReportType }): boolean {
-  const updatedMs = parseIsoToMs(params.updatedAtIso);
-  if (!updatedMs || !params.reportType) return false;
-  return Date.now() - updatedMs > getMaxProcessingMs(params.reportType);
+function logJobFailTimeout(params: { requestId: string; reportId?: string; reportType?: ReportType; reason: string }) {
+  console.warn("[JOB_FAIL_TIMEOUT]", JSON.stringify({ ...params, retryable: true }));
 }
 
 async function recoverStaleProcessingReport({
@@ -104,6 +89,14 @@ async function recoverStaleProcessingReport({
     idempotencyKey: storedReport.idempotency_key,
     reportId: storedReport.report_id,
     content: basicContent,
+  });
+
+  logJobComplete({
+    requestId,
+    reportId: storedReport.report_id,
+    reportType: storedReport.report_type as ReportType,
+    outcome: "stale_recovery",
+    isBasicVersion: true,
   });
 
   console.warn("[STALE PROCESSING RECOVERED]", {
@@ -346,6 +339,12 @@ export async function GET(req: NextRequest) {
             errorMessage: "Report generation timed out. Please refresh and try again.",
             errorCode: "GENERATION_TIMEOUT",
           });
+          logJobFailTimeout({
+            requestId,
+            reportId,
+            reportType,
+            reason: "processing_timeout",
+          });
         } catch {
           // ignore
         }
@@ -357,10 +356,14 @@ export async function GET(req: NextRequest) {
               status: "failed" as const,
               reportId,
               message: "Report generation timed out. Please refresh and try again.",
+              retryable: true,
             },
             requestId,
           },
-          { status: 200, headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" } }
+          {
+            status: 409,
+            headers: { "X-Request-ID": requestId, "Cache-Control": "no-cache" },
+          }
         );
       }
     }
@@ -663,6 +666,12 @@ export async function POST(req: Request) {
       elapsedMs: Date.now() - startTime,
     };
     console.log("[REQUEST PARSED]", JSON.stringify(requestDetailsLog, null, 2));
+    logJobStart({
+      requestId,
+      reportType,
+      isPaidReport: isPaidReportType(reportType),
+      paymentIntentId: paymentIntentId || null,
+    });
 
     // Check for demo mode and test user (needed for payment cancellation checks)
     // NOTE: Test users bypass payment by default to avoid payment verification errors
@@ -920,39 +929,77 @@ export async function POST(req: Request) {
       }
 
       if (storedExisting.status === "processing") {
-      const storedReportType = storedExisting.report_type;
+        const storedReportType = storedExisting.report_type;
 
-      if (isProcessingStale({ updatedAtIso: storedExisting.updated_at, reportType: storedReportType })) {
-        if (isPaidReportType(storedReportType)) {
-          const completedAt = new Date().toISOString();
-          const fallbackContent = await recoverStaleProcessingReport({
-            storedReport: storedExisting,
-            requestId,
-          });
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split("/api")[0];
-          const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(
-            storedExisting.report_id
-          )}&reportType=${encodeURIComponent(storedReportType)}`;
-          const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+        if (isProcessingStale({ updatedAtIso: storedExisting.updated_at, reportType: storedReportType })) {
+          if (isPaidReportType(storedReportType)) {
+            const completedAt = new Date().toISOString();
+            const fallbackContent = await recoverStaleProcessingReport({
+              storedReport: storedExisting,
+              requestId,
+            });
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split("/api")[0];
+            const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(
+              storedExisting.report_id
+            )}&reportType=${encodeURIComponent(storedReportType)}`;
+            const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+
+            return NextResponse.json(
+              {
+                ok: true,
+                data: {
+                  status: "completed" as const,
+                  reportId: storedExisting.report_id,
+                  reportType: storedReportType,
+                  input: storedExisting.input,
+                  content: fallbackContent,
+                  generatedAt: completedAt,
+                  redirectUrl,
+                  fullRedirectUrl,
+                  isBasicVersion: true,
+                  qualityWarning: "content_repair_applied",
+                },
+                requestId,
+              },
+              {
+                headers: {
+                  "X-Request-ID": requestId,
+                  "Cache-Control": "no-cache",
+                },
+              }
+            );
+          }
+
+          try {
+            await markStoredReportFailed({
+              idempotencyKey: storedExisting.idempotency_key,
+              reportId: storedExisting.report_id,
+              errorMessage: "Report generation timed out. Please refresh and try again.",
+              errorCode: "GENERATION_TIMEOUT",
+            });
+            logJobFailTimeout({
+              requestId,
+              reportId: storedExisting.report_id,
+              reportType: storedReportType,
+              reason: "processing_timeout",
+            });
+          } catch {
+            // ignore
+          }
 
           return NextResponse.json(
             {
               ok: true,
               data: {
-                status: "completed" as const,
+                status: "failed" as const,
                 reportId: storedExisting.report_id,
-                reportType: storedReportType,
-                input: storedExisting.input,
-                content: fallbackContent,
-                generatedAt: completedAt,
-                redirectUrl,
-                fullRedirectUrl,
-                isBasicVersion: true,
-                qualityWarning: "content_repair_applied",
+                message: "Report generation timed out. Please refresh and try again.",
+                retryable: true,
               },
               requestId,
             },
             {
+              status: 409,
               headers: {
                 "X-Request-ID": requestId,
                 "Cache-Control": "no-cache",
@@ -960,26 +1007,25 @@ export async function POST(req: Request) {
             }
           );
         }
-      }
 
-      return NextResponse.json(
-        {
-          ok: true,
-          data: {
-            status: "processing" as const,
-            reportId: storedExisting.report_id,
-            message: "Report generation already in progress. Please wait.",
+        return NextResponse.json(
+          {
+            ok: true,
+            data: {
+              status: "processing" as const,
+              reportId: storedExisting.report_id,
+              message: "Report generation already in progress. Please wait.",
+            },
+            requestId,
           },
-          requestId,
-        },
-        {
-          status: 202,
-          headers: {
-            "X-Request-ID": requestId,
-            "Retry-After": "10",
-          },
-        }
-      );
+          {
+            status: 202,
+            headers: {
+              "X-Request-ID": requestId,
+              "Retry-After": "10",
+            },
+          }
+        );
       }
     }
 
@@ -1814,6 +1860,12 @@ export async function POST(req: Request) {
         cacheReport(idempotencyKey, reportId, cleanedMockContent, reportType, input);
         // Persist completion (best-effort, serverless-safe)
         await markStoredReportCompleted({ idempotencyKey, reportId, content: cleanedMockContent });
+        logJobComplete({
+          requestId,
+          reportId,
+          reportType,
+          outcome: "mock_report_completed",
+        });
       }
       
       const mockLog = {
@@ -2292,6 +2344,12 @@ export async function POST(req: Request) {
           // Cache and mark as completed (with quality warning)
           cacheReport(idempotencyKey, reportId, fallbackContent, reportType, input);
           await markStoredReportCompleted({ idempotencyKey, reportId, content: fallbackContent });
+          logJobComplete({
+            requestId,
+            reportId,
+            reportType,
+            outcome: "fallback_completion",
+          });
           
           // P2.2: Structured MVP Outcome Log (per request)
           console.log("[MVP_OUTCOME_LOG]", JSON.stringify({
@@ -2346,6 +2404,13 @@ export async function POST(req: Request) {
               idempotencyKey,
               reportId,
               content: fallbackContent,
+            });
+            logJobComplete({
+              requestId,
+              reportId,
+              reportType,
+              outcome: "degradation_allowed",
+              isBasicVersion: true,
             });
             
             // Capture payment if exists (report delivered, even if short)
@@ -2441,6 +2506,13 @@ export async function POST(req: Request) {
 
             cacheReport(idempotencyKey, reportId, basicContent, reportType, input);
             await markStoredReportCompleted({ idempotencyKey, reportId, content: basicContent });
+            logJobComplete({
+              requestId,
+              reportId,
+              reportType,
+              outcome: "fallback_terminal_paid",
+              isBasicVersion: true,
+            });
 
             return NextResponse.json(
               {
@@ -2561,6 +2633,12 @@ export async function POST(req: Request) {
       cacheReport(idempotencyKey, reportId, cleanedReportContent, reportType, input);
       // Persist completion (best-effort, serverless-safe) - only after validation passes
       await markStoredReportCompleted({ idempotencyKey, reportId, content: cleanedReportContent });
+      logJobComplete({
+        requestId,
+        reportId,
+        reportType,
+        outcome: "generation_success",
+      });
       const cacheSaveLog = {
         requestId,
         timestamp: new Date().toISOString(),
@@ -2634,6 +2712,13 @@ export async function POST(req: Request) {
 
         cacheReport(idempotencyKey, reportId, basicContent, reportType, input);
         await markStoredReportCompleted({ idempotencyKey, reportId, content: basicContent });
+        logJobComplete({
+          requestId,
+          reportId,
+          reportType,
+          outcome: "error_fallback",
+          isBasicVersion: true,
+        });
 
         return NextResponse.json(
           {
