@@ -107,6 +107,19 @@ export function cacheReport(
 }
 
 /**
+ * Update the status of a cached report entry without overwriting content
+ */
+export function updateCachedReportStatus(idempotencyKey: string, status: CachedReport["status"]): void {
+  const cached = reportCache.get(idempotencyKey);
+  if (!cached) return;
+
+  cached.status = status;
+  cached.createdAt = Date.now();
+  cached.generatedAt = new Date().toISOString();
+  reportCache.set(idempotencyKey, cached);
+}
+
+/**
  * Get cached report by reportId (for status polling)
  */
 export function getCachedReportByReportId(reportId: string): CachedReport | null {

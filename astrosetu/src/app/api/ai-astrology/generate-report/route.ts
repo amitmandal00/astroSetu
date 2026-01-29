@@ -29,7 +29,7 @@ import { verifyPaymentToken, isPaidReportType } from "@/lib/ai-astrology/payment
 import { getYearAnalysisDateRange, getMarriageTimingWindows, getCareerTimingWindows, getMajorLifePhaseWindows, getDateContext } from "@/lib/ai-astrology/dateHelpers";
 import { isAllowedUser, getRestrictionMessage } from "@/lib/access-restriction";
 import { isProdTestUser } from "@/lib/prodAllowlist";
-import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing, getCachedReportByReportId } from "@/lib/ai-astrology/reportCache";
+import { generateIdempotencyKey, getCachedReport, cacheReport, markReportProcessing, getCachedReportByReportId, updateCachedReportStatus } from "@/lib/ai-astrology/reportCache";
 import { generateSessionKey } from "@/lib/ai-astrology/openAICallTracker";
 import { ensureFutureWindows } from "@/lib/ai-astrology/ensureFutureWindows";
 import { stripMockContent } from "@/lib/ai-astrology/mockContentGuard";
@@ -64,7 +64,7 @@ function logJobComplete(params: { requestId: string; reportId: string; reportTyp
 
 function logJobFailTimeout(params: { requestId: string; reportId?: string; reportType?: ReportType; reason: string }) {
   console.warn("[JOB_FAIL_TIMEOUT]", JSON.stringify({ ...params, retryable: true }));
-}
+  }
 
 async function recoverStaleProcessingReport({
   storedReport,
@@ -277,6 +277,26 @@ export async function GET(req: NextRequest) {
     
     // Prefer persistent store (serverless-safe) to avoid “stuck polling” + duplicate generations
     const storedReport = await getStoredReportByReportId(reportId);
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/555cda84-6f6c-4177-8672-172b1507482c", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "debug-session",
+        runId: "debug-run1",
+        hypothesisId: "H1",
+        location: "generate-report/route.ts:311",
+        message: "GET stored report fetched",
+        data: {
+          reportId,
+          storedStatus: storedReport?.status,
+          storedContentCount: storedReport?.content?.sections?.length ?? null,
+          isPaid: storedReport ? isPaidReportType(storedReport.report_type as ReportType) : null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (storedReport && storedReport.status === "failed") {
       return NextResponse.json(
         {
@@ -902,6 +922,26 @@ export async function POST(req: Request) {
           const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(storedExisting.report_id)}&reportType=${encodeURIComponent(reportType)}`;
           const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
 
+          // #region agent log
+          fetch("http://127.0.0.1:7242/ingest/555cda84-6f6c-4177-8672-172b1507482c", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: "debug-session",
+              runId: "debug-run1",
+              hypothesisId: "H2",
+              location: "generate-report/route.ts:933",
+              message: "POST returning cached completed stored report",
+              data: {
+                idempotencyKey,
+                storedReportId: storedExisting.report_id,
+                storedContentSections: storedExisting.content?.sections?.length ?? null,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
+
           return NextResponse.json(
             {
               ok: true,
@@ -1030,14 +1070,66 @@ export async function POST(req: Request) {
     }
 
     // Fallback: in-memory idempotency (dev-only safety net)
-    const cachedReport = getCachedReport(idempotencyKey);
+    let cachedReport = getCachedReport(idempotencyKey);
     
     if (cachedReport) {
       // CRITICAL FIX: For test users with test_session_* IDs, bypass cache to ensure fresh real reports
       if (shouldBypassCacheForTestUser) {
         console.log(`[CACHE BYPASS] Test user with ${isProdTestSession ? 'prodtest_' : 'test_session_'}* should get real report, bypassing in-memory cached report. requestId=${requestId}, reportId=${cachedReport.reportId}, isTestUser=${isTestUserForIdempotency}, isTestSession=${isTestSession}, isProdTestSession=${isProdTestSession}`);
         // Don't return cached report - continue to generate new real report
-      } else {
+      } else if (cachedReport.status === "processing") {
+        const healedReport = await getStoredReportByReportId(cachedReport.reportId);
+        if (healedReport && healedReport.status === "completed" && healedReport.content) {
+          console.log("[CACHE_HEAL] Completed report detected during processing cache hit", {
+            requestId,
+            reportId: healedReport.report_id,
+            idempotencyKey: healedReport.idempotency_key,
+          });
+          cacheReport(
+            idempotencyKey,
+            healedReport.report_id,
+            healedReport.content,
+            healedReport.report_type,
+            healedReport.input
+          );
+          cachedReport = getCachedReport(idempotencyKey);
+        }
+
+        if (cachedReport && cachedReport.status === "processing") {
+          const processingLog = {
+            requestId,
+            timestamp: new Date().toISOString(),
+            action: "CACHE_HIT_PROCESSING",
+            idempotencyKey: idempotencyKey.substring(0, 30) + "...",
+            reportId: cachedReport.reportId,
+            reportType,
+            status: cachedReport.status,
+            elapsedMs: Date.now() - startTime,
+          };
+          console.log("[IDEMPOTENCY CACHE HIT]", JSON.stringify(processingLog, null, 2));
+          return NextResponse.json(
+            {
+              ok: true,
+              data: {
+                status: "processing" as const,
+                reportId: cachedReport.reportId,
+                message: "Report generation already in progress. Please wait.",
+              },
+              requestId,
+            },
+            {
+              status: 202,
+              headers: {
+                "X-Request-ID": requestId,
+                "Cache-Control": "no-cache",
+                "Retry-After": "10",
+              },
+            }
+          );
+        }
+      }
+
+      if (cachedReport && cachedReport.status === "completed") {
         // Report already exists - return cached version (NO OpenAI call)
         const cacheHitLog = {
           requestId,
@@ -2504,6 +2596,25 @@ export async function POST(req: Request) {
             const { buildBasicFallbackReport } = await import("@/lib/ai-astrology/deterministicFallback");
             const basicContent = buildBasicFallbackReport(reportType);
 
+        // #region agent log
+        fetch("http://127.0.0.1:7242/ingest/555cda84-6f6c-4177-8672-172b1507482c", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: "debug-session",
+            runId: "debug-run1",
+            hypothesisId: "H3",
+            location: "generate-report/route.ts:2438",
+            message: "Fallback basic content for paid report",
+            data: {
+              reportType,
+              sections: basicContent.sections.length,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+
             cacheReport(idempotencyKey, reportId, basicContent, reportType, input);
             await markStoredReportCompleted({ idempotencyKey, reportId, content: basicContent });
             logJobComplete({
@@ -2528,7 +2639,7 @@ export async function POST(req: Request) {
               { status: 200 }
             );
           }
-
+          
           // Terminal failure for all other cases (MVP Rule #4)
           console.error("[FALLBACK FAILED - TERMINAL FAILURE]", {
             requestId,
@@ -2702,6 +2813,7 @@ export async function POST(req: Request) {
     // Provide user-friendly error message without exposing internal details
     const errorMessage = error.message || "Unknown error";
     const errorString = JSON.stringify(error).toLowerCase();
+    updateCachedReportStatus(idempotencyKey, "failed");
 
       // CRITICAL FIX (ChatGPT Feedback): Always stop heartbeat on error
       stopHeartbeat();
