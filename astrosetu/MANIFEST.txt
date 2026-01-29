@@ -1,3 +1,18 @@
+# AI Astrology release zip manifest
+
+Included in `ai-astrology_latest.zip`:
+- `src/` (all application source)
+- `docs/` (documentation and runbooks)
+- `tests/` (unit, integration, regression, and e2e suites)
+- `public/` (static assets)
+- `.github/workflows/` (CI definitions)
+- Configs: `package.json`, `package-lock.json`, `next.config.mjs`, `tsconfig.json`
+- Docs: `README.md`, `RUNBOOK.md`, `MANIFEST.txt`
+
+Zip command:
+```
+zip -r ai-astrology_latest.zip src docs tests public .github/workflows package.json package-lock.json next.config.mjs tsconfig.json README.md RUNBOOK.md MANIFEST.txt
+```
 .github/workflows/regression-check.yml
 README.md
 RUNBOOK.md

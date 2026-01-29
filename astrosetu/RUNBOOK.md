@@ -18,3 +18,9 @@ npm run type-check
 npm run test:integration:critical
 ```
 
+4. Build release zip:
+
+```bash
+zip -r ai-astrology_latest.zip src docs tests public .github/workflows package.json package-lock.json next.config.mjs tsconfig.json README.md RUNBOOK.md MANIFEST.txt
+```
+
