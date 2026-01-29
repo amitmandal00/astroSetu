@@ -13,7 +13,7 @@ interface CachedReport {
   reportType: ReportType;
   input: AIAstrologyInput;
   generatedAt: string;
-  status: "completed" | "processing";
+  status: "completed" | "processing" | "failed";
   createdAt: number; // Timestamp for TTL
 }
 
