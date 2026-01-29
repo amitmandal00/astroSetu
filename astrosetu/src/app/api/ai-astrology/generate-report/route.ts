@@ -42,6 +42,7 @@ import {
   updateStoredReportHeartbeat,
   markStoredReportRefunded,
   type ReportErrorCode,
+  type StoredReportRow,
 } from "@/lib/ai-astrology/reportStore";
 import { validateReportBeforeCompletion, ValidationResult } from "@/lib/ai-astrology/reportValidation";
 import { parseEnvBoolean, calculateReportMode } from "@/lib/envParsing";
@@ -78,6 +79,40 @@ function isProcessingStale(params: { updatedAtIso?: string | null; reportType?: 
   const updatedMs = parseIsoToMs(params.updatedAtIso);
   if (!updatedMs || !params.reportType) return false;
   return Date.now() - updatedMs > getMaxProcessingMs(params.reportType);
+}
+
+async function recoverStaleProcessingReport({
+  storedReport,
+  requestId,
+}: {
+  storedReport: StoredReportRow;
+  requestId: string;
+}): Promise<ReportContent> {
+  const { buildBasicFallbackReport } = await import("@/lib/ai-astrology/deterministicFallback");
+
+  const basicContent = buildBasicFallbackReport(storedReport.report_type);
+
+  cacheReport(
+    storedReport.idempotency_key,
+    storedReport.report_id,
+    basicContent,
+    storedReport.report_type,
+    storedReport.input
+  );
+
+  await markStoredReportCompleted({
+    idempotencyKey: storedReport.idempotency_key,
+    reportId: storedReport.report_id,
+    content: basicContent,
+  });
+
+  console.warn("[STALE PROCESSING RECOVERED]", {
+    requestId,
+    reportId: storedReport.report_id,
+    reportType: storedReport.report_type,
+  });
+
+  return basicContent;
 }
 
 type ReportFootprint = {
@@ -265,9 +300,45 @@ export async function GET(req: NextRequest) {
     }
 
     if (storedReport && storedReport.status === "processing") {
-      // Watchdog: if a serverless function timed out/crashed, we can get stuck in processing forever.
-      // When stale, mark failed and surface a safe retry message.
-      if (isProcessingStale({ updatedAtIso: storedReport.updated_at, reportType: storedReport.report_type as any })) {
+      const reportType = storedReport.report_type;
+
+      if (isProcessingStale({ updatedAtIso: storedReport.updated_at, reportType })) {
+        if (isPaidReportType(reportType)) {
+          const fallbackContent = await recoverStaleProcessingReport({ storedReport, requestId });
+          const completedAt = new Date().toISOString();
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split("/api")[0];
+          const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(
+            reportId
+          )}&reportType=${encodeURIComponent(reportType)}`;
+          const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+
+          return NextResponse.json(
+            {
+              ok: true,
+              data: {
+                status: "completed" as const,
+                reportId,
+                reportType,
+                input: storedReport.input,
+                content: fallbackContent,
+                generatedAt: completedAt,
+                redirectUrl,
+                fullRedirectUrl,
+                isBasicVersion: true,
+                qualityWarning: "content_repair_applied",
+              },
+              requestId,
+            },
+            {
+              status: 200,
+              headers: {
+                "X-Request-ID": requestId,
+                "Cache-Control": "no-cache",
+              },
+            }
+          );
+        }
+
         try {
           await markStoredReportFailed({
             idempotencyKey: storedReport.idempotency_key,
@@ -278,6 +349,7 @@ export async function GET(req: NextRequest) {
         } catch {
           // ignore
         }
+
         return NextResponse.json(
           {
             ok: true,
@@ -848,24 +920,66 @@ export async function POST(req: Request) {
       }
 
       if (storedExisting.status === "processing") {
-        return NextResponse.json(
-          {
-            ok: true,
-            data: {
-              status: "processing" as const,
-              reportId: storedExisting.report_id,
-              message: "Report generation already in progress. Please wait.",
-            },
+      const storedReportType = storedExisting.report_type;
+
+      if (isProcessingStale({ updatedAtIso: storedExisting.updated_at, reportType: storedReportType })) {
+        if (isPaidReportType(storedReportType)) {
+          const completedAt = new Date().toISOString();
+          const fallbackContent = await recoverStaleProcessingReport({
+            storedReport: storedExisting,
             requestId,
-          },
-          {
-            status: 202,
-            headers: {
-              "X-Request-ID": requestId,
-              "Retry-After": "10",
+          });
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.url.split("/api")[0];
+          const redirectUrl = `/ai-astrology/preview?reportId=${encodeURIComponent(
+            storedExisting.report_id
+          )}&reportType=${encodeURIComponent(storedReportType)}`;
+          const fullRedirectUrl = `${baseUrl}${redirectUrl}`;
+
+          return NextResponse.json(
+            {
+              ok: true,
+              data: {
+                status: "completed" as const,
+                reportId: storedExisting.report_id,
+                reportType: storedReportType,
+                input: storedExisting.input,
+                content: fallbackContent,
+                generatedAt: completedAt,
+                redirectUrl,
+                fullRedirectUrl,
+                isBasicVersion: true,
+                qualityWarning: "content_repair_applied",
+              },
+              requestId,
             },
-          }
-        );
+            {
+              headers: {
+                "X-Request-ID": requestId,
+                "Cache-Control": "no-cache",
+              },
+            }
+          );
+        }
+      }
+
+      return NextResponse.json(
+        {
+          ok: true,
+          data: {
+            status: "processing" as const,
+            reportId: storedExisting.report_id,
+            message: "Report generation already in progress. Please wait.",
+          },
+          requestId,
+        },
+        {
+          status: 202,
+          headers: {
+            "X-Request-ID": requestId,
+            "Retry-After": "10",
+          },
+        }
+      );
       }
     }
 
