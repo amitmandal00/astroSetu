@@ -1072,7 +1072,7 @@ export async function POST(req: Request) {
     // Fallback: in-memory idempotency (dev-only safety net)
     let cachedReport = getCachedReport(idempotencyKey);
     if (cachedReport && cachedReport.status === "processing") {
-      const STALE_PROCESSING_MS = 2 * 60 * 1000; // 2 minutes
+      const STALE_PROCESSING_MS = 90 * 1000; // 90 seconds
       const processingAge = Date.now() - cachedReport.createdAt;
       if (processingAge >= STALE_PROCESSING_MS) {
         console.warn("[CACHE_HEAL_STALE] Processing entry stale, injecting basic fallback", {
