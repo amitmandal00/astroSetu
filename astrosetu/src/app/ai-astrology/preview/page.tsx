@@ -601,10 +601,12 @@ function PreviewContent() {
         console.log(`[CLIENT] Report is processing, starting polling for reportId: ${response.data.reportId}`);
         const reportId = response.data.reportId;
         
-        // Poll every 3 seconds for report completion
-        const pollIntervals = [2000, 3000, 5000, 8000];
+        // Poll with backoff: start 2s, +2s per attempt, cap at 8s
+        const basePollInterval = 2000;
+        const pollIncrement = 2000;
+        const maxPollInterval = 8000;
         const getCurrentPollInterval = () =>
-          pollIntervals[Math.min(pollAttempts, pollIntervals.length - 1)];
+          Math.min(basePollInterval + (pollAttempts - 1) * pollIncrement, maxPollInterval);
         const maxPollAttempts = Math.floor(clientTimeout / 2000); // Don't poll longer than timeout
         let pollAttempts = 0;
         let pollingAborted = false; // CRITICAL FIX: Track if polling should stop

@@ -83,7 +83,7 @@ CRITICAL REPETITION RULES:
 - Avoid repeating similar ideas across Summary, Breakdown, and Conclusion sections
 
 REPORT-SPECIFIC INTELLIGENCE LAYERS (CRITICAL - Use different approaches per report type):
-- Full Life Report: Integrated, coherent narrative covering all major life areas. Focus on life patterns and integration. Single coherent report, not stitched sub-reports. Target: ~1100-1300 words (MVP streamlined).
+- Full Life Report: Integrated, coherent narrative covering all major life areas. Focus on life patterns and integration. Single coherent report, not stitched sub-reports. Target: 1300+ words (MVP streamlined but not short).
 - Year Analysis Report: Tactical, calendar-based guidance. Focus on quarterly breakdowns and actionable timing. MVP structure: 4-6 core sections only. Target: ~800-900 words.
 - Life Phase Report: Strategic, directional guidance. Focus on 3-5 year transitions, major opportunities, and directional shifts. Avoid repeating year-by-year details.
 - Monthly Outlook: Lightweight, reflective guidance. Focus on current themes, gentle awareness, and mindset shifts. Avoid deep analysis or predictions.
@@ -111,7 +111,8 @@ CRITICAL:
 - Avoid repeating similar traits
 - End each section with "What this means for you" in plain English (ONLY in main sections, not subsections)
 - Prioritize clarity over completeness
-- Compress text by ~20% - be concise and impactful
+- Be concise, but NEVER undershoot the minimum word-count targets.
+- Always return valid JSON with ≥ minimum sections; never return 0 sections.
 `;
 
 export const AI_PROMPT_TEMPLATES = {

@@ -1071,6 +1071,37 @@ export async function POST(req: Request) {
 
     // Fallback: in-memory idempotency (dev-only safety net)
     let cachedReport = getCachedReport(idempotencyKey);
+    if (cachedReport && cachedReport.status === "processing") {
+      const STALE_PROCESSING_MS = 2 * 60 * 1000; // 2 minutes
+      const processingAge = Date.now() - cachedReport.createdAt;
+      if (processingAge >= STALE_PROCESSING_MS) {
+        console.warn("[CACHE_HEAL_STALE] Processing entry stale, injecting basic fallback", {
+          requestId,
+          reportId: cachedReport.reportId,
+          reportType: cachedReport.reportType,
+          ageMs: processingAge,
+        });
+        const { buildBasicFallbackReport } = await import("@/lib/ai-astrology/deterministicFallback");
+        const fallbackContent = buildBasicFallbackReport(cachedReport.reportType);
+        cacheReport(
+          idempotencyKey,
+          cachedReport.reportId,
+          fallbackContent,
+          cachedReport.reportType,
+          cachedReport.input
+        );
+        try {
+          await markStoredReportCompleted({
+            idempotencyKey,
+            reportId: cachedReport.reportId,
+            content: fallbackContent,
+          });
+        } catch (storageError) {
+          console.warn("[CACHE_HEAL_STALE] markStoredReportCompleted failed (non-blocking):", storageError);
+        }
+        cachedReport = getCachedReport(idempotencyKey);
+      }
+    }
     
     if (cachedReport) {
       // CRITICAL FIX: For test users with test_session_* IDs, bypass cache to ensure fresh real reports
