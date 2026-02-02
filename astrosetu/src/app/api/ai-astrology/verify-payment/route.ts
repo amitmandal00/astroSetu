@@ -30,6 +30,7 @@ export async function GET(req: Request) {
     // Get session ID from query params
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id");
+    const requestParams = Object.fromEntries(searchParams.entries());
 
     const badPlaceholder =
       !sessionId ||
@@ -37,6 +38,10 @@ export async function GET(req: Request) {
       sessionId.includes("%7BCHECKOUT_SESSION_ID%7D");
 
     if (badPlaceholder) {
+      console.warn("[verify-payment] Invalid request parameters - missing or malformed session_id", {
+        requestId,
+        params: requestParams,
+      });
       return NextResponse.json(
         {
           ok: false,
