@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
 // CRITICAL FIX (ChatGPT 23:57): Fetch build ID from /build.json (100% reliable)
@@ -15,49 +15,6 @@ import Link from "next/link";
 
 export function AIFooter() {
   const [isLegalOpen, setIsLegalOpen] = useState(false);
-  const [buildId, setBuildId] = useState<string>("...");
-
-  // CRITICAL FIX (ChatGPT 23:57): Fetch build ID from /build.json on mount
-  // This ensures build ID matches actual deployed commit, even if env vars aren't set correctly
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const res = await fetch("/build.json", {
-          cache: "no-store",
-          headers: { "cache-control": "no-cache" },
-        });
-
-        if (!res.ok) {
-          throw new Error(`build.json ${res.status}`);
-        }
-
-        const data = await res.json();
-        if (!cancelled) {
-          // CRITICAL FIX (ChatGPT Step 0): Show FULL commit SHA for complete verification
-          // Show both short (7-char) and full SHA: "Build: cbb7d53 (cbb7d532...)" or just full SHA
-          const fullSha = data?.fullSha || data?.buildId || "unknown";
-          const shortId = data?.buildId || (fullSha !== "unknown" ? String(fullSha).slice(0, 7) : "unknown");
-          // Show full SHA if available, otherwise fallback to short ID
-          // CRITICAL: If fullSha is "unknown", check if buildId is valid before falling back
-          const displayId = fullSha !== "unknown" ? fullSha : (shortId !== "unknown" ? shortId : "unknown");
-          setBuildId(displayId);
-          // CRITICAL FIX (ChatGPT Step 0): Log BUILD_ID once per page load
-          console.log("[BUILD_ID]", fullSha || shortId || "unknown");
-        }
-      } catch (error) {
-        console.warn("[Footer] Failed to fetch build.json:", error);
-        if (!cancelled) {
-          setBuildId("unknown");
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   return (
     <footer className="bg-white border-t border-slate-200 mt-auto">
@@ -79,8 +36,6 @@ export function AIFooter() {
             <p className="text-xs text-slate-500">© {new Date().getFullYear()} AstroSetu AI</p>
             <p className="text-xs text-slate-500">Operated by MindVeda</p>
             <p className="text-xs text-slate-600 font-medium">ABN: 60 656 401 253</p>
-            {/* CRITICAL FIX (ChatGPT 23:57): Build ID stamp for deployment verification (from /build.json) */}
-            <p className="text-xs text-slate-400 font-mono mt-2">Build: {buildId}</p>
           </div>
 
           {/* Middle Column: Important Notice */}
