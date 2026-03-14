@@ -397,10 +397,9 @@ function PreviewContent() {
     [searchParams]
   );
 
-  useEffect(() => {
-    if (!navigationIsBack) return;
-    if (reportContent) return;
-    if (typeof window === "undefined") return;
+  const tryRestoreFromLastReport = useCallback((): boolean => {
+    if (reportContent) return false;
+    if (typeof window === "undefined") return false;
 
     let cachedReportId: string | null = null;
     try {
@@ -418,13 +417,33 @@ function PreviewContent() {
 
     const reportIdFromUrl = searchParams.get("reportId");
     const reportIdToLoad = reportIdFromUrl || cachedReportId;
-    if (!reportIdToLoad) return;
+    if (!reportIdToLoad) return false;
 
     const hydrated = hydrateReportFromStorage(reportIdToLoad);
     if (hydrated) {
-      console.log("[Preview] Restored report after back navigation:", reportIdToLoad);
+      console.log("[Preview] Restored report after navigation:", reportIdToLoad);
     }
-  }, [navigationIsBack, reportContent, hydrateReportFromStorage, searchParams]);
+    return hydrated;
+  }, [hydrateReportFromStorage, reportContent, searchParams]);
+
+  useEffect(() => {
+    if (!navigationIsBack) return;
+    tryRestoreFromLastReport();
+  }, [navigationIsBack, tryRestoreFromLastReport]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted && !navigationIsBack) {
+        return;
+      }
+      tryRestoreFromLastReport();
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [navigationIsBack, tryRestoreFromLastReport]);
 
   const getReportName = (type: ReportType | null) => {
     switch (type) {
