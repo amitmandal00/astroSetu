@@ -76,19 +76,44 @@ export function Footer() {
           {/* Center: Legal Links */}
           <div>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
-              <Link href="/privacy" className="hover:text-saffron-600 transition-colors">
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-saffron-600 transition-colors"
+              >
                 Privacy
               </Link>
-              <Link href="/terms" className="hover:text-saffron-600 transition-colors">
+              <Link
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-saffron-600 transition-colors"
+              >
                 Terms
               </Link>
-              <Link href="/disclaimer" className="hover:text-saffron-600 transition-colors">
+              <Link
+                href="/disclaimer"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-saffron-600 transition-colors"
+              >
                 Disclaimer
               </Link>
-              <Link href="/refund" className="hover:text-saffron-600 transition-colors">
+              <Link
+                href="/refund"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-saffron-600 transition-colors"
+              >
                 Refund
               </Link>
-              <Link href="/cookies" className="hover:text-saffron-600 transition-colors">
+              <Link
+                href="/cookies"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-saffron-600 transition-colors"
+              >
                 Cookies
               </Link>
             </div>
