@@ -116,6 +116,7 @@ function PreviewContent() {
   const [emailCopySuccess, setEmailCopySuccess] = useState(false);
   const [loadingStage, setLoadingStage] = useState<"verifying" | "generating" | null>(null); // Track loading stage for better UX
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null); // Track when loading started for elapsed time
+  const [navigationIsBack, setNavigationIsBack] = useState(false);
 
   useEffect(() => {
     if (!reportContent) return;
@@ -139,6 +140,18 @@ function PreviewContent() {
     setPaymentCheckComplete(true);
   }, [sessionIdFromUrl]);
   
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let navType: string | undefined;
+    const entries = window.performance?.getEntriesByType("navigation") as PerformanceNavigationTiming[] | undefined;
+    if (entries && entries.length > 0) {
+      navType = entries[0]?.type;
+    } else if ("navigation" in window.performance) {
+      navType = window.performance.navigation.type === 2 ? "back_forward" : "navigate";
+    }
+    setNavigationIsBack(navType === "back_forward");
+  }, []);
+
   // CRITICAL FIX: Use generation controller hook for report generation
   // This provides single-flight guard, cancellation, and state machine
   // CRITICAL FIX (ChatGPT): Controller now owns ALL report types (free, year-analysis, paid)
@@ -329,6 +342,89 @@ function PreviewContent() {
       return null;
     }
   }, []);
+
+  const persistLastReportId = useCallback((reportId: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      sessionStorage.setItem("aiAstrologyLastReportId", reportId);
+    } catch {
+      // ignore
+    }
+    try {
+      localStorage.setItem("aiAstrologyLastReportId", reportId);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const hydrateReportFromStorage = useCallback(
+    (reportId: string): boolean => {
+      if (typeof window === "undefined" || !reportId) return false;
+      try {
+        let storedReport = sessionStorage.getItem(`aiAstrologyReport_${reportId}`);
+        if (!storedReport) {
+          storedReport = localStorage.getItem(`aiAstrologyReport_${reportId}`);
+        }
+        if (!storedReport) {
+          return false;
+        }
+
+        const parsed = JSON.parse(storedReport);
+        const sessionIdFromUrl = searchParams.get("session_id");
+        const isTestSession =
+          sessionIdFromUrl?.startsWith("test_session_") || reportId?.startsWith("test_session_") || false;
+        const cleanedContent = stripMockContent(parsed.content, isTestSession);
+
+        setReportContent(cleanedContent);
+        setContentLoadTime(Date.now());
+        const newReportType = parsed.reportType || (searchParams.get("reportType") as ReportType) || "life-summary";
+        reportTypeRef.current = newReportType;
+        setReportType(newReportType);
+        setInput(parsed.input);
+        setLoading(false);
+        setLoadingStage(null);
+        setError(null);
+        setGenerationTimedOut(false);
+        setQualityWarning(null);
+        setDownloadingPDF(false);
+
+        return true;
+      } catch (error) {
+        console.warn("[Preview] Failed to hydrate stored report:", error);
+      }
+      return false;
+    },
+    [searchParams]
+  );
+
+  useEffect(() => {
+    if (!navigationIsBack) return;
+    if (reportContent) return;
+    if (typeof window === "undefined") return;
+
+    let cachedReportId: string | null = null;
+    try {
+      cachedReportId = sessionStorage.getItem("aiAstrologyLastReportId");
+    } catch {
+      // ignore
+    }
+    if (!cachedReportId) {
+      try {
+        cachedReportId = localStorage.getItem("aiAstrologyLastReportId");
+      } catch {
+        // ignore
+      }
+    }
+
+    const reportIdFromUrl = searchParams.get("reportId");
+    const reportIdToLoad = reportIdFromUrl || cachedReportId;
+    if (!reportIdToLoad) return;
+
+    const hydrated = hydrateReportFromStorage(reportIdToLoad);
+    if (hydrated) {
+      console.log("[Preview] Restored report after back navigation:", reportIdToLoad);
+    }
+  }, [navigationIsBack, reportContent, hydrateReportFromStorage, searchParams]);
 
   const getReportName = (type: ReportType | null) => {
     switch (type) {
@@ -735,6 +831,7 @@ function PreviewContent() {
                     });
                     sessionStorage.setItem(`aiAstrologyReport_${statusData.data.reportId}`, reportData);
                     localStorage.setItem(`aiAstrologyReport_${statusData.data.reportId}`, reportData);
+                    persistLastReportId(statusData.data.reportId);
                     console.log("[CLIENT] Stored cleaned report content from polling");
                     
                     // CRITICAL FIX: Update React state with cleaned report content
@@ -906,6 +1003,7 @@ function PreviewContent() {
             // Save to both sessionStorage (current session) and localStorage (persists across refreshes)
             sessionStorage.setItem(`aiAstrologyReport_${reportId}`, reportData);
             localStorage.setItem(`aiAstrologyReport_${reportId}`, reportData);
+            persistLastReportId(reportId);
             console.log("[CLIENT] Stored report content in sessionStorage and localStorage for reportId:", reportId);
           } catch (storageError) {
             console.warn("[CLIENT] Failed to store report in storage:", storageError);
