@@ -2350,6 +2350,8 @@ export async function downloadPDF(
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
+      link.target = "_blank";
+      link.rel = "noreferrer noopener";
       link.download = filename || `${bundleFilename}-${input.name}-${new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
@@ -2371,6 +2373,8 @@ export async function downloadPDF(
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
+      link.target = "_blank";
+      link.rel = "noreferrer noopener";
       link.download = filename || `${reportType}-${input.name}-${new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
